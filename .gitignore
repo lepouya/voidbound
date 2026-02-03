@@ -1,0 +1,109 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnp
+.pnp.js
+
+# =========================
+# Build Outputs
+# =========================
+dist/
+dist-ssr/
+/build/
+*.local
+
+# SvelteKit
+/.svelte-kit/
+/package/
+
+# Tauri
+/src-tauri/target/
+/src-tauri/WixTools/
+/src-tauri/gen/
+
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# Editor & IDE
+# =========================
+# VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# JetBrains
+.idea/
+*.iml
+
+# Vim
+*.sw?
+*.swp
+*.swo
+*~
+
+# Visual Studio
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.user
+
+# =========================
+# OS Generated
+# =========================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# Testing & Coverage
+# =========================
+coverage/
+.nyc_output/
+*.lcov
+.vitest/
+
+# =========================
+# Cache & Temp
+# =========================
+.cache/
+.parcel-cache/
+.turbo/
+*.tsbuildinfo
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# =========================
+# Debug
+# =========================
+.eslintcache
+.stylelintcache
+
+# =========================
+# Misc
+# =========================
+*.pem
+.vercel
+.netlify
