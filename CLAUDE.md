@@ -25,6 +25,10 @@ deno task tauri ios init && deno task tauri ios dev
 
 The Vite dev server runs on port 1420 with HMR on port 1421.
 
+## Code Formatting
+
+Always run `prettier --write` on any source files you modify before considering the task complete.
+
 ## Architecture
 
 **Frontend (src/):**

@@ -1,47 +1,59 @@
 import * as ex from "excalibur";
 
 import { Player } from "./player";
+import { buildTileMap } from "./tilemap";
 
 export class MyLevel extends ex.Scene {
+  private dragging = false;
+  private lastScreenPos: ex.Vector | null = null;
+
   override onInitialize(engine: ex.Engine): void {
-    // Scene.onInitialize is where we recommend you perform the composition for your game
+    this.setupScene(engine);
+  }
+
+  private async setupScene(engine: ex.Engine): Promise<void> {
+    const tilemap = await buildTileMap();
+    this.add(tilemap);
+
     const player = new Player();
-    this.add(player); // Actors need to be added to a scene to be drawn
-  }
+    this.add(player);
 
-  override onPreLoad(loader: ex.DefaultLoader): void {
-    // Add any scene specific resources to load
-  }
+    this.camera.x = engine.halfDrawWidth;
+    this.camera.y = engine.halfDrawHeight;
+    this.camera.zoom = 1;
 
-  override onActivate(context: ex.SceneActivationContext<unknown>): void {
-    // Called when Excalibur transitions to this scene
-    // Only 1 scene is active at a time
-  }
+    const pointers = engine.input.pointers.primary;
 
-  override onDeactivate(context: ex.SceneActivationContext): void {
-    // Called when Excalibur transitions away from this scene
-    // Only 1 scene is active at a time
-  }
+    pointers.on("down", (evt) => {
+      this.dragging = true;
+      this.lastScreenPos = evt.screenPos.clone();
+    });
 
-  override onPreUpdate(engine: ex.Engine, elapsedMs: number): void {
-    // Called before anything updates in the scene
-  }
+    const mapWidth = tilemap.columns * tilemap.tileWidth;
+    const mapHeight = tilemap.rows * tilemap.tileHeight;
 
-  override onPostUpdate(engine: ex.Engine, elapsedMs: number): void {
-    // Called after everything updates in the scene
-  }
+    pointers.on("move", (evt) => {
+      if (!this.dragging || !this.lastScreenPos) return;
+      const delta = this.lastScreenPos.sub(evt.screenPos);
+      this.camera.x += delta.x / this.camera.zoom;
+      this.camera.y += delta.y / this.camera.zoom;
 
-  override onPreDraw(
-    ctx: ex.ExcaliburGraphicsContext,
-    elapsedMs: number,
-  ): void {
-    // Called before Excalibur draws to the screen
-  }
+      const halfW = engine.halfDrawWidth / this.camera.zoom;
+      const halfH = engine.halfDrawHeight / this.camera.zoom;
+      this.camera.x = ex.clamp(this.camera.x, halfW, mapWidth - halfW);
+      this.camera.y = ex.clamp(this.camera.y, halfH, mapHeight - halfH);
 
-  override onPostDraw(
-    ctx: ex.ExcaliburGraphicsContext,
-    elapsedMs: number,
-  ): void {
-    // Called after Excalibur draws to the screen
+      this.lastScreenPos = evt.screenPos.clone();
+    });
+
+    pointers.on("up", () => {
+      this.dragging = false;
+      this.lastScreenPos = null;
+    });
+
+    pointers.on("cancel", () => {
+      this.dragging = false;
+      this.lastScreenPos = null;
+    });
   }
 }
