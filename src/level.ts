@@ -1,7 +1,7 @@
 import * as ex from "excalibur";
 
 import { Player } from "./player";
-import { buildTileMap } from "./tilemap";
+import { buildTileMap, createTileActor } from "./tilemap";
 
 export class MyLevel extends ex.Scene {
   private dragging = false;
@@ -12,11 +12,31 @@ export class MyLevel extends ex.Scene {
   }
 
   private async setupScene(engine: ex.Engine): Promise<void> {
-    const tilemap = await buildTileMap();
+    const tilemap = await buildTileMap("TestTileset");
     this.add(tilemap);
 
     const player = new Player();
     this.add(player);
+
+    const ss1Actor = createTileActor(tilemap, {
+      tileset: "ss1-base",
+      tileId: 0,
+      col: 1,
+      row: 1,
+      width: 4,
+      height: 4,
+    });
+    this.add(ss1Actor);
+
+    const ss1DamagedActor = createTileActor(tilemap, {
+      tileset: "ss1-damaged",
+      tileId: 0,
+      col: 6,
+      row: 1,
+      width: 4,
+      height: 4,
+    });
+    this.add(ss1DamagedActor);
 
     this.camera.x = engine.halfDrawWidth;
     this.camera.y = engine.halfDrawHeight;
