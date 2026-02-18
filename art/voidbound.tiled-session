@@ -1,0 +1,34 @@
+{
+    "activeFile": "ss1-damaged.tsx",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "ss1-base.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 0.5
+        },
+        "ss1-damaged.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 0.5
+        }
+    },
+    "frame.defaultDuration": 66,
+    "last.imagePath": "/Users/pouya/projects/voidbound/art",
+    "openFiles": [
+        "ss1-base.tsx",
+        "ss1-damaged.tsx"
+    ],
+    "project": "voidbound.tiled-project",
+    "recentFiles": [
+        "ss1-base.tsx",
+        "ss1-damaged.tsx"
+    ],
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.tileSize": {
+        "height": 256,
+        "width": 256
+    },
+    "tileset.transparentColor": "#000000",
+    "tileset.useTransparentColor": false
+}
