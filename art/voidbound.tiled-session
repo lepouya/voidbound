@@ -1,5 +1,5 @@
 {
-    "activeFile": "ss1-damaged.tsx",
+    "activeFile": "ui-selection.tsx",
     "expandedProjectPaths": [
         "."
     ],
@@ -11,18 +11,24 @@
         "ss1-damaged.tsx": {
             "scaleInDock": 1,
             "scaleInEditor": 0.5
+        },
+        "ui-selection.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 0.5
         }
     },
     "frame.defaultDuration": 66,
     "last.imagePath": "/Users/pouya/projects/voidbound/art",
     "openFiles": [
         "ss1-base.tsx",
-        "ss1-damaged.tsx"
+        "ss1-damaged.tsx",
+        "ui-selection.tsx"
     ],
     "project": "voidbound.tiled-project",
     "recentFiles": [
         "ss1-base.tsx",
-        "ss1-damaged.tsx"
+        "ss1-damaged.tsx",
+        "ui-selection.tsx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {

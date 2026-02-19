@@ -67,12 +67,14 @@ def resize_to_square(img: Image.Image, size: int) -> Image.Image:
 # frame range.
 
 
-def overlay_fade(alt: Image.Image, t: float) -> Image.Image:
+def overlay_fade(
+    alt: Image.Image, t: float, alpha_from: float, alpha_to: float
+) -> Image.Image:
     """
-    Fade: triangle wave opacity. t=0 → transparent, t=0.5 → full alt, t=1 → transparent.
+    Fade: linearly interpolates opacity from alpha_from to alpha_to over the
+    transition range. Values are clamped to [0.0, 1.0].
     """
-    # Triangle wave: 0 → 1 → 0
-    alpha = 1.0 - abs(2.0 * t - 1.0)
+    alpha = max(0.0, min(1.0, alpha_from + (alpha_to - alpha_from) * t))
     faded = alt.copy()
     r, g, b, a = faded.split()
     a = a.point(lambda v: int(v * alpha))
@@ -109,10 +111,69 @@ def overlay_roll(alt: Image.Image, t: float, direction: str) -> Image.Image:
     return overlay
 
 
+def overlay_scale(
+    alt: Image.Image, t: float, scale_from: float, scale_to: float
+) -> Image.Image:
+    """
+    Scale: linearly interpolates the alt image size from scale_from to scale_to,
+    centered on the frame. A scale of 1.0 means original size; 0.5 means half; 2.0
+    means double (pixels outside the frame are clipped).
+    """
+    w, h = alt.size
+    scale = scale_from + (scale_to - scale_from) * t
+    new_w = max(1, int(w * scale))
+    new_h = max(1, int(h * scale))
+    scaled = alt.resize((new_w, new_h), Image.LANCZOS)
+
+    overlay = Image.new("RGBA", alt.size, (0, 0, 0, 0))
+    paste_x = (w - new_w) // 2
+    paste_y = (h - new_h) // 2
+
+    if paste_x >= 0 and paste_y >= 0:
+        # Scaled image fits within the frame
+        overlay.paste(scaled, (paste_x, paste_y))
+    else:
+        # Scaled image is larger than the frame — crop to fit
+        crop_x = max(0, -paste_x)
+        crop_y = max(0, -paste_y)
+        region = scaled.crop((crop_x, crop_y, crop_x + w, crop_y + h))
+        overlay.paste(region, (max(0, paste_x), max(0, paste_y)))
+
+    return overlay
+
+
+def overlay_rotate(
+    alt: Image.Image, t: float, angle_from: float, angle_to: float
+) -> Image.Image:
+    """
+    Rotate: linearly interpolates rotation from angle_from to angle_to (in degrees),
+    around the center of the sprite. The rotated image is cropped to the original
+    frame size so pixels outside the bounds are clipped.
+    """
+    angle = angle_from + (angle_to - angle_from) * t
+    # Pillow rotates counter-clockwise; expand=True avoids clipping during rotation
+    rotated = alt.rotate(angle, resample=Image.BICUBIC, expand=True)
+    # Crop the rotated image back to the original size, centered
+    rw, rh = rotated.size
+    w, h = alt.size
+    left = (rw - w) // 2
+    top = (rh - h) // 2
+    cropped = rotated.crop((left, top, left + w, top + h))
+    return cropped
+
+
 OVERLAY_GENERATORS = {
-    "fade": lambda alt, t: overlay_fade(alt, t),
-    "roll_up": lambda alt, t: overlay_roll(alt, t, "up"),
-    "roll_down": lambda alt, t: overlay_roll(alt, t, "down"),
+    "fade": lambda alt, t, **kw: overlay_fade(
+        alt, t, kw["alpha_from"], kw["alpha_to"]
+    ),
+    "roll_up": lambda alt, t, **kw: overlay_roll(alt, t, "up"),
+    "roll_down": lambda alt, t, **kw: overlay_roll(alt, t, "down"),
+    "scale": lambda alt, t, **kw: overlay_scale(
+        alt, t, kw["scale_from"], kw["scale_to"]
+    ),
+    "rotate": lambda alt, t, **kw: overlay_rotate(
+        alt, t, kw["angle_from"], kw["angle_to"]
+    ),
 }
 
 
@@ -125,27 +186,53 @@ class TransitionSpec:
     alt: Image.Image
     start: int  # first frame (inclusive)
     end: int  # last frame (inclusive)
+    params: dict  # extra keyword args passed to the overlay generator
 
 
 def parse_transition(spec: str, sprite_size: int) -> TransitionSpec:
     """
-    Parse a transition string of the form TYPE:IMAGE_PATH:START_FRAME:END_FRAME.
-    The alt image is resized (with square padding if needed) to sprite_size×sprite_size.
+    Parse a transition string. Standard format is TYPE:IMAGE:START:END.
+    The scale type requires two extra fields: TYPE:IMAGE:START:END:SCALE_FROM:SCALE_TO.
+    The alt image is resized (with square padding if needed) to sprite_size*sprite_size.
     """
     parts = spec.split(":")
-    if len(parts) != 4:
+    if len(parts) < 4:
         print(
-            f"Error: transition must be TYPE:IMAGE:START:END, got '{spec}'",
+            f"Error: transition must be TYPE:IMAGE:START:END[...], got '{spec}'",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    kind, img_path, start_str, end_str = parts
+    kind, img_path, start_str, end_str = parts[:4]
+    extra = parts[4:]
 
     if kind not in OVERLAY_GENERATORS:
         print(
             f"Error: unknown transition type '{kind}'. "
             f"Choose from: {', '.join(OVERLAY_GENERATORS)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    def safe_float(val: str, default: float = 1.0) -> float:
+        try:
+            return float(val)
+        except ValueError:
+            return default
+
+    params: dict = {}
+    if kind == "fade":
+        params["alpha_from"] = safe_float(extra[0]) if len(extra) > 0 else 1.0
+        params["alpha_to"] = safe_float(extra[1]) if len(extra) > 1 else 1.0
+    elif kind == "scale":
+        params["scale_from"] = safe_float(extra[0]) if len(extra) > 0 else 1.0
+        params["scale_to"] = safe_float(extra[1]) if len(extra) > 1 else 1.0
+    elif kind == "rotate":
+        params["angle_from"] = safe_float(extra[0], 0.0) if len(extra) > 0 else 0.0
+        params["angle_to"] = safe_float(extra[1], 0.0) if len(extra) > 1 else 0.0
+    elif extra:
+        print(
+            f"Error: transition '{kind}' takes no extra parameters, got '{spec}'",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -161,7 +248,7 @@ def parse_transition(spec: str, sprite_size: int) -> TransitionSpec:
         )
         sys.exit(1)
 
-    return TransitionSpec(kind=kind, alt=alt, start=start, end=end)
+    return TransitionSpec(kind=kind, alt=alt, start=start, end=end, params=params)
 
 
 # -- Frame generation ----------------------------------------------------------
@@ -184,7 +271,7 @@ def generate_frames(
             if tr.start <= i <= tr.end:
                 # Map frame index to local progress 0.0–1.0
                 t = (i - tr.start) / (tr.end - tr.start)
-                overlay = OVERLAY_GENERATORS[tr.kind](tr.alt, t)
+                overlay = OVERLAY_GENERATORS[tr.kind](tr.alt, t, **tr.params)
                 frame = Image.alpha_composite(frame, overlay)
         frames.append(frame)
     return frames
@@ -193,7 +280,9 @@ def generate_frames(
 # -- Spritesheet layout --------------------------------------------------------
 
 
-def build_spritesheet(frames: list[Image.Image], cell_w: int, cell_h: int) -> Image.Image:
+def build_spritesheet(
+    frames: list[Image.Image], cell_w: int, cell_h: int
+) -> Image.Image:
     """
     Arrange frames in a square grid. Grid side = ceil(sqrt(num_frames)).
     Sheet dimensions = cell_size * grid_side. Unused cells stay transparent.
@@ -216,9 +305,12 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate a multi-transition spritesheet over a shared base image.",
         epilog="Each --transition is TYPE:IMAGE:START:END where TYPE is one of "
-        f"{', '.join(OVERLAY_GENERATORS)} and START/END are frame indices (inclusive).",
+        f"{', '.join(OVERLAY_GENERATORS)} and START/END are frame indices (inclusive). "
+        "The scale type requires two extra fields: scale:IMAGE:START:END:SCALE_FROM:SCALE_TO.",
     )
-    parser.add_argument("-s", "--base", required=True, help="Path to the base PNG image")
+    parser.add_argument(
+        "-s", "--base", required=True, help="Path to the base PNG image"
+    )
     parser.add_argument(
         "-n", "--frames", type=int, required=True, help="Total number of frames"
     )
@@ -236,7 +328,7 @@ def main():
         required=True,
         dest="transitions",
         metavar="TYPE:IMAGE:START:END",
-        help="Transition spec (repeatable). E.g. roll_up:glow.png:0:8",
+        help="Transition spec (repeatable). E.g. roll_up:glow.png:0:8 or scale:glow.png:0:8:0.5:2.0",
     )
     parser.add_argument(
         "-d", "--dest", required=True, help="Output path for the spritesheet PNG"
