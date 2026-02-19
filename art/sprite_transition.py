@@ -10,6 +10,7 @@ Usage:
     python3 sprite_transition.py \\
         --base base.png \\
         --frames 16 \\
+        --size 64 \\
         --transition roll_up:glow.png:0:8 \\
         --transition fade:highlight.png:4:12 \\
         --dest output.png
@@ -40,6 +41,24 @@ import math
 import sys
 from dataclasses import dataclass
 from PIL import Image
+
+
+# -- Image resizing ------------------------------------------------------------
+
+
+def resize_to_square(img: Image.Image, size: int) -> Image.Image:
+    """
+    Resize an image to size×size pixels. If the source image is not square,
+    it is first padded with transparent pixels equally on both sides of the
+    shorter dimension so the content is centered, then resized.
+    """
+    w, h = img.size
+    if w != h:
+        side = max(w, h)
+        padded = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        padded.paste(img, ((side - w) // 2, (side - h) // 2))
+        img = padded
+    return img.resize((size, size), Image.LANCZOS)
 
 
 # -- Overlay generators --------------------------------------------------------
@@ -108,10 +127,10 @@ class TransitionSpec:
     end: int  # last frame (inclusive)
 
 
-def parse_transition(spec: str, base_size: tuple[int, int]) -> TransitionSpec:
+def parse_transition(spec: str, sprite_size: int) -> TransitionSpec:
     """
     Parse a transition string of the form TYPE:IMAGE_PATH:START_FRAME:END_FRAME.
-    Validates that the alt image matches the base dimensions.
+    The alt image is resized (with square padding if needed) to sprite_size×sprite_size.
     """
     parts = spec.split(":")
     if len(parts) != 4:
@@ -132,12 +151,7 @@ def parse_transition(spec: str, base_size: tuple[int, int]) -> TransitionSpec:
         sys.exit(1)
 
     alt = Image.open(img_path).convert("RGBA")
-    if alt.size != base_size:
-        print(
-            f"Error: '{img_path}' dimensions {alt.size} don't match base {base_size}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    alt = resize_to_square(alt, sprite_size)
 
     start, end = int(start_str), int(end_str)
     if start >= end:
@@ -209,6 +223,13 @@ def main():
         "-n", "--frames", type=int, required=True, help="Total number of frames"
     )
     parser.add_argument(
+        "-z",
+        "--size",
+        type=int,
+        required=True,
+        help="Sprite size in pixels (each frame will be size×size)",
+    )
+    parser.add_argument(
         "-t",
         "--transition",
         action="append",
@@ -226,9 +247,14 @@ def main():
         print("Error: --frames must be at least 2", file=sys.stderr)
         sys.exit(1)
 
-    base = Image.open(args.base).convert("RGBA")
+    if args.size < 1:
+        print("Error: --size must be at least 1", file=sys.stderr)
+        sys.exit(1)
 
-    transitions = [parse_transition(spec, base.size) for spec in args.transitions]
+    base = Image.open(args.base).convert("RGBA")
+    base = resize_to_square(base, args.size)
+
+    transitions = [parse_transition(spec, args.size) for spec in args.transitions]
 
     # Validate that all frame ranges fit within num_frames
     for tr in transitions:
@@ -240,7 +266,7 @@ def main():
             sys.exit(1)
 
     frames = generate_frames(base, transitions, args.frames)
-    sheet = build_spritesheet(frames, base.width, base.height)
+    sheet = build_spritesheet(frames, args.size, args.size)
     sheet.save(args.dest)
 
     grid_side = math.ceil(math.sqrt(args.frames))
