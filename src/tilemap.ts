@@ -13,7 +13,7 @@ interface TileMapData {
   tiles: number[];
 }
 
-function resolveTileset(ref: TilesetRef): Tileset {
+export function resolveTileset(ref: TilesetRef): Tileset {
   if (ref instanceof Tileset) return ref;
   if (typeof ref === "string") {
     const results = Resources.Tilesets.getTilesetByName(ref);
@@ -74,6 +74,8 @@ export function createTileActor(
   const actor = new ex.Actor({
     x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
     y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
+    width: resolved.tileWidth,
+    height: resolved.tileHeight,
     anchor: ex.vec(0.5, 0.5),
     scale: ex.vec(scaleX, scaleY),
   });

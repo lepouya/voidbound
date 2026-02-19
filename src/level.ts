@@ -1,11 +1,15 @@
 import * as ex from "excalibur";
 
 import { Player } from "./player";
-import { buildTileMap, createTileActor } from "./tilemap";
+import { buildTileMap, createTileActor, resolveTileset } from "./tilemap";
 
 export class MyLevel extends ex.Scene {
-  private dragging = false;
+  private pointerDown = false;
+  private hasDragged = false;
   private lastScreenPos: ex.Vector | null = null;
+  private selectedActor: ex.Actor | null = null;
+  private reticle: ex.Actor | null = null;
+  private pendingActor: ex.Actor | null = null;
 
   override onInitialize(engine: ex.Engine): void {
     this.setupScene(engine);
@@ -18,6 +22,28 @@ export class MyLevel extends ex.Scene {
     const player = new Player();
     this.add(player);
 
+    // Build the selection reticle from ui-selection tile 0
+    const uiSelectionTileset = resolveTileset("ui-selection");
+    const reticleGid = uiSelectionTileset.firstGid + 0;
+    const reticleGraphic =
+      uiSelectionTileset.getAnimationForGid(reticleGid) ??
+      uiSelectionTileset.getSpriteForGid(reticleGid);
+    this.reticle = new ex.Actor({ anchor: ex.vec(0.5, 0.5) });
+    this.reticle.graphics.use(reticleGraphic);
+
+    const deselectActor = () => {
+      if (this.selectedActor) {
+        this.selectedActor.removeChild(this.reticle!);
+        this.selectedActor = null;
+      }
+    };
+
+    const selectActor = (actor: ex.Actor) => {
+      deselectActor();
+      this.selectedActor = actor;
+      actor.addChild(this.reticle!);
+    };
+
     const ss1Actor = createTileActor(tilemap, {
       tileset: "ss1-base",
       tileId: 0,
@@ -26,6 +52,7 @@ export class MyLevel extends ex.Scene {
       width: 4,
       height: 4,
     });
+    ss1Actor.on("pointerdown", () => (this.pendingActor = ss1Actor));
     this.add(ss1Actor);
 
     const ss1DamagedActor = createTileActor(tilemap, {
@@ -36,6 +63,10 @@ export class MyLevel extends ex.Scene {
       width: 4,
       height: 4,
     });
+    ss1DamagedActor.on(
+      "pointerdown",
+      () => (this.pendingActor = ss1DamagedActor),
+    );
     this.add(ss1DamagedActor);
 
     this.camera.x = engine.halfDrawWidth;
@@ -45,7 +76,8 @@ export class MyLevel extends ex.Scene {
     const pointers = engine.input.pointers.primary;
 
     pointers.on("down", (evt) => {
-      this.dragging = true;
+      this.pointerDown = true;
+      this.hasDragged = false;
       this.lastScreenPos = evt.screenPos.clone();
     });
 
@@ -53,7 +85,8 @@ export class MyLevel extends ex.Scene {
     const mapHeight = tilemap.rows * tilemap.tileHeight;
 
     pointers.on("move", (evt) => {
-      if (!this.dragging || !this.lastScreenPos) return;
+      if (!this.pointerDown || !this.lastScreenPos) return;
+      this.hasDragged = true;
       const delta = this.lastScreenPos.sub(evt.screenPos);
       this.camera.x += delta.x / this.camera.zoom;
       this.camera.y += delta.y / this.camera.zoom;
@@ -67,12 +100,27 @@ export class MyLevel extends ex.Scene {
     });
 
     pointers.on("up", () => {
-      this.dragging = false;
+      if (this.hasDragged) {
+        deselectActor();
+      } else if (this.pendingActor) {
+        if (this.selectedActor === this.pendingActor) {
+          deselectActor();
+        } else {
+          selectActor(this.pendingActor);
+        }
+      } else {
+        deselectActor();
+      }
+      this.pendingActor = null;
+      this.pointerDown = false;
+      this.hasDragged = false;
       this.lastScreenPos = null;
     });
 
     pointers.on("cancel", () => {
-      this.dragging = false;
+      this.pendingActor = null;
+      this.pointerDown = false;
+      this.hasDragged = false;
       this.lastScreenPos = null;
     });
   }
