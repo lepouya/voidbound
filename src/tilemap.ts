@@ -52,33 +52,81 @@ export async function buildTileMap(
 export interface TileActorOptions {
   tileset: TilesetRef;
   tileId: number;
-  col: number;
-  row: number;
+  tilemap?: ex.TileMap;
+  col?: number;
+  row?: number;
   width?: number;
   height?: number;
+  ownerName?: string;
+  ownerId?: string;
 }
 
-export function createTileActor(
-  tilemap: ex.TileMap,
-  options: TileActorOptions,
-): ex.Actor {
-  const { tileset, tileId, col, row } = options;
-  const resolved = resolveTileset(tileset);
-  const gid = resolved.firstGid + tileId;
-  const graphic =
-    resolved.getAnimationForGid(gid) ?? resolved.getSpriteForGid(gid);
-  const w = options.width ?? resolved.tileWidth / tilemap.tileWidth;
-  const h = options.height ?? resolved.tileHeight / tilemap.tileHeight;
-  const scaleX = (w * tilemap.tileWidth) / resolved.tileWidth;
-  const scaleY = (h * tilemap.tileHeight) / resolved.tileHeight;
-  const actor = new ex.Actor({
-    x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
-    y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
-    width: resolved.tileWidth,
-    height: resolved.tileHeight,
-    anchor: ex.vec(0.5, 0.5),
-    scale: ex.vec(scaleX, scaleY),
-  });
-  actor.graphics.use(graphic);
-  return actor;
+export class TileActor extends ex.Actor {
+  ownerName: string | undefined;
+  ownerId: string | undefined;
+
+  constructor({
+    tilemap,
+    tileset,
+    tileId,
+    col = 0,
+    row = 0,
+    width,
+    height,
+    ownerName,
+    ownerId,
+  }: TileActorOptions) {
+    const resolved = resolveTileset(tileset);
+    const gid = resolved.firstGid + tileId;
+    const superArgs: ex.ActorArgs = tilemap
+      ? (() => {
+          const w = width ?? resolved.tileWidth / tilemap.tileWidth;
+          const h = height ?? resolved.tileHeight / tilemap.tileHeight;
+          return {
+            x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
+            y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
+            width: resolved.tileWidth,
+            height: resolved.tileHeight,
+            anchor: ex.vec(0.5, 0.5),
+            scale: ex.vec(
+              (w * tilemap.tileWidth) / resolved.tileWidth,
+              (h * tilemap.tileHeight) / resolved.tileHeight,
+            ),
+          };
+        })()
+      : { anchor: ex.vec(0.5, 0.5) };
+    super(superArgs);
+    this.ownerName = ownerName;
+    this.ownerId = ownerId;
+    const graphic =
+      resolved.getAnimationForGid(gid) ?? resolved.getSpriteForGid(gid);
+    this.graphics.use(graphic);
+  }
+
+  override onInitialize(): void {
+    if (!this.ownerName) return;
+
+    const labelText = new ex.Text({
+      text: this.ownerName,
+      maxWidth: this.width,
+      font: new ex.Font({
+        size: 10,
+        color: ex.Color.White,
+        textAlign: ex.TextAlign.Center,
+        baseAlign: ex.BaseAlign.Top,
+      }),
+    });
+
+    // Position the label so its top-center sits exactly at the sprite's bottom
+    // edge. The child pos is in parent local space (pre-scale), so dividing by
+    // scale converts the world-space bottom edge back to local space.
+    // The child's own scale counteracts the parent so text renders unscaled.
+    const labelActor = new ex.Actor({
+      pos: ex.vec(0, this.height),
+      scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+      anchor: ex.vec(0, 0),
+    });
+    labelActor.graphics.use(labelText);
+    this.addChild(labelActor);
+  }
 }

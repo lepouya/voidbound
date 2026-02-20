@@ -1,14 +1,14 @@
 import * as ex from "excalibur";
 
 import { Player } from "./player";
-import { buildTileMap, createTileActor, resolveTileset } from "./tilemap";
+import { buildTileMap, TileActor } from "./tilemap";
 
 export class MyLevel extends ex.Scene {
   private pointerDown = false;
   private hasDragged = false;
   private lastScreenPos: ex.Vector | null = null;
   private selectedActor: ex.Actor | null = null;
-  private reticle: ex.Actor | null = null;
+  private reticle: TileActor | null = null;
   private pendingActor: ex.Actor | null = null;
 
   override onInitialize(engine: ex.Engine): void {
@@ -23,13 +23,7 @@ export class MyLevel extends ex.Scene {
     this.add(player);
 
     // Build the selection reticle from ui-selection tile 0
-    const uiSelectionTileset = resolveTileset("ui-selection");
-    const reticleGid = uiSelectionTileset.firstGid + 0;
-    const reticleGraphic =
-      uiSelectionTileset.getAnimationForGid(reticleGid) ??
-      uiSelectionTileset.getSpriteForGid(reticleGid);
-    this.reticle = new ex.Actor({ anchor: ex.vec(0.5, 0.5) });
-    this.reticle.graphics.use(reticleGraphic);
+    this.reticle = new TileActor({ tileset: "ui-selection", tileId: 0 });
 
     const deselectActor = () => {
       if (this.selectedActor) {
@@ -44,24 +38,30 @@ export class MyLevel extends ex.Scene {
       actor.addChild(this.reticle!);
     };
 
-    const ss1Actor = createTileActor(tilemap, {
+    const ss1Actor = new TileActor({
+      tilemap,
       tileset: "ss1-base",
       tileId: 0,
       col: 1,
       row: 1,
       width: 4,
       height: 4,
+      ownerName: "Player One",
+      ownerId: "player-1",
     });
     ss1Actor.on("pointerdown", () => (this.pendingActor = ss1Actor));
     this.add(ss1Actor);
 
-    const ss1DamagedActor = createTileActor(tilemap, {
+    const ss1DamagedActor = new TileActor({
+      tilemap,
       tileset: "ss1-damaged",
       tileId: 0,
       col: 6,
       row: 1,
       width: 4,
       height: 4,
+      ownerName: "Player Two",
+      ownerId: "player-2",
     });
     ss1DamagedActor.on(
       "pointerdown",
