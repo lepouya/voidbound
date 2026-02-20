@@ -1,6 +1,5 @@
 import * as ex from "excalibur";
 
-import { Player } from "./player";
 import { buildTileMap, TileActor } from "./tilemap";
 
 export class MyLevel extends ex.Scene {
@@ -18,9 +17,6 @@ export class MyLevel extends ex.Scene {
   private async setupScene(engine: ex.Engine): Promise<void> {
     const tilemap = await buildTileMap("TestTileset");
     this.add(tilemap);
-
-    const player = new Player();
-    this.add(player);
 
     // Build the selection reticle from ui-selection tile 0
     this.reticle = new TileActor({ tileset: "ui-selection", tileId: 0 });

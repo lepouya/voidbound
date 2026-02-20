@@ -80,26 +80,26 @@ export class TileActor extends ex.Actor {
     const gid = resolved.firstGid + tileId;
     const superArgs: ex.ActorArgs = tilemap
       ? (() => {
-          const w = width ?? resolved.tileWidth / tilemap.tileWidth;
-          const h = height ?? resolved.tileHeight / tilemap.tileHeight;
-          return {
-            x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
-            y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
-            width: resolved.tileWidth,
-            height: resolved.tileHeight,
-            anchor: ex.vec(0.5, 0.5),
-            scale: ex.vec(
-              (w * tilemap.tileWidth) / resolved.tileWidth,
-              (h * tilemap.tileHeight) / resolved.tileHeight,
-            ),
-          };
-        })()
+        const w = width ?? resolved.tileWidth / tilemap.tileWidth;
+        const h = height ?? resolved.tileHeight / tilemap.tileHeight;
+        return {
+          x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
+          y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
+          width: resolved.tileWidth,
+          height: resolved.tileHeight,
+          anchor: ex.vec(0.5, 0.5),
+          scale: ex.vec(
+            (w * tilemap.tileWidth) / resolved.tileWidth,
+            (h * tilemap.tileHeight) / resolved.tileHeight,
+          ),
+        };
+      })()
       : { anchor: ex.vec(0.5, 0.5) };
     super(superArgs);
     this.ownerName = ownerName;
     this.ownerId = ownerId;
-    const graphic =
-      resolved.getAnimationForGid(gid) ?? resolved.getSpriteForGid(gid);
+    const graphic = resolved.getAnimationForGid(gid) ??
+      resolved.getSpriteForGid(gid);
     this.graphics.use(graphic);
   }
 

@@ -13,8 +13,6 @@ import uiSelectionPngPath from "./assets/ui-selection.png?url";
 import uiSelectionTilesetPath from "./assets/ui-selection.tsx?url";
 
 export const Resources = {
-  Sword: new ex.ImageSource("/src/assets/sword.png"),
-
   Tilesets: new TiledResource(tilesetsPath, {
     pathMap: [
       { path: "tilesets.tmx", output: tilesetsPath },
