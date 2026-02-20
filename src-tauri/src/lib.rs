@@ -7,7 +7,9 @@ const MAP_ROWS: u32 = 100;
 pub struct TileMapData {
     pub cols: u32,
     pub rows: u32,
-    pub tiles: Vec<u32>,
+    pub tile_width: u32,
+    pub tile_height: u32,
+    pub tiles: Vec<String>,
 }
 
 struct Rect {
@@ -15,40 +17,40 @@ struct Rect {
     y: u32,
     w: u32,
     h: u32,
-    gid: u32,
+    tile: &'static str,
 }
 
 #[tauri::command]
 fn generate_map() -> TileMapData {
-    // GIDs: 1 = gray (background), 2 = blue, 3 = red, 4 = green
+    // Tile IDs within TestTileset: 0 = gray (background), 1 = blue, 2 = red, 3 = green
     let rects = [
-        Rect { x: 2,  y: 2,  w: 12, h: 12, gid: 2 },
-        Rect { x: 20, y: 5,  w: 8,  h: 8,  gid: 3 },
-        Rect { x: 35, y: 2,  w: 15, h: 10, gid: 4 },
-        Rect { x: 60, y: 3,  w: 10, h: 10, gid: 2 },
-        Rect { x: 80, y: 1,  w: 18, h: 14, gid: 3 },
-        Rect { x: 5,  y: 20, w: 10, h: 15, gid: 4 },
-        Rect { x: 25, y: 22, w: 20, h: 6,  gid: 2 },
-        Rect { x: 50, y: 18, w: 12, h: 12, gid: 3 },
-        Rect { x: 70, y: 20, w: 8,  h: 20, gid: 4 },
-        Rect { x: 85, y: 25, w: 14, h: 10, gid: 2 },
-        Rect { x: 10, y: 40, w: 18, h: 8,  gid: 3 },
-        Rect { x: 35, y: 38, w: 10, h: 10, gid: 4 },
-        Rect { x: 55, y: 42, w: 14, h: 14, gid: 2 },
-        Rect { x: 78, y: 45, w: 20, h: 8,  gid: 3 },
-        Rect { x: 3,  y: 55, w: 8,  h: 16, gid: 2 },
-        Rect { x: 20, y: 58, w: 12, h: 12, gid: 4 },
-        Rect { x: 40, y: 55, w: 16, h: 10, gid: 3 },
-        Rect { x: 65, y: 60, w: 10, h: 10, gid: 4 },
-        Rect { x: 82, y: 58, w: 16, h: 16, gid: 2 },
-        Rect { x: 8,  y: 78, w: 14, h: 12, gid: 4 },
-        Rect { x: 30, y: 75, w: 10, h: 18, gid: 2 },
-        Rect { x: 50, y: 80, w: 18, h: 8,  gid: 3 },
-        Rect { x: 75, y: 78, w: 12, h: 12, gid: 4 },
-        Rect { x: 90, y: 82, w: 8,  h: 16, gid: 3 },
+        Rect { x: 2,  y: 2,  w: 12, h: 12, tile: "TestTileset:1" },
+        Rect { x: 20, y: 5,  w: 8,  h: 8,  tile: "TestTileset:2" },
+        Rect { x: 35, y: 2,  w: 15, h: 10, tile: "TestTileset:3" },
+        Rect { x: 60, y: 3,  w: 10, h: 10, tile: "TestTileset:1" },
+        Rect { x: 80, y: 1,  w: 18, h: 14, tile: "TestTileset:2" },
+        Rect { x: 5,  y: 20, w: 10, h: 15, tile: "TestTileset:3" },
+        Rect { x: 25, y: 22, w: 20, h: 6,  tile: "TestTileset:1" },
+        Rect { x: 50, y: 18, w: 12, h: 12, tile: "TestTileset:2" },
+        Rect { x: 70, y: 20, w: 8,  h: 20, tile: "TestTileset:3" },
+        Rect { x: 85, y: 25, w: 14, h: 10, tile: "TestTileset:1" },
+        Rect { x: 10, y: 40, w: 18, h: 8,  tile: "TestTileset:2" },
+        Rect { x: 35, y: 38, w: 10, h: 10, tile: "TestTileset:3" },
+        Rect { x: 55, y: 42, w: 14, h: 14, tile: "TestTileset:1" },
+        Rect { x: 78, y: 45, w: 20, h: 8,  tile: "TestTileset:2" },
+        Rect { x: 3,  y: 55, w: 8,  h: 16, tile: "TestTileset:1" },
+        Rect { x: 20, y: 58, w: 12, h: 12, tile: "TestTileset:3" },
+        Rect { x: 40, y: 55, w: 16, h: 10, tile: "TestTileset:2" },
+        Rect { x: 65, y: 60, w: 10, h: 10, tile: "TestTileset:3" },
+        Rect { x: 82, y: 58, w: 16, h: 16, tile: "TestTileset:1" },
+        Rect { x: 8,  y: 78, w: 14, h: 12, tile: "TestTileset:3" },
+        Rect { x: 30, y: 75, w: 10, h: 18, tile: "TestTileset:1" },
+        Rect { x: 50, y: 80, w: 18, h: 8,  tile: "TestTileset:2" },
+        Rect { x: 75, y: 78, w: 12, h: 12, tile: "TestTileset:3" },
+        Rect { x: 90, y: 82, w: 8,  h: 16, tile: "TestTileset:2" },
     ];
 
-    let mut tiles = vec![1u32; (MAP_COLS * MAP_ROWS) as usize];
+    let mut tiles = vec!["TestTileset:0".to_string(); (MAP_COLS * MAP_ROWS) as usize];
 
     for rect in &rects {
         for ry in rect.y..rect.y + rect.h {
@@ -60,7 +62,7 @@ fn generate_map() -> TileMapData {
                         || rx == rect.x + rect.w - 1;
 
                     if is_border {
-                        tiles[(ry * MAP_COLS + rx) as usize] = rect.gid;
+                        tiles[(ry * MAP_COLS + rx) as usize] = rect.tile.to_string();
                     }
                 }
             }
@@ -70,6 +72,8 @@ fn generate_map() -> TileMapData {
     TileMapData {
         cols: MAP_COLS,
         rows: MAP_ROWS,
+        tile_width: 32,
+        tile_height: 32,
         tiles,
     }
 }

@@ -1,57 +1,55 @@
 import * as ex from "excalibur";
 
-import { Tileset } from "@excaliburjs/plugin-tiled";
 import { invoke } from "@tauri-apps/api/core";
 
 import { Resources } from "./resources";
 
-type TilesetRef = Tileset | string | number;
+// "tileset-name" or "tileset-name:tile_id" (tile_id defaults to 0)
+export type TileRef = string;
+
+function parseTileRef(ref: TileRef): ex.Graphic {
+  const colon = ref.indexOf(":");
+  const name = colon === -1 ? ref : ref.slice(0, colon);
+  const tileId = colon === -1 ? 0 : parseInt(ref.slice(colon + 1), 10);
+  const results = Resources.Tilesets.getTilesetByName(name);
+  if (results.length === 0) throw new Error(`Tileset not found: "${name}"`);
+  const tileset = results[0];
+  const gid = tileset.firstGid + tileId;
+  return tileset.getAnimationForGid(gid) ?? tileset.getSpriteForGid(gid);
+}
 
 interface TileMapData {
   cols: number;
   rows: number;
-  tiles: number[];
+  tile_width: number;
+  tile_height: number;
+  tiles: string[];
 }
 
-export function resolveTileset(ref: TilesetRef): Tileset {
-  if (ref instanceof Tileset) return ref;
-  if (typeof ref === "string") {
-    const results = Resources.Tilesets.getTilesetByName(ref);
-    if (results.length === 0) throw new Error(`Tileset not found: "${ref}"`);
-    return results[0];
-  }
-  return Resources.Tilesets.getTilesetForTileGid(ref);
-}
-
-export async function buildTileMap(
-  tilesetRef: TilesetRef,
-): Promise<ex.TileMap> {
+export async function buildTileMap(): Promise<ex.TileMap> {
   const mapData = await invoke<TileMapData>("generate_map");
-  const tileset = resolveTileset(tilesetRef);
 
   const tilemap = new ex.TileMap({
     rows: mapData.rows,
     columns: mapData.cols,
-    tileWidth: tileset.tileWidth,
-    tileHeight: tileset.tileHeight,
+    tileWidth: mapData.tile_width,
+    tileHeight: mapData.tile_height,
   });
 
-  for (let i = 0; i < mapData.tiles.length; i++) {
-    const gid = mapData.tiles[i];
-    const col = i % mapData.cols;
-    const row = Math.floor(i / mapData.cols);
-    const tile = tilemap.getTile(col, row);
+  for (const [i, tileRef] of mapData.tiles.entries()) {
+    const tile = tilemap.getTile(
+      i % mapData.cols,
+      Math.floor(i / mapData.cols),
+    );
     if (!tile) continue;
-    const sprite = tileset.getSpriteForGid(gid);
-    tile.addGraphic(sprite);
+    tile.addGraphic(parseTileRef(tileRef));
   }
 
   return tilemap;
 }
 
 export interface TileActorOptions {
-  tileset: TilesetRef;
-  tileId: number;
+  tile: TileRef;
   tilemap?: ex.TileMap;
   col?: number;
   row?: number;
@@ -59,74 +57,91 @@ export interface TileActorOptions {
   height?: number;
   ownerName?: string;
   ownerId?: string;
+  selection?: TileRef | null;
+  onPressed?: (actor: TileActor) => void;
 }
 
 export class TileActor extends ex.Actor {
   ownerName: string | undefined;
   ownerId: string | undefined;
+  private readonly selectionTile: TileRef | null;
+  private selection: ex.Actor | null = null;
+  private readonly onPressed: ((actor: TileActor) => void) | undefined;
 
   constructor({
     tilemap,
-    tileset,
-    tileId,
+    tile,
     col = 0,
     row = 0,
     width,
     height,
     ownerName,
     ownerId,
+    selection,
+    onPressed,
   }: TileActorOptions) {
-    const resolved = resolveTileset(tileset);
-    const gid = resolved.firstGid + tileId;
-    const superArgs: ex.ActorArgs = tilemap
-      ? (() => {
-        const w = width ?? resolved.tileWidth / tilemap.tileWidth;
-        const h = height ?? resolved.tileHeight / tilemap.tileHeight;
-        return {
-          x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
-          y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
-          width: resolved.tileWidth,
-          height: resolved.tileHeight,
-          anchor: ex.vec(0.5, 0.5),
-          scale: ex.vec(
-            (w * tilemap.tileWidth) / resolved.tileWidth,
-            (h * tilemap.tileHeight) / resolved.tileHeight,
-          ),
-        };
-      })()
-      : { anchor: ex.vec(0.5, 0.5) };
+    const graphic = parseTileRef(tile);
+    let superArgs: ex.ActorArgs = { anchor: ex.vec(0.5, 0.5) };
+    if (tilemap) {
+      const w = width ?? graphic.width / tilemap.tileWidth;
+      const h = height ?? graphic.height / tilemap.tileHeight;
+      superArgs = {
+        x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
+        y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
+        width: graphic.width,
+        height: graphic.height,
+        anchor: ex.vec(0.5, 0.5),
+        scale: ex.vec(
+          (w * tilemap.tileWidth) / graphic.width,
+          (h * tilemap.tileHeight) / graphic.height,
+        ),
+      };
+    }
     super(superArgs);
     this.ownerName = ownerName;
     this.ownerId = ownerId;
-    const graphic = resolved.getAnimationForGid(gid) ??
-      resolved.getSpriteForGid(gid);
+    this.selectionTile = selection === undefined ? "ui-selection:0" : selection;
+    this.onPressed = onPressed;
     this.graphics.use(graphic);
   }
 
+  select(): void {
+    if (this.selection) this.selection.graphics.isVisible = true;
+  }
+
+  deselect(): void {
+    if (this.selection) this.selection.graphics.isVisible = false;
+  }
+
   override onInitialize(): void {
-    if (!this.ownerName) return;
+    this.on("pointerdown", () => this.onPressed?.(this));
 
-    const labelText = new ex.Text({
-      text: this.ownerName,
-      maxWidth: this.width,
-      font: new ex.Font({
-        size: 10,
-        color: ex.Color.White,
-        textAlign: ex.TextAlign.Center,
-        baseAlign: ex.BaseAlign.Top,
-      }),
-    });
+    if (this.selectionTile !== null) {
+      this.selection = new ex.Actor({ anchor: ex.vec(0.5, 0.5) });
+      this.selection.graphics.use(parseTileRef(this.selectionTile));
+      this.selection.graphics.isVisible = false;
+      this.addChild(this.selection);
+    }
 
-    // Position the label so its top-center sits exactly at the sprite's bottom
-    // edge. The child pos is in parent local space (pre-scale), so dividing by
-    // scale converts the world-space bottom edge back to local space.
-    // The child's own scale counteracts the parent so text renders unscaled.
-    const labelActor = new ex.Actor({
-      pos: ex.vec(0, this.height),
-      scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-      anchor: ex.vec(0, 0),
-    });
-    labelActor.graphics.use(labelText);
-    this.addChild(labelActor);
+    if (this.ownerName !== undefined) {
+      const labelActor = new ex.Actor({
+        pos: ex.vec(0, this.height),
+        scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+        anchor: ex.vec(0, 0),
+      });
+      labelActor.graphics.use(
+        new ex.Text({
+          text: this.ownerName,
+          maxWidth: this.width,
+          font: new ex.Font({
+            size: 10,
+            color: ex.Color.White,
+            textAlign: ex.TextAlign.Center,
+            baseAlign: ex.BaseAlign.Top,
+          }),
+        }),
+      );
+      this.addChild(labelActor);
+    }
   }
 }
