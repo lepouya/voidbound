@@ -1,18 +1,18 @@
 {
-    "activeFile": "ui-selection.tsx",
+    "activeFile": "ui-selection.tsj",
     "expandedProjectPaths": [
         "."
     ],
     "fileStates": {
-        "ss1-base.tsx": {
+        "ss1-base.tsj": {
             "scaleInDock": 1,
             "scaleInEditor": 0.5
         },
-        "ss1-damaged.tsx": {
+        "ss1-damaged.tsj": {
             "scaleInDock": 1,
             "scaleInEditor": 0.5
         },
-        "ui-selection.tsx": {
+        "ui-selection.tsj": {
             "scaleInDock": 1,
             "scaleInEditor": 0.5
         }
@@ -20,17 +20,17 @@
     "frame.defaultDuration": 66,
     "last.imagePath": "/Users/pouya/projects/voidbound/art",
     "openFiles": [
-        "ss1-base.tsx",
-        "ss1-damaged.tsx",
-        "ui-selection.tsx"
+        "ss1-base.tsj",
+        "ss1-damaged.tsj",
+        "ui-selection.tsj"
     ],
     "project": "voidbound.tiled-project",
     "recentFiles": [
-        "ss1-base.tsx",
-        "ss1-damaged.tsx",
-        "ui-selection.tsx"
+        "ss1-base.tsj",
+        "ss1-damaged.tsj",
+        "ui-selection.tsj"
     ],
-    "tileset.lastUsedFormat": "tsx",
+    "tileset.lastUsedFormat": "tsj",
     "tileset.tileSize": {
         "height": 256,
         "width": 256

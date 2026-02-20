@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="1" height="1" tilewidth="32" tileheight="32" infinite="0" nextlayerid="2" nextobjectid="1">
- <tileset firstgid="1" source="test-tileset.tsx"/>
- <tileset firstgid="5" source="ui-selection.tsx"/>
- <tileset firstgid="41" source="ss1-base.tsx"/>
- <tileset firstgid="77" source="ss1-damaged.tsx"/>
+ <tileset firstgid="1" source="test-tileset.tsj"/>
+ <tileset firstgid="5" source="ui-selection.tsj"/>
+ <tileset firstgid="41" source="ss1-base.tsj"/>
+ <tileset firstgid="77" source="ss1-damaged.tsj"/>
  <layer id="1" name="Stub" width="1" height="1">
   <data encoding="csv">
 1

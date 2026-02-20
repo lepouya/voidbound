@@ -31,8 +31,7 @@ The Vite dev server runs on port 1420 with HMR on port 1421.
 ## Code Formatting
 
 Always run `deno fmt <files>` on any source files you modify before considering
-the task complete. Note: `src/assets/**/*.tsx` files are Tiled XML tilesets and
-are excluded from formatting via `deno.json`.
+the task complete.
 
 ## Architecture
 
