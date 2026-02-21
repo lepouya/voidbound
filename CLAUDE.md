@@ -5,28 +5,19 @@ code in this repository.
 
 ## Project Overview
 
-Voidbound is a multiplayer online RTS (Real-Time Strategy) game with space
-colonization themes. Built as a hybrid web/desktop application using TypeScript
-frontend with Excalibur.js game engine and Rust backend via Tauri.
+Voidbound is a multiplayer online RTS game with space colonization themes. Built
+as a hybrid web/desktop app using TypeScript + Excalibur.js frontend and Rust
+backend via Tauri v2.
 
 ## Development Commands
 
 ```bash
-# Install dependencies (first time setup)
-deno install
-
-# Run development server with desktop app
-deno task tauri dev
-
-# Build for production
-deno task build
-
-# Mobile development
-deno task tauri android init && deno task tauri android dev
-deno task tauri ios init && deno task tauri ios dev
+deno install          # first-time setup
+deno task tauri dev   # dev server + desktop app
+deno task build       # production build (tsc && vite build)
 ```
 
-The Vite dev server runs on port 1420 with HMR on port 1421.
+Vite dev server: port 1420, HMR on port 1421.
 
 ## Code Formatting
 
@@ -35,72 +26,49 @@ the task complete.
 
 ## Architecture
 
-**Frontend (src/):**
+**Frontend (`src/`)** — TypeScript + Excalibur.js v0.32:
 
-- Uses Excalibur.js (v0.32) - a TypeScript 2D game engine
-- `main.ts` - Game initialization and engine setup
-- `level.ts` - Scene management with lifecycle hooks (onInitialize, onPreLoad,
-  onActivate, etc.)
-- `resources.ts` - Asset loading pipeline for sprites/images
+- Scenes manage the game world and camera (pan, pinch-zoom, clamped to map
+  bounds)
+- Actors represent interactive game entities (tile-based, selectable)
+- Assets are Tiled-format tilesets (`.tsj` + `.png`) and maps (`.tmx`), loaded
+  via `@excaliburjs/plugin-tiled`
+- Game window: 390×844 (mobile portrait), `FitScreenAndFill`, pixel art
+  rendering
 
-**Backend (src-tauri/):**
+**Backend (`src-tauri/`)** — Tauri v2 + Rust:
 
-- Tauri v2 provides the desktop/mobile wrapper
-- Rust functions exposed to frontend via `#[tauri::command]` attribute in
-  `lib.rs`
-- Security capabilities configured in `capabilities/default.json`
-
-**Rendering:**
-
-- Game window: 390 x 844 (mobile portrait orientation)
-- Display mode: Fit screen and fill
-- Pixel art rendering enabled
-
-## Excalibur.js Documentation
-
-When working on game engine features, consult the Excalibur.js documentation at
-https://excaliburjs.com/docs/ using WebFetch. Key reference pages include:
-
-- https://excaliburjs.com/docs/actors — Actors, components, and entity system
-- https://excaliburjs.com/docs/scenes — Scenes and scene management
-- https://excaliburjs.com/docs/input — Input handling (keyboard, pointer,
-  gamepad)
-- https://excaliburjs.com/docs/graphics — Sprites, animations, and rendering
-- https://excaliburjs.com/docs/physics — Collision detection and physics
-- https://excaliburjs.com/docs/resources — Asset loading and resource management
-
-Fetch the relevant documentation page before implementing or modifying
-Excalibur.js features to ensure correct API usage.
-
-## Tauri Documentation
-
-When working on backend, desktop/mobile shell, or IPC features, consult the
-Tauri documentation at https://tauri.app/ using WebFetch. Key reference pages
-include:
-
-- https://tauri.app/start/ — Getting started and project setup
-- https://tauri.app/develop/ — Development guides
-- https://tauri.app/develop/calling-rust/ — Invoking Rust commands from the
+- Rust commands (via `#[tauri::command]`) handle game logic and serve data to
+  the frontend over Tauri IPC
+- Map generation currently lives in Rust and returns tile grid data to the
   frontend
-- https://tauri.app/develop/calling-frontend/ — Calling frontend from Rust
-  (events)
-- https://tauri.app/plugin/ — Plugin system and official plugins
-- https://tauri.app/distribute/ — Building and distributing the application
-- https://tauri.app/reference/javascript/ — JavaScript/TypeScript API reference
-- https://tauri.app/reference/rust/ — Rust API reference
 
-Fetch the relevant documentation page before implementing or modifying Tauri
-features to ensure correct API usage.
+**Key config:**
 
-## Game Design Notes
+- `vite.config.ts`: `assetsInlineLimit: 0` — required so Excalibur can load
+  assets in production builds
 
-From README.md ideas dump:
+## Documentation
 
-- Space setting with colonization mechanics
-- Base building with upgrades
-- Resource collection with limiting strategies (diminishing returns or daily
-  caps)
-- Map progression where resources increase in difficulty toward center
-- New player protection via separate starting planets
-- Seasonal progression system
-- Alliance/dominion building for multiplayer cooperation
+Fetch docs before implementing engine or IPC features:
+
+- Excalibur.js: https://excaliburjs.com/docs/
+- Tauri: https://tauri.app/develop/
+
+## Game Design
+
+See `README.md`. Core ideas:
+
+- **Setting**: players colonize a new star system; their "base" is a mothership
+  built and expanded in space
+- **Mothership**: has compartments (RTS "buildings") that serve specific
+  functions and can be upgraded
+- **Resources** (4 types): construction material (rocky/iron asteroids),
+  high-tech materials (rare asteroids), biological materials (icy asteroids /
+  terrarium), fuel (hydrogen/methane)
+- **Map**: resource nodes are asteroids, moons, and planets; difficulty scales
+  toward center, requiring alliances to progress
+- **Diminishing returns** instead of hard daily caps on actions
+- **New-player protection**: late joiners start in a new system with peers
+- **Seasons**: after milestones, players move to a new system; ascension bonuses
+  carry forward
