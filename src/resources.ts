@@ -2,6 +2,10 @@ import * as ex from "excalibur";
 
 import { TiledResource } from "@excaliburjs/plugin-tiled";
 
+import cs1BasePngPath from "./assets/cs1-base.png?url";
+import cs1BaseTilesetPath from "./assets/cs1-base.tsj?url";
+import cs1MovingPngPath from "./assets/cs1-moving.png?url";
+import cs1MovingTilesetPath from "./assets/cs1-moving.tsj?url";
 import ss1BasePngPath from "./assets/ss1-base.png?url";
 import ss1BaseTilesetPath from "./assets/ss1-base.tsj?url";
 import ss1DamagedPngPath from "./assets/ss1-damaged.png?url";
@@ -24,6 +28,10 @@ export const Resources = {
       { path: "ss1-base.png", output: ss1BasePngPath },
       { path: "ss1-damaged.tsj", output: ss1DamagedTilesetPath },
       { path: "ss1-damaged.png", output: ss1DamagedPngPath },
+      { path: "cs1-base.tsj", output: cs1BaseTilesetPath },
+      { path: "cs1-base.png", output: cs1BasePngPath },
+      { path: "cs1-moving.tsj", output: cs1MovingTilesetPath },
+      { path: "cs1-moving.png", output: cs1MovingPngPath },
     ],
   }),
 } as const;

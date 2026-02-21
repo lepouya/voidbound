@@ -1,9 +1,17 @@
 {
-    "activeFile": "ui-selection.tsj",
+    "activeFile": "cs1-base.tsj",
     "expandedProjectPaths": [
         "."
     ],
     "fileStates": {
+        "cs1-base.tsj": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "cs1-moving.tsj": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
         "ss1-base.tsj": {
             "scaleInDock": 1,
             "scaleInEditor": 0.5
@@ -22,18 +30,22 @@
     "openFiles": [
         "ss1-base.tsj",
         "ss1-damaged.tsj",
-        "ui-selection.tsj"
+        "ui-selection.tsj",
+        "cs1-base.tsj",
+        "cs1-moving.tsj"
     ],
     "project": "voidbound.tiled-project",
     "recentFiles": [
         "ss1-base.tsj",
         "ss1-damaged.tsj",
-        "ui-selection.tsj"
+        "ui-selection.tsj",
+        "cs1-moving.tsj",
+        "cs1-base.tsj"
     ],
-    "tileset.lastUsedFormat": "tsj",
+    "tileset.lastUsedFormat": "json",
     "tileset.tileSize": {
-        "height": 256,
-        "width": 256
+        "height": 64,
+        "width": 64
     },
     "tileset.transparentColor": "#000000",
     "tileset.useTransparentColor": false

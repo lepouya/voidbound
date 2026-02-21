@@ -4,6 +4,8 @@
  <tileset firstgid="5" source="ui-selection.tsj"/>
  <tileset firstgid="41" source="ss1-base.tsj"/>
  <tileset firstgid="77" source="ss1-damaged.tsj"/>
+ <tileset firstgid="113" source="cs1-base.tsj"/>
+ <tileset firstgid="149" source="cs1-moving.tsj"/>
  <layer id="1" name="Stub" width="1" height="1">
   <data encoding="csv">
 1

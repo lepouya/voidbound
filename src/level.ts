@@ -72,6 +72,30 @@ export class MyLevel extends ex.Scene {
       }),
     );
 
+    this.add(
+      new TileActor({
+        tilemap,
+        tile: "cs1-base:0",
+        col: 50,
+        row: 54,
+        width: 1,
+        height: 1,
+        onPressed: onTilePressed,
+      }),
+    );
+
+    this.add(
+      new TileActor({
+        tilemap,
+        tile: "cs1-moving:0",
+        col: 54,
+        row: 54,
+        width: 1,
+        height: 1,
+        onPressed: onTilePressed,
+      }),
+    );
+
     this.camera.x = mapWidth / 2;
     this.camera.y = mapHeight / 2;
     this.camera.zoom = 1;

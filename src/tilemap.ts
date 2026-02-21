@@ -117,8 +117,15 @@ export class TileActor extends ex.Actor {
     this.on("pointerdown", () => this.onPressed?.(this));
 
     if (this.selectionTile !== null) {
-      this.selection = new ex.Actor({ anchor: ex.vec(0.5, 0.5) });
-      this.selection.graphics.use(parseTileRef(this.selectionTile));
+      const selGraphic = parseTileRef(this.selectionTile);
+      this.selection = new ex.Actor({
+        anchor: ex.vec(0.5, 0.5),
+        scale: ex.vec(
+          this.width / this.scale.x / selGraphic.width,
+          this.height / this.scale.y / selGraphic.height,
+        ),
+      });
+      this.selection.graphics.use(selGraphic);
       this.selection.graphics.isVisible = false;
       this.addChild(this.selection);
     }
