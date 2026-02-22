@@ -53,10 +53,10 @@ with a Rust/Tauri backend.
 
 ### Toolchain
 
-- **Task Runner:** [Deno](https://deno.land/)
-  - Used for running development scripts (e.g., `deno task tauri dev`).
-- **Package Manager:** `npm`
-  - Manages Node.js dependencies listed in `package.json`.
+- **Package Manager / Task Runner:** [Deno](https://deno.land/)
+  - Manages npm dependencies (`deno install`) and runs development scripts
+    (`deno task tauri dev`). Dependencies are listed in `package.json`; there
+    is no separate `deno.json`.
 
 ---
 
@@ -67,7 +67,7 @@ with a Rust/Tauri backend.
 ├── src/                  # Frontend (TypeScript, Excalibur.js)
 │   ├── main.ts           # Game engine entry point
 │   ├── level.ts          # Main game scene, input handling, camera logic
-│   ├── tilemap.ts        # Tiled integration, actor definitions
+│   ├── tilemap.ts        # Tilemap builder (IPC), TileActor class, TileRef format
 │   ├── resources.ts      # Asset loading and management
 │   └── assets/           # Game assets (images, tilesets)
 │
@@ -90,7 +90,7 @@ with a Rust/Tauri backend.
 
 ### Initial Setup
 
-Ensure `deno` and `npm` are installed. The first time, run:
+Ensure `deno` is installed. The first time, run:
 
 ```bash
 deno install

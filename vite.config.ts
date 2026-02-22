@@ -28,6 +28,6 @@ export default defineConfig(async () => ({
     },
   },
   build: {
-    assetsInlineLimit: 0, // Excalibur cannot handle inlined XML in production
+    assetsInlineLimit: 0, // Excalibur needs real URLs for ImageSource; disables base64 inlining
   },
 }));
