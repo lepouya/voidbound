@@ -29,7 +29,7 @@ Design decisions:
     lets multiple transitions stack: for each frame, we start with the base and
     alpha_composite each active transition's overlay on top, in declaration order.
     This means later transitions visually sit on top of earlier ones where they overlap.
-  - Each transition is parameterized by a local progress value (0.0–1.0) derived from
+  - Each transition is parameterized by a local progress value (0.0-1.0) derived from
     its own start/end frame range, making transition logic independent of absolute
     frame indices.
 
@@ -48,7 +48,7 @@ from PIL import Image
 
 def resize_to_square(img: Image.Image, size: int) -> Image.Image:
     """
-    Resize an image to size×size pixels. If the source image is not square,
+    Resize an image to size*size pixels. If the source image is not square,
     it is first padded with transparent pixels equally on both sides of the
     shorter dimension so the content is centered, then resized.
     """
@@ -163,9 +163,7 @@ def overlay_rotate(
 
 
 OVERLAY_GENERATORS = {
-    "fade": lambda alt, t, **kw: overlay_fade(
-        alt, t, kw["alpha_from"], kw["alpha_to"]
-    ),
+    "fade": lambda alt, t, **kw: overlay_fade(alt, t, kw["alpha_from"], kw["alpha_to"]),
     "roll_up": lambda alt, t, **kw: overlay_roll(alt, t, "up"),
     "roll_down": lambda alt, t, **kw: overlay_roll(alt, t, "down"),
     "scale": lambda alt, t, **kw: overlay_scale(
@@ -319,7 +317,7 @@ def main():
         "--size",
         type=int,
         required=True,
-        help="Sprite size in pixels (each frame will be size×size)",
+        help="Sprite size in pixels (each frame will be size*size)",
     )
     parser.add_argument(
         "-t",

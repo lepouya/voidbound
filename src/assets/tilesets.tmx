@@ -1,14 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="1" height="1" tilewidth="32" tileheight="32" infinite="0" nextlayerid="2" nextobjectid="1">
- <tileset firstgid="1" source="test-tileset.tsj"/>
- <tileset firstgid="5" source="ui-selection.tsj"/>
- <tileset firstgid="41" source="ss1-base.tsj"/>
- <tileset firstgid="77" source="ss1-damaged.tsj"/>
- <tileset firstgid="113" source="cs1-base.tsj"/>
- <tileset firstgid="149" source="cs1-moving.tsj"/>
- <layer id="1" name="Stub" width="1" height="1">
-  <data encoding="csv">
-1
-  </data>
- </layer>
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down"
+  width="1" height="1" tilewidth="32" tileheight="32" infinite="0" nextlayerid="2" nextobjectid="1">
+  <tileset firstgid="1" source="test-tileset.tsj" />
+  <tileset firstgid="5" source="ui-selection.tsj" />
+  <tileset firstgid="41" source="ss1-base.tsj" />
+  <tileset firstgid="77" source="ss1-damaged.tsj" />
+  <tileset firstgid="113" source="cs1-base.tsj" />
+  <tileset firstgid="149" source="cs1-moving.tsj" />
+  <tileset firstgid="185" source="ui-button-attack.tsj" />
+  <tileset firstgid="191" source="ui-button-back.tsj" />
+  <tileset firstgid="197" source="ui-button-buy.tsj" />
+  <tileset firstgid="203" source="ui-button-deploy.tsj" />
+  <tileset firstgid="209" source="ui-button-details.tsj" />
+  <tileset firstgid="215" source="ui-button-enter.tsj" />
+  <tileset firstgid="221" source="ui-button-events.tsj" />
+  <tileset firstgid="227" source="ui-button-events-2.tsj" />
+  <tileset firstgid="233" source="ui-button-items.tsj" />
+  <tileset firstgid="239" source="ui-button-items-2.tsj" />
+  <tileset firstgid="245" source="ui-button-message.tsj" />
+  <tileset firstgid="251" source="ui-button-modify.tsj" />
+  <tileset firstgid="257" source="ui-button-upgrade.tsj" />
+  <tileset firstgid="263" source="ui-button-warp.tsj" />
+  <layer id="1" name="Stub" width="1" height="1">
+    <data encoding="csv">
+      1
+    </data>
+  </layer>
 </map>

@@ -1,0 +1,15 @@
+{
+  "columns": 3,
+  "image": "ui-button-items.png",
+  "imageheight": 128,
+  "imagewidth": 192,
+  "margin": 0,
+  "name": "ui-button-items",
+  "spacing": 0,
+  "tilecount": 6,
+  "tileheight": 64,
+  "tilewidth": 64,
+  "tiledversion": "1.11.2",
+  "type": "tileset",
+  "version": "1.10"
+}
