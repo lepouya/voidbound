@@ -36,11 +36,9 @@ with a Rust/Tauri backend.
   - Provides a fast development server and builds the frontend assets. The
     configuration in `vite.config.ts` is specifically tailored for Tauri
     integration.
-- **Map/Level Design:**
-  [@excaliburjs/plugin-tiled](https://excaliburjs.com/docs/tiled-plugin/)
-  - Uses maps and tilesets created with the
-    [Tiled Map Editor](https://www.mapeditor.org/).
-  - Assets are stored as `.tmx` (maps) and `.tsj` (tileset definitions).
+- **Asset Loading:** Sprites and animations are defined in code via a typed
+  catalog in `src/resources.ts` — no external tileset or map files. All PNG
+  spritesheets are discovered automatically by Vite's `import.meta.glob`.
 
 ### Backend (`src-tauri/`)
 
@@ -127,6 +125,10 @@ Format all TypeScript and Rust code before committing:
 deno fmt
 ```
 
+When writing dimensions or grid sizes in comments, code, or documentation, use
+`*` (e.g. `3*2`, `cols*rows`) — never the Unicode multiplication sign `×`,
+which can be confused with the Latin letter `x`.
+
 ---
 
 ## 5. Architectural Principles
@@ -137,9 +139,13 @@ deno fmt
 - **Scene-Based Logic:** The game's structure is organized into different
   scenes. The primary game level scene is responsible for orchestrating camera
   controls, actor interactions, and setting up the game world.
-- **Asset Management:** Game assets are centrally managed and loaded. The build
-  process is configured to handle asset paths correctly for both development and
-  production.
+- **Asset Management:** All spritesheets are PNG files under `src/assets/`.
+  They are registered in the typed `TILESET_DEFS` catalog in `src/resources.ts`
+  and loaded via `TilesetRegistry`, which builds Excalibur `SpriteSheet` and
+  `Animation` objects at startup. To add a new spritesheet, drop the PNG into
+  `src/assets/` and add one entry to `TILESET_DEFS`. Button-style tilesets
+  (`ui-button-*.png`) require no code changes at all — they are discovered
+  automatically.
 - **Backend Communication (IPC):** The frontend acts as a client to the Rust
   backend, using asynchronous `invoke` calls to execute commands defined in
   Rust. This is used for tasks like fetching procedurally generated map data.
@@ -162,11 +168,26 @@ directories.
 - **`src/level.ts`**: This module contains the main game scene. It's the core of
   the frontend, responsible for bringing together the tilemap, actors, and user
   input.
-- **`src/tilemap.ts`**: This module handles the integration with Tiled. It
-  contains logic for parsing map data from the backend and defines the base
-  classes for actors on the tile grid.
-- **`src/resources.ts`**: Defines and configures all loadable game assets.
-  Centralizing asset definitions here is a key convention.
+- **`src/tilemap.ts`**: Handles the tile grid and actor system. Receives raw
+  map data from the Rust backend via IPC and builds an `ex.TileMap`. Defines
+  `TileActor` (a selectable tile-based entity) and the `TileRef` string format
+  (`"tileset-name:tile_id"`) used to reference individual sprites or animations.
+- **`src/resources.ts`**: The single source of truth for all visual assets.
+  Contains two things: (1) `TILESET_DEFS`, a typed catalog describing every
+  spritesheet (grid dimensions, tile size, and for animated sheets the frame
+  count and frame duration); and (2) `TilesetRegistry`, which builds
+  `ex.SpriteSheet` and `ex.Animation` instances from those definitions and
+  exposes them via `Resources.Tilesets.getGraphic(name, tileId)`.
+
+  **Two tileset kinds:**
+  - `static` — a sheet of distinct sprites; `tileId` selects which sprite.
+  - `animated` — a single looping animation; `tileId=0` returns the full
+    `ex.Animation`, any other `tileId` returns the individual frame sprite.
+
+  **Adding a new tileset:**
+  1. Drop the PNG in `src/assets/`.
+  2. Add one `sd(...)` or `ad(...)` line to `TILESET_DEFS` in `resources.ts`.
+  3. For `ui-button-*` sheets, no code change is needed at all.
 - **`src-tauri/src/main.rs`**: The entry point for the backend Rust application,
   where the Tauri app is run and IPC commands are defined.
 - **`tauri.conf.json`**: Critical configuration for the desktop app, defining

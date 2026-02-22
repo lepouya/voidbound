@@ -24,6 +24,10 @@ Vite dev server: port 1420, HMR on port 1421.
 Always run `deno fmt <files>` on any source files you modify before considering
 the task complete.
 
+When writing dimensions or grid sizes in comments, code, or documentation, use
+`*` (e.g. `3*2`, `cols*rows`) — never the Unicode multiplication sign `×`,
+which can be confused with the Latin letter `x`.
+
 ## Architecture
 
 **Frontend (`src/`)** — TypeScript + Excalibur.js v0.32:
@@ -31,9 +35,12 @@ the task complete.
 - Scenes manage the game world and camera (pan, pinch-zoom, clamped to map
   bounds)
 - Actors represent interactive game entities (tile-based, selectable)
-- Assets are Tiled-format tilesets (`.tsj` + `.png`) and maps (`.tmx`), loaded
-  via `@excaliburjs/plugin-tiled`
-- Game window: 390×844 (mobile portrait), `FitScreenAndFill`, pixel art
+- Assets are `.png` spritesheets in `src/assets/`. Tileset metadata is defined
+  in code in `src/resources.ts` (`TILESET_DEFS` + `TilesetRegistry`) — no
+  `.tsj` or `.tmx` files, no Tiled plugin. To add a spritesheet: drop the PNG
+  and add one line to `TILESET_DEFS`. `ui-button-*.png` files need no code
+  change at all (picked up via `import.meta.glob`).
+- Game window: 390*844 (mobile portrait), `FitScreenAndFill`, pixel art
   rendering
 
 **Backend (`src-tauri/`)** — Tauri v2 + Rust:

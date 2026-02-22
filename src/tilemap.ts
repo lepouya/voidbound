@@ -11,11 +11,7 @@ function parseTileRef(ref: TileRef): ex.Graphic {
   const colon = ref.indexOf(":");
   const name = colon === -1 ? ref : ref.slice(0, colon);
   const tileId = colon === -1 ? 0 : parseInt(ref.slice(colon + 1), 10);
-  const results = Resources.Tilesets.getTilesetByName(name);
-  if (results.length === 0) throw new Error(`Tileset not found: "${name}"`);
-  const tileset = results[0];
-  const gid = tileset.firstGid + tileId;
-  return tileset.getAnimationForGid(gid) ?? tileset.getSpriteForGid(gid);
+  return Resources.Tilesets.getGraphic(name, tileId);
 }
 
 interface TileMapData {

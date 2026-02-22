@@ -1,98 +1,172 @@
 import * as ex from "excalibur";
 
-import { TiledResource } from "@excaliburjs/plugin-tiled";
+// All PNG assets under src/assets/, including any future subdirectories.
+// Keys are paths relative to this file, e.g. "./assets/cs1-base.png" or
+// "./assets/weapons/sword.png". Values are Vite-resolved URLs.
+const allPngs = import.meta.glob<string>("./assets/**/*.png", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
 
-import cs1BasePngPath from "./assets/cs1-base.png?url";
-import cs1BaseTilesetPath from "./assets/cs1-base.tsj?url";
-import cs1MovingPngPath from "./assets/cs1-moving.png?url";
-import cs1MovingTilesetPath from "./assets/cs1-moving.tsj?url";
-import ss1BasePngPath from "./assets/ss1-base.png?url";
-import ss1BaseTilesetPath from "./assets/ss1-base.tsj?url";
-import ss1DamagedPngPath from "./assets/ss1-damaged.png?url";
-import ss1DamagedTilesetPath from "./assets/ss1-damaged.tsj?url";
-import testTilesetPngPath from "./assets/test-tileset.png?url";
-import testTilesetPath from "./assets/test-tileset.tsj?url";
-import tilesetsPath from "./assets/tilesets.tmx?url";
-import uiButtonAttackPngPath from "./assets/ui-button-attack.png?url";
-import uiButtonAttackTilesetPath from "./assets/ui-button-attack.tsj?url";
-import uiButtonBackPngPath from "./assets/ui-button-back.png?url";
-import uiButtonBackTilesetPath from "./assets/ui-button-back.tsj?url";
-import uiButtonBuyPngPath from "./assets/ui-button-buy.png?url";
-import uiButtonBuyTilesetPath from "./assets/ui-button-buy.tsj?url";
-import uiButtonDeployPngPath from "./assets/ui-button-deploy.png?url";
-import uiButtonDeployTilesetPath from "./assets/ui-button-deploy.tsj?url";
-import uiButtonDetailsPngPath from "./assets/ui-button-details.png?url";
-import uiButtonDetailsTilesetPath from "./assets/ui-button-details.tsj?url";
-import uiButtonEnterPngPath from "./assets/ui-button-enter.png?url";
-import uiButtonEnterTilesetPath from "./assets/ui-button-enter.tsj?url";
-import uiButtonEvents2PngPath from "./assets/ui-button-events-2.png?url";
-import uiButtonEvents2TilesetPath from "./assets/ui-button-events-2.tsj?url";
-import uiButtonEventsPngPath from "./assets/ui-button-events.png?url";
-import uiButtonEventsTilesetPath from "./assets/ui-button-events.tsj?url";
-import uiButtonItems2PngPath from "./assets/ui-button-items-2.png?url";
-import uiButtonItems2TilesetPath from "./assets/ui-button-items-2.tsj?url";
-import uiButtonItemsPngPath from "./assets/ui-button-items.png?url";
-import uiButtonItemsTilesetPath from "./assets/ui-button-items.tsj?url";
-import uiButtonMessagePngPath from "./assets/ui-button-message.png?url";
-import uiButtonMessageTilesetPath from "./assets/ui-button-message.tsj?url";
-import uiButtonModifyPngPath from "./assets/ui-button-modify.png?url";
-import uiButtonModifyTilesetPath from "./assets/ui-button-modify.tsj?url";
-import uiButtonUpgradePngPath from "./assets/ui-button-upgrade.png?url";
-import uiButtonUpgradeTilesetPath from "./assets/ui-button-upgrade.tsj?url";
-import uiButtonWarpPngPath from "./assets/ui-button-warp.png?url";
-import uiButtonWarpTilesetPath from "./assets/ui-button-warp.tsj?url";
-import uiSelectionPngPath from "./assets/ui-selection.png?url";
-import uiSelectionTilesetPath from "./assets/ui-selection.tsj?url";
+// Look up a PNG by its path relative to src/assets/ (without extension).
+// E.g., png("cs1-base") or png("subdir/foo"). Throws at startup if the file
+// is missing, giving an early and clear error rather than a silent undefined.
+const png = (name: string): string => {
+  const key = `./assets/${name}.png`;
+  const url = allPngs[key];
+  if (!url) throw new Error(`PNG not found in assets: "${name}.png"`);
+  return url;
+};
+
+// -- Tileset definitions -------------------------------------------------------
+//
+// Every tileset is described by a plain data object. TilesetRegistry builds
+// SpriteSheets and Animations from these at startup, eliminating the need for
+// separate .tsj tileset files or a .tmx map file.
+//
+// Two kinds:
+//   static   — a sheet of distinct sprites. TileRef "name:N" selects sprite N.
+//   animated — one looping animation using the first `frames` cells of the
+//              sheet. TileRef "name:0" returns the Animation; "name:N" (N > 0)
+//              returns the individual frame sprite at index N.
+//
+// To add a new non-button tileset: drop the PNG in src/assets/ and add a row
+// to TILESET_DEFS below — no import statement needed.
+
+type StaticDef = {
+  kind: "static";
+  name: string;
+  src: string;
+  cols: number;
+  rows: number;
+  tileSize: number;
+};
+
+type AnimatedDef = {
+  kind: "animated";
+  name: string;
+  src: string;
+  cols: number;
+  rows: number;
+  tileSize: number;
+  /** Number of animation frames (may be less than cols*rows). */
+  frames: number;
+  /** Duration of each frame in milliseconds. */
+  frameDuration: number;
+};
+
+type TilesetDef = StaticDef | AnimatedDef;
+
+// Shorthand constructors keep the catalog rows concise.
+const sd = (
+  name: string,
+  src: string,
+  cols: number,
+  rows: number,
+  tileSize: number,
+): StaticDef => ({ kind: "static", name, src, cols, rows, tileSize });
+
+const ad = (
+  name: string,
+  src: string,
+  cols: number,
+  rows: number,
+  tileSize: number,
+  frames: number,
+  frameDuration: number,
+): AnimatedDef => ({
+  kind: "animated",
+  name,
+  src,
+  cols,
+  rows,
+  tileSize,
+  frames,
+  frameDuration,
+});
+
+// Button tilesets: 3*2 grid, 64 px cells, static.
+// Any ui-button-*.png anywhere under assets/ is picked up automatically.
+const buttonDefs: TilesetDef[] = Object.entries(allPngs)
+  .filter(([path]) => path.split("/").pop()!.startsWith("ui-button-"))
+  .map(([path, src]) => {
+    const name = path.replace("./assets/", "").replace(".png", "");
+    return sd(name, src, 3, 2, 64);
+  });
+
+//                  name             cols rows  sz   frames ms/f
+const TILESET_DEFS: TilesetDef[] = [
+  sd("test-tileset", png("test-tileset"), 4, 1, 32),
+  ad("ui-selection", png("ui-selection"), 6, 6, 256, 32, 66),
+  ad("ss1-base", png("ss1-base"), 6, 6, 256, 32, 66),
+  ad("ss1-damaged", png("ss1-damaged"), 6, 6, 256, 32, 66),
+  ad("cs1-base", png("cs1-base"), 6, 6, 64, 32, 66),
+  ad("cs1-moving", png("cs1-moving"), 6, 6, 64, 32, 66),
+  ...buttonDefs,
+];
+
+// -- TilesetRegistry -----------------------------------------------------------
+
+class TilesetRegistry {
+  private readonly entries = new Map<
+    string,
+    { def: TilesetDef; sheet: ex.SpriteSheet }
+  >();
+
+  /** All ImageSources — must be added to the Excalibur loader before game start. */
+  readonly loadables: ex.ImageSource[] = [];
+
+  constructor(defs: TilesetDef[]) {
+    for (const def of defs) {
+      const image = new ex.ImageSource(def.src);
+      this.loadables.push(image);
+      const sheet = ex.SpriteSheet.fromImageSource({
+        image,
+        grid: {
+          rows: def.rows,
+          columns: def.cols,
+          spriteWidth: def.tileSize,
+          spriteHeight: def.tileSize,
+        },
+      });
+      this.entries.set(def.name, { def, sheet });
+    }
+  }
+
+  /**
+   * Resolve a tileset name + local tile index to an Excalibur Graphic.
+   *
+   * Animated tilesets: tileId=0 returns the full looping Animation;
+   * any other tileId returns the individual Sprite at that frame index.
+   * Static tilesets: tileId always returns the Sprite at that grid position.
+   */
+  getGraphic(name: string, tileId: number): ex.Graphic {
+    const entry = this.entries.get(name);
+    if (!entry) throw new Error(`Tileset not found: "${name}"`);
+    const { def, sheet } = entry;
+
+    if (def.kind === "animated" && tileId === 0) {
+      return ex.Animation.fromSpriteSheet(
+        sheet,
+        Array.from({ length: def.frames }, (_, i) => i),
+        def.frameDuration,
+      );
+    }
+
+    const col = tileId % def.cols;
+    const row = Math.floor(tileId / def.cols);
+    return sheet.getSprite(col, row)!;
+  }
+}
+
+// -- Exports ------------------------------------------------------------------
 
 export const Resources = {
-  Tilesets: new TiledResource(tilesetsPath, {
-    pathMap: [
-      { path: "tilesets.tmx", output: tilesetsPath },
-      { path: "test-tileset.tsj", output: testTilesetPath },
-      { path: "test-tileset.png", output: testTilesetPngPath },
-      { path: "ui-selection.tsj", output: uiSelectionTilesetPath },
-      { path: "ui-selection.png", output: uiSelectionPngPath },
-      { path: "ss1-base.tsj", output: ss1BaseTilesetPath },
-      { path: "ss1-base.png", output: ss1BasePngPath },
-      { path: "ss1-damaged.tsj", output: ss1DamagedTilesetPath },
-      { path: "ss1-damaged.png", output: ss1DamagedPngPath },
-      { path: "cs1-base.tsj", output: cs1BaseTilesetPath },
-      { path: "cs1-base.png", output: cs1BasePngPath },
-      { path: "cs1-moving.tsj", output: cs1MovingTilesetPath },
-      { path: "cs1-moving.png", output: cs1MovingPngPath },
-      { path: "ui-button-attack.tsj", output: uiButtonAttackTilesetPath },
-      { path: "ui-button-attack.png", output: uiButtonAttackPngPath },
-      { path: "ui-button-back.tsj", output: uiButtonBackTilesetPath },
-      { path: "ui-button-back.png", output: uiButtonBackPngPath },
-      { path: "ui-button-buy.tsj", output: uiButtonBuyTilesetPath },
-      { path: "ui-button-buy.png", output: uiButtonBuyPngPath },
-      { path: "ui-button-deploy.tsj", output: uiButtonDeployTilesetPath },
-      { path: "ui-button-deploy.png", output: uiButtonDeployPngPath },
-      { path: "ui-button-details.tsj", output: uiButtonDetailsTilesetPath },
-      { path: "ui-button-details.png", output: uiButtonDetailsPngPath },
-      { path: "ui-button-enter.tsj", output: uiButtonEnterTilesetPath },
-      { path: "ui-button-enter.png", output: uiButtonEnterPngPath },
-      { path: "ui-button-events.tsj", output: uiButtonEventsTilesetPath },
-      { path: "ui-button-events.png", output: uiButtonEventsPngPath },
-      { path: "ui-button-events-2.tsj", output: uiButtonEvents2TilesetPath },
-      { path: "ui-button-events-2.png", output: uiButtonEvents2PngPath },
-      { path: "ui-button-items.tsj", output: uiButtonItemsTilesetPath },
-      { path: "ui-button-items.png", output: uiButtonItemsPngPath },
-      { path: "ui-button-items-2.tsj", output: uiButtonItems2TilesetPath },
-      { path: "ui-button-items-2.png", output: uiButtonItems2PngPath },
-      { path: "ui-button-message.tsj", output: uiButtonMessageTilesetPath },
-      { path: "ui-button-message.png", output: uiButtonMessagePngPath },
-      { path: "ui-button-modify.tsj", output: uiButtonModifyTilesetPath },
-      { path: "ui-button-modify.png", output: uiButtonModifyPngPath },
-      { path: "ui-button-upgrade.tsj", output: uiButtonUpgradeTilesetPath },
-      { path: "ui-button-upgrade.png", output: uiButtonUpgradePngPath },
-      { path: "ui-button-warp.tsj", output: uiButtonWarpTilesetPath },
-      { path: "ui-button-warp.png", output: uiButtonWarpPngPath },
-    ],
-  }),
+  Tilesets: new TilesetRegistry(TILESET_DEFS),
 } as const;
 
 export const loader = new ex.DefaultLoader();
-for (const res of Object.values(Resources)) {
-  loader.addResource(res);
+for (const img of Resources.Tilesets.loadables) {
+  loader.addResource(img);
 }
