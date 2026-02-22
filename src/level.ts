@@ -52,24 +52,29 @@ export class MyLevel extends ex.Scene {
         row: 48,
         width: 4,
         height: 4,
-        ownerName: "Player One",
+        ownerName: "My Spaceship",
         ownerId: "player-1",
         onPressed: onTilePressed,
         buttons: [
           {
+            tile: "ui-button-details:0",
+            label: "Details",
+            onPressed: () => console.log("Details my spaceship"),
+          },
+          {
             tile: "ui-button-enter:0",
             label: "Enter",
-            onPressed: () => console.log("Enter mothership"),
+            onPressed: () => console.log("Enter my spaceship"),
           },
           {
             tile: "ui-button-upgrade:0",
             label: "Upgrade",
-            onPressed: () => console.log("Upgrade mothership"),
+            onPressed: () => console.log("Upgrade my spaceship"),
           },
           {
             tile: "ui-button-warp:0",
-            label: "Warp",
-            onPressed: () => console.log("Warp mothership"),
+            label: "Move",
+            onPressed: () => console.log("Move my spaceship"),
           },
         ],
       }),
@@ -83,23 +88,41 @@ export class MyLevel extends ex.Scene {
         row: 49,
         width: 4,
         height: 4,
-        ownerName: "Player Two",
+        ownerName: "Enemy Spaceship",
         ownerId: "player-2",
         onPressed: onTilePressed,
         buttons: [
           {
-            tile: "ui-button-attack:0",
-            label: "Attack",
-            onPressed: () => console.log("Attack Player Two"),
+            tile: "ui-button-details:0",
+            label: "Details",
+            onPressed: () => console.log("Details enemy spaceship"),
           },
           {
             tile: "ui-button-message:0",
             label: "Message",
-            onPressed: () => console.log("Message Player Two"),
+            onPressed: () => console.log("Message enemy spaceship"),
+          },
+          {
+            tile: "ui-button-attack:0",
+            label: "Attack",
+            onPressed: () => console.log("Attack enemy spaceship"),
           },
         ],
       }),
     );
+
+    const cargoButtons = [
+      {
+        tile: "ui-button-details:0",
+        label: "Details",
+        onPressed: () => console.log("Details cargo ship"),
+      },
+      {
+        tile: "ui-button-back:0",
+        label: "Return",
+        onPressed: () => console.log("Return cargo ship"),
+      },
+    ];
 
     this.add(
       new TileActor({
@@ -110,6 +133,7 @@ export class MyLevel extends ex.Scene {
         width: 1,
         height: 1,
         onPressed: onTilePressed,
+        buttons: cargoButtons,
       }),
     );
 
@@ -122,6 +146,7 @@ export class MyLevel extends ex.Scene {
         width: 1,
         height: 1,
         onPressed: onTilePressed,
+        buttons: cargoButtons,
       }),
     );
 
@@ -222,9 +247,7 @@ export class MyLevel extends ex.Scene {
       this.resetPointerState();
     });
 
-    pointer1.on("cancel", () => {
-      this.resetPointerState();
-    });
+    pointer1.on("cancel", () => this.resetPointerState());
 
     pointer2.on("down", (evt) => {
       this.pinchDistance = pointer1.lastScreenPos.distance(evt.screenPos);

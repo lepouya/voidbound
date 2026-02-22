@@ -7,6 +7,69 @@ import { Resources } from "./resources";
 // "tileset-name" or "tileset-name:tile_id" (tile_id defaults to 0)
 export type TileRef = string;
 
+const LABEL_FONT_SIZE = 10;
+const LABEL_PAD = 2;
+
+/**
+ * Returns a GraphicsGroup that renders `text` with a rectangular border
+ * around it. Uses ex.Text (not a pre-baked bitmap), so it scales with the
+ * camera correctly.
+ */
+function makeBorderedLabel(
+  text: string,
+  { maxWidth, bordered = true }: { maxWidth?: number; bordered?: boolean } = {},
+): ex.GraphicsGroup {
+  const baseFont = {
+    size: LABEL_FONT_SIZE,
+    textAlign: ex.TextAlign.Center,
+    baseAlign: ex.BaseAlign.Top,
+  };
+  // Halo pass: black stroke only, transparent fill — drawn first (behind).
+  const haloFont = new ex.Font({
+    ...baseFont,
+    color: ex.Color.Transparent,
+    strokeColor: ex.Color.Black,
+    lineWidth: 2,
+  });
+  // Fill pass: white fill only, no stroke — drawn on top.
+  const fillFont = new ex.Font({
+    ...baseFont,
+    color: ex.Color.White,
+  });
+  const b = fillFont.measureText(text, maxWidth);
+  const members: ex.GraphicsGrouping[] = [];
+  if (bordered) {
+    members.push({
+      // Rectangle top-left is PAD px outside the text bounding box.
+      offset: ex.vec(b.left - LABEL_PAD, b.top - LABEL_PAD),
+      graphic: new ex.Rectangle({
+        width: b.width + LABEL_PAD * 2,
+        height: b.height + LABEL_PAD * 2,
+        color: ex.Color.fromRGB(0, 0, 0, 0.5),
+        strokeColor: ex.Color.fromRGB(255, 255, 255, 0.75),
+        lineWidth: 1,
+      }),
+      useBounds: false,
+    });
+  }
+  // The -LABEL_PAD shift aligns the text origin with the rect's inner
+  // edge, compensating for the font's own internal padding offset.
+  const textOffset = ex.vec(-LABEL_PAD, -LABEL_PAD);
+  members.push(
+    {
+      offset: textOffset,
+      graphic: new ex.Text({ text, font: haloFont, maxWidth }),
+      useBounds: false,
+    },
+    {
+      offset: textOffset,
+      graphic: new ex.Text({ text, font: fillFont, maxWidth }),
+      useBounds: false,
+    },
+  );
+  return new ex.GraphicsGroup({ useAnchor: false, members });
+}
+
 function parseTileRef(ref: TileRef): ex.Graphic {
   const colon = ref.indexOf(":");
   const name = colon === -1 ? ref : ref.slice(0, colon);
@@ -70,8 +133,10 @@ export interface TileActorOptions {
 }
 
 export class TileActor extends ex.Actor {
-  ownerName: string | undefined;
-  ownerId: string | undefined;
+  // Set once at construction; the label is baked in onInitialize so
+  // mutating these afterwards would have no visible effect.
+  readonly ownerName: string | undefined;
+  readonly ownerId: string | undefined;
   private readonly selectionTile: TileRef | null;
   private readonly onPressed: ((actor: TileActor) => void) | undefined;
   private readonly actionButtons: ActionButton[];
@@ -130,6 +195,29 @@ export class TileActor extends ex.Actor {
     for (const v of this.selectionVisuals) v.graphics.isVisible = false;
   }
 
+  /** Creates a bordered label child actor and adds it to this actor.
+   * If `selectionVisual` is true the actor starts hidden and is tracked in
+   * `selectionVisuals` so it shows/hides with the selection ring. */
+  private spawnLabel(
+    text: string,
+    pos: ex.Vector,
+    { maxWidth, selectionVisual = false, bordered = true }: {
+      maxWidth?: number;
+      selectionVisual?: boolean;
+      bordered?: boolean;
+    } = {},
+  ): void {
+    const actor = new ex.Actor({
+      pos,
+      anchor: ex.vec(0, 0),
+      scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+    });
+    actor.graphics.use(makeBorderedLabel(text, { maxWidth, bordered }));
+    if (selectionVisual) actor.graphics.isVisible = false;
+    this.addChild(actor);
+    if (selectionVisual) this.selectionVisuals.push(actor);
+  }
+
   override onInitialize(): void {
     this.on("pointerdown", () => {
       if (this.suppressNextPress) {
@@ -155,24 +243,9 @@ export class TileActor extends ex.Actor {
     }
 
     if (this.ownerName !== undefined) {
-      const labelActor = new ex.Actor({
-        pos: ex.vec(0, this.height),
-        scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-        anchor: ex.vec(0, 0),
+      this.spawnLabel(this.ownerName, ex.vec(0, this.height), {
+        maxWidth: this.width,
       });
-      labelActor.graphics.use(
-        new ex.Text({
-          text: this.ownerName,
-          maxWidth: this.width,
-          font: new ex.Font({
-            size: 10,
-            color: ex.Color.White,
-            textAlign: ex.TextAlign.Center,
-            baseAlign: ex.BaseAlign.Top,
-          }),
-        }),
-      );
-      this.addChild(labelActor);
     }
 
     this.setupActionButtons();
@@ -201,8 +274,8 @@ export class TileActor extends ex.Actor {
       const btn = this.actionButtons[i];
 
       // Angles are symmetric around π/2 (straight down in screen space).
-      // i=0 is the rightmost button, i=N-1 is the leftmost.
-      const angle = Math.PI / 2 + (i - (N - 1) / 2) * dAngle;
+      // i=0 is the leftmost button, i=N-1 is the rightmost.
+      const angle = Math.PI / 2 - (i - (N - 1) / 2) * dAngle;
 
       // Button center in world space (relative to actor center).
       const bxWorld = R * Math.cos(angle);
@@ -240,25 +313,11 @@ export class TileActor extends ex.Actor {
       if (btn.label) {
         // Label top touches the button's visual bottom edge.
         const labelByWorld = byWorld + tileH / 2;
-        const labelActor = new ex.Actor({
-          pos: ex.vec(bxLocal, labelByWorld / this.scale.y),
-          anchor: ex.vec(0, 0),
-          scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-        });
-        labelActor.graphics.use(
-          new ex.Text({
-            text: btn.label,
-            font: new ex.Font({
-              size: 10,
-              color: ex.Color.White,
-              textAlign: ex.TextAlign.Center,
-              baseAlign: ex.BaseAlign.Top,
-            }),
-          }),
+        this.spawnLabel(
+          btn.label,
+          ex.vec(bxLocal, labelByWorld / this.scale.y),
+          { selectionVisual: true, bordered: false },
         );
-        labelActor.graphics.isVisible = false;
-        this.addChild(labelActor);
-        this.selectionVisuals.push(labelActor);
       }
     }
   }
