@@ -55,6 +55,23 @@ export class MyLevel extends ex.Scene {
         ownerName: "Player One",
         ownerId: "player-1",
         onPressed: onTilePressed,
+        buttons: [
+          {
+            tile: "ui-button-enter:0",
+            label: "Enter",
+            onPressed: () => console.log("Enter mothership"),
+          },
+          {
+            tile: "ui-button-upgrade:0",
+            label: "Upgrade",
+            onPressed: () => console.log("Upgrade mothership"),
+          },
+          {
+            tile: "ui-button-warp:0",
+            label: "Warp",
+            onPressed: () => console.log("Warp mothership"),
+          },
+        ],
       }),
     );
 
@@ -69,6 +86,18 @@ export class MyLevel extends ex.Scene {
         ownerName: "Player Two",
         ownerId: "player-2",
         onPressed: onTilePressed,
+        buttons: [
+          {
+            tile: "ui-button-attack:0",
+            label: "Attack",
+            onPressed: () => console.log("Attack Player Two"),
+          },
+          {
+            tile: "ui-button-message:0",
+            label: "Message",
+            onPressed: () => console.log("Message Player Two"),
+          },
+        ],
       }),
     );
 
