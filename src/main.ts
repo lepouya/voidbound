@@ -1,6 +1,6 @@
 import * as ex from "excalibur";
 
-import { MyLevel } from "./level";
+import { MapLevel } from "./map-level";
 import { loader } from "./resources";
 
 const game = new ex.Engine({
@@ -9,7 +9,7 @@ const game = new ex.Engine({
   displayMode: ex.DisplayMode.FitScreenAndFill,
   pixelArt: true,
   scenes: {
-    start: MyLevel,
+    start: MapLevel,
   },
 });
 
@@ -22,6 +22,4 @@ game
       color: ex.Color.ExcaliburBlue,
     }),
   })
-  .then(() => {
-    // Do something after the game starts
-  });
+  .catch(console.error);

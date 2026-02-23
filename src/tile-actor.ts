@@ -1,10 +1,8 @@
 import * as ex from "excalibur";
 
-import { invoke } from "@tauri-apps/api/core";
-
 import { Resources } from "./resources";
 
-// "tileset-name" or "tileset-name:tile_id" (tile_id defaults to 0)
+// "tileset-name" or "tileset-name:tile-id" (tile-id defaults to 0)
 export type TileRef = string;
 
 const LABEL_FONT_SIZE = 10;
@@ -70,46 +68,16 @@ function makeBorderedLabel(
   return new ex.GraphicsGroup({ useAnchor: false, members });
 }
 
-function parseTileRef(ref: TileRef): ex.Graphic {
+export function parseTileRef(ref: TileRef): ex.Graphic {
   const colon = ref.indexOf(":");
   const name = colon === -1 ? ref : ref.slice(0, colon);
   const tileId = colon === -1 ? 0 : parseInt(ref.slice(colon + 1), 10);
   return Resources.Tilesets.getGraphic(name, tileId);
 }
 
-interface TileMapData {
-  cols: number;
-  rows: number;
-  tile_width: number;
-  tile_height: number;
-  tiles: string[];
-}
-
-export async function buildTileMap(): Promise<ex.TileMap> {
-  const mapData = await invoke<TileMapData>("generate_map");
-
-  const tilemap = new ex.TileMap({
-    rows: mapData.rows,
-    columns: mapData.cols,
-    tileWidth: mapData.tile_width,
-    tileHeight: mapData.tile_height,
-  });
-
-  for (const [i, tileRef] of mapData.tiles.entries()) {
-    const tile = tilemap.getTile(
-      i % mapData.cols,
-      Math.floor(i / mapData.cols),
-    );
-    if (!tile) continue;
-    tile.addGraphic(parseTileRef(tileRef));
-  }
-
-  return tilemap;
-}
-
 /** A single action button shown in the arc when a TileActor is selected. */
 export interface ActionButton {
-  /** Graphic sprite for the button, in TileRef format ("tileset-name:tile_id"). */
+  /** Graphic sprite for the button, in TileRef format ("tileset-name:tile-id"). */
   tile: TileRef;
   /** Optional label text shown beneath the button. */
   label?: string;
@@ -134,8 +102,8 @@ export interface TileActorOptions {
 }
 
 export class TileActor extends ex.Actor {
-  // Set once at construction; the label is baked in onInitialize so
-  // mutating these afterwards would have no visible effect.
+  // Set once at construction; ownerName label is baked in onInitialize so
+  // mutating it afterwards would have no visible effect.
   readonly ownerName: string | undefined;
   readonly ownerId: string | undefined;
   private readonly selectionTile: TileRef | null;

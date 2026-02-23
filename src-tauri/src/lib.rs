@@ -21,7 +21,8 @@ struct Rect {
 }
 
 #[tauri::command]
-fn generate_map() -> TileMapData {
+fn generate_map(map_type: String) -> TileMapData {
+    let _ = map_type; // reserved for future map variants
     // Tile IDs within test-tileset: 0 = gray (background), 1 = blue, 2 = red, 3 = green
     let rects = [
         Rect { x: 2,  y: 2,  w: 12, h: 12, tile: "test-tileset:1" },

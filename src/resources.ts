@@ -89,7 +89,7 @@ const ad = (
 // Button tilesets: 3*2 grid, 64 px cells, static.
 // Any ui-button-*.png anywhere under assets/ is picked up automatically.
 const buttonDefs: TilesetDef[] = Object.entries(allPngs)
-  .filter(([path]) => path.split("/").pop()!.startsWith("ui-button-"))
+  .filter(([path]) => path.split("/").pop()?.startsWith("ui-button-") ?? false)
   .map(([path, src]) => {
     const name = path.replace("./assets/", "").replace(".png", "");
     return sd(name, src, 3, 2, 64);
