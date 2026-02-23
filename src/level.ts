@@ -7,6 +7,7 @@ export class MyLevel extends ex.Scene {
   private lastScreenPos: ex.Vector | null = null;
   private selectedActor: TileActor | null = null;
   private pendingActor: TileActor | null = null;
+  private emptyTileActor: TileActor | null = null;
   private pinchDistance: number | null = null;
 
   private resetPointerState(): void {
@@ -20,6 +21,10 @@ export class MyLevel extends ex.Scene {
     if (this.selectedActor) {
       this.selectedActor.deselect();
       this.selectedActor = null;
+    }
+    if (this.emptyTileActor) {
+      this.emptyTileActor.kill();
+      this.emptyTileActor = null;
     }
   }
 
@@ -242,6 +247,39 @@ export class MyLevel extends ex.Scene {
           }
         } else {
           this.deselectActor();
+          const screenPos = this.lastScreenPos!;
+          const worldPos = engine.screen.screenToWorldCoordinates(screenPos);
+          const col = Math.floor(worldPos.x / tilemap.tileWidth);
+          const row = Math.floor(worldPos.y / tilemap.tileHeight);
+          if (
+            col >= 0 &&
+            col < tilemap.columns &&
+            row >= 0 &&
+            row < tilemap.rows
+          ) {
+            const emptyActor = new TileActor({
+              tilemap,
+              col,
+              row,
+              onPressed: onTilePressed,
+              buttons: [
+                {
+                  tile: "ui-button-warp:0",
+                  label: "Move",
+                  onPressed: () => console.log("Move empty tile"),
+                },
+                {
+                  tile: "ui-button-deploy:0",
+                  label: "Deploy",
+                  onPressed: () => console.log("Deploy empty tile"),
+                },
+              ],
+            });
+            this.emptyTileActor = emptyActor;
+            this.add(emptyActor);
+            this.selectedActor = emptyActor;
+            emptyActor.select();
+          }
         }
       }
       this.resetPointerState();

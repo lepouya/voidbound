@@ -118,7 +118,8 @@ export interface ActionButton {
 }
 
 export interface TileActorOptions {
-  tile: TileRef;
+  /** Sprite to display. Pass null/undefined for an invisible (empty) tile actor. */
+  tile?: TileRef | null;
   tilemap: ex.TileMap;
   col?: number;
   row?: number;
@@ -148,6 +149,8 @@ export class TileActor extends ex.Actor {
   // Set by a button child's pointerdown to prevent the parent from treating
   // the same press as a tap on the actor body.
   private suppressNextPress = false;
+  // select() called before onInitialize sets this flag; onInitialize applies it.
+  private pendingSelect = false;
 
   constructor({
     tilemap,
@@ -162,9 +165,22 @@ export class TileActor extends ex.Actor {
     onPressed,
     buttons = [],
   }: TileActorOptions) {
-    const graphic = parseTileRef(tile);
-    const w = width ?? graphic.width / tilemap.tileWidth;
-    const h = height ?? graphic.height / tilemap.tileHeight;
+    let graphic: ex.Graphic;
+    let w: number;
+    let h: number;
+    if (tile != null) {
+      graphic = parseTileRef(tile);
+      w = width ?? graphic.width / tilemap.tileWidth;
+      h = height ?? graphic.height / tilemap.tileHeight;
+    } else {
+      w = width ?? 1;
+      h = height ?? 1;
+      graphic = new ex.Rectangle({
+        width: w * tilemap.tileWidth,
+        height: h * tilemap.tileHeight,
+        color: ex.Color.Transparent,
+      });
+    }
     super({
       x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
       y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
@@ -187,10 +203,16 @@ export class TileActor extends ex.Actor {
   }
 
   select(): void {
+    if (this.selectionVisuals.length === 0) {
+      // onInitialize hasn't run yet; defer until it does.
+      this.pendingSelect = true;
+      return;
+    }
     for (const v of this.selectionVisuals) v.graphics.isVisible = true;
   }
 
   deselect(): void {
+    this.pendingSelect = false;
     this.suppressNextPress = false;
     for (const v of this.selectionVisuals) v.graphics.isVisible = false;
   }
@@ -201,7 +223,11 @@ export class TileActor extends ex.Actor {
   private spawnLabel(
     text: string,
     pos: ex.Vector,
-    { maxWidth, selectionVisual = false, bordered = true }: {
+    {
+      maxWidth,
+      selectionVisual = false,
+      bordered = true,
+    }: {
       maxWidth?: number;
       selectionVisual?: boolean;
       bordered?: boolean;
@@ -219,10 +245,22 @@ export class TileActor extends ex.Actor {
   }
 
   override onInitialize(): void {
-    this.on("pointerdown", () => {
+    this.on("pointerdown", (evt) => {
       if (this.suppressNextPress) {
         this.suppressNextPress = false;
         return;
+      }
+      // For sprites larger than 1*1 tile, let clicks in the outer 10% of the
+      // circumradius (center-to-corner distance) fall through to the tile beneath.
+      const visualW = this.width * this.scale.x;
+      const visualH = this.height * this.scale.y;
+      if (visualW > this.tileWidth || visualH > this.tileHeight) {
+        const circumradius = Math.sqrt(
+          (visualW / 2) ** 2 + (visualH / 2) ** 2,
+        );
+        const dx = evt.worldPos.x - this.pos.x;
+        const dy = evt.worldPos.y - this.pos.y;
+        if (Math.sqrt(dx * dx + dy * dy) > circumradius * 0.9) return;
       }
       this.onPressed?.(this);
     });
@@ -249,6 +287,10 @@ export class TileActor extends ex.Actor {
     }
 
     this.setupActionButtons();
+    if (this.pendingSelect) {
+      this.pendingSelect = false;
+      for (const v of this.selectionVisuals) v.graphics.isVisible = true;
+    }
   }
 
   private setupActionButtons(): void {
