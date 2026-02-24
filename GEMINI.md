@@ -66,14 +66,17 @@ with a Rust/Tauri backend.
 /
 ├── src/                  # Frontend (TypeScript, Excalibur.js)
 │   ├── main.ts           # Game engine entry point
-│   ├── level.ts          # Main game scene, input handling, camera logic
-│   ├── tilemap.ts        # Tilemap builder (IPC), TileActor class, TileRef format
+│   ├── tiled-scene.ts    # Abstract base scene: camera, pan/zoom, tap-to-select
+│   ├── map-level.ts      # Space map scene: mothership, vessel dispatch
+│   ├── ship-level.ts     # Mothership interior scene (compartments)
+│   ├── tile-actor.ts     # TileActor class and TileRef format
+│   ├── map-loader.ts     # buildTileMap() via Tauri IPC
 │   ├── resources.ts      # Asset loading and management
-│   └── assets/           # Game assets (images, tilesets)
+│   └── assets/           # Game assets (PNG spritesheets only)
 │
 ├── src-tauri/            # Backend (Rust, Tauri)
 │   ├── src/
-│   │   └── main.rs       # Tauri application setup and command definitions
+│   │   └── lib.rs        # Tauri command definitions (generate_map, etc.)
 │   ├── Cargo.toml        # Rust dependencies
 │   └── tauri.conf.json   # Tauri application configuration
 │
@@ -125,6 +128,14 @@ Format all TypeScript and Rust code before committing:
 deno fmt
 ```
 
+### Type Checking
+
+Always use `deno check` — never `npx tsc` or `tsc` directly:
+
+```bash
+deno check src/**/*.ts
+```
+
 When writing dimensions or grid sizes in comments, code, or documentation, use
 `*` (e.g. `3*2`, `cols*rows`) — never the Unicode multiplication sign `×`,
 which can be confused with the Latin letter `x`.
@@ -157,7 +168,15 @@ which can be confused with the Latin letter `x`.
 
 ---
 
-## 6. Codebase Guide
+## 6. Naming Conventions
+
+- Large ships (ss-* sprites, 4*4 tiles): **motherships** (also "space stations")
+- Small ships dispatched by motherships (cs-* sprites, 1*1 tiles): **vessels**
+  (never "cargo ships" — their role is broader than cargo)
+
+---
+
+## 7. Codebase Guide
 
 This section provides a high-level orientation to the project's key files and
 directories.
@@ -165,13 +184,27 @@ directories.
 - **`src/main.ts`**: The entry point for the frontend application. It
   initializes the Excalibur game engine, configures the display, and loads the
   starting scene.
-- **`src/level.ts`**: This module contains the main game scene. It's the core of
-  the frontend, responsible for bringing together the tilemap, actors, and user
-  input.
-- **`src/tilemap.ts`**: Handles the tile grid and actor system. Receives raw
-  map data from the Rust backend via IPC and builds an `ex.TileMap`. Defines
-  `TileActor` (a selectable tile-based entity) and the `TileRef` string format
-  (`"tileset-name:tile_id"`) used to reference individual sprites or animations.
+- **`src/tiled-scene.ts`**: Abstract base class for all tile-map scenes.
+  Implements drag-to-pan, pinch/scroll-to-zoom, and the tap-to-select actor
+  system (including the empty tile actor pattern). Subclasses implement
+  `buildMap()` and `setupActors()`. Key protected members available to
+  subclasses: `tilemap`, `handleTilePressed`, `pendingActor`,
+  `suppressNextPointerUp`, `deselectActor()`.
+- **`src/map-level.ts`**: The space map scene. Contains the player mothership,
+  enemy mothership, and vessel dispatch logic. Vessel movements are modelled as
+  `VesselMoveEvent` structs — a server-authoritative shape designed so the same
+  `applyVesselMoveEvent()` entry point works for both local actions and future
+  server-pushed events.
+- **`src/ship-level.ts`**: The mothership interior scene (compartments). Not yet
+  populated.
+- **`src/tile-actor.ts`**: Defines `TileActor`, the base class for all
+  interactive map entities. Key features: animated sprite support via `TileRef`
+  format (`"tileset-name:tile_id"`), selection ring, action button arcs, owner
+  name labels, and `moveTo(col, row, speed, onComplete?)` for animated grid
+  movement with automatic sprite-swap (idle ↔ moving). Public fields: `col`,
+  `row`, `colSpan`, `rowSpan`, `ownerName`, `ownerId`.
+- **`src/map-loader.ts`**: Calls the Rust `generate_map` IPC command and builds
+  an `ex.TileMap` from the returned tile grid data.
 - **`src/resources.ts`**: The single source of truth for all visual assets.
   Contains two things: (1) `TILESET_DEFS`, a typed catalog describing every
   spritesheet (grid dimensions, tile size, and for animated sheets the frame
@@ -188,9 +221,9 @@ directories.
   1. Drop the PNG in `src/assets/`.
   2. Add one `sd(...)` or `ad(...)` line to `TILESET_DEFS` in `resources.ts`.
   3. For `ui-button-*` sheets, no code change is needed at all.
-- **`src-tauri/src/main.rs`**: The entry point for the backend Rust application,
-  where the Tauri app is run and IPC commands are defined.
+- **`src-tauri/src/lib.rs`**: Tauri command definitions (e.g. `generate_map`).
 - **`tauri.conf.json`**: Critical configuration for the desktop app, defining
   the window properties, build commands, and security settings.
-- **`vite.config.ts`**: Configuration for the Vite build tool, tailored for the
-  Tauri development environment.
+- **`vite.config.ts`**: Configuration for the Vite build tool. Notable:
+  `assetsInlineLimit: 0` is required so Excalibur can load image assets in
+  production builds.

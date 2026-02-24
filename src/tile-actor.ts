@@ -8,6 +8,10 @@ export type TileRef = string;
 const LABEL_FONT_SIZE = 10;
 const LABEL_PAD = 2;
 
+const PATH_LINE_COLOR = "rgba(80, 232, 120, 0.85)";
+const PATH_LINE_THICKNESS = 1; // px in world space
+const PATH_LINE_KNOB_RADIUS = 2; // px in world space
+
 /**
  * Returns a GraphicsGroup that renders `text` with a rectangular border
  * around it. Uses ex.Text (not a pre-baked bitmap), so it scales with the
@@ -68,6 +72,57 @@ function makeBorderedLabel(
   return new ex.GraphicsGroup({ useAnchor: false, members });
 }
 
+/**
+ * Creates a scene-level actor that draws a straight path line between two
+ * world positions. The line is horizontal in local space; the actor is rotated
+ * to face `to`. Small circular knobs mark each endpoint. Kill the returned
+ * actor to remove the line from the scene.
+ */
+function makePathLine(from: ex.Vector, to: ex.Vector): ex.Actor {
+  const t = PATH_LINE_THICKNESS;
+  const r = PATH_LINE_KNOB_RADIUS;
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  const angle = Math.atan2(to.y - from.y, to.x - from.x);
+  const mid = ex.vec((from.x + to.x) / 2, (from.y + to.y) / 2);
+  // Canvas: (length + 2r) wide so knobs fit flush at each edge; 2r tall.
+  const W = Math.ceil(length + 2 * r);
+  const H = 2 * r;
+  const cy = H / 2;
+  const canvas = new ex.Canvas({
+    width: W,
+    height: H,
+    cache: true,
+    draw(ctx) {
+      ctx.strokeStyle = PATH_LINE_COLOR;
+      ctx.fillStyle = PATH_LINE_COLOR;
+      // Dotted line from knob center to knob center.
+      ctx.lineWidth = t;
+      ctx.lineCap = "round";
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath();
+      ctx.moveTo(r, cy);
+      ctx.lineTo(r + length, cy);
+      ctx.stroke();
+      // Solid knobs at each endpoint (reset dash first).
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(r, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(r + length, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    },
+  });
+  const actor = new ex.Actor({
+    pos: mid,
+    anchor: ex.vec(0.5, 0.5),
+    rotation: angle,
+    z: 1,
+  });
+  actor.graphics.use(canvas);
+  return actor;
+}
+
 export function parseTileRef(ref: TileRef): ex.Graphic {
   const colon = ref.indexOf(":");
   const name = colon === -1 ? ref : ref.slice(0, colon);
@@ -88,6 +143,8 @@ export interface ActionButton {
 export interface TileActorOptions {
   /** Sprite to display. Pass null/undefined for an invisible (empty) tile actor. */
   tile?: TileRef | null;
+  /** Sprite to display while the actor is in motion. Optional. */
+  movingTile?: TileRef | null;
   tilemap: ex.TileMap;
   col?: number;
   row?: number;
@@ -106,6 +163,14 @@ export class TileActor extends ex.Actor {
   // mutating it afterwards would have no visible effect.
   readonly ownerName: string | undefined;
   readonly ownerId: string | undefined;
+  readonly col: number;
+  readonly row: number;
+  /** Actor width in tiles. */
+  readonly colSpan: number;
+  /** Actor height in tiles. */
+  readonly rowSpan: number;
+  private readonly baseGraphic: ex.Graphic;
+  private readonly movingGraphic: ex.Graphic | null;
   private readonly selectionTile: TileRef | null;
   private readonly onPressed: ((actor: TileActor) => void) | undefined;
   private readonly actionButtons: ActionButton[];
@@ -119,10 +184,23 @@ export class TileActor extends ex.Actor {
   private suppressNextPress = false;
   // select() called before onInitialize sets this flag; onInitialize applies it.
   private pendingSelect = false;
+  // Child actors that must stay upright (zero screen rotation) at a fixed
+  // world-space offset from the actor center, regardless of this actor's
+  // rotation. Each entry stores the target world offset (wx, wy) in px.
+  // Populated in onInitialize() and setupActionButtons().
+  private readonly uprightChildren: Array<{
+    actor: ex.Actor;
+    wx: number;
+    wy: number;
+  }> = [];
+  // Sibling scene actor drawn while this actor is in motion; killed on arrival
+  // or when a new moveTo() supersedes the previous one.
+  private pathLine: ex.Actor | null = null;
 
   constructor({
     tilemap,
     tile,
+    movingTile,
     col = 0,
     row = 0,
     width,
@@ -155,11 +233,18 @@ export class TileActor extends ex.Actor {
       width: graphic.width,
       height: graphic.height,
       anchor: ex.vec(0.5, 0.5),
+      z: 2,
       scale: ex.vec(
         (w * tilemap.tileWidth) / graphic.width,
         (h * tilemap.tileHeight) / graphic.height,
       ),
     });
+    this.col = col;
+    this.row = row;
+    this.colSpan = w;
+    this.rowSpan = h;
+    this.baseGraphic = graphic;
+    this.movingGraphic = movingTile != null ? parseTileRef(movingTile) : null;
     this.ownerName = ownerName;
     this.ownerId = ownerId;
     this.selectionTile = selection === undefined ? "ui-selection:0" : selection;
@@ -185,9 +270,69 @@ export class TileActor extends ex.Actor {
     for (const v of this.selectionVisuals) v.graphics.isVisible = false;
   }
 
+  /**
+   * Rotate the actor to face the given angle (radians). Sprites are assumed to
+   * point toward the top of the screen (−y) at rotation 0, so an angle of 0
+   * leaves the sprite unchanged.
+   *
+   * Action buttons and labels are counter-rotated by repositionUprightChildren()
+   * so they always appear upright and below the actor in world space.
+   */
+  setFacing(angle: number): void {
+    this.rotation = angle;
+    // Reposition immediately so children don't lag by one frame if this is
+    // called mid-update (e.g. from a button press handler).
+    this.repositionUprightChildren();
+  }
+
+  /**
+   * Animate this actor from its current position to the given tile coordinates.
+   * Automatically rotates the actor to face the direction of travel.
+   * Switches to the movingTile sprite (if configured) during travel and back to
+   * the base sprite on arrival. Cancels any in-flight movement before starting.
+   * Shows a path line from the departure point to the destination; the line is
+   * removed when the actor arrives or when a new moveTo() supersedes this one.
+   */
+  moveTo(
+    col: number,
+    row: number,
+    speed: number,
+    onComplete?: () => void,
+  ): void {
+    const worldX = col * this.tileWidth + this.tileWidth / 2;
+    const worldY = row * this.tileHeight + this.tileHeight / 2;
+    this.actions.clearActions();
+    // Remove any path line from a previous (possibly in-flight) moveTo().
+    this.pathLine?.kill();
+    this.pathLine = null;
+    // Face the direction of travel. Sprites default to facing up (−y), so
+    // add π/2 to convert from the standard atan2 angle (0 = right) to the
+    // sprite's frame (0 = up).
+    const dx = worldX - this.pos.x;
+    const dy = worldY - this.pos.y;
+    if (dx !== 0 || dy !== 0) {
+      this.setFacing(Math.atan2(dy, dx) + Math.PI / 2);
+      const pathLine = makePathLine(this.pos, ex.vec(worldX, worldY));
+      this.scene?.add(pathLine);
+      this.pathLine = pathLine;
+    }
+    if (this.movingGraphic !== null) {
+      this.graphics.use(this.movingGraphic);
+    }
+    this.actions.moveTo(worldX, worldY, speed).callMethod(() => {
+      if (this.movingGraphic !== null) {
+        this.graphics.use(this.baseGraphic);
+      }
+      this.pathLine?.kill();
+      this.pathLine = null;
+      onComplete?.();
+    });
+  }
+
   /** Creates a bordered label child actor and adds it to this actor.
    * If `selectionVisual` is true the actor starts hidden and is tracked in
-   * `selectionVisuals` so it shows/hides with the selection ring. */
+   * `selectionVisuals` so it shows/hides with the selection ring.
+   * Returns the created actor so callers can track it (e.g. for counter-rotation). */
   private spawnLabel(
     text: string,
     pos: ex.Vector,
@@ -200,7 +345,7 @@ export class TileActor extends ex.Actor {
       selectionVisual?: boolean;
       bordered?: boolean;
     } = {},
-  ): void {
+  ): ex.Actor {
     const actor = new ex.Actor({
       pos,
       anchor: ex.vec(0, 0),
@@ -210,6 +355,7 @@ export class TileActor extends ex.Actor {
     if (selectionVisual) actor.graphics.isVisible = false;
     this.addChild(actor);
     if (selectionVisual) this.selectionVisuals.push(actor);
+    return actor;
   }
 
   override onInitialize(): void {
@@ -223,9 +369,7 @@ export class TileActor extends ex.Actor {
       const visualW = this.width * this.scale.x;
       const visualH = this.height * this.scale.y;
       if (visualW > this.tileWidth || visualH > this.tileHeight) {
-        const circumradius = Math.sqrt(
-          (visualW / 2) ** 2 + (visualH / 2) ** 2,
-        );
+        const circumradius = Math.sqrt((visualW / 2) ** 2 + (visualH / 2) ** 2);
         const dx = evt.worldPos.x - this.pos.x;
         const dy = evt.worldPos.y - this.pos.y;
         if (Math.sqrt(dx * dx + dy * dy) > circumradius * 0.9) return;
@@ -249,8 +393,18 @@ export class TileActor extends ex.Actor {
     }
 
     if (this.ownerName !== undefined) {
-      this.spawnLabel(this.ownerName, ex.vec(0, this.height), {
-        maxWidth: this.width,
+      const labelActor = this.spawnLabel(
+        this.ownerName,
+        ex.vec(0, this.height),
+        {
+          maxWidth: this.width,
+        },
+      );
+      // World offset: (0, height * scaleY) — directly below the actor.
+      this.uprightChildren.push({
+        actor: labelActor,
+        wx: 0,
+        wy: this.height * this.scale.y,
       });
     }
 
@@ -259,6 +413,45 @@ export class TileActor extends ex.Actor {
       this.pendingSelect = false;
       for (const v of this.selectionVisuals) v.graphics.isVisible = true;
     }
+  }
+
+  /**
+   * Keeps every upright child at its fixed world-space offset from the actor
+   * center, with zero screen rotation, regardless of this actor's rotation θ.
+   *
+   * A child at parent-local position (px, py) ends up at world offset:
+   *   wx = px·scaleX·cos(θ) − py·scaleY·sin(θ)
+   *   wy = px·scaleX·sin(θ) + py·scaleY·cos(θ)
+   * Inverting for the desired (wx, wy) gives:
+   *   px = (wx·cos(θ) + wy·sin(θ)) / scaleX
+   *   py = (−wx·sin(θ) + wy·cos(θ)) / scaleY
+   * The child's own rotation is set to −θ so its graphics stay upright.
+   */
+  private repositionUprightChildren(): void {
+    if (this.uprightChildren.length === 0) return;
+    const θ = this.rotation;
+    const cosθ = Math.cos(θ);
+    const sinθ = Math.sin(θ);
+    for (const { actor, wx, wy } of this.uprightChildren) {
+      actor.pos = ex.vec(
+        (wx * cosθ + wy * sinθ) / this.scale.x,
+        (-wx * sinθ + wy * cosθ) / this.scale.y,
+      );
+      actor.rotation = -θ;
+    }
+  }
+
+  override kill(): void {
+    // If killed while mid-flight, Excalibur discards the action queue without
+    // firing callMethod callbacks, so the normal cleanup inside moveTo's
+    // callback won't run. Clean up the path line here as a safety net.
+    this.pathLine?.kill();
+    this.pathLine = null;
+    super.kill();
+  }
+
+  override onPostUpdate(): void {
+    this.repositionUprightChildren();
   }
 
   private setupActionButtons(): void {
@@ -319,15 +512,21 @@ export class TileActor extends ex.Actor {
       });
       this.addChild(btnActor);
       this.selectionVisuals.push(btnActor);
+      this.uprightChildren.push({ actor: btnActor, wx: bxWorld, wy: byWorld });
 
       if (btn.label) {
         // Label top touches the button's visual bottom edge.
         const labelByWorld = byWorld + tileH / 2;
-        this.spawnLabel(
+        const labelActor = this.spawnLabel(
           btn.label,
           ex.vec(bxLocal, labelByWorld / this.scale.y),
           { selectionVisual: true, bordered: false },
         );
+        this.uprightChildren.push({
+          actor: labelActor,
+          wx: bxWorld,
+          wy: labelByWorld,
+        });
       }
     }
   }

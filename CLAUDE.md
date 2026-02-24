@@ -19,10 +19,13 @@ deno task build       # production build (tsc && vite build)
 
 Vite dev server: port 1420, HMR on port 1421.
 
-## Code Formatting
+## Code Formatting and Type Checking
 
 Always run `deno fmt <files>` on any source files you modify before considering
 the task complete.
+
+For type checking, always use `deno check src/**/*.ts` — never `npx tsc` or
+`tsc` directly.
 
 When writing dimensions or grid sizes in comments, code, or documentation, use
 `*` (e.g. `3*2`, `cols*rows`) — never the Unicode multiplication sign `×`,
@@ -33,8 +36,12 @@ which can be confused with the Latin letter `x`.
 **Frontend (`src/`)** — TypeScript + Excalibur.js v0.32:
 
 - Scenes manage the game world and camera (pan, pinch-zoom, clamped to map
-  bounds)
-- Actors represent interactive game entities (tile-based, selectable)
+  bounds). `TiledScene` (`src/tiled-scene.ts`) is the abstract base; subclasses
+  implement `buildMap()` and `setupActors()`.
+- Actors represent interactive game entities (tile-based, selectable). All
+  interactive entities use `TileActor` (`src/tile-actor.ts`), which supports
+  animated sprites, selection rings, action button arcs, owner name labels, and
+  `moveTo()` for animated grid movement.
 - Assets are `.png` spritesheets in `src/assets/`. Tileset metadata is defined
   in code in `src/resources.ts` (`TILESET_DEFS` + `TilesetRegistry`) — no
   `.tsj` or `.tmx` files, no Tiled plugin. To add a spritesheet: drop the PNG
@@ -54,6 +61,26 @@ which can be confused with the Latin letter `x`.
 
 - `vite.config.ts`: `assetsInlineLimit: 0` — required so Excalibur can load
   assets in production builds
+
+## Naming Conventions
+
+- Large ships (ss-* sprites, 4*4 tiles): **motherships** (also "space stations")
+- Small ships dispatched by motherships (cs-* sprites, 1*1 tiles): **vessels**
+  (never "cargo ships" — their role is broader than cargo)
+
+## Multiplayer-Ready Event Pattern
+
+Game actions that will eventually be server-authoritative (e.g. vessel dispatch)
+are modelled as event structs even while still running locally. The pattern:
+
+1. Local action constructs an event (e.g. `VesselMoveEvent`) with all fields a
+   server would return: `vesselId`, `ownerId`, `ownerName`, `speed`,
+   `dispatchedAt`, `arrivalAt`, etc.
+2. An `apply*Event()` method (e.g. `applyVesselMoveEvent()`) consumes the event
+   and mutates scene state. This method will become the server-push entry point.
+3. The local action calls `apply*Event()` directly for now.
+
+This keeps the local and networked code paths identical from day one.
 
 ## Documentation
 

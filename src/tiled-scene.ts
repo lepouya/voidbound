@@ -18,7 +18,10 @@ export abstract class TiledScene extends ex.Scene {
   private hasDragged = false;
   private lastScreenPos: ex.Vector | null = null;
   private selectedActor: TileActor | null = null;
-  private pendingActor: TileActor | null = null;
+  protected pendingActor: TileActor | null = null;
+  // Set by subclasses to skip selection logic on the next pointer-up (e.g.
+  // when a button action has already handled the interaction).
+  protected suppressNextPointerUp = false;
   private emptyTileActor: TileActor | null = null;
   private pinchDistance: number | null = null;
 
@@ -44,7 +47,7 @@ export abstract class TiledScene extends ex.Scene {
    * Defined as a field so re-registration on scene reactivation keeps
    * the same function identity.
    */
-  private readonly handleTilePressed = (a: TileActor): void => {
+  protected readonly handleTilePressed = (a: TileActor): void => {
     this.pendingActor = a;
   };
 
@@ -96,9 +99,10 @@ export abstract class TiledScene extends ex.Scene {
     this.hasDragged = false;
     this.lastScreenPos = null;
     this.pinchDistance = null;
+    this.suppressNextPointerUp = false;
   }
 
-  private deselectActor(): void {
+  protected deselectActor(): void {
     if (this.selectedActor) {
       this.selectedActor.deselect();
       this.selectedActor = null;
@@ -210,7 +214,9 @@ export abstract class TiledScene extends ex.Scene {
 
     const onP1Up = () => {
       if (!this.hasDragged) {
-        if (this.pendingActor) {
+        if (this.suppressNextPointerUp) {
+          this.suppressNextPointerUp = false;
+        } else if (this.pendingActor) {
           if (this.selectedActor === this.pendingActor) {
             this.deselectActor();
           } else {

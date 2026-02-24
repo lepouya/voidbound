@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import * as ex from "excalibur";
 
 // All PNG assets under src/assets/, including any future subdirectories.
