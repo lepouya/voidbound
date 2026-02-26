@@ -7,6 +7,7 @@ export type TileRef = string;
 
 const LABEL_FONT_SIZE = 10;
 const LABEL_PAD = 2;
+const LABEL_CORNER_RADIUS = 10;
 
 const PATH_LINE_COLOR = "rgba(80, 232, 120, 0.85)";
 const PATH_LINE_THICKNESS = 1; // px in world space
@@ -41,16 +42,33 @@ function makeBorderedLabel(
   const b = fillFont.measureText(text, maxWidth);
   const members: ex.GraphicsGrouping[] = [];
   if (bordered) {
+    const W = b.width + LABEL_PAD * 2;
+    const H = b.height + LABEL_PAD * 2;
+    const r = LABEL_CORNER_RADIUS;
+    const bg = new ex.Canvas({
+      width: W,
+      height: H,
+      cache: true,
+      draw(ctx) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.beginPath();
+        ctx.moveTo(r, 0);
+        ctx.lineTo(W - r, 0);
+        ctx.arcTo(W, 0, W, r, r);
+        ctx.lineTo(W, H - r);
+        ctx.arcTo(W, H, W - r, H, r);
+        ctx.lineTo(r, H);
+        ctx.arcTo(0, H, 0, H - r, r);
+        ctx.lineTo(0, r);
+        ctx.arcTo(0, 0, r, 0, r);
+        ctx.closePath();
+        ctx.fill();
+      },
+    });
     members.push({
-      // Rectangle top-left is PAD px outside the text bounding box.
+      // Canvas top-left is PAD px outside the text bounding box.
       offset: ex.vec(b.left - LABEL_PAD, b.top - LABEL_PAD),
-      graphic: new ex.Rectangle({
-        width: b.width + LABEL_PAD * 2,
-        height: b.height + LABEL_PAD * 2,
-        color: ex.Color.fromRGB(0, 0, 0, 0.5),
-        strokeColor: ex.Color.fromRGB(255, 255, 255, 0.75),
-        lineWidth: 1,
-      }),
+      graphic: bg,
       useBounds: false,
     });
   }
