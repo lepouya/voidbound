@@ -1,94 +1,16 @@
 import * as ex from "excalibur";
 
-import { Resources } from "./resources";
-
-// "tileset-name" or "tileset-name:tile-id" (tile-id defaults to 0)
-export type TileRef = string;
-
-const LABEL_FONT_SIZE = 10;
-const LABEL_PAD = 2;
-const LABEL_CORNER_RADIUS = 10;
+import {
+  ButtonDef,
+  makeButtonGraphic,
+  makeLabelActor,
+  parseTileRef,
+  TileRef,
+} from "./ui";
 
 const PATH_LINE_COLOR = "rgba(80, 232, 120, 0.85)";
 const PATH_LINE_THICKNESS = 1; // px in world space
 const PATH_LINE_KNOB_RADIUS = 2; // px in world space
-
-/**
- * Returns a GraphicsGroup that renders `text` with a rectangular border
- * around it. Uses ex.Text (not a pre-baked bitmap), so it scales with the
- * camera correctly.
- */
-function makeBorderedLabel(
-  text: string,
-  { maxWidth, bordered = true }: { maxWidth?: number; bordered?: boolean } = {},
-): ex.GraphicsGroup {
-  const baseFont = {
-    size: LABEL_FONT_SIZE,
-    textAlign: ex.TextAlign.Center,
-    baseAlign: ex.BaseAlign.Top,
-  };
-  // Halo pass: black stroke only, transparent fill — drawn first (behind).
-  const haloFont = new ex.Font({
-    ...baseFont,
-    color: ex.Color.Transparent,
-    strokeColor: ex.Color.Black,
-    lineWidth: 2,
-  });
-  // Fill pass: white fill only, no stroke — drawn on top.
-  const fillFont = new ex.Font({
-    ...baseFont,
-    color: ex.Color.White,
-  });
-  const b = fillFont.measureText(text, maxWidth);
-  const members: ex.GraphicsGrouping[] = [];
-  if (bordered) {
-    const W = b.width + LABEL_PAD * 2;
-    const H = b.height + LABEL_PAD * 2;
-    const r = LABEL_CORNER_RADIUS;
-    const bg = new ex.Canvas({
-      width: W,
-      height: H,
-      cache: true,
-      draw(ctx) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.beginPath();
-        ctx.moveTo(r, 0);
-        ctx.lineTo(W - r, 0);
-        ctx.arcTo(W, 0, W, r, r);
-        ctx.lineTo(W, H - r);
-        ctx.arcTo(W, H, W - r, H, r);
-        ctx.lineTo(r, H);
-        ctx.arcTo(0, H, 0, H - r, r);
-        ctx.lineTo(0, r);
-        ctx.arcTo(0, 0, r, 0, r);
-        ctx.closePath();
-        ctx.fill();
-      },
-    });
-    members.push({
-      // Canvas top-left is PAD px outside the text bounding box.
-      offset: ex.vec(b.left - LABEL_PAD, b.top - LABEL_PAD),
-      graphic: bg,
-      useBounds: false,
-    });
-  }
-  // The -LABEL_PAD shift aligns the text origin with the rect's inner
-  // edge, compensating for the font's own internal padding offset.
-  const textOffset = ex.vec(-LABEL_PAD, -LABEL_PAD);
-  members.push(
-    {
-      offset: textOffset,
-      graphic: new ex.Text({ text, font: haloFont, maxWidth }),
-      useBounds: false,
-    },
-    {
-      offset: textOffset,
-      graphic: new ex.Text({ text, font: fillFont, maxWidth }),
-      useBounds: false,
-    },
-  );
-  return new ex.GraphicsGroup({ useAnchor: false, members });
-}
 
 /**
  * Creates a scene-level actor that draws a straight path line between two
@@ -141,23 +63,6 @@ function makePathLine(from: ex.Vector, to: ex.Vector): ex.Actor {
   return actor;
 }
 
-export function parseTileRef(ref: TileRef): ex.Graphic {
-  const colon = ref.indexOf(":");
-  const name = colon === -1 ? ref : ref.slice(0, colon);
-  const tileId = colon === -1 ? 0 : parseInt(ref.slice(colon + 1), 10);
-  return Resources.Tilesets.getGraphic(name, tileId);
-}
-
-/** A single action button shown in the arc when a TileActor is selected. */
-export interface ActionButton {
-  /** Graphic sprite for the button, in TileRef format ("tileset-name:tile-id"). */
-  tile: TileRef;
-  /** Optional label text shown beneath the button. */
-  label?: string;
-  /** Called when the button is pressed. */
-  onPressed: () => void;
-}
-
 export interface TileActorOptions {
   /** Sprite to display. Pass null/undefined for an invisible (empty) tile actor. */
   tile?: TileRef | null;
@@ -173,7 +78,7 @@ export interface TileActorOptions {
   selection?: TileRef | null;
   onPressed?: (actor: TileActor) => void;
   /** Action buttons shown in a symmetric arc below the actor when selected. */
-  buttons?: ActionButton[];
+  buttons?: ButtonDef[];
 }
 
 export class TileActor extends ex.Actor {
@@ -191,7 +96,7 @@ export class TileActor extends ex.Actor {
   private readonly movingGraphic: ex.Graphic | null;
   private readonly selectionTile: TileRef | null;
   private readonly onPressed: ((actor: TileActor) => void) | undefined;
-  private readonly actionButtons: ActionButton[];
+  private readonly actionButtons: ButtonDef[];
   private readonly tileWidth: number;
   private readonly tileHeight: number;
   // All selection-dependent actors: the selection ring and every action button
@@ -347,35 +252,6 @@ export class TileActor extends ex.Actor {
     });
   }
 
-  /** Creates a bordered label child actor and adds it to this actor.
-   * If `selectionVisual` is true the actor starts hidden and is tracked in
-   * `selectionVisuals` so it shows/hides with the selection ring.
-   * Returns the created actor so callers can track it (e.g. for counter-rotation). */
-  private spawnLabel(
-    text: string,
-    pos: ex.Vector,
-    {
-      maxWidth,
-      selectionVisual = false,
-      bordered = true,
-    }: {
-      maxWidth?: number;
-      selectionVisual?: boolean;
-      bordered?: boolean;
-    } = {},
-  ): ex.Actor {
-    const actor = new ex.Actor({
-      pos,
-      anchor: ex.vec(0, 0),
-      scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-    });
-    actor.graphics.use(makeBorderedLabel(text, { maxWidth, bordered }));
-    if (selectionVisual) actor.graphics.isVisible = false;
-    this.addChild(actor);
-    if (selectionVisual) this.selectionVisuals.push(actor);
-    return actor;
-  }
-
   override onInitialize(): void {
     this.on("pointerdown", (evt) => {
       if (this.suppressNextPress) {
@@ -410,17 +286,20 @@ export class TileActor extends ex.Actor {
       this.selectionVisuals.push(selActor);
     }
 
-    if (this.ownerName !== undefined) {
-      const labelActor = this.spawnLabel(
-        this.ownerName,
-        ex.vec(0, this.height),
-        {
-          maxWidth: this.width,
-        },
-      );
+    const ownerLabelActor = makeLabelActor(
+      this.ownerName,
+      ex.vec(0, this.height),
+      {
+        anchor: ex.vec(0, 0),
+        scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+        maxWidth: this.width,
+      },
+    );
+    if (ownerLabelActor) {
+      this.addChild(ownerLabelActor);
       // World offset: (0, height * scaleY) — directly below the actor.
       this.uprightChildren.push({
-        actor: labelActor,
+        actor: ownerLabelActor,
         wx: 0,
         wy: this.height * this.scale.y,
       });
@@ -494,6 +373,10 @@ export class TileActor extends ex.Actor {
     for (let i = 0; i < N; i++) {
       const btn = this.actionButtons[i];
 
+      // Skip buttons with no sprite — world-space buttons are always expected
+      // to have a tile, but the unified ButtonDef type makes it optional.
+      if (!btn.tile) continue;
+
       // Angles are symmetric around π/2 (straight down in screen space).
       // i=0 is the leftmost button, i=N-1 is the rightmost.
       const angle = Math.PI / 2 - (i - (N - 1) / 2) * dAngle;
@@ -507,24 +390,26 @@ export class TileActor extends ex.Actor {
       const bxLocal = bxWorld / this.scale.x;
       const byLocal = byWorld / this.scale.y;
 
-      const btnGraphic = parseTileRef(btn.tile);
-
-      // Scale so the button renders at exactly 1*1 tile in world space,
-      // regardless of the parent actor's scale.
-      // World visual size = btnGraphic.size * btnScale * parentScale = tileSize
-      // → btnScale = tileSize / (btnGraphic.size * parentScale)
-      const btnScaleX = tileW / (btnGraphic.width * this.scale.x);
-      const btnScaleY = tileH / (btnGraphic.height * this.scale.y);
-
+      // Graphic is pre-scaled to 1*1 tile; actor scale only compensates for
+      // the parent's scale so children render at the correct world-space size.
+      const { graphic: btnGraphic, opacity: btnOpacity } = makeButtonGraphic(
+        btn,
+        btn.disabled ?? false,
+        btn.active ?? false,
+        tileW,
+        tileH,
+      );
       const btnActor = new ex.Actor({
         pos: ex.vec(bxLocal, byLocal),
         anchor: ex.vec(0.5, 0.5),
-        scale: ex.vec(btnScaleX, btnScaleY),
+        scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
       });
       btnActor.graphics.use(btnGraphic);
+      btnActor.graphics.opacity = btnOpacity;
       btnActor.graphics.isVisible = false;
       btnActor.on("pointerdown", () => {
         if (!btnActor.graphics.isVisible) return;
+        if (btn.disabled) return;
         this.suppressNextPress = true;
         btn.onPressed();
       });
@@ -532,14 +417,44 @@ export class TileActor extends ex.Actor {
       this.selectionVisuals.push(btnActor);
       this.uprightChildren.push({ actor: btnActor, wx: bxWorld, wy: byWorld });
 
-      if (btn.label) {
-        // Label top touches the button's visual bottom edge.
-        const labelByWorld = byWorld + tileH / 2;
-        const labelActor = this.spawnLabel(
-          btn.label,
-          ex.vec(bxLocal, labelByWorld / this.scale.y),
-          { selectionVisual: true, bordered: false },
-        );
+      // Badge overlay at the top-right corner of the button.
+      if (btn.badge !== undefined) {
+        const badgeText = String(btn.badge);
+        // Top-right corner in world space: (+tileW/2, -tileH/2) from button center.
+        const badgeWx = bxWorld + tileW / 2;
+        const badgeWy = byWorld - tileH / 2;
+        const badgeActor = makeLabelActor(
+          { text: badgeText, bordered: true, fontSize: 8 },
+          ex.vec(badgeWx / this.scale.x, badgeWy / this.scale.y),
+          {
+            anchor: ex.vec(1, 1),
+            scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+            visible: false,
+          },
+        )!;
+        this.addChild(badgeActor);
+        this.selectionVisuals.push(badgeActor);
+        this.uprightChildren.push({
+          actor: badgeActor,
+          wx: badgeWx,
+          wy: badgeWy,
+        });
+      }
+
+      // Label top touches the button's visual bottom edge.
+      const labelByWorld = byWorld + tileH / 2;
+      const labelActor = makeLabelActor(
+        btn.label,
+        ex.vec(bxLocal, labelByWorld / this.scale.y),
+        {
+          anchor: ex.vec(0, 0),
+          scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+          visible: false,
+        },
+      );
+      if (labelActor) {
+        this.addChild(labelActor);
+        this.selectionVisuals.push(labelActor);
         this.uprightChildren.push({
           actor: labelActor,
           wx: bxWorld,

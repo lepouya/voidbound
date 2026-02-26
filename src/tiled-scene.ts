@@ -1,5 +1,6 @@
 import * as ex from "excalibur";
 
+import { HudGroupDef, HudGroupHandle, spawnHudGroup } from "./hud";
 import { TileActor } from "./tile-actor";
 
 /**
@@ -24,6 +25,8 @@ export abstract class TiledScene extends ex.Scene {
   protected suppressNextPointerUp = false;
   private emptyTileActor: TileActor | null = null;
   private pinchDistance: number | null = null;
+  /** All HUD group handles, used to dispatch pointer-up events to buttons. */
+  private hudHandles: HudGroupHandle[] = [];
 
   /** Stored once buildMap() resolves; accessible to setupActors() via this. */
   protected tilemap!: ex.TileMap;
@@ -213,6 +216,16 @@ export abstract class TiledScene extends ex.Scene {
     pointer1.on("move", onP1Move);
 
     const onP1Up = () => {
+      if (!this.hasDragged && this.lastScreenPos) {
+        // HUD buttons take priority. Check them before any scene interaction
+        // logic — actor-level pointer events on ScreenElements are unreliable.
+        for (const handle of this.hudHandles) {
+          if (handle.tryPointerUp(this.lastScreenPos)) {
+            this.resetPointerState();
+            return;
+          }
+        }
+      }
       if (!this.hasDragged) {
         if (this.suppressNextPointerUp) {
           this.suppressNextPointerUp = false;
@@ -326,5 +339,20 @@ export abstract class TiledScene extends ex.Scene {
   private unregisterInputHandlers(): void {
     for (const fn of this.inputCleanup) fn();
     this.inputCleanup = [];
+  }
+
+  /**
+   * Spawn a group of screen-fixed HUD buttons at the given anchor position
+   * and add them to this scene. Returns a handle for runtime control
+   * (show/hide, disable, active state, badge updates, removal).
+   *
+   * Must be called after super.onInitialize(engine) so that this.engineRef
+   * is available.
+   */
+  protected addHudGroup(def: HudGroupDef): HudGroupHandle {
+    const { elements, handle } = spawnHudGroup(this.engineRef, def);
+    this.hudHandles.push(handle);
+    for (const el of elements) this.add(el);
+    return handle;
   }
 }

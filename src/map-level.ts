@@ -28,6 +28,37 @@ export interface VesselMoveEvent {
 }
 
 export class MapLevel extends TiledScene {
+  override onInitialize(engine: ex.Engine): void {
+    super.onInitialize(engine);
+    this.addHudGroup({
+      anchor: "top-right",
+      buttons: [
+        {
+          tile: "ui-button-events:0",
+          width: 48,
+          height: 48,
+          badge: 3,
+          label: "Events",
+          onPressed: () => console.log("events"),
+        },
+        {
+          tile: "ui-button-mapview:0",
+          width: 48,
+          height: 48,
+          label: "Map",
+          onPressed: () => console.log("map"),
+        },
+        {
+          tile: "ui-button-shipview:0",
+          width: 48,
+          height: 48,
+          label: "Ship",
+          onPressed: () => console.log("ship"),
+        },
+      ],
+    });
+  }
+
   /** World px/s. 1 tile (32 px) per second by default; update on upgrade. */
   private vesselSpeed = 32;
   private mothership!: TileActor;
