@@ -38,9 +38,7 @@ export class MapLevel extends TiledScene {
     return buildTileMap("space");
   }
 
-  protected override setupActors(
-    onTilePressed: (a: TileActor) => void,
-  ): void {
+  protected override setupActors(onTilePressed: (a: TileActor) => void): void {
     this.mothership = new TileActor({
       tilemap: this.tilemap,
       tile: "ss1-base:0",
@@ -63,12 +61,12 @@ export class MapLevel extends TiledScene {
           onPressed: () => console.log("Enter my spaceship"),
         },
         {
-          tile: "ui-button-upgrade:0",
+          tile: "ui-button-upgrade:2",
           label: "Upgrade",
           onPressed: () => console.log("Upgrade my spaceship"),
         },
         {
-          tile: "ui-button-warp:0",
+          tile: "ui-button-warp:1",
           label: "Move",
           onPressed: () => console.log("Move my spaceship"),
         },
@@ -99,7 +97,7 @@ export class MapLevel extends TiledScene {
             onPressed: () => console.log("Message enemy spaceship"),
           },
           {
-            tile: "ui-button-attack:0",
+            tile: "ui-button-attack:4",
             label: "Attack",
             onPressed: () => console.log("Attack enemy spaceship"),
           },
@@ -120,7 +118,7 @@ export class MapLevel extends TiledScene {
       onPressed,
       buttons: [
         {
-          tile: "ui-button-warp:0",
+          tile: "ui-button-warp:1",
           label: "Move",
           onPressed: () => console.log("Move empty tile"),
         },
@@ -208,7 +206,7 @@ export class MapLevel extends TiledScene {
       onPressed: this.handleTilePressed,
       buttons: [
         {
-          tile: "ui-button-details:0",
+          tile: "ui-button-details:4",
           label: "Details",
           onPressed: () => console.log("Details vessel", event.vesselId),
         },
