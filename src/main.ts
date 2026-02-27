@@ -2,6 +2,7 @@ import * as ex from "excalibur";
 
 import { MapLevel } from "./map-level";
 import { loader } from "./resources";
+import { ShipLevel } from "./ship-level";
 
 const game = new ex.Engine({
   width: 390,
@@ -9,12 +10,13 @@ const game = new ex.Engine({
   displayMode: ex.DisplayMode.FitScreenAndFill,
   pixelArt: true,
   scenes: {
-    start: MapLevel,
+    map: MapLevel,
+    ship: ShipLevel,
   },
 });
 
 game
-  .start("start", {
+  .start("map", {
     loader,
     inTransition: new ex.FadeInOut({
       duration: 1000,

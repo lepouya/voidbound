@@ -67,6 +67,28 @@ export abstract class TiledScene extends ex.Scene {
   ): void;
 
   /**
+   * Return the world-space position and zoom level the camera should start at
+   * when this scene loads. Called after setupActors(), so all actors are
+   * available for reference.
+   *
+   * Override in subclasses to focus on a specific actor or location:
+   *   protected override initialCameraTarget() {
+   *     return { pos: this.someActor.pos, zoom: 2 };
+   *   }
+   *
+   * The default centers the camera on the map at zoom 1.
+   */
+  protected initialCameraTarget(): { pos: ex.Vector; zoom: number } {
+    return {
+      pos: ex.vec(
+        this.tilemap.columns * this.tilemap.tileWidth / 2,
+        this.tilemap.rows * this.tilemap.tileHeight / 2,
+      ),
+      zoom: 1,
+    };
+  }
+
+  /**
    * Called when the player taps an empty map tile. Return a TileActor to
    * spawn and immediately select it, or null to do nothing (default).
    * The actor should include `onPressed` in its options so the standard
@@ -87,7 +109,10 @@ export abstract class TiledScene extends ex.Scene {
 
   override onActivate(): void {
     this.isActive = true;
-    if (this.mapReady) this.registerInputHandlers();
+    if (this.mapReady) {
+      this.resetCamera();
+      this.registerInputHandlers();
+    }
   }
 
   override onDeactivate(): void {
@@ -139,6 +164,14 @@ export abstract class TiledScene extends ex.Scene {
     );
   }
 
+  private resetCamera(): void {
+    const target = this.initialCameraTarget();
+    this.camera.x = target.pos.x;
+    this.camera.y = target.pos.y;
+    this.camera.zoom = target.zoom;
+    this.clampCamera();
+  }
+
   private clampCamera(): void {
     this.camera.zoom = ex.clamp(
       this.camera.zoom,
@@ -167,19 +200,17 @@ export abstract class TiledScene extends ex.Scene {
 
     this.setupActors(this.handleTilePressed);
 
-    this.camera.x = this.mapWidth / 2;
-    this.camera.y = this.mapHeight / 2;
+    // Capture draw dimensions at zoom=1 — clampedPos uses these as the
+    // zoom=1 baseline, so they must be read before applying any other zoom.
     this.camera.zoom = 1;
-
-    // Capture actual draw dimensions at zoom=1 so viewport.width == drawW.
-    // Used directly in clampedPos to avoid depending on camera.viewport being
-    // up-to-date mid-frame after a zoom mutation.
     this.drawW = this.camera.viewport.width;
     this.drawH = this.camera.viewport.height;
     this.minZoom = Math.max(
       this.drawW / this.mapWidth,
       this.drawH / this.mapHeight,
     );
+
+    this.resetCamera();
 
     this.mapReady = true;
     // The scene may already be active (e.g. it is the start scene and

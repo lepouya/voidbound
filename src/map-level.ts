@@ -62,7 +62,7 @@ export class MapLevel extends TiledScene {
           width: 64,
           height: 64,
           label: { text: "Ship", labelOffset: ex.vec(0, -1), bordered: false },
-          onPressed: () => console.log("ship"),
+          onPressed: () => engine.goToScene("ship"),
         },
         {
           tile: "ui-button-message:0",
@@ -86,6 +86,10 @@ export class MapLevel extends TiledScene {
     });
   }
 
+  protected override initialCameraTarget(): { pos: ex.Vector; zoom: number } {
+    return { pos: this.mothership.pos, zoom: 1 };
+  }
+
   /** World px/s. 1 tile (32 px) per second by default; update on upgrade. */
   private vesselSpeed = 32;
   private mothership!: TileActor;
@@ -93,7 +97,7 @@ export class MapLevel extends TiledScene {
   private vessels = new Map<string, TileActor>();
 
   protected override buildMap(): Promise<ex.TileMap> {
-    return buildTileMap("space");
+    return buildTileMap("map");
   }
 
   protected override setupActors(onTilePressed: (a: TileActor) => void): void {

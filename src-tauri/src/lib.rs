@@ -1,8 +1,5 @@
 use serde::Serialize;
 
-const MAP_COLS: u32 = 100;
-const MAP_ROWS: u32 = 100;
-
 #[derive(Serialize)]
 pub struct TileMapData {
     pub cols: u32,
@@ -20,9 +17,9 @@ struct Rect {
     tile: &'static str,
 }
 
-#[tauri::command]
-fn generate_map(map_type: String) -> TileMapData {
-    let _ = map_type; // reserved for future map variants
+fn generate_space_map() -> TileMapData {
+    const COLS: u32 = 100;
+    const ROWS: u32 = 100;
     // Tile IDs within test-tileset: 0 = gray (background), 1 = blue, 2 = red, 3 = green
     let rects = [
         Rect { x: 2,  y: 2,  w: 12, h: 12, tile: "test-tileset:1" },
@@ -51,31 +48,66 @@ fn generate_map(map_type: String) -> TileMapData {
         Rect { x: 90, y: 82, w: 8,  h: 16, tile: "test-tileset:2" },
     ];
 
-    let mut tiles = vec!["test-tileset:0".to_string(); (MAP_COLS * MAP_ROWS) as usize];
+    let mut tiles = vec!["test-tileset:0".to_string(); (COLS * ROWS) as usize];
 
     for rect in &rects {
         for ry in rect.y..rect.y + rect.h {
             for rx in rect.x..rect.x + rect.w {
-                if rx < MAP_COLS && ry < MAP_ROWS {
+                if rx < COLS && ry < ROWS {
                     let is_border = ry == rect.y
                         || ry == rect.y + rect.h - 1
                         || rx == rect.x
                         || rx == rect.x + rect.w - 1;
 
                     if is_border {
-                        tiles[(ry * MAP_COLS + rx) as usize] = rect.tile.to_string();
+                        tiles[(ry * COLS + rx) as usize] = rect.tile.to_string();
                     }
                 }
             }
         }
     }
 
-    TileMapData {
-        cols: MAP_COLS,
-        rows: MAP_ROWS,
-        tile_width: 32,
-        tile_height: 32,
-        tiles,
+    TileMapData { cols: COLS, rows: ROWS, tile_width: 32, tile_height: 32, tiles }
+}
+
+fn generate_ship_map() -> TileMapData {
+    const COLS: u32 = 30;
+    const ROWS: u32 = 30;
+    // Three concentric border-only rects centered at (15, 15).
+    // test-tileset: 0 = gray, 1 = blue, 2 = red, 3 = green
+    let rects = [
+        Rect { x: 0,  y: 0,  w: 30, h: 30, tile: "test-tileset:1" },
+        Rect { x: 5,  y: 5,  w: 20, h: 20, tile: "test-tileset:2" },
+        Rect { x: 10, y: 10, w: 10, h: 10, tile: "test-tileset:3" },
+    ];
+
+    let mut tiles = vec!["test-tileset:0".to_string(); (COLS * ROWS) as usize];
+
+    for rect in &rects {
+        for ry in rect.y..rect.y + rect.h {
+            for rx in rect.x..rect.x + rect.w {
+                if rx < COLS && ry < ROWS {
+                    let is_border = ry == rect.y
+                        || ry == rect.y + rect.h - 1
+                        || rx == rect.x
+                        || rx == rect.x + rect.w - 1;
+                    if is_border {
+                        tiles[(ry * COLS + rx) as usize] = rect.tile.to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    TileMapData { cols: COLS, rows: ROWS, tile_width: 32, tile_height: 32, tiles }
+}
+
+#[tauri::command]
+fn generate_map(map_type: String) -> Result<TileMapData, String> {
+    match map_type.as_str() {
+        "map"  => Ok(generate_space_map()),
+        "ship" => Ok(generate_ship_map()),
+        other  => Err(format!("unrecognized map_type: {other:?}")),
     }
 }
 
