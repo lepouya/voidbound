@@ -62,7 +62,7 @@ primary base), manage resources, and form alliances to expand their territory.
 │   ├── hud.ts            # Screen-fixed HUD button groups (spawnHudGroup)
 │   ├── tiled-scene.ts    # Abstract base scene: camera, pan/zoom, tap-to-select, HUD
 │   ├── map-level.ts      # Space map scene: mothership, vessels, HUD
-│   ├── ship-level.ts     # Mothership interior scene (compartments)
+│   ├── ship-level.ts     # Mothership interior scene (modules)
 │   ├── tile-actor.ts     # TileActor class
 │   ├── map-loader.ts     # buildTileMap() via Tauri IPC
 │   ├── resources.ts      # Asset loading and management
@@ -155,8 +155,8 @@ can be confused with the Latin letter `x`.
 ### Multiplayer-Ready Event Pattern
 
 When implementing any game action that will eventually be server-authoritative
-(e.g. vessel dispatch, building construction), always model it as an event
-struct — even while running locally:
+(e.g. vessel dispatch, module construction), always model it as an event struct
+— even while running locally:
 
 1. Define an event interface with all fields a server would return (IDs,
    positions, timestamps, etc.).
@@ -472,11 +472,11 @@ See `README.md` for full details. Core ideas:
 
 - **Setting**: Players colonize a new star system; their "base" is a mothership
   built and expanded in space.
-- **Mothership**: Has compartments (RTS "buildings") that serve specific
-  functions and can be upgraded.
-- **Resources** (4 types): construction material (rocky/iron asteroids),
-  high-tech materials (rare asteroids), biological materials (icy asteroids /
-  terrarium), fuel (hydrogen/methane).
+- **Mothership**: Has modules (RTS "buildings") that serve specific functions
+  and can be upgraded.
+- **Resources** (4 types): construction material, high-tech materials,
+  biological materials, and fuel. These can be gathered from resource nodes on
+  the map (asteroids, etc.) or produced internally via specialized modules.
 - **Map**: Resource nodes are asteroids, moons, and planets; difficulty scales
   toward the center, requiring alliances to progress.
 - **Diminishing returns** instead of hard daily caps on actions.
