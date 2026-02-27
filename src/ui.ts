@@ -116,6 +116,8 @@ export interface LabelDef {
   fontSize?: number;
   /** Text color. Default: ex.Color.White. */
   color?: ex.Color;
+  /** Position offset as a multiple of the label's font size. Default: (0, 0). */
+  labelOffset?: ex.Vector;
 }
 
 /**
@@ -160,7 +162,12 @@ export function makeLabelActor(
 ): ex.Actor | null {
   const def = resolveLabel(label);
   if (!def) return null;
-  const actor = new ex.Actor({ pos, anchor, scale });
+
+  const actorPos = def.labelOffset
+    ? pos.add(def.labelOffset.scale(def.fontSize ?? LABEL_FONT_SIZE))
+    : pos;
+
+  const actor = new ex.Actor({ pos: actorPos, anchor, scale });
   actor.graphics.use(
     makeBorderedLabel(def.text, {
       maxWidth,
@@ -174,16 +181,17 @@ export function makeLabelActor(
 }
 
 /**
- * Creates an actor whose graphic is a small bordered badge label, anchored at
- * its top-right corner (anchor 1,1). Used for overlay counters on buttons.
+ * Creates an actor whose graphic is a small badge label, anchored at its
+ * top-right corner (anchor 1,1). Used for overlay counters on buttons.
  *
- * @param badge   - the value to display (converted to string)
+ * @param badge   - string/number shorthand (defaults: bordered, 80% font size),
+ *                  or a full LabelDef to control bordered, color, fontSize, etc.
  * @param pos     - position in the parent's local space
  * @param scale   - actor scale; world-space callers pass inverse of parent scale
  * @param visible - initial visibility; default true
  */
 export function makeBadgeActor(
-  badge: number | string,
+  badge: number | string | LabelDef,
   pos: ex.Vector,
   {
     scale = ex.vec(1, 1),
@@ -193,13 +201,23 @@ export function makeBadgeActor(
     visible?: boolean;
   } = {},
 ): ex.Actor {
+  // When a LabelDef is passed, use it as-is. For string/number shorthand,
+  // apply badge-appropriate defaults (bordered, smaller font).
+  const def: LabelDef = typeof badge === "object"
+    ? badge
+    : { text: String(badge), bordered: true, fontSize: LABEL_FONT_SIZE * 0.8 };
+  const fontSize = def.fontSize ?? LABEL_FONT_SIZE * 0.8;
+  // Measure the text width and shift the position left by that amount so the
+  // badge stays inside the button bounds instead of growing to the right.
+  const { width } = new ex.Font({ size: fontSize }).measureText(def.text);
+  const adjustedPos = pos.add(ex.vec(-width, 0));
   // makeLabelActor only returns null when label is undefined; we always pass a
-  // string, so the non-null assertion is safe.
-  return makeLabelActor(
-    { text: String(badge), bordered: true, fontSize: 8 },
-    pos,
-    { anchor: ex.vec(1, 1), scale, visible },
-  )!;
+  // LabelDef, so the non-null assertion is safe.
+  return makeLabelActor(def, adjustedPos, {
+    anchor: ex.vec(1, 1),
+    scale,
+    visible,
+  })!;
 }
 
 /**
@@ -265,8 +283,10 @@ export interface ButtonDef {
   disabled?: boolean;
   /** Inflates the pointer-event hit area beyond the visual bounds (px). Default: 0. */
   hitPadding?: number;
-  /** Small overlay counter/indicator at the button's top-right corner. */
-  badge?: number | string;
+  /** Small overlay counter/indicator at the button's top-right corner.
+   *  Pass a string/number for the default style, or a LabelDef to control
+   *  bordered, color, fontSize, etc. */
+  badge?: number | string | LabelDef;
   /** Button width in screen pixels. HUD only; ignored in world-space. Default: 32. */
   width?: number;
   /** Button height in screen pixels. HUD only; ignored in world-space. Default: 32. */

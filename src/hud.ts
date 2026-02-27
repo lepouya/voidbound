@@ -3,6 +3,7 @@ import * as ex from "excalibur";
 import {
   ButtonDef,
   LABEL_PAD,
+  LabelDef,
   makeBadgeActor,
   makeButtonGraphic,
   makeLabelActor,
@@ -61,7 +62,7 @@ export interface HudGroupHandle {
   /** Toggle the active state of an individual button by index. */
   setButtonActive(index: number, active: boolean): void;
   /** Update or remove the badge on an individual button by index. */
-  setBadge(index: number, badge: number | string | undefined): void;
+  setBadge(index: number, badge: number | string | LabelDef | undefined): void;
   /** Remove all buttons in this group from the scene. */
   remove(): void;
   /**
@@ -142,7 +143,7 @@ function applyButtonGraphic(
 /** Create a badge child actor and attach it to a ScreenElement. */
 function spawnBadge(
   el: ex.ScreenElement,
-  badge: number | string,
+  badge: number | string | LabelDef,
   w: number,
   h: number,
 ): ex.Actor {
@@ -219,8 +220,10 @@ export function spawnHudGroup(
       cursor -= size;
     }
 
-    const elX = isVertical ? bx : cursor;
-    const elY = isVertical ? cursor : by;
+    // For 'up'/'left', cursor is the far (leading) edge after subtracting size.
+    // The position formula below expects the anchor edge, so add size back.
+    const elX = isVertical ? bx : direction === "left" ? cursor + size : cursor;
+    const elY = isVertical ? direction === "up" ? cursor + size : cursor : by;
 
     const el = new ex.ScreenElement({
       // Shift from the anchor-edge position to the button's visual center so

@@ -34,26 +34,53 @@ export class MapLevel extends TiledScene {
       anchor: "top-right",
       buttons: [
         {
-          tile: "ui-button-events:0",
+          tile: "ui-button-buy:1",
           width: 48,
           height: 48,
-          badge: 3,
-          label: "Events",
+          label: { text: "Shop", labelOffset: ex.vec(0, -1), bordered: false },
+          onPressed: () => console.log("shop"),
+        },
+        {
+          tile: "ui-button-events:0",
+          width: 32,
+          height: 32,
+          badge: { text: "@", bordered: false, color: ex.Color.Red },
+          label: {
+            text: "Events",
+            labelOffset: ex.vec(0, -1),
+            bordered: false,
+          },
           onPressed: () => console.log("events"),
         },
+      ],
+    });
+    this.addHudGroup({
+      anchor: "bottom-right",
+      buttons: [
         {
-          tile: "ui-button-mapview:0",
-          width: 48,
-          height: 48,
-          label: "Map",
-          onPressed: () => console.log("map"),
+          tile: "ui-button-shipview:1",
+          width: 64,
+          height: 64,
+          label: { text: "Ship", labelOffset: ex.vec(0, -1), bordered: false },
+          onPressed: () => console.log("ship"),
         },
         {
-          tile: "ui-button-shipview:0",
-          width: 48,
-          height: 48,
-          label: "Ship",
-          onPressed: () => console.log("ship"),
+          tile: "ui-button-message:0",
+          width: 32,
+          height: 32,
+          label: {
+            text: "Mail",
+            labelOffset: ex.vec(0, -1),
+            bordered: false,
+          },
+          onPressed: () => console.log("messages"),
+        },
+        {
+          tile: "ui-button-items:0",
+          width: 32,
+          height: 32,
+          label: { text: "Items", labelOffset: ex.vec(0, -1), bordered: false },
+          onPressed: () => console.log("items"),
         },
       ],
     });
@@ -77,28 +104,36 @@ export class MapLevel extends TiledScene {
       row: 48,
       width: 4,
       height: 4,
-      ownerName: "My Spaceship",
+      ownerName: "Player 1",
       ownerId: "player-1",
       onPressed: onTilePressed,
       buttons: [
         {
           tile: "ui-button-details:0",
-          label: "Details",
+          label: {
+            text: "Details",
+            bordered: false,
+            labelOffset: ex.vec(0, -1),
+          },
           onPressed: () => console.log("Details my spaceship"),
         },
         {
           tile: "ui-button-enter:0",
-          label: "Enter",
+          label: { text: "Enter", bordered: false, labelOffset: ex.vec(0, -1) },
           onPressed: () => console.log("Enter my spaceship"),
         },
         {
           tile: "ui-button-upgrade:2",
-          label: "Upgrade",
+          label: {
+            text: "Upgrade",
+            bordered: false,
+            labelOffset: ex.vec(0, -1),
+          },
           onPressed: () => console.log("Upgrade my spaceship"),
         },
         {
           tile: "ui-button-warp:1",
-          label: "Move",
+          label: { text: "Move", bordered: false, labelOffset: ex.vec(0, -1) },
           onPressed: () => console.log("Move my spaceship"),
         },
       ],
@@ -113,23 +148,35 @@ export class MapLevel extends TiledScene {
         row: 49,
         width: 4,
         height: 4,
-        ownerName: "Enemy Spaceship",
+        ownerName: "Enemy",
         ownerId: "player-2",
         onPressed: onTilePressed,
         buttons: [
           {
             tile: "ui-button-details:0",
-            label: "Details",
+            label: {
+              text: "Details",
+              bordered: false,
+              labelOffset: ex.vec(0, -1),
+            },
             onPressed: () => console.log("Details enemy spaceship"),
           },
           {
             tile: "ui-button-message:0",
-            label: "Message",
+            label: {
+              text: "Message",
+              bordered: false,
+              labelOffset: ex.vec(0, -1),
+            },
             onPressed: () => console.log("Message enemy spaceship"),
           },
           {
             tile: "ui-button-attack:4",
-            label: "Attack",
+            label: {
+              text: "Attack",
+              bordered: false,
+              labelOffset: ex.vec(0, -1),
+            },
             onPressed: () => console.log("Attack enemy spaceship"),
           },
         ],
@@ -150,12 +197,16 @@ export class MapLevel extends TiledScene {
       buttons: [
         {
           tile: "ui-button-warp:1",
-          label: "Move",
+          label: { text: "Move", bordered: false, labelOffset: ex.vec(0, -1) },
           onPressed: () => console.log("Move empty tile"),
         },
         {
           tile: "ui-button-deploy:0",
-          label: "Deploy",
+          label: {
+            text: "Deploy",
+            bordered: false,
+            labelOffset: ex.vec(0, -1),
+          },
           onPressed: () => this.dispatchVessel(col, row),
         },
       ],
@@ -196,7 +247,7 @@ export class MapLevel extends TiledScene {
     const event: VesselMoveEvent = {
       vesselId: crypto.randomUUID(),
       ownerId: "player-1",
-      ownerName: "My Spaceship",
+      ownerName: "Player 1",
       mothershipId: "player-1",
       vesselType: "cs1",
       srcCol: dock.col,
@@ -237,12 +288,20 @@ export class MapLevel extends TiledScene {
       buttons: [
         {
           tile: "ui-button-details:4",
-          label: "Details",
+          label: {
+            text: "Details",
+            bordered: false,
+            labelOffset: ex.vec(0, -1),
+          },
           onPressed: () => console.log("Details vessel", event.vesselId),
         },
         {
           tile: "ui-button-back:0",
-          label: "Return",
+          label: {
+            text: "Return",
+            bordered: false,
+            labelOffset: ex.vec(0, -1),
+          },
           onPressed: () => {
             const v = this.vessels.get(event.vesselId);
             if (v) this.returnVessel(v, event);
