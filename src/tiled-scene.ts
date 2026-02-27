@@ -187,6 +187,77 @@ export abstract class TiledScene extends ex.Scene {
     if (this.isActive) this.registerInputHandlers();
   }
 
+  /**
+   * Dispatches a confirmed tap (no drag) to the appropriate handler.
+   * HUD buttons take priority; then actor-tap or empty-tile-tap.
+   * `suppressNextPointerUp` is cleared by the subsequent resetPointerState().
+   */
+  private handleTap(screenPos: ex.Vector): void {
+    // HUD buttons take priority — actor-level pointer events on ScreenElements
+    // are unreliable, so we poll handles manually.
+    for (const handle of this.hudHandles) {
+      if (handle.tryPointerUp(screenPos)) return;
+    }
+    if (this.suppressNextPointerUp) return;
+    if (this.pendingActor) {
+      this.handleActorTap(this.pendingActor);
+    } else {
+      this.handleEmptyTap(screenPos);
+    }
+  }
+
+  /** Toggle-selects an actor and animates the camera toward it. */
+  private handleActorTap(actor: TileActor): void {
+    if (this.selectedActor === actor) {
+      this.deselectActor();
+      return;
+    }
+    this.selectActor(actor);
+    const targetZoom = ex.clamp(
+      this.camera.zoom,
+      Math.max(this.minZoom, 0.5),
+      2,
+    );
+    const target = this.clampedPos(actor.pos.x, actor.pos.y, targetZoom);
+    this.camera.move(target, 500, ex.easeInOutCubic);
+    if (targetZoom !== this.camera.zoom) {
+      this.camera.zoomOverTime(targetZoom, 500, ex.easeInOutCubic);
+    }
+  }
+
+  /**
+   * Handles a tap on empty space. Deselects the current actor. If a real
+   * (non-empty) actor was selected, stops there. Otherwise tries to open an
+   * empty tile actor at the tapped world position.
+   */
+  private handleEmptyTap(screenPos: ex.Vector): void {
+    const wasRealActorSelected = this.selectedActor !== null &&
+      this.selectedActor !== this.emptyTileActor;
+    this.deselectActor();
+    if (wasRealActorSelected) return;
+
+    const worldPos = this.engineRef.screen.screenToWorldCoordinates(screenPos);
+    const col = Math.floor(worldPos.x / this.tilemap.tileWidth);
+    const row = Math.floor(worldPos.y / this.tilemap.tileHeight);
+    if (
+      col < 0 ||
+      col >= this.tilemap.columns ||
+      row < 0 ||
+      row >= this.tilemap.rows
+    ) return;
+
+    const emptyActor = this.createEmptyTileActor(
+      col,
+      row,
+      this.handleTilePressed,
+    );
+    if (emptyActor === null) return;
+    this.emptyTileActor = emptyActor;
+    this.add(emptyActor);
+    this.selectedActor = emptyActor;
+    emptyActor.select();
+  }
+
   private registerInputHandlers(): void {
     const engine = this.engineRef;
     const pointer1 = engine.input.pointers.primary;
@@ -217,73 +288,7 @@ export abstract class TiledScene extends ex.Scene {
 
     const onP1Up = () => {
       if (!this.hasDragged && this.lastScreenPos) {
-        // HUD buttons take priority. Check them before any scene interaction
-        // logic — actor-level pointer events on ScreenElements are unreliable.
-        for (const handle of this.hudHandles) {
-          if (handle.tryPointerUp(this.lastScreenPos)) {
-            this.resetPointerState();
-            return;
-          }
-        }
-      }
-      if (!this.hasDragged) {
-        if (this.suppressNextPointerUp) {
-          this.suppressNextPointerUp = false;
-        } else if (this.pendingActor) {
-          if (this.selectedActor === this.pendingActor) {
-            this.deselectActor();
-          } else {
-            this.selectActor(this.pendingActor);
-            const targetZoom = ex.clamp(
-              this.camera.zoom,
-              Math.max(this.minZoom, 0.5),
-              2,
-            );
-            const target = this.clampedPos(
-              this.pendingActor.pos.x,
-              this.pendingActor.pos.y,
-              targetZoom,
-            );
-            this.camera.move(target, 500, ex.easeInOutCubic);
-            if (targetZoom !== this.camera.zoom) {
-              this.camera.zoomOverTime(targetZoom, 500, ex.easeInOutCubic);
-            }
-          }
-        } else {
-          // A real (non-empty) actor is selected: just deselect it.
-          if (
-            this.selectedActor !== null &&
-            this.selectedActor !== this.emptyTileActor
-          ) {
-            this.deselectActor();
-          } else {
-            // Nothing selected, or the empty tile actor is selected:
-            // deselect any existing empty tile and select the tapped one.
-            this.deselectActor();
-            const screenPos = this.lastScreenPos!;
-            const worldPos = engine.screen.screenToWorldCoordinates(screenPos);
-            const col = Math.floor(worldPos.x / this.tilemap.tileWidth);
-            const row = Math.floor(worldPos.y / this.tilemap.tileHeight);
-            if (
-              col >= 0 &&
-              col < this.tilemap.columns &&
-              row >= 0 &&
-              row < this.tilemap.rows
-            ) {
-              const emptyActor = this.createEmptyTileActor(
-                col,
-                row,
-                this.handleTilePressed,
-              );
-              if (emptyActor !== null) {
-                this.emptyTileActor = emptyActor;
-                this.add(emptyActor);
-                this.selectedActor = emptyActor;
-                emptyActor.select();
-              }
-            }
-          }
-        }
+        this.handleTap(this.lastScreenPos);
       }
       this.resetPointerState();
     };

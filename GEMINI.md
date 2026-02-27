@@ -58,10 +58,12 @@ primary base), manage resources, and form alliances to expand their territory.
 /
 ├── src/                  # Frontend (TypeScript, Excalibur.js)
 │   ├── main.ts           # Game engine entry point
-│   ├── tiled-scene.ts    # Abstract base scene: camera, pan/zoom, tap-to-select
-│   ├── map-level.ts      # Space map scene: mothership, vessel dispatch
+│   ├── ui.ts             # Shared UI primitives: TileRef, ButtonDef, LabelDef, helpers
+│   ├── hud.ts            # Screen-fixed HUD button groups (spawnHudGroup)
+│   ├── tiled-scene.ts    # Abstract base scene: camera, pan/zoom, tap-to-select, HUD
+│   ├── map-level.ts      # Space map scene: mothership, vessels, HUD
 │   ├── ship-level.ts     # Mothership interior scene (compartments)
-│   ├── tile-actor.ts     # TileActor class and TileRef format
+│   ├── tile-actor.ts     # TileActor class
 │   ├── map-loader.ts     # buildTileMap() via Tauri IPC
 │   ├── resources.ts      # Asset loading and management
 │   └── assets/           # Game assets (PNG spritesheets only)
@@ -144,8 +146,9 @@ can be confused with the Latin letter `x`.
 - **Backend communication (IPC):** The frontend acts as a client to the Rust
   backend, using async `invoke()` calls for tasks like fetching map data.
 - **State management:** Most state is managed locally within scenes and actors.
-- **Input handling:** Mouse, touch, and keyboard input is handled within the
-  main game scene (panning, zooming, selection).
+- **Input handling:** Mouse and touch input (drag-to-pan, pinch/scroll-to-zoom,
+  tap-to-select) is handled in the `TiledScene` base class, not in individual
+  subclasses.
 - **Key config:** `vite.config.ts` sets `assetsInlineLimit: 0`, required so
   Excalibur can load image assets in production builds.
 
@@ -229,6 +232,9 @@ Abstract base class for all tile-map scenes. Provides:
   pointer-up (e.g. after a button action has already handled the interaction)
 - `deselectActor()` — deselects the current actor and removes any empty tile
   actor
+- `addHudGroup(def: HudGroupDef): HudGroupHandle` — spawn a screen-fixed button
+  group and register it for pointer-up dispatch. Call from `onInitialize` after
+  `super.onInitialize(engine)`.
 
 ---
 
@@ -243,6 +249,11 @@ The space map scene. Key details:
 - **`applyVesselMoveEvent(event)`** — public entry point for both local dispatch
   and future server-pushed events; creates a new vessel actor or redirects an
   existing one
+- **`returnVessel(vessel, originalEvent)`** — private; sends a vessel back to
+  the closest mothership dock tile, then kills the actor on arrival
+- Two HUD groups added in `onInitialize`:
+  - Top-right: Shop and Events buttons
+  - Bottom-right: Ship, Mail, and Items buttons
 
 ---
 
@@ -253,10 +264,10 @@ empty, and the scene is not yet registered in `main.ts`.
 
 ---
 
-### `src/tile-actor.ts`
+### `src/ui.ts`
 
-Defines `TileActor`, the base class for all interactive map entities, and the
-`TileRef` type.
+Shared UI primitives used by both `tile-actor.ts` (world-space) and `hud.ts`
+(screen-space).
 
 **`TileRef` format:**
 
@@ -269,8 +280,66 @@ The `:tile_id` part is optional and defaults to `0`. On animated tilesets,
 individual frame sprite at that index. On static tilesets, `tileId` always
 selects the sprite at that grid position.
 
-`parseTileRef(ref: TileRef): ex.Graphic` is exported from this file and used by
-`map-loader.ts` to render tile graphics on the map.
+`parseTileRef(ref: TileRef): ex.Graphic` resolves a `TileRef` to an Excalibur
+graphic. Used by `map-loader.ts` and `tile-actor.ts`.
+
+**`LabelDef` interface** — configuration for a text label:
+
+- `text`, `bordered?` (default true), `fontSize?`, `color?`, `labelOffset?`
+
+**`ButtonDef` interface** — unified button definition for both world-space
+TileActor buttons and screen-space HUD buttons:
+
+- `tile?`, `activeTile?`, `disabledTile?` — sprites for normal/active/disabled
+  states
+- `active?`, `disabled?` — initial state flags
+- `hitPadding?` — inflates the pointer hit area (px)
+- `badge?` — small overlay counter at the button's top-right corner
+- `width?`, `height?` — HUD only; ignored in world-space context (default 32)
+- `label?: string | LabelDef` — label rendered below the button
+- `onPressed` — callback
+
+**Rendering helpers (internal use):**
+
+- `makeBorderedLabel(text, opts)` — returns a `GraphicsGroup` with an optional
+  rounded-rect background
+- `makeLabelActor(label, pos, opts)` — creates an `ex.Actor` whose graphic is a
+  bordered label; returns null when label is undefined
+- `makeBadgeActor(badge, pos, opts)` — creates a top-right-anchored badge actor
+- `makeButtonGraphic(def, disabled, active, w, h)` — resolves the correct
+  graphic and opacity for a button given its current state
+
+---
+
+### `src/hud.ts`
+
+Screen-fixed HUD button groups using `ex.ScreenElement`.
+
+**`HudGroupDef`** — layout spec for a button group:
+
+- `anchor: HudAnchor` — one of 9 positions (e.g. `"top-right"`, `"bottom-left"`)
+- `direction?: HudStackDir` — `"down"` / `"up"` / `"left"` / `"right"` /
+  `"center"`; inferred from anchor if omitted
+- `padding?` — gap from screen edge in px (default 8)
+- `gap?` — gap between buttons in px (default 4)
+- `offset?` — shift along the stacking axis before the first button (default 0)
+- `zOffset?` — z draw order relative to other HUD groups
+- `buttons: ButtonDef[]`
+
+**`HudGroupHandle`** — runtime control returned by `addHudGroup()`:
+
+- `setVisible(visible)`, `setButtonDisabled(index, disabled)`,
+  `setButtonActive(index, active)`, `setBadge(index, badge)`, `remove()`
+
+**`spawnHudGroup(engine, def)`** — low-level factory; prefer `addHudGroup(def)`
+from a `TiledScene` subclass, which also registers the group for pointer-up
+dispatch.
+
+---
+
+### `src/tile-actor.ts`
+
+Defines `TileActor`, the base class for all interactive map entities.
 
 **Sprite orientation convention:** All sprites are assumed to face **upward
 (−y)** at rotation 0. This must hold for new sprites too — `moveTo()` and
@@ -287,17 +356,8 @@ selects the sprite at that grid position.
 - `selection?` — selection ring tile; defaults to `"ui-selection:0"`, pass
   `null` to suppress
 - `onPressed?` — callback fired when the actor body is tapped
-- `buttons?: ActionButton[]` — action buttons shown in an arc when selected
-
-**`ActionButton` interface:**
-
-```ts
-interface ActionButton {
-  tile: TileRef; // button sprite, e.g. "ui-button-deploy:0"
-  label?: string; // optional text shown beneath the button
-  onPressed: () => void;
-}
-```
+- `buttons?: ButtonDef[]` — action buttons shown in an arc when selected; see
+  `ButtonDef` in `src/ui.ts`
 
 **Public fields (all `readonly` — do not assign directly):**
 

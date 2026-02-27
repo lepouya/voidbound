@@ -31,8 +31,8 @@ export type HudAnchor =
  * anchor edge.
  *
  * 'center' — buttons are distributed symmetrically around the anchor point
- * along the primary axis (vertical for *-left / *-right / middle-* anchors;
- * horizontal for top-* / bottom-* anchors). An offset shifts the whole group.
+ * along the primary axis (vertical for middle-* anchors; horizontal for top-*
+ * / bottom-* anchors). An offset shifts the whole group.
  */
 export type HudStackDir = "down" | "up" | "left" | "right" | "center";
 
@@ -321,7 +321,7 @@ export function spawnHudGroup(
       );
     },
 
-    setBadge(index: number, badge: number | string | undefined) {
+    setBadge(index: number, badge: number | string | LabelDef | undefined) {
       const state = states[index];
       if (!state) return;
       if (state.badgeActor) {

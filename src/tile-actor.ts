@@ -180,25 +180,26 @@ export class TileActor extends ex.Actor {
     this.graphics.use(graphic);
   }
 
+  private setSelectionVisible(visible: boolean): void {
+    for (const v of this.selectionVisuals) {
+      v.graphics.isVisible = visible;
+      for (const c of v.children) (c as ex.Actor).graphics.isVisible = visible;
+    }
+  }
+
   select(): void {
     if (this.selectionVisuals.length === 0) {
       // onInitialize hasn't run yet; defer until it does.
       this.pendingSelect = true;
       return;
     }
-    for (const v of this.selectionVisuals) {
-      v.graphics.isVisible = true;
-      for (const c of v.children) (c as ex.Actor).graphics.isVisible = true;
-    }
+    this.setSelectionVisible(true);
   }
 
   deselect(): void {
     this.pendingSelect = false;
     this.suppressNextPress = false;
-    for (const v of this.selectionVisuals) {
-      v.graphics.isVisible = false;
-      for (const c of v.children) (c as ex.Actor).graphics.isVisible = false;
-    }
+    this.setSelectionVisible(false);
   }
 
   /**
