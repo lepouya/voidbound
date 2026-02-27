@@ -3,7 +3,7 @@ import * as ex from "excalibur";
 import {
   ButtonDef,
   LABEL_PAD,
-  makeBorderedLabel,
+  makeBadgeActor,
   makeButtonGraphic,
   makeLabelActor,
 } from "./ui";
@@ -139,25 +139,16 @@ function applyButtonGraphic(
   el.graphics.opacity = opacity;
 }
 
-/** Create or update a badge child actor on a ScreenElement. */
+/** Create a badge child actor and attach it to a ScreenElement. */
 function spawnBadge(
   el: ex.ScreenElement,
   badge: number | string,
   w: number,
   h: number,
-  hFrac: number,
-  vFrac: number,
 ): ex.Actor {
-  const actor = new ex.Actor({
-    // Top-right corner of the visual button in local space.
-    // Children are relative to the parent's raw pos, not its visual center,
-    // so we must compensate for the anchor offset.
-    pos: ex.vec((1 - hFrac) * w, -vFrac * h),
-    anchor: ex.vec(1, 1),
-  });
-  actor.graphics.use(
-    makeBorderedLabel(String(badge), { bordered: true, fontSize: 8 }),
-  );
+  // Button center is at (0,0) in local space (anchor 0.5,0.5), so the
+  // top-right corner of the visual button is at (+w/2, -h/2).
+  const actor = makeBadgeActor(badge, ex.vec(w / 2, -h / 2));
   el.addChild(actor);
   return actor;
 }
@@ -186,9 +177,12 @@ export function spawnHudGroup(
     engine.drawHeight,
   );
 
-  // Determine stacking axis.
+  // Determine stacking axis. For 'center', buttons spread along the anchor's
+  // primary edge: horizontal for top-*/bottom-* anchors, vertical otherwise.
   const isVertical = direction === "down" || direction === "up" ||
-    direction === "center";
+    (direction === "center" &&
+      !def.anchor.startsWith("top") &&
+      !def.anchor.startsWith("bottom"));
 
   // Resolve sizes for all buttons up front (needed for 'center' pre-computation).
   const sizes = def.buttons.map((btn) => ({
@@ -229,11 +223,13 @@ export function spawnHudGroup(
     const elY = isVertical ? cursor : by;
 
     const el = new ex.ScreenElement({
-      x: elX,
-      y: elY,
+      // Shift from the anchor-edge position to the button's visual center so
+      // that children can be placed relative to (0,0) = button center.
+      x: elX + (0.5 - hFrac) * w,
+      y: elY + (0.5 - vFrac) * h,
       width: w + (btn.hitPadding ?? 0) * 2,
       height: h + (btn.hitPadding ?? 0) * 2,
-      anchor: ex.vec(hFrac, vFrac),
+      anchor: ex.vec(0.5, 0.5),
       z,
     });
 
@@ -242,29 +238,22 @@ export function spawnHudGroup(
 
     applyButtonGraphic(el, btn, initDisabled, initActive, w, h);
 
-    // If hitPadding is set, offset the graphic to keep it visually centered.
-    if (btn.hitPadding) {
-      const pad = btn.hitPadding;
-      el.graphics.offset = ex.vec(-pad, -pad);
-    }
-
     el.on("pointerup", () => {
       if (state.disabled) return;
       btn.onPressed();
     });
 
-    // Label below the button.
-    // Bottom-center of the visual button in local space, compensating for anchor.
+    // Label below the button. Button center is at (0,0) in local space.
     const labelActor = makeLabelActor(
       btn.label,
-      ex.vec((0.5 - hFrac) * w, (1 - vFrac) * h + LABEL_PAD),
+      ex.vec(0, h / 2 + LABEL_PAD),
     );
     if (labelActor) el.addChild(labelActor);
 
     // Badge overlay at top-right corner.
     let badgeActor: ex.Actor | null = null;
     if (btn.badge !== undefined) {
-      badgeActor = spawnBadge(el, btn.badge, w, h, hFrac, vFrac);
+      badgeActor = spawnBadge(el, btn.badge, w, h);
     }
 
     const state: ButtonState = {
@@ -312,12 +301,6 @@ export function spawnHudGroup(
         w,
         h,
       );
-      if (state.def.hitPadding) {
-        state.element.graphics.offset = ex.vec(
-          -state.def.hitPadding,
-          -state.def.hitPadding,
-        );
-      }
     },
 
     setButtonActive(index: number, active: boolean) {
@@ -333,12 +316,6 @@ export function spawnHudGroup(
         w,
         h,
       );
-      if (state.def.hitPadding) {
-        state.element.graphics.offset = ex.vec(
-          -state.def.hitPadding,
-          -state.def.hitPadding,
-        );
-      }
     },
 
     setBadge(index: number, badge: number | string | undefined) {
@@ -350,7 +327,7 @@ export function spawnHudGroup(
       }
       if (badge !== undefined) {
         const { w, h } = sizes[index];
-        state.badgeActor = spawnBadge(state.element, badge, w, h, hFrac, vFrac);
+        state.badgeActor = spawnBadge(state.element, badge, w, h);
       }
     },
 
@@ -363,8 +340,8 @@ export function spawnHudGroup(
         const el = elements[i];
         const state = states[i];
         if (el.isKilled() || !el.graphics.isVisible) continue;
-        const left = el.pos.x - el.anchor.x * el.width;
-        const top = el.pos.y - el.anchor.y * el.height;
+        const left = el.pos.x - 0.5 * el.width;
+        const top = el.pos.y - 0.5 * el.height;
         if (
           screenPos.x >= left &&
           screenPos.x <= left + el.width &&

@@ -174,6 +174,35 @@ export function makeLabelActor(
 }
 
 /**
+ * Creates an actor whose graphic is a small bordered badge label, anchored at
+ * its top-right corner (anchor 1,1). Used for overlay counters on buttons.
+ *
+ * @param badge   - the value to display (converted to string)
+ * @param pos     - position in the parent's local space
+ * @param scale   - actor scale; world-space callers pass inverse of parent scale
+ * @param visible - initial visibility; default true
+ */
+export function makeBadgeActor(
+  badge: number | string,
+  pos: ex.Vector,
+  {
+    scale = ex.vec(1, 1),
+    visible = true,
+  }: {
+    scale?: ex.Vector;
+    visible?: boolean;
+  } = {},
+): ex.Actor {
+  // makeLabelActor only returns null when label is undefined; we always pass a
+  // string, so the non-null assertion is safe.
+  return makeLabelActor(
+    { text: String(badge), bordered: true, fontSize: 8 },
+    pos,
+    { anchor: ex.vec(1, 1), scale, visible },
+  )!;
+}
+
+/**
  * Resolves the correct graphic and opacity for a button given its current
  * disabled/active state. The graphic is pre-scaled to exactly w×h pixels.
  *

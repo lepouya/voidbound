@@ -2,6 +2,8 @@ import * as ex from "excalibur";
 
 import {
   ButtonDef,
+  LABEL_PAD,
+  makeBadgeActor,
   makeButtonGraphic,
   makeLabelActor,
   parseTileRef,
@@ -184,13 +186,19 @@ export class TileActor extends ex.Actor {
       this.pendingSelect = true;
       return;
     }
-    for (const v of this.selectionVisuals) v.graphics.isVisible = true;
+    for (const v of this.selectionVisuals) {
+      v.graphics.isVisible = true;
+      for (const c of v.children) (c as ex.Actor).graphics.isVisible = true;
+    }
   }
 
   deselect(): void {
     this.pendingSelect = false;
     this.suppressNextPress = false;
-    for (const v of this.selectionVisuals) v.graphics.isVisible = false;
+    for (const v of this.selectionVisuals) {
+      v.graphics.isVisible = false;
+      for (const c of v.children) (c as ex.Actor).graphics.isVisible = false;
+    }
   }
 
   /**
@@ -290,9 +298,8 @@ export class TileActor extends ex.Actor {
       this.ownerName,
       ex.vec(0, this.height),
       {
-        anchor: ex.vec(0, 0),
         scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-        maxWidth: this.width,
+        maxWidth: this.colSpan * this.tileWidth,
       },
     );
     if (ownerLabelActor) {
@@ -308,7 +315,7 @@ export class TileActor extends ex.Actor {
     this.setupActionButtons();
     if (this.pendingSelect) {
       this.pendingSelect = false;
-      for (const v of this.selectionVisuals) v.graphics.isVisible = true;
+      this.select();
     }
   }
 
@@ -352,7 +359,10 @@ export class TileActor extends ex.Actor {
   }
 
   private setupActionButtons(): void {
-    const N = this.actionButtons.length;
+    // World-space buttons are expected to have a tile; skip any that don't so
+    // they don't leave ghost gaps in the arc layout.
+    const buttons = this.actionButtons.filter((b) => b.tile);
+    const N = buttons.length;
     if (N === 0) return;
 
     const tileW = this.tileWidth;
@@ -371,11 +381,7 @@ export class TileActor extends ex.Actor {
     const dAngle = N > 1 ? 2 * Math.asin((1.5 * tileW) / (2 * R)) : 0;
 
     for (let i = 0; i < N; i++) {
-      const btn = this.actionButtons[i];
-
-      // Skip buttons with no sprite — world-space buttons are always expected
-      // to have a tile, but the unified ButtonDef type makes it optional.
-      if (!btn.tile) continue;
+      const btn = buttons[i];
 
       // Angles are symmetric around π/2 (straight down in screen space).
       // i=0 is the leftmost button, i=N-1 is the rightmost.
@@ -417,50 +423,28 @@ export class TileActor extends ex.Actor {
       this.selectionVisuals.push(btnActor);
       this.uprightChildren.push({ actor: btnActor, wx: bxWorld, wy: byWorld });
 
-      // Badge overlay at the top-right corner of the button.
+      // Badge and label are children of btnActor, not of TileActor.
+      // btnActor.scale = 1/S cancels TileActor.scale = S, so children use
+      // scale (1,1) and positions are simply in world-pixel units relative to
+      // the button center. Rotation correction cascades from btnActor, so no
+      // uprightChildren entries are needed for either child.
+
+      // Badge at the button's top-right corner.
       if (btn.badge !== undefined) {
-        const badgeText = String(btn.badge);
-        // Top-right corner in world space: (+tileW/2, -tileH/2) from button center.
-        const badgeWx = bxWorld + tileW / 2;
-        const badgeWy = byWorld - tileH / 2;
-        const badgeActor = makeLabelActor(
-          { text: badgeText, bordered: true, fontSize: 8 },
-          ex.vec(badgeWx / this.scale.x, badgeWy / this.scale.y),
-          {
-            anchor: ex.vec(1, 1),
-            scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+        btnActor.addChild(
+          makeBadgeActor(btn.badge, ex.vec(tileW / 2, -tileH / 2), {
             visible: false,
-          },
-        )!;
-        this.addChild(badgeActor);
-        this.selectionVisuals.push(badgeActor);
-        this.uprightChildren.push({
-          actor: badgeActor,
-          wx: badgeWx,
-          wy: badgeWy,
-        });
+          }),
+        );
       }
 
-      // Label top touches the button's visual bottom edge.
-      const labelByWorld = byWorld + tileH / 2;
+      // Label below the button, top-center aligned on the button center x.
       const labelActor = makeLabelActor(
         btn.label,
-        ex.vec(bxLocal, labelByWorld / this.scale.y),
-        {
-          anchor: ex.vec(0, 0),
-          scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-          visible: false,
-        },
+        ex.vec(0, tileH / 2 + LABEL_PAD),
+        { visible: false },
       );
-      if (labelActor) {
-        this.addChild(labelActor);
-        this.selectionVisuals.push(labelActor);
-        this.uprightChildren.push({
-          actor: labelActor,
-          wx: bxWorld,
-          wy: labelByWorld,
-        });
-      }
+      if (labelActor) btnActor.addChild(labelActor);
     }
   }
 }

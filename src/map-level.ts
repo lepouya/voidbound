@@ -224,8 +224,7 @@ export class MapLevel extends TiledScene {
       return;
     }
 
-    let vessel!: TileActor;
-    vessel = new TileActor({
+    const vessel = new TileActor({
       tilemap: this.tilemap,
       tile: `${event.vesselType}-base:0`,
       movingTile: `${event.vesselType}-moving:0`,
@@ -244,7 +243,10 @@ export class MapLevel extends TiledScene {
         {
           tile: "ui-button-back:0",
           label: "Return",
-          onPressed: () => this.returnVessel(vessel, event),
+          onPressed: () => {
+            const v = this.vessels.get(event.vesselId);
+            if (v) this.returnVessel(v, event);
+          },
         },
       ],
     });
@@ -269,28 +271,9 @@ export class MapLevel extends TiledScene {
       (vessel.pos.y - this.tilemap.tileHeight / 2) / this.tilemap.tileHeight,
     );
     const dock = this.closestDockTile(currentCol, currentRow);
-    const distPx = Math.hypot(
-      (dock.col - currentCol) * this.tilemap.tileWidth,
-      (dock.row - currentRow) * this.tilemap.tileHeight,
-    );
-    const now = Date.now();
-    const returnEvent: VesselMoveEvent = {
-      ...originalEvent,
-      srcCol: currentCol,
-      srcRow: currentRow,
-      destCol: dock.col,
-      destRow: dock.row,
-      dispatchedAt: now,
-      arrivalAt: now + (distPx / originalEvent.speed) * 1000,
-    };
-    vessel.moveTo(
-      returnEvent.destCol,
-      returnEvent.destRow,
-      returnEvent.speed,
-      () => {
-        vessel.kill();
-        this.vessels.delete(originalEvent.vesselId);
-      },
-    );
+    vessel.moveTo(dock.col, dock.row, originalEvent.speed, () => {
+      vessel.kill();
+      this.vessels.delete(originalEvent.vesselId);
+    });
   }
 }

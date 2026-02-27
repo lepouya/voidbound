@@ -351,8 +351,17 @@ export abstract class TiledScene extends ex.Scene {
    */
   protected addHudGroup(def: HudGroupDef): HudGroupHandle {
     const { elements, handle } = spawnHudGroup(this.engineRef, def);
-    this.hudHandles.push(handle);
     for (const el of elements) this.add(el);
-    return handle;
+    // Wrap remove() so it also unregisters the handle from the HUD poll list.
+    const wrapped: HudGroupHandle = {
+      ...handle,
+      remove: () => {
+        handle.remove();
+        const idx = this.hudHandles.indexOf(wrapped);
+        if (idx !== -1) this.hudHandles.splice(idx, 1);
+      },
+    };
+    this.hudHandles.push(wrapped);
+    return wrapped;
   }
 }
