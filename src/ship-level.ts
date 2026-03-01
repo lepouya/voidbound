@@ -35,7 +35,7 @@ export class ShipLevel extends TiledScene {
       anchor: "bottom-right",
       buttons: [
         {
-          tile: "ui-button-shipview:1",
+          tile: "ui-button-mapview:0",
           width: 64,
           height: 64,
           label: { text: "Map", labelOffset: ex.vec(0, -1), bordered: false },
@@ -67,9 +67,7 @@ export class ShipLevel extends TiledScene {
     return buildTileMap("ship");
   }
 
-  protected override setupActors(
-    _onTilePressed: (a: TileActor) => void,
-  ): void {
+  protected override setupActors(_onTilePressed: (a: TileActor) => void): void {
     // Ship compartment actors will be added here.
   }
 }
