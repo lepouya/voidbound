@@ -13,7 +13,7 @@ python3 sprite_transition.py \
     -t fade:ss1/ss1-accelerating.png:15:23:1:0 \
     -t fade:ss1/ss1-accelerating.png:21:26:0:1 \
     -t fade:ss1/ss1-accelerating.png:26:31:1:0
-cp ss1-base.* ../src/assets/
+cp ss1-base.png ../src/assets/
 
 # Damaged sprite sheet
 python3 sprite_transition.py \
@@ -30,4 +30,4 @@ python3 sprite_transition.py \
     -t fade:ss1/ss1-accelerating.png:19:23:1:0 \
     -t fade:ss1/ss1-accelerating.png:24:27:0:1 \
     -t fade:ss1/ss1-accelerating.png:27:31:1:0
-cp ss1-damaged.* ../src/assets/
+cp ss1-damaged.png ../src/assets/

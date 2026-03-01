@@ -67,7 +67,17 @@ export class ShipLevel extends TiledScene {
     return buildTileMap("ship");
   }
 
-  protected override setupActors(_onTilePressed: (a: TileActor) => void): void {
-    // Ship compartment actors will be added here.
+  protected override setupActors(onTilePressed: (a: TileActor) => void): void {
+    const commandModule = new TileActor({
+      tilemap: this.tilemap,
+      tile: "module-base:0",
+      col: 13,
+      row: 13,
+      width: 4,
+      height: 4,
+      ownerName: "Command Module",
+      onPressed: onTilePressed,
+    });
+    this.add(commandModule);
   }
 }

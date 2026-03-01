@@ -96,6 +96,15 @@ const buttonDefs: TilesetDef[] = Object.entries(allPngs)
     return sd(name, src, 3, 2, 64);
   });
 
+// Module tilesets: 4*4 grid, 256 px cells, animated (16 frames, 66 ms/frame).
+// Any module-*.png anywhere under assets/ is picked up automatically.
+const moduleDefs: TilesetDef[] = Object.entries(allPngs)
+  .filter(([path]) => path.split("/").pop()?.startsWith("module-") ?? false)
+  .map(([path, src]) => {
+    const name = path.replace("./assets/", "").replace(".png", "");
+    return ad(name, src, 4, 4, 256, 16, 66);
+  });
+
 //                  name             cols rows  sz   frames ms/f
 const TILESET_DEFS: TilesetDef[] = [
   sd("test-tileset", png("test-tileset"), 4, 1, 32),
@@ -105,6 +114,7 @@ const TILESET_DEFS: TilesetDef[] = [
   ad("cs1-base", png("cs1-base"), 6, 6, 64, 32, 66),
   ad("cs1-moving", png("cs1-moving"), 6, 6, 64, 32, 66),
   ...buttonDefs,
+  ...moduleDefs,
 ];
 
 // -- TilesetRegistry -----------------------------------------------------------

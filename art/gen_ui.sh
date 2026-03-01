@@ -14,7 +14,7 @@ python3 sprite_transition.py \
     -t scale:ui/selection-reticle.png:0:7:1:1.25 \
     -t scale:ui/selection-reticle.png:8:23:1.25:0.8 \
     -t scale:ui/selection-reticle.png:24:31:0.8:1
-cp ui-selection.* ../src/assets/
+cp ui-selection.png ../src/assets/
 
 # UI buttons (ui/button-*.png → ui-button-*.png)
 # Any new button-*.png added to ui/ is picked up automatically.

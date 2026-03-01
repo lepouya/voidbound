@@ -10,7 +10,7 @@ python3 sprite_transition.py \
     -t fade:cs1/cs1-base-alt2.png:8:15:1:0 \
     -t fade:cs1/cs1-base-alt2.png:16:23:0:1 \
     -t fade:cs1/cs1-base-alt2.png:24:31:1:0
-cp cs1-base.* ../src/assets/
+cp cs1-base.png ../src/assets/
 
 # Moving sprite sheet
 python3 sprite_transition.py \
@@ -26,4 +26,4 @@ python3 sprite_transition.py \
     -t fade:cs1/cs1-accelerating.png:16:31:0:1 \
     -t fade:cs1/cs1-accelerating-alt.png:8:15:0:1 \
     -t fade:cs1/cs1-accelerating-alt.png:16:23:1:0
-cp cs1-moving.* ../src/assets/
+cp cs1-moving.png ../src/assets/
