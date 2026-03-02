@@ -287,8 +287,8 @@ export class TileActor extends ex.Actor {
       // circumradius (center-to-corner distance) fall through to the tile beneath.
       // Only applies when the scene has an empty tile actor to receive the click.
       if (this.edgeFallthrough) {
-        const visualW = this.width * this.scale.x;
-        const visualH = this.height * this.scale.y;
+        const visualW = this.width;
+        const visualH = this.height;
         if (visualW > this.tileWidth || visualH > this.tileHeight) {
           const circumradius = Math.sqrt(
             (visualW / 2) ** 2 + (visualH / 2) ** 2,
@@ -316,26 +316,26 @@ export class TileActor extends ex.Actor {
       this.selectionVisuals.push(selActor);
     }
 
-    const ownerLabelActor = makeLabelActor(
-      this.ownerName,
-      ex.vec(0, this.height / 2 + LABEL_PAD / this.scale.y),
-      {
-        scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-        maxWidth: this.colSpan * this.tileWidth,
-      },
-    );
+    const ownerLabelActor = makeLabelActor(this.ownerName, ex.vec(0, 0), {
+      anchor: "top-center",
+      scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+      maxWidth: this.colSpan * this.tileWidth,
+    });
     if (ownerLabelActor) {
       this.addChild(ownerLabelActor);
       // World offset: just below the actor sprite, with consistent padding.
       this.uprightChildren.push({
         actor: ownerLabelActor,
         wx: 0,
-        wy: (this.height * this.scale.y) / 2 + LABEL_PAD,
+        wy: this.height / 2 + LABEL_PAD,
       });
     }
 
     this.setupActionButtons();
     this.setupBadges();
+    // Apply correct initial positions for all upright children so they don't
+    // spend one frame at (0,0) before the first onPostUpdate runs.
+    this.repositionUprightChildren();
     if (this.pendingSelect) {
       this.pendingSelect = false;
       this.select();
@@ -383,17 +383,15 @@ export class TileActor extends ex.Actor {
 
   private setupBadges(): void {
     if (this.actorBadges.length === 0) return;
-    const actorVisualW = this.width * this.scale.x;
-    const actorVisualH = this.height * this.scale.y;
     const badgeScale = ex.vec(1 / this.scale.x, 1 / this.scale.y);
 
     for (const badgeDef of this.actorBadges) {
       const { hFrac, vFrac } = anchorFractions(badgeDef.anchor);
-      const wx = (hFrac - 0.5) * actorVisualW + (badgeDef.offset?.x ?? 0);
-      const wy = (vFrac - 0.5) * actorVisualH + (badgeDef.offset?.y ?? 0);
+      const wx = (hFrac - 0.5) * this.width + (badgeDef.offset?.x ?? 0);
+      const wy = (vFrac - 0.5) * this.height + (badgeDef.offset?.y ?? 0);
 
       const badgeActor = makeBadgeActor(badgeDef.badge, ex.vec(0, 0), {
-        anchor: ex.vec(hFrac, vFrac),
+        anchor: badgeDef.anchor,
         scale: badgeScale,
       });
 
@@ -411,8 +409,8 @@ export class TileActor extends ex.Actor {
 
     const tileW = this.tileWidth;
     const tileH = this.tileHeight;
-    const actorVisualW = this.width * this.scale.x;
-    const actorVisualH = this.height * this.scale.y;
+    const actorVisualW = this.width;
+    const actorVisualH = this.height;
 
     // Arc radius: one full tile of clearance beyond the actor's largest
     // half-dimension, so buttons clear the sprite at any angle.

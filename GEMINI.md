@@ -193,10 +193,13 @@ register it in the `scenes` object, then navigate to it with
 
 ```ts
 scenes: {
-  start: MapLevel,
-  // ship: ShipLevel,  // defined but not yet registered
+  map: MapLevel,
+  ship: ShipLevel,
 }
 ```
+
+Both scenes are registered. The game starts on `"ship"` (the mothership interior).
+Navigate between scenes with `engine.goToScene("map")` / `engine.goToScene("ship")`.
 
 ---
 
@@ -259,9 +262,14 @@ The space map scene. Key details:
 
 ### `src/ship-level.ts`
 
-The mothership interior scene (compartments). Not yet registered in `main.ts`.
-Contains a single `commandModule` actor (4*4, `module-base:0`, col 13, row 13)
-with an example `badges` array demonstrating a "Lv 2" label at bottom-left.
+The mothership interior scene (compartments). Registered as `"ship"` in
+`main.ts`; the game starts here.
+
+Currently contains two placeholder `module-base` TileActors with all 9 anchor
+positions labelled (TL/TC/TR/ML/MC/MR/BL/BC/BR) for visual verification of the
+badge placement system. Replace these with real module actors as game content is
+built out. Two HUD groups mirror `MapLevel` but with a Map button instead of
+Ship.
 
 ---
 
@@ -284,13 +292,13 @@ selects the sprite at that grid position.
 `parseTileRef(ref: TileRef): ex.Graphic` resolves a `TileRef` to an Excalibur
 graphic. Used by `map-loader.ts` and `tile-actor.ts`.
 
-**`CornerAnchor` type** — 9-position anchor grid shared by HUD and TileActor
+**`AnchorPlacement` type** — 9-position anchor grid shared by HUD and TileActor
 badges: `"top-left"` / `"top-center"` / `"top-right"` / `"middle-left"` /
 `"middle-center"` / `"middle-right"` / `"bottom-left"` / `"bottom-center"` /
 `"bottom-right"`.
 
-`anchorFractions(anchor: CornerAnchor): { hFrac, vFrac }` — converts an anchor
-to 0/0.5/1 fractions. Used internally by `hud.ts` and `tile-actor.ts`.
+`anchorFractions(anchor: AnchorPlacement): { hFrac, vFrac }` — converts an
+anchor to 0/0.5/1 fractions. Used internally by `hud.ts` and `tile-actor.ts`.
 
 **`LabelDef` interface** — configuration for a text label:
 
@@ -320,7 +328,7 @@ TileActor buttons and screen-space HUD buttons. For HUD use, extend with
 **`TileActorBadgeDef` interface** — a badge pinned to a corner/edge of a
 TileActor sprite:
 
-- `anchor: CornerAnchor` — which corner/edge of the sprite to attach to
+- `anchor: AnchorPlacement` — which corner/edge of the sprite to attach to
 - `badge: BadgeDef` — text or sprite content
 - `offset?: ex.Vector` — additional pixel nudge in world space
 
@@ -331,7 +339,8 @@ TileActor sprite:
 - `makeLabelActor(label, pos, opts)` — creates an `ex.Actor` whose graphic is a
   bordered label; returns null when label is undefined
 - `makeBadgeActor(badge, pos, opts)` — creates a badge actor from a `BadgeDef`;
-  accepts optional `anchor` (default `(1,1)` = top-right, for button badges)
+  accepts optional `anchor: AnchorPlacement` (default `"top-right"`, for button
+  badges)
 - `makeButtonGraphic(def, disabled, active, w, h)` — resolves the correct
   graphic and opacity for a button given its current state
 
@@ -341,8 +350,8 @@ TileActor sprite:
 
 Screen-fixed HUD button groups using `ex.ScreenElement`.
 
-**`HudAnchor`** — type alias for `CornerAnchor` (defined in `ui.ts`),
-re-exported from `hud.ts` for backward compatibility.
+**`HudAnchor`** — type alias for `AnchorPlacement` (defined in `ui.ts`),
+re-exported from `hud.ts` for convenience.
 
 **`HudButtonDef` interface** — extends `ButtonDef` with HUD-only sizing fields:
 
@@ -462,8 +471,9 @@ Vite's glob and throws early if missing. Do not import PNGs directly.
 
 1. Drop the PNG in `src/assets/`.
 2. Add one `sd(...)` or `ad(...)` line to `TILESET_DEFS` in `resources.ts`.
-3. For `ui-button-*` sheets, no code change is needed at all — they are
-   discovered automatically and registered as static 3*2, 64px tilesets.
+3. For `ui-button-*` or `module-*` sheets, no code change is needed at all —
+   they are discovered automatically (`ui-button-*` as static 3*2 64px tilesets;
+   `module-*` as animated 4*4 256px tilesets, 16 frames at 66 ms/frame).
 
 **Currently registered tilesets:**
 
@@ -476,6 +486,7 @@ Vite's glob and throws early if missing. Do not import PNGs directly.
 | `cs1-base`     | animated | 6*6  | 64px      | Vessel (idle)                    |
 | `cs1-moving`   | animated | 6*6  | 64px      | Vessel (in motion)               |
 | `ui-button-*`  | static   | 3*2  | 64px      | Action buttons (auto-registered) |
+| `module-*`     | animated | 4*4  | 256px     | Ship modules (auto-registered)   |
 
 **Main API:** `Resources.Tilesets.getGraphic(name, tileId): ex.Graphic`
 

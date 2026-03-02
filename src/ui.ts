@@ -25,7 +25,7 @@ export const DEFAULT_BADGE_SIZE = 16;
  * 9-position anchor grid used for both HUD group placement (screen-relative)
  * and TileActor badge placement (sprite-relative).
  */
-export type CornerAnchor =
+export type AnchorPlacement =
   | "top-left"
   | "top-center"
   | "top-right"
@@ -37,10 +37,10 @@ export type CornerAnchor =
   | "bottom-right";
 
 /**
- * Converts a CornerAnchor to horizontal and vertical fractions (0, 0.5, or 1).
+ * Converts an AnchorPlacement to horizontal and vertical fractions (0, 0.5, or 1).
  * Used internally by hud.ts (anchorLayout) and tile-actor.ts (setupBadges).
  */
-export function anchorFractions(anchor: CornerAnchor): {
+export function anchorFractions(anchor: AnchorPlacement): {
   hFrac: number;
   vFrac: number;
 } {
@@ -74,32 +74,37 @@ export function makeBorderedLabel(
     fontSize = LABEL_FONT_SIZE,
     color = ex.Color.White,
     backgroundColor = ex.Color.fromRGB(0, 0, 0, 0.5),
+    anchor = "top-center" as AnchorPlacement,
   }: {
     maxWidth?: number;
     bordered?: boolean;
     fontSize?: number;
     color?: ex.Color;
     backgroundColor?: ex.Color;
+    anchor?: AnchorPlacement;
   } = {},
 ): ex.GraphicsGroup {
-  const baseFont = {
+  const { hFrac, vFrac } = anchorFractions(anchor);
+  const textAlign = hFrac === 0
+    ? ex.TextAlign.Left
+    : hFrac === 1
+    ? ex.TextAlign.Right
+    : ex.TextAlign.Center;
+  const baseAlign = vFrac === 0
+    ? ex.BaseAlign.Top
+    : vFrac === 1
+    ? ex.BaseAlign.Bottom
+    : ex.BaseAlign.Middle;
+  const baseFontDef = {
     size: fontSize,
-    textAlign: ex.TextAlign.Center,
-    baseAlign: ex.BaseAlign.Top,
-  };
-  // Halo pass: black stroke only, transparent fill — drawn first (behind).
-  const haloFont = new ex.Font({
-    ...baseFont,
-    color: ex.Color.Transparent,
-    strokeColor: ex.Color.Black,
-    lineWidth: 2,
-  });
-  // Fill pass: colored fill only, no stroke — drawn on top.
-  const fillFont = new ex.Font({
-    ...baseFont,
     color,
-  });
-  const b = fillFont.measureText(text, maxWidth);
+    textAlign,
+    baseAlign,
+  };
+
+  // Font for measuring, no shadow.
+  const measureFont = new ex.Font(baseFontDef);
+  const b = measureFont.measureText(text, maxWidth);
   const members: ex.GraphicsGrouping[] = [];
   if (bordered) {
     const W = b.width + LABEL_PAD * 2;
@@ -132,21 +137,27 @@ export function makeBorderedLabel(
       useBounds: false,
     });
   }
-  // The -LABEL_PAD shift aligns the text origin with the rect's inner
-  // edge, compensating for the font's own internal padding offset.
-  const textOffset = ex.vec(-LABEL_PAD, -LABEL_PAD);
-  members.push(
-    {
-      offset: textOffset,
-      graphic: new ex.Text({ text, font: haloFont, maxWidth }),
+
+  // Create a combined halo effect from 4 blurred shadows.
+  const shadow = { blur: 2, color: ex.Color.Black };
+  const shadowOffsets = [
+    ex.vec(-1, -1),
+    ex.vec(1, -1),
+    ex.vec(-1, 1),
+    ex.vec(1, 1),
+  ];
+  for (const offset of shadowOffsets) {
+    const font = new ex.Font({
+      ...baseFontDef,
+      shadow: { ...shadow, offset },
+    });
+    members.push({
+      offset: ex.vec(-LABEL_PAD, -LABEL_PAD),
+      graphic: new ex.Text({ text, font, maxWidth }),
       useBounds: false,
-    },
-    {
-      offset: textOffset,
-      graphic: new ex.Text({ text, font: fillFont, maxWidth }),
-      useBounds: false,
-    },
-  );
+    });
+  }
+
   return new ex.GraphicsGroup({ useAnchor: false, members });
 }
 
@@ -188,7 +199,7 @@ export function resolveLabel(
  *
  * @param label  - raw string, LabelDef, or undefined
  * @param pos    - position in the parent's local space
- * @param anchor - actor anchor; default (0.5, 0) = top-center at pos
+ * @param anchor - placement and text alignment anchor; default "top-center"
  * @param scale  - actor scale; default (1, 1). World-space callers pass the
  *                 inverse of the parent's scale to keep labels at 1:1.
  * @param maxWidth - optional max wrap width passed to makeBorderedLabel
@@ -198,12 +209,12 @@ export function makeLabelActor(
   label: string | LabelDef | undefined,
   pos: ex.Vector,
   {
-    anchor = ex.vec(0.5, 0),
+    anchor = "top-center" as AnchorPlacement,
     scale = ex.vec(1, 1),
     maxWidth,
     visible = true,
   }: {
-    anchor?: ex.Vector;
+    anchor?: AnchorPlacement;
     scale?: ex.Vector;
     maxWidth?: number;
     visible?: boolean;
@@ -216,7 +227,12 @@ export function makeLabelActor(
     ? pos.add(def.labelOffset.scale(def.fontSize ?? LABEL_FONT_SIZE))
     : pos;
 
-  const actor = new ex.Actor({ pos: actorPos, anchor, scale });
+  const { hFrac, vFrac } = anchorFractions(anchor);
+  const actor = new ex.Actor({
+    pos: actorPos,
+    anchor: ex.vec(hFrac, vFrac),
+    scale,
+  });
   actor.graphics.use(
     makeBorderedLabel(def.text, {
       maxWidth,
@@ -224,6 +240,7 @@ export function makeLabelActor(
       fontSize: def.fontSize,
       color: def.color,
       backgroundColor: def.backgroundColor,
+      anchor,
     }),
   );
   if (!visible) actor.graphics.isVisible = false;
@@ -253,9 +270,8 @@ export type BadgeDef = number | string | LabelDef | SpriteBadge;
  * @param badge   - string/number shorthand (defaults: bordered, 80% font size),
  *                  LabelDef to control style, or SpriteBadge for a sprite.
  * @param pos     - position in the parent's local space (the actor's anchor point)
- * @param anchor  - actor anchor; default (1, 1) = top-right corner, matching
- *                  the button badge convention. Pass anchorFractions() result for
- *                  TileActor corner badges.
+ * @param anchor  - placement and text alignment anchor; default "top-right",
+ *                  matching the button badge convention.
  * @param scale   - actor scale; world-space callers pass inverse of parent scale
  * @param visible - initial visibility; default true
  */
@@ -263,49 +279,46 @@ export function makeBadgeActor(
   badge: BadgeDef,
   pos: ex.Vector,
   {
-    anchor = ex.vec(1, 1),
+    anchor = "top-right" as AnchorPlacement,
     scale = ex.vec(1, 1),
     visible = true,
   }: {
-    anchor?: ex.Vector;
+    anchor?: AnchorPlacement;
     scale?: ex.Vector;
     visible?: boolean;
   } = {},
 ): ex.Actor {
+  const { hFrac, vFrac } = anchorFractions(anchor);
+
   // Sprite branch: { tile, size? }
   if (typeof badge === "object" && "tile" in badge) {
     const base = parseTileRef(badge.tile);
     const size = badge.size ?? DEFAULT_BADGE_SIZE;
     const g = base instanceof ex.Animation ? base : (base as ex.Sprite).clone();
     g.scale = ex.vec(size / base.width, size / base.height);
-    const actor = new ex.Actor({ pos, anchor, scale });
+    const actor = new ex.Actor({ pos, anchor: ex.vec(hFrac, vFrac), scale });
     actor.graphics.use(g);
     if (!visible) actor.graphics.isVisible = false;
     return actor;
   }
 
   // Text branch: number, string, or LabelDef
-  const def: LabelDef =
-    typeof badge === "object"
-      ? badge
-      : {
-          text: String(badge),
-          bordered: true,
-          fontSize: LABEL_FONT_SIZE * 0.8,
-        };
+  const def: LabelDef = typeof badge === "object" ? badge : {
+    text: String(badge),
+    bordered: true,
+    fontSize: LABEL_FONT_SIZE * 0.8,
+  };
   const fontSize = def.fontSize ?? LABEL_FONT_SIZE * 0.8;
   // Shift the position so the badge aligns with the anchor. A right-anchored
-  // badge (anchor.x=1) shifts left by the full width; left-anchored (0) needs
+  // badge (hFrac=1) shifts left by the full width; left-anchored (0) needs
   // no shift; center (0.5) shifts by half.
-  const { width } = new ex.Font({ size: fontSize }).measureText(def.text);
-  const adjustedPos = pos.add(ex.vec(-width * anchor.x, 0));
+  const { width, height } = new ex.Font({ size: fontSize }).measureText(
+    def.text,
+  );
+  const adjustedPos = pos.add(ex.vec(-width * hFrac, -height * vFrac));
   // makeLabelActor only returns null when label is undefined; we always pass a
   // LabelDef, so the non-null assertion is safe.
-  return makeLabelActor(def, adjustedPos, {
-    anchor,
-    scale,
-    visible,
-  })!;
+  return makeLabelActor(def, adjustedPos, { anchor, scale, visible })!;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,7 +400,7 @@ export function makeButtonGraphic(
  */
 export interface TileActorBadgeDef {
   /** Corner/edge of the actor sprite where the badge is placed. */
-  anchor: CornerAnchor;
+  anchor: AnchorPlacement;
   /** Badge content: text shorthand, LabelDef, or sprite (SpriteBadge). */
   badge: BadgeDef;
   /** Additional pixel nudge from the anchor point in world space. */

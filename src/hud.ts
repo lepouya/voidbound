@@ -2,9 +2,9 @@ import * as ex from "excalibur";
 
 import {
   anchorFractions,
+  AnchorPlacement,
   BadgeDef,
   ButtonDef,
-  CornerAnchor,
   LABEL_PAD,
   makeBadgeActor,
   makeButtonGraphic,
@@ -15,8 +15,8 @@ import {
 // Public types
 // ---------------------------------------------------------------------------
 
-/** Screen-space anchor alias — same 9-position grid as CornerAnchor in ui.ts. */
-export type HudAnchor = CornerAnchor;
+/** Screen-space anchor alias — same 9-position grid as AnchorPlacement in ui.ts. */
+export type HudAnchor = AnchorPlacement;
 
 /**
  * Stack direction for buttons within a HUD group.
@@ -101,27 +101,21 @@ interface ButtonState {
  * screen position (bx, by) for a given HudAnchor + padding.
  */
 function anchorLayout(
-  anchor: CornerAnchor,
+  anchor: AnchorPlacement,
   padding: number,
   drawWidth: number,
   drawHeight: number,
 ): { hFrac: number; vFrac: number; bx: number; by: number } {
   const { hFrac, vFrac } = anchorFractions(anchor);
-  const bx = hFrac === 0
-    ? padding
-    : hFrac === 1
-    ? drawWidth - padding
-    : drawWidth / 2;
-  const by = vFrac === 0
-    ? padding
-    : vFrac === 1
-    ? drawHeight - padding
-    : drawHeight / 2;
+  const bx =
+    hFrac === 0 ? padding : hFrac === 1 ? drawWidth - padding : drawWidth / 2;
+  const by =
+    vFrac === 0 ? padding : vFrac === 1 ? drawHeight - padding : drawHeight / 2;
   return { hFrac, vFrac, bx, by };
 }
 
 /** Infer a default stack direction from the anchor. */
-function inferDirection(anchor: CornerAnchor): HudStackDir {
+function inferDirection(anchor: AnchorPlacement): HudStackDir {
   return anchor.startsWith("bottom") ? "up" : "down";
 }
 
@@ -165,7 +159,9 @@ export function spawnHudGroup(
 
   // Determine stacking axis. For 'center', buttons spread along the anchor's
   // primary edge: horizontal for top-*/bottom-* anchors, vertical otherwise.
-  const isVertical = direction === "down" || direction === "up" ||
+  const isVertical =
+    direction === "down" ||
+    direction === "up" ||
     (direction === "center" &&
       !def.anchor.startsWith("top") &&
       !def.anchor.startsWith("bottom"));
@@ -208,7 +204,7 @@ export function spawnHudGroup(
     // For 'up'/'left', cursor is the far (leading) edge after subtracting size.
     // The position formula below expects the anchor edge, so add size back.
     const elX = isVertical ? bx : direction === "left" ? cursor + size : cursor;
-    const elY = isVertical ? direction === "up" ? cursor + size : cursor : by;
+    const elY = isVertical ? (direction === "up" ? cursor + size : cursor) : by;
 
     const el = new ex.ScreenElement({
       // Shift from the anchor-edge position to the button's visual center so
@@ -232,10 +228,7 @@ export function spawnHudGroup(
     });
 
     // Label below the button. Button center is at (0,0) in local space.
-    const labelActor = makeLabelActor(
-      btn.label,
-      ex.vec(0, h / 2 + LABEL_PAD),
-    );
+    const labelActor = makeLabelActor(btn.label, ex.vec(0, h / 2 + LABEL_PAD));
     if (labelActor) el.addChild(labelActor);
 
     // Badge overlay at top-right corner. Button center is (0,0) in local space,
