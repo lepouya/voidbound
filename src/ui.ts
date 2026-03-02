@@ -84,15 +84,14 @@ export function makeBorderedLabel(
     anchor?: AnchorPlacement;
   } = {},
 ): ex.GraphicsGroup {
-  const { hFrac, vFrac } = anchorFractions(anchor);
-  const textAlign = hFrac === 0
+  const textAlign = anchor.includes("left")
     ? ex.TextAlign.Left
-    : hFrac === 1
+    : anchor.includes("right")
     ? ex.TextAlign.Right
     : ex.TextAlign.Center;
-  const baseAlign = vFrac === 0
+  const baseAlign = anchor.startsWith("top")
     ? ex.BaseAlign.Top
-    : vFrac === 1
+    : anchor.startsWith("bottom")
     ? ex.BaseAlign.Bottom
     : ex.BaseAlign.Middle;
   const baseFontDef = {
@@ -308,17 +307,11 @@ export function makeBadgeActor(
     bordered: true,
     fontSize: LABEL_FONT_SIZE * 0.8,
   };
-  const fontSize = def.fontSize ?? LABEL_FONT_SIZE * 0.8;
-  // Shift the position so the badge aligns with the anchor. A right-anchored
-  // badge (hFrac=1) shifts left by the full width; left-anchored (0) needs
-  // no shift; center (0.5) shifts by half.
-  const { width, height } = new ex.Font({ size: fontSize }).measureText(
-    def.text,
-  );
-  const adjustedPos = pos.add(ex.vec(-width * hFrac, -height * vFrac));
+  // makeLabelActor sets actor.anchor = (hFrac, vFrac), which Excalibur uses to
+  // align the graphic relative to pos — no manual shift needed here.
   // makeLabelActor only returns null when label is undefined; we always pass a
   // LabelDef, so the non-null assertion is safe.
-  return makeLabelActor(def, adjustedPos, { anchor, scale, visible })!;
+  return makeLabelActor(def, pos, { anchor, scale, visible })!;
 }
 
 // ---------------------------------------------------------------------------
