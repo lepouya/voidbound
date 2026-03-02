@@ -15,6 +15,51 @@ export function parseTileRef(ref: TileRef): ex.Graphic {
 export const LABEL_FONT_SIZE = 10;
 export const LABEL_PAD = 2;
 export const LABEL_CORNER_RADIUS = 10;
+export const DEFAULT_BADGE_SIZE = 16;
+
+// ---------------------------------------------------------------------------
+// Anchor types
+// ---------------------------------------------------------------------------
+
+/**
+ * 9-position anchor grid used for both HUD group placement (screen-relative)
+ * and TileActor badge placement (sprite-relative).
+ */
+export type CornerAnchor =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "middle-left"
+  | "middle-center"
+  | "middle-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
+
+/**
+ * Converts a CornerAnchor to horizontal and vertical fractions (0, 0.5, or 1).
+ * Used internally by hud.ts (anchorLayout) and tile-actor.ts (setupBadges).
+ */
+export function anchorFractions(anchor: CornerAnchor): {
+  hFrac: number;
+  vFrac: number;
+} {
+  const hFrac = anchor.includes("right")
+    ? 1
+    : anchor.includes("left")
+    ? 0
+    : 0.5;
+  const vFrac = anchor.startsWith("bottom")
+    ? 1
+    : anchor.startsWith("top")
+    ? 0
+    : 0.5;
+  return { hFrac, vFrac };
+}
+
+// ---------------------------------------------------------------------------
+// Label helpers
+// ---------------------------------------------------------------------------
 
 /**
  * Returns a GraphicsGroup that renders `text` with a rectangular border
@@ -28,11 +73,13 @@ export function makeBorderedLabel(
     bordered = true,
     fontSize = LABEL_FONT_SIZE,
     color = ex.Color.White,
+    backgroundColor = ex.Color.fromRGB(0, 0, 0, 0.5),
   }: {
     maxWidth?: number;
     bordered?: boolean;
     fontSize?: number;
     color?: ex.Color;
+    backgroundColor?: ex.Color;
   } = {},
 ): ex.GraphicsGroup {
   const baseFont = {
@@ -63,7 +110,7 @@ export function makeBorderedLabel(
       height: H,
       cache: true,
       draw(ctx) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillStyle = backgroundColor.toRGBA();
         ctx.beginPath();
         ctx.moveTo(r, 0);
         ctx.lineTo(W - r, 0);
@@ -116,6 +163,8 @@ export interface LabelDef {
   fontSize?: number;
   /** Text color. Default: ex.Color.White. */
   color?: ex.Color;
+  /** Background fill color when bordered is true. Default: semi-transparent black. */
+  backgroundColor?: ex.Color;
   /** Position offset as a multiple of the label's font size. Default: (0, 0). */
   labelOffset?: ex.Vector;
 }
@@ -174,50 +223,118 @@ export function makeLabelActor(
       bordered: def.bordered ?? true,
       fontSize: def.fontSize,
       color: def.color,
+      backgroundColor: def.backgroundColor,
     }),
   );
   if (!visible) actor.graphics.isVisible = false;
   return actor;
 }
 
+// ---------------------------------------------------------------------------
+// Badge types and helpers
+// ---------------------------------------------------------------------------
+
+/** Badge carrying a sprite instead of text. */
+export interface SpriteBadge {
+  tile: TileRef;
+  /** Rendered size in world pixels. Default: DEFAULT_BADGE_SIZE (16). */
+  size?: number;
+}
+
 /**
- * Creates an actor whose graphic is a small badge label, anchored at its
- * top-right corner (anchor 1,1). Used for overlay counters on buttons.
+ * Unified badge content: text shorthand (number/string), full LabelDef,
+ * or a sprite (SpriteBadge). Used in both ButtonDef.badge and TileActorBadgeDef.
+ */
+export type BadgeDef = number | string | LabelDef | SpriteBadge;
+
+/**
+ * Creates an actor whose graphic is a badge — either a text label or a sprite.
  *
  * @param badge   - string/number shorthand (defaults: bordered, 80% font size),
- *                  or a full LabelDef to control bordered, color, fontSize, etc.
- * @param pos     - position in the parent's local space
+ *                  LabelDef to control style, or SpriteBadge for a sprite.
+ * @param pos     - position in the parent's local space (the actor's anchor point)
+ * @param anchor  - actor anchor; default (1, 1) = top-right corner, matching
+ *                  the button badge convention. Pass anchorFractions() result for
+ *                  TileActor corner badges.
  * @param scale   - actor scale; world-space callers pass inverse of parent scale
  * @param visible - initial visibility; default true
  */
 export function makeBadgeActor(
-  badge: number | string | LabelDef,
+  badge: BadgeDef,
   pos: ex.Vector,
   {
+    anchor = ex.vec(1, 1),
     scale = ex.vec(1, 1),
     visible = true,
   }: {
+    anchor?: ex.Vector;
     scale?: ex.Vector;
     visible?: boolean;
   } = {},
 ): ex.Actor {
-  // When a LabelDef is passed, use it as-is. For string/number shorthand,
-  // apply badge-appropriate defaults (bordered, smaller font).
-  const def: LabelDef = typeof badge === "object"
-    ? badge
-    : { text: String(badge), bordered: true, fontSize: LABEL_FONT_SIZE * 0.8 };
+  // Sprite branch: { tile, size? }
+  if (typeof badge === "object" && "tile" in badge) {
+    const base = parseTileRef(badge.tile);
+    const size = badge.size ?? DEFAULT_BADGE_SIZE;
+    const g = base instanceof ex.Animation ? base : (base as ex.Sprite).clone();
+    g.scale = ex.vec(size / base.width, size / base.height);
+    const actor = new ex.Actor({ pos, anchor, scale });
+    actor.graphics.use(g);
+    if (!visible) actor.graphics.isVisible = false;
+    return actor;
+  }
+
+  // Text branch: number, string, or LabelDef
+  const def: LabelDef =
+    typeof badge === "object"
+      ? badge
+      : {
+          text: String(badge),
+          bordered: true,
+          fontSize: LABEL_FONT_SIZE * 0.8,
+        };
   const fontSize = def.fontSize ?? LABEL_FONT_SIZE * 0.8;
-  // Measure the text width and shift the position left by that amount so the
-  // badge stays inside the button bounds instead of growing to the right.
+  // Shift the position so the badge aligns with the anchor. A right-anchored
+  // badge (anchor.x=1) shifts left by the full width; left-anchored (0) needs
+  // no shift; center (0.5) shifts by half.
   const { width } = new ex.Font({ size: fontSize }).measureText(def.text);
-  const adjustedPos = pos.add(ex.vec(-width, 0));
+  const adjustedPos = pos.add(ex.vec(-width * anchor.x, 0));
   // makeLabelActor only returns null when label is undefined; we always pass a
   // LabelDef, so the non-null assertion is safe.
   return makeLabelActor(def, adjustedPos, {
-    anchor: ex.vec(1, 1),
+    anchor,
     scale,
     visible,
   })!;
+}
+
+// ---------------------------------------------------------------------------
+// Button types
+// ---------------------------------------------------------------------------
+
+/**
+ * Unified button definition shared by world-space TileActor buttons and
+ * screen-space HUD buttons.
+ *
+ * For HUD buttons, use HudButtonDef (defined in hud.ts) which extends this
+ * with width, height, and hitPadding.
+ */
+export interface ButtonDef {
+  /** Sprite to display. For world-space buttons, always provide this. */
+  tile?: TileRef;
+  /** Shown instead of tile when active is true. Falls back to tile if absent. */
+  activeTile?: TileRef;
+  /** Shown instead of tile when disabled is true. Falls back to tile at 50% opacity if absent. */
+  disabledTile?: TileRef;
+  /** Initial active state. Default: false. */
+  active?: boolean;
+  /** Initial disabled state — blocks input, mutes visuals. Default: false. */
+  disabled?: boolean;
+  /** Small overlay counter/indicator at the button's top-right corner. */
+  badge?: BadgeDef;
+  /** Optional label rendered below the button. */
+  label?: string | LabelDef;
+  onPressed: () => void;
 }
 
 /**
@@ -259,39 +376,20 @@ export function makeButtonGraphic(
   return { graphic, opacity: disabled && !def.disabledTile ? 0.5 : 1 };
 }
 
+// ---------------------------------------------------------------------------
+// TileActor badge types
+// ---------------------------------------------------------------------------
+
 /**
- * Unified button definition shared by world-space TileActor buttons and
- * screen-space HUD buttons.
- *
- * Fields specific to HUD buttons (ignored in world-space context):
- *   width, height  — button size in screen pixels; default 32
- *
- * Fields applicable to both contexts (initial state; runtime changes via
- * HudGroupHandle or a future per-actor API for TileActor):
- *   active, disabled, badge, hitPadding
+ * A badge rendered at a fixed corner or edge of a TileActor's sprite.
+ * Always visible (not selection-gated). Pointer events pass through to
+ * the parent actor.
  */
-export interface ButtonDef {
-  /** Sprite to display. For world-space buttons, always provide this. */
-  tile?: TileRef;
-  /** Shown instead of tile when active is true. Falls back to tile if absent. */
-  activeTile?: TileRef;
-  /** Shown instead of tile when disabled is true. Falls back to tile at 50% opacity if absent. */
-  disabledTile?: TileRef;
-  /** Initial active state. Default: false. */
-  active?: boolean;
-  /** Initial disabled state — blocks input, mutes visuals. Default: false. */
-  disabled?: boolean;
-  /** Inflates the pointer-event hit area beyond the visual bounds (px). Default: 0. */
-  hitPadding?: number;
-  /** Small overlay counter/indicator at the button's top-right corner.
-   *  Pass a string/number for the default style, or a LabelDef to control
-   *  bordered, color, fontSize, etc. */
-  badge?: number | string | LabelDef;
-  /** Button width in screen pixels. HUD only; ignored in world-space. Default: 32. */
-  width?: number;
-  /** Button height in screen pixels. HUD only; ignored in world-space. Default: 32. */
-  height?: number;
-  /** Optional label rendered below the button. */
-  label?: string | LabelDef;
-  onPressed: () => void;
+export interface TileActorBadgeDef {
+  /** Corner/edge of the actor sprite where the badge is placed. */
+  anchor: CornerAnchor;
+  /** Badge content: text shorthand, LabelDef, or sprite (SpriteBadge). */
+  badge: BadgeDef;
+  /** Additional pixel nudge from the anchor point in world space. */
+  offset?: ex.Vector;
 }

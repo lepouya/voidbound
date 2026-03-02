@@ -1,9 +1,11 @@
 import * as ex from "excalibur";
 
 import {
+  anchorFractions,
+  BadgeDef,
   ButtonDef,
+  CornerAnchor,
   LABEL_PAD,
-  LabelDef,
   makeBadgeActor,
   makeButtonGraphic,
   makeLabelActor,
@@ -13,16 +15,8 @@ import {
 // Public types
 // ---------------------------------------------------------------------------
 
-export type HudAnchor =
-  | "top-left"
-  | "top-center"
-  | "top-right"
-  | "middle-left"
-  | "middle-center"
-  | "middle-right"
-  | "bottom-left"
-  | "bottom-center"
-  | "bottom-right";
+/** Screen-space anchor alias — same 9-position grid as CornerAnchor in ui.ts. */
+export type HudAnchor = CornerAnchor;
 
 /**
  * Stack direction for buttons within a HUD group.
@@ -35,6 +29,19 @@ export type HudAnchor =
  * / bottom-* anchors). An offset shifts the whole group.
  */
 export type HudStackDir = "down" | "up" | "left" | "right" | "center";
+
+/**
+ * HUD-specific button definition. Extends ButtonDef with size and hit-area
+ * fields that are only meaningful in screen-space context.
+ */
+export interface HudButtonDef extends ButtonDef {
+  /** Button width in screen pixels. Default: 32. */
+  width?: number;
+  /** Button height in screen pixels. Default: 32. */
+  height?: number;
+  /** Inflates the pointer-event hit area beyond the visual bounds (px). Default: 0. */
+  hitPadding?: number;
+}
 
 export interface HudGroupDef {
   anchor: HudAnchor;
@@ -51,7 +58,7 @@ export interface HudGroupDef {
   offset?: number;
   /** Z draw order for layering between overlapping groups. Default: 0. */
   zOffset?: number;
-  buttons: ButtonDef[];
+  buttons: HudButtonDef[];
 }
 
 export interface HudGroupHandle {
@@ -62,7 +69,7 @@ export interface HudGroupHandle {
   /** Toggle the active state of an individual button by index. */
   setButtonActive(index: number, active: boolean): void;
   /** Update or remove the badge on an individual button by index. */
-  setBadge(index: number, badge: number | string | LabelDef | undefined): void;
+  setBadge(index: number, badge: BadgeDef | undefined): void;
   /** Remove all buttons in this group from the scene. */
   remove(): void;
   /**
@@ -79,7 +86,7 @@ export interface HudGroupHandle {
 
 interface ButtonState {
   element: ex.ScreenElement;
-  def: ButtonDef;
+  def: HudButtonDef;
   disabled: boolean;
   active: boolean;
   badgeActor: ex.Actor | null;
@@ -89,40 +96,32 @@ interface ButtonState {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Parse 'top-left' → ['top', 'left'], etc. */
-function splitAnchor(anchor: HudAnchor): [string, string] {
-  const idx = anchor.indexOf("-");
-  return [anchor.slice(0, idx), anchor.slice(idx + 1)];
-}
-
 /**
  * Returns the ex.ScreenElement anchor fractions (hFrac, vFrac) and the base
  * screen position (bx, by) for a given HudAnchor + padding.
  */
 function anchorLayout(
-  anchor: HudAnchor,
+  anchor: CornerAnchor,
   padding: number,
   drawWidth: number,
   drawHeight: number,
 ): { hFrac: number; vFrac: number; bx: number; by: number } {
-  const [v, h] = splitAnchor(anchor);
-  const hFrac = h === "left" ? 0 : h === "right" ? 1 : 0.5;
-  const vFrac = v === "top" ? 0 : v === "bottom" ? 1 : 0.5;
-  const bx = h === "left"
+  const { hFrac, vFrac } = anchorFractions(anchor);
+  const bx = hFrac === 0
     ? padding
-    : h === "right"
+    : hFrac === 1
     ? drawWidth - padding
     : drawWidth / 2;
-  const by = v === "top"
+  const by = vFrac === 0
     ? padding
-    : v === "bottom"
+    : vFrac === 1
     ? drawHeight - padding
     : drawHeight / 2;
   return { hFrac, vFrac, bx, by };
 }
 
 /** Infer a default stack direction from the anchor. */
-function inferDirection(anchor: HudAnchor): HudStackDir {
+function inferDirection(anchor: CornerAnchor): HudStackDir {
   return anchor.startsWith("bottom") ? "up" : "down";
 }
 
@@ -138,20 +137,6 @@ function applyButtonGraphic(
   const { graphic, opacity } = makeButtonGraphic(def, disabled, active, w, h);
   el.graphics.use(graphic);
   el.graphics.opacity = opacity;
-}
-
-/** Create a badge child actor and attach it to a ScreenElement. */
-function spawnBadge(
-  el: ex.ScreenElement,
-  badge: number | string | LabelDef,
-  w: number,
-  h: number,
-): ex.Actor {
-  // Button center is at (0,0) in local space (anchor 0.5,0.5), so the
-  // top-right corner of the visual button is at (+w/2, -h/2).
-  const actor = makeBadgeActor(badge, ex.vec(w / 2, -h / 2));
-  el.addChild(actor);
-  return actor;
 }
 
 // ---------------------------------------------------------------------------
@@ -253,10 +238,12 @@ export function spawnHudGroup(
     );
     if (labelActor) el.addChild(labelActor);
 
-    // Badge overlay at top-right corner.
+    // Badge overlay at top-right corner. Button center is (0,0) in local space,
+    // so the top-right corner of the visual button is at (+w/2, -h/2).
     let badgeActor: ex.Actor | null = null;
     if (btn.badge !== undefined) {
-      badgeActor = spawnBadge(el, btn.badge, w, h);
+      badgeActor = makeBadgeActor(btn.badge, ex.vec(w / 2, -h / 2));
+      el.addChild(badgeActor);
     }
 
     const state: ButtonState = {
@@ -321,7 +308,7 @@ export function spawnHudGroup(
       );
     },
 
-    setBadge(index: number, badge: number | string | LabelDef | undefined) {
+    setBadge(index: number, badge: BadgeDef | undefined) {
       const state = states[index];
       if (!state) return;
       if (state.badgeActor) {
@@ -330,7 +317,9 @@ export function spawnHudGroup(
       }
       if (badge !== undefined) {
         const { w, h } = sizes[index];
-        state.badgeActor = spawnBadge(state.element, badge, w, h);
+        const actor = makeBadgeActor(badge, ex.vec(w / 2, -h / 2));
+        state.element.addChild(actor);
+        state.badgeActor = actor;
       }
     },
 

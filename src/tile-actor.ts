@@ -1,12 +1,14 @@
 import * as ex from "excalibur";
 
 import {
+  anchorFractions,
   ButtonDef,
   LABEL_PAD,
   makeBadgeActor,
   makeButtonGraphic,
   makeLabelActor,
   parseTileRef,
+  TileActorBadgeDef,
   TileRef,
 } from "./ui";
 
@@ -81,6 +83,14 @@ export interface TileActorOptions {
   onPressed?: (actor: TileActor) => void;
   /** Action buttons shown in a symmetric arc below the actor when selected. */
   buttons?: ButtonDef[];
+  /** Badges rendered at fixed corners/edges of the actor sprite. Always visible. */
+  badges?: TileActorBadgeDef[];
+  /**
+   * Allow clicks in the outer 10% of the circumradius to fall through to the
+   * empty-tile handler. Set to false in scenes that have no empty tile actor
+   * so edge clicks still select this actor. Default: true.
+   */
+  edgeFallthrough?: boolean;
 }
 
 export class TileActor extends ex.Actor {
@@ -99,6 +109,8 @@ export class TileActor extends ex.Actor {
   private readonly selectionTile: TileRef | null;
   private readonly onPressed: ((actor: TileActor) => void) | undefined;
   private readonly actionButtons: ButtonDef[];
+  private readonly actorBadges: TileActorBadgeDef[];
+  private readonly edgeFallthrough: boolean;
   private readonly tileWidth: number;
   private readonly tileHeight: number;
   // All selection-dependent actors: the selection ring and every action button
@@ -112,7 +124,7 @@ export class TileActor extends ex.Actor {
   // Child actors that must stay upright (zero screen rotation) at a fixed
   // world-space offset from the actor center, regardless of this actor's
   // rotation. Each entry stores the target world offset (wx, wy) in px.
-  // Populated in onInitialize() and setupActionButtons().
+  // Populated in onInitialize(), setupActionButtons(), and setupBadges().
   private readonly uprightChildren: Array<{
     actor: ex.Actor;
     wx: number;
@@ -135,6 +147,8 @@ export class TileActor extends ex.Actor {
     selection,
     onPressed,
     buttons = [],
+    badges = [],
+    edgeFallthrough = true,
   }: TileActorOptions) {
     let graphic: ex.Graphic;
     let w: number;
@@ -177,6 +191,8 @@ export class TileActor extends ex.Actor {
     this.actionButtons = buttons;
     this.tileWidth = tilemap.tileWidth;
     this.tileHeight = tilemap.tileHeight;
+    this.actorBadges = badges;
+    this.edgeFallthrough = edgeFallthrough;
     this.graphics.use(graphic);
   }
 
@@ -269,13 +285,18 @@ export class TileActor extends ex.Actor {
       }
       // For sprites larger than 1*1 tile, let clicks in the outer 10% of the
       // circumradius (center-to-corner distance) fall through to the tile beneath.
-      const visualW = this.width * this.scale.x;
-      const visualH = this.height * this.scale.y;
-      if (visualW > this.tileWidth || visualH > this.tileHeight) {
-        const circumradius = Math.sqrt((visualW / 2) ** 2 + (visualH / 2) ** 2);
-        const dx = evt.worldPos.x - this.pos.x;
-        const dy = evt.worldPos.y - this.pos.y;
-        if (Math.sqrt(dx * dx + dy * dy) > circumradius * 0.9) return;
+      // Only applies when the scene has an empty tile actor to receive the click.
+      if (this.edgeFallthrough) {
+        const visualW = this.width * this.scale.x;
+        const visualH = this.height * this.scale.y;
+        if (visualW > this.tileWidth || visualH > this.tileHeight) {
+          const circumradius = Math.sqrt(
+            (visualW / 2) ** 2 + (visualH / 2) ** 2,
+          );
+          const dx = evt.worldPos.x - this.pos.x;
+          const dy = evt.worldPos.y - this.pos.y;
+          if (Math.sqrt(dx * dx + dy * dy) > circumradius * 0.9) return;
+        }
       }
       this.onPressed?.(this);
     });
@@ -297,7 +318,7 @@ export class TileActor extends ex.Actor {
 
     const ownerLabelActor = makeLabelActor(
       this.ownerName,
-      ex.vec(0, this.height),
+      ex.vec(0, this.height / 2 + LABEL_PAD / this.scale.y),
       {
         scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
         maxWidth: this.colSpan * this.tileWidth,
@@ -305,15 +326,16 @@ export class TileActor extends ex.Actor {
     );
     if (ownerLabelActor) {
       this.addChild(ownerLabelActor);
-      // World offset: (0, height * scaleY) — directly below the actor.
+      // World offset: just below the actor sprite, with consistent padding.
       this.uprightChildren.push({
         actor: ownerLabelActor,
         wx: 0,
-        wy: this.height * this.scale.y,
+        wy: (this.height * this.scale.y) / 2 + LABEL_PAD,
       });
     }
 
     this.setupActionButtons();
+    this.setupBadges();
     if (this.pendingSelect) {
       this.pendingSelect = false;
       this.select();
@@ -357,6 +379,27 @@ export class TileActor extends ex.Actor {
 
   override onPostUpdate(): void {
     this.repositionUprightChildren();
+  }
+
+  private setupBadges(): void {
+    if (this.actorBadges.length === 0) return;
+    const actorVisualW = this.width * this.scale.x;
+    const actorVisualH = this.height * this.scale.y;
+    const badgeScale = ex.vec(1 / this.scale.x, 1 / this.scale.y);
+
+    for (const badgeDef of this.actorBadges) {
+      const { hFrac, vFrac } = anchorFractions(badgeDef.anchor);
+      const wx = (hFrac - 0.5) * actorVisualW + (badgeDef.offset?.x ?? 0);
+      const wy = (vFrac - 0.5) * actorVisualH + (badgeDef.offset?.y ?? 0);
+
+      const badgeActor = makeBadgeActor(badgeDef.badge, ex.vec(0, 0), {
+        anchor: ex.vec(hFrac, vFrac),
+        scale: badgeScale,
+      });
+
+      this.addChild(badgeActor);
+      this.uprightChildren.push({ actor: badgeActor, wx, wy });
+    }
   }
 
   private setupActionButtons(): void {

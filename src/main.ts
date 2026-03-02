@@ -16,7 +16,7 @@ const game = new ex.Engine({
 });
 
 game
-  .start("map", {
+  .start("ship", {
     loader,
     inTransition: new ex.FadeInOut({
       duration: 1000,

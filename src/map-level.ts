@@ -100,7 +100,12 @@ export class MapLevel extends TiledScene {
     return buildTileMap("map");
   }
 
+  protected override supportsEmptyTileActor(): boolean {
+    return true;
+  }
+
   protected override setupActors(onTilePressed: (a: TileActor) => void): void {
+    const edgeFallthrough = this.supportsEmptyTileActor();
     this.mothership = new TileActor({
       tilemap: this.tilemap,
       tile: "ss1-base:0",
@@ -111,6 +116,7 @@ export class MapLevel extends TiledScene {
       ownerName: "Player 1",
       ownerId: "player-1",
       onPressed: onTilePressed,
+      edgeFallthrough,
       buttons: [
         {
           tile: "ui-button-details:0",
@@ -155,6 +161,7 @@ export class MapLevel extends TiledScene {
         ownerName: "Enemy",
         ownerId: "player-2",
         onPressed: onTilePressed,
+        edgeFallthrough,
         buttons: [
           {
             tile: "ui-button-details:0",

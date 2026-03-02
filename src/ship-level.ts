@@ -70,14 +70,50 @@ export class ShipLevel extends TiledScene {
   protected override setupActors(onTilePressed: (a: TileActor) => void): void {
     const commandModule = new TileActor({
       tilemap: this.tilemap,
+      edgeFallthrough: this.supportsEmptyTileActor(),
       tile: "module-base:0",
-      col: 13,
-      row: 13,
-      width: 4,
-      height: 4,
+      col: 11,
+      row: 11,
+      width: 8,
+      height: 8,
       ownerName: "Command Module",
       onPressed: onTilePressed,
+      badges: [
+        { anchor: "top-left", badge: { text: "TL", bordered: false } },
+        { anchor: "top-center", badge: { text: "TC", bordered: false } },
+        { anchor: "top-right", badge: { text: "TR", bordered: false } },
+        { anchor: "middle-left", badge: { text: "ML", bordered: false } },
+        { anchor: "middle-center", badge: { text: "MC", bordered: false } },
+        { anchor: "middle-right", badge: { text: "MR", bordered: false } },
+        { anchor: "bottom-left", badge: { text: "BL", bordered: false } },
+        { anchor: "bottom-center", badge: { text: "BC", bordered: false } },
+        { anchor: "bottom-right", badge: { text: "BR", bordered: false } },
+      ],
     });
     this.add(commandModule);
+
+    const commandModule2 = new TileActor({
+      tilemap: this.tilemap,
+      edgeFallthrough: this.supportsEmptyTileActor(),
+      tile: "module-base:0",
+      col: 13,
+      row: 6,
+      width: 4,
+      height: 4,
+      ownerName: "Command Module 2",
+      onPressed: onTilePressed,
+      badges: [
+        { anchor: "top-left", badge: { text: "TL", bordered: false } },
+        { anchor: "top-center", badge: { text: "TC", bordered: false } },
+        { anchor: "top-right", badge: { text: "TR", bordered: false } },
+        { anchor: "middle-left", badge: { text: "ML", bordered: false } },
+        { anchor: "middle-center", badge: { text: "MC", bordered: false } },
+        { anchor: "middle-right", badge: { text: "MR", bordered: false } },
+        { anchor: "bottom-left", badge: { text: "BL", bordered: false } },
+        { anchor: "bottom-center", badge: { text: "BC", bordered: false } },
+        { anchor: "bottom-right", badge: { text: "BR", bordered: false } },
+      ],
+    });
+    this.add(commandModule2);
   }
 }

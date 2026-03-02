@@ -259,8 +259,9 @@ The space map scene. Key details:
 
 ### `src/ship-level.ts`
 
-The mothership interior scene (compartments). Skeleton only — `setupActors()` is
-empty, and the scene is not yet registered in `main.ts`.
+The mothership interior scene (compartments). Not yet registered in `main.ts`.
+Contains a single `commandModule` actor (4*4, `module-base:0`, col 13, row 13)
+with an example `badges` array demonstrating a "Lv 2" label at bottom-left.
 
 ---
 
@@ -283,29 +284,54 @@ selects the sprite at that grid position.
 `parseTileRef(ref: TileRef): ex.Graphic` resolves a `TileRef` to an Excalibur
 graphic. Used by `map-loader.ts` and `tile-actor.ts`.
 
+**`CornerAnchor` type** — 9-position anchor grid shared by HUD and TileActor
+badges: `"top-left"` / `"top-center"` / `"top-right"` / `"middle-left"` /
+`"middle-center"` / `"middle-right"` / `"bottom-left"` / `"bottom-center"` /
+`"bottom-right"`.
+
+`anchorFractions(anchor: CornerAnchor): { hFrac, vFrac }` — converts an anchor
+to 0/0.5/1 fractions. Used internally by `hud.ts` and `tile-actor.ts`.
+
 **`LabelDef` interface** — configuration for a text label:
 
 - `text`, `bordered?` (default true), `fontSize?`, `color?`, `labelOffset?`
+- `backgroundColor?` — pill background color; default semi-transparent black.
+  Pass any `ex.Color` to change it (e.g. blue for a level badge).
 
-**`ButtonDef` interface** — unified button definition for both world-space
-TileActor buttons and screen-space HUD buttons:
+**`BadgeDef` type** — unified badge content used in `ButtonDef.badge` and
+`TileActorBadgeDef.badge`:
+
+- `number | string` — text shorthand (bordered, 80% font size)
+- `LabelDef` — full text label control including `backgroundColor`
+- `SpriteBadge` — `{ tile: TileRef; size?: number }` for an icon badge; `size`
+  is the rendered edge length in world pixels (default 16)
+
+**`ButtonDef` interface** — base button definition shared by world-space
+TileActor buttons and screen-space HUD buttons. For HUD use, extend with
+`HudButtonDef` (defined in `hud.ts`):
 
 - `tile?`, `activeTile?`, `disabledTile?` — sprites for normal/active/disabled
   states
 - `active?`, `disabled?` — initial state flags
-- `hitPadding?` — inflates the pointer hit area (px)
-- `badge?` — small overlay counter at the button's top-right corner
-- `width?`, `height?` — HUD only; ignored in world-space context (default 32)
+- `badge?: BadgeDef` — small overlay at the button's top-right corner
 - `label?: string | LabelDef` — label rendered below the button
 - `onPressed` — callback
+
+**`TileActorBadgeDef` interface** — a badge pinned to a corner/edge of a
+TileActor sprite:
+
+- `anchor: CornerAnchor` — which corner/edge of the sprite to attach to
+- `badge: BadgeDef` — text or sprite content
+- `offset?: ex.Vector` — additional pixel nudge in world space
 
 **Rendering helpers (internal use):**
 
 - `makeBorderedLabel(text, opts)` — returns a `GraphicsGroup` with an optional
-  rounded-rect background
+  rounded-rect background; accepts `backgroundColor?`
 - `makeLabelActor(label, pos, opts)` — creates an `ex.Actor` whose graphic is a
   bordered label; returns null when label is undefined
-- `makeBadgeActor(badge, pos, opts)` — creates a top-right-anchored badge actor
+- `makeBadgeActor(badge, pos, opts)` — creates a badge actor from a `BadgeDef`;
+  accepts optional `anchor` (default `(1,1)` = top-right, for button badges)
 - `makeButtonGraphic(def, disabled, active, w, h)` — resolves the correct
   graphic and opacity for a button given its current state
 
@@ -314,6 +340,14 @@ TileActor buttons and screen-space HUD buttons:
 ### `src/hud.ts`
 
 Screen-fixed HUD button groups using `ex.ScreenElement`.
+
+**`HudAnchor`** — type alias for `CornerAnchor` (defined in `ui.ts`),
+re-exported from `hud.ts` for backward compatibility.
+
+**`HudButtonDef` interface** — extends `ButtonDef` with HUD-only sizing fields:
+
+- `width?`, `height?` — button size in screen pixels (default 32)
+- `hitPadding?` — inflates the pointer-event hit area (px, default 0)
 
 **`HudGroupDef`** — layout spec for a button group:
 
@@ -324,12 +358,13 @@ Screen-fixed HUD button groups using `ex.ScreenElement`.
 - `gap?` — gap between buttons in px (default 4)
 - `offset?` — shift along the stacking axis before the first button (default 0)
 - `zOffset?` — z draw order relative to other HUD groups
-- `buttons: ButtonDef[]`
+- `buttons: HudButtonDef[]`
 
 **`HudGroupHandle`** — runtime control returned by `addHudGroup()`:
 
 - `setVisible(visible)`, `setButtonDisabled(index, disabled)`,
-  `setButtonActive(index, active)`, `setBadge(index, badge)`, `remove()`
+  `setButtonActive(index, active)`,
+  `setBadge(index, badge: BadgeDef | undefined)`, `remove()`
 
 **`spawnHudGroup(engine, def)`** — low-level factory; prefer `addHudGroup(def)`
 from a `TiledScene` subclass, which also registers the group for pointer-up
@@ -358,6 +393,9 @@ Defines `TileActor`, the base class for all interactive map entities.
 - `onPressed?` — callback fired when the actor body is tapped
 - `buttons?: ButtonDef[]` — action buttons shown in an arc when selected; see
   `ButtonDef` in `src/ui.ts`
+- `badges?: TileActorBadgeDef[]` — decorations pinned to corners/edges of the
+  sprite; always visible, never intercept input (see `TileActorBadgeDef` in
+  `src/ui.ts`)
 
 **Public fields (all `readonly` — do not assign directly):**
 
@@ -378,9 +416,9 @@ Defines `TileActor`, the base class for all interactive map entities.
   up/−y). Action buttons and labels counter-rotate to stay upright.
 - `select()` / `deselect()` — show/hide the selection ring and action buttons
 
-**Note on upright children:** Owner labels and action buttons always render
-upright in screen space and stay anchored at a fixed world-space offset below
-the actor, regardless of the actor's rotation.
+**Note on upright children:** Owner labels, action buttons, and actor badges
+always render upright in screen space and stay anchored at a fixed world-space
+offset from the actor center, regardless of the actor's rotation.
 
 ---
 

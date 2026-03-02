@@ -89,6 +89,16 @@ export abstract class TiledScene extends ex.Scene {
   }
 
   /**
+   * Return true if this scene spawns an empty tile actor when the player taps
+   * empty space (i.e. createEmptyTileActor is overridden). Default: false.
+   * Pass the result as `edgeFallthrough` to every TileActor constructed in
+   * setupActors() so edge-zone clicks fall through only when meaningful.
+   */
+  protected supportsEmptyTileActor(): boolean {
+    return false;
+  }
+
+  /**
    * Called when the player taps an empty map tile. Return a TileActor to
    * spawn and immediately select it, or null to do nothing (default).
    * The actor should include `onPressed` in its options so the standard
