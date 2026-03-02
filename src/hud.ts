@@ -107,10 +107,16 @@ function anchorLayout(
   drawHeight: number,
 ): { hFrac: number; vFrac: number; bx: number; by: number } {
   const { hFrac, vFrac } = anchorFractions(anchor);
-  const bx =
-    hFrac === 0 ? padding : hFrac === 1 ? drawWidth - padding : drawWidth / 2;
-  const by =
-    vFrac === 0 ? padding : vFrac === 1 ? drawHeight - padding : drawHeight / 2;
+  const bx = hFrac === 0
+    ? padding
+    : hFrac === 1
+    ? drawWidth - padding
+    : drawWidth / 2;
+  const by = vFrac === 0
+    ? padding
+    : vFrac === 1
+    ? drawHeight - padding
+    : drawHeight / 2;
   return { hFrac, vFrac, bx, by };
 }
 
@@ -159,8 +165,7 @@ export function spawnHudGroup(
 
   // Determine stacking axis. For 'center', buttons spread along the anchor's
   // primary edge: horizontal for top-*/bottom-* anchors, vertical otherwise.
-  const isVertical =
-    direction === "down" ||
+  const isVertical = direction === "down" ||
     direction === "up" ||
     (direction === "center" &&
       !def.anchor.startsWith("top") &&

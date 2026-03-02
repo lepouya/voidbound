@@ -319,7 +319,6 @@ export class TileActor extends ex.Actor {
     const ownerLabelActor = makeLabelActor(this.ownerName, ex.vec(0, 0), {
       anchor: "top-center",
       scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-      maxWidth: this.colSpan * this.tileWidth,
     });
     if (ownerLabelActor) {
       this.addChild(ownerLabelActor);

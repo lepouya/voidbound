@@ -198,8 +198,9 @@ scenes: {
 }
 ```
 
-Both scenes are registered. The game starts on `"ship"` (the mothership interior).
-Navigate between scenes with `engine.goToScene("map")` / `engine.goToScene("ship")`.
+Both scenes are registered. The game starts on `"ship"` (the mothership
+interior). Navigate between scenes with `engine.goToScene("map")` /
+`engine.goToScene("ship")`.
 
 ---
 

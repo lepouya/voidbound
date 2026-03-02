@@ -32,6 +32,7 @@ export class MapLevel extends TiledScene {
     super.onInitialize(engine);
     this.addHudGroup({
       anchor: "top-right",
+      gap: 8,
       buttons: [
         {
           tile: "ui-button-buy:1",
@@ -56,6 +57,7 @@ export class MapLevel extends TiledScene {
     });
     this.addHudGroup({
       anchor: "bottom-right",
+      gap: 8,
       buttons: [
         {
           tile: "ui-button-shipview:1",
@@ -295,6 +297,7 @@ export class MapLevel extends TiledScene {
       width: 1,
       height: 1,
       ownerName: event.ownerName,
+      ownerId: event.ownerId,
       onPressed: this.handleTilePressed,
       buttons: [
         {

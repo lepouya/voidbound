@@ -9,6 +9,7 @@ export class ShipLevel extends TiledScene {
     super.onInitialize(engine);
     this.addHudGroup({
       anchor: "top-right",
+      gap: 8,
       buttons: [
         {
           tile: "ui-button-buy:1",
@@ -33,12 +34,12 @@ export class ShipLevel extends TiledScene {
     });
     this.addHudGroup({
       anchor: "bottom-right",
+      gap: 8,
       buttons: [
         {
           tile: "ui-button-mapview:0",
           width: 64,
           height: 64,
-          badge: { text: "@", bordered: false, color: ex.Color.Red },
           label: { text: "Map", labelOffset: ex.vec(0, -1), bordered: false },
           onPressed: () => engine.goToScene("map"),
         },
@@ -73,48 +74,19 @@ export class ShipLevel extends TiledScene {
       tilemap: this.tilemap,
       edgeFallthrough: this.supportsEmptyTileActor(),
       tile: "module-base:0",
-      col: 11,
-      row: 11,
-      width: 8,
-      height: 8,
+      col: 13,
+      row: 13,
+      width: 4,
+      height: 4,
       ownerName: "Command Module",
       onPressed: onTilePressed,
       badges: [
-        { anchor: "top-left", badge: { text: "TL", bordered: false } },
-        { anchor: "top-center", badge: { text: "TC", bordered: false } },
-        { anchor: "top-right", badge: { text: "TR", bordered: false } },
-        { anchor: "middle-left", badge: { text: "ML", bordered: false } },
-        { anchor: "middle-center", badge: { text: "MC", bordered: false } },
-        { anchor: "middle-right", badge: { text: "MR", bordered: false } },
-        { anchor: "bottom-left", badge: { text: "BL", bordered: false } },
-        { anchor: "bottom-center", badge: { text: "BC", bordered: false } },
-        { anchor: "bottom-right", badge: { text: "BR", bordered: false } },
+        {
+          anchor: "bottom-left",
+          badge: { text: "2", backgroundColor: ex.Color.ExcaliburBlue },
+        },
       ],
     });
     this.add(commandModule);
-
-    const commandModule2 = new TileActor({
-      tilemap: this.tilemap,
-      edgeFallthrough: this.supportsEmptyTileActor(),
-      tile: "module-base:0",
-      col: 13,
-      row: 6,
-      width: 4,
-      height: 4,
-      ownerName: "Command Module 2",
-      onPressed: onTilePressed,
-      badges: [
-        { anchor: "top-left", badge: { text: "TL", bordered: false } },
-        { anchor: "top-center", badge: { text: "TC", bordered: false } },
-        { anchor: "top-right", badge: { text: "TR", bordered: false } },
-        { anchor: "middle-left", badge: { text: "ML", bordered: false } },
-        { anchor: "middle-center", badge: { text: "MC", bordered: false } },
-        { anchor: "middle-right", badge: { text: "MR", bordered: false } },
-        { anchor: "bottom-left", badge: { text: "BL", bordered: false } },
-        { anchor: "bottom-center", badge: { text: "BC", bordered: false } },
-        { anchor: "bottom-right", badge: { text: "BR", bordered: false } },
-      ],
-    });
-    this.add(commandModule2);
   }
 }

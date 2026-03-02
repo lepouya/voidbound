@@ -13,8 +13,8 @@ export function parseTileRef(ref: TileRef): ex.Graphic {
 }
 
 export const LABEL_FONT_SIZE = 10;
-export const LABEL_PAD = 2;
-export const LABEL_CORNER_RADIUS = 10;
+export const LABEL_PAD = 3;
+export const LABEL_CORNER_RADIUS = 6;
 export const DEFAULT_BADGE_SIZE = 16;
 
 // ---------------------------------------------------------------------------
@@ -47,13 +47,13 @@ export function anchorFractions(anchor: AnchorPlacement): {
   const hFrac = anchor.includes("right")
     ? 1
     : anchor.includes("left")
-    ? 0
-    : 0.5;
+      ? 0
+      : 0.5;
   const vFrac = anchor.startsWith("bottom")
     ? 1
     : anchor.startsWith("top")
-    ? 0
-    : 0.5;
+      ? 0
+      : 0.5;
   return { hFrac, vFrac };
 }
 
@@ -87,13 +87,13 @@ export function makeBorderedLabel(
   const textAlign = anchor.includes("left")
     ? ex.TextAlign.Left
     : anchor.includes("right")
-    ? ex.TextAlign.Right
-    : ex.TextAlign.Center;
+      ? ex.TextAlign.Right
+      : ex.TextAlign.Center;
   const baseAlign = anchor.startsWith("top")
     ? ex.BaseAlign.Top
     : anchor.startsWith("bottom")
-    ? ex.BaseAlign.Bottom
-    : ex.BaseAlign.Middle;
+      ? ex.BaseAlign.Bottom
+      : ex.BaseAlign.Middle;
   const baseFontDef = {
     size: fontSize,
     color,
@@ -104,6 +104,12 @@ export function makeBorderedLabel(
   // Font for measuring, no shadow.
   const measureFont = new ex.Font(baseFontDef);
   const b = measureFont.measureText(text, maxWidth);
+  // measureText doesn't zero the aligned edge; correct it so b.width/height
+  // reflect only the true glyph extent rather than the offset from origin.
+  if (textAlign === ex.TextAlign.Left) b.left = 0;
+  else if (textAlign === ex.TextAlign.Right) b.right = 0;
+  if (baseAlign === ex.BaseAlign.Top) b.top = 0;
+  else if (baseAlign === ex.BaseAlign.Bottom) b.bottom = 0;
   const members: ex.GraphicsGrouping[] = [];
   if (bordered) {
     const W = b.width + LABEL_PAD * 2;
@@ -151,7 +157,7 @@ export function makeBorderedLabel(
       shadow: { ...shadow, offset },
     });
     members.push({
-      offset: ex.vec(-LABEL_PAD, -LABEL_PAD),
+      offset: ex.vec(0, 0),
       graphic: new ex.Text({ text, font, maxWidth }),
       useBounds: false,
     });
@@ -302,11 +308,14 @@ export function makeBadgeActor(
   }
 
   // Text branch: number, string, or LabelDef
-  const def: LabelDef = typeof badge === "object" ? badge : {
-    text: String(badge),
-    bordered: true,
-    fontSize: LABEL_FONT_SIZE * 0.8,
-  };
+  const def: LabelDef =
+    typeof badge === "object"
+      ? badge
+      : {
+          text: String(badge),
+          bordered: true,
+          fontSize: LABEL_FONT_SIZE * 0.8,
+        };
   // makeLabelActor sets actor.anchor = (hFrac, vFrac), which Excalibur uses to
   // align the graphic relative to pos — no manual shift needed here.
   // makeLabelActor only returns null when label is undefined; we always pass a
