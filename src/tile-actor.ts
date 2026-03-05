@@ -7,66 +7,12 @@ import {
   makeBadgeActor,
   makeButtonGraphic,
   makeLabelActor,
+  makePathLine,
   parseTileRef,
   resolveGraphicLayers,
   TileActorBadgeDef,
   TileRef,
 } from "./ui";
-
-const PATH_LINE_COLOR = "rgba(80, 232, 120, 0.85)";
-const PATH_LINE_THICKNESS = 1; // px in world space
-const PATH_LINE_KNOB_RADIUS = 2; // px in world space
-
-/**
- * Creates a scene-level actor that draws a straight path line between two
- * world positions. The line is horizontal in local space; the actor is rotated
- * to face `to`. Small circular knobs mark each endpoint. Kill the returned
- * actor to remove the line from the scene.
- */
-function makePathLine(from: ex.Vector, to: ex.Vector): ex.Actor {
-  const t = PATH_LINE_THICKNESS;
-  const r = PATH_LINE_KNOB_RADIUS;
-  const length = Math.hypot(to.x - from.x, to.y - from.y);
-  const angle = Math.atan2(to.y - from.y, to.x - from.x);
-  const mid = ex.vec((from.x + to.x) / 2, (from.y + to.y) / 2);
-  // Canvas: (length + 2r) wide so knobs fit flush at each edge; 2r tall.
-  const W = Math.ceil(length + 2 * r);
-  const H = 2 * r;
-  const cy = H / 2;
-  const canvas = new ex.Canvas({
-    width: W,
-    height: H,
-    cache: true,
-    draw(ctx) {
-      ctx.strokeStyle = PATH_LINE_COLOR;
-      ctx.fillStyle = PATH_LINE_COLOR;
-      // Dotted line from knob center to knob center.
-      ctx.lineWidth = t;
-      ctx.lineCap = "round";
-      ctx.setLineDash([2, 4]);
-      ctx.beginPath();
-      ctx.moveTo(r, cy);
-      ctx.lineTo(r + length, cy);
-      ctx.stroke();
-      // Solid knobs at each endpoint (reset dash first).
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.arc(r, cy, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(r + length, cy, r, 0, Math.PI * 2);
-      ctx.fill();
-    },
-  });
-  const actor = new ex.Actor({
-    pos: mid,
-    anchor: ex.vec(0.5, 0.5),
-    rotation: angle,
-    z: 1,
-  });
-  actor.graphics.use(canvas);
-  return actor;
-}
 
 export interface TileActorOptions {
   /**

@@ -1,6 +1,6 @@
 import * as ex from "excalibur";
 
-import { HudGroupDef, HudGroupHandle, spawnHudGroup } from "./hud";
+import { HudGroupDef, HudGroupHandle, spawnHudGroup } from "./ui";
 import { TileActor } from "./tile-actor";
 
 /**

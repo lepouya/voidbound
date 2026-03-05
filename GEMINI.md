@@ -58,8 +58,15 @@ primary base), manage resources, and form alliances to expand their territory.
 /
 ├── src/                  # Frontend (TypeScript, Excalibur.js)
 │   ├── main.ts           # Game engine entry point
-│   ├── ui.ts             # Shared UI primitives: TileRef, ButtonDef, LabelDef, helpers
-│   ├── hud.ts            # Screen-fixed HUD button groups (spawnHudGroup)
+│   ├── ui/               # UI module library (import from "./ui" resolves to index.ts)
+│   │   ├── index.ts      # Barrel re-export of all submodules
+│   │   ├── anchor.ts     # AnchorPlacement, anchorFractions
+│   │   ├── tile-ref.ts   # TileLayerDef, TileRef, parseTileRef, resolveGraphicLayers
+│   │   ├── label.ts      # LabelDef, makeBorderedLabel, makeLabelActor
+│   │   ├── badge.ts      # BadgeDef, TileActorBadgeDef, makeBadgeActor
+│   │   ├── button.ts     # ButtonDef, makeButtonGraphic
+│   │   ├── path-line.ts  # PathLineOptions, makePathLine
+│   │   └── hud.ts        # HudGroupDef, HudGroupHandle, spawnHudGroup
 │   ├── tiled-scene.ts    # Abstract base scene: camera, pan/zoom, tap-to-select, HUD
 │   ├── map-level.ts      # Space map scene: mothership, vessels, HUD
 │   ├── ship-level.ts     # Mothership interior scene (modules)
@@ -266,18 +273,30 @@ The space map scene. Key details:
 The mothership interior scene (compartments). Registered as `"ship"` in
 `main.ts`; the game starts here.
 
-Currently contains two placeholder `module-base` TileActors with all 9 anchor
-positions labelled (TL/TC/TR/ML/MC/MR/BL/BC/BR) for visual verification of the
-badge placement system. Replace these with real module actors as game content is
-built out. Two HUD groups mirror `MapLevel` but with a Map button instead of
-Ship.
+Currently contains one placeholder `module-base` TileActor (`commandModule`,
+4*4 tiles, col 13, row 13) with a bottom-left level badge. Replace with real
+module actors as game content is built out. Two HUD groups mirror `MapLevel`
+but with a Map button instead of Ship.
 
 ---
 
-### `src/ui.ts`
+### `src/ui/`
 
-Shared UI primitives used by both `tile-actor.ts` (world-space) and `hud.ts`
-(screen-space).
+UI module library. All public symbols are re-exported from `src/ui/index.ts`,
+so consumers always `import { ... } from "./ui"` (or `"../ui"`) — never from
+individual submodule paths.
+
+#### `anchor.ts`
+
+**`AnchorPlacement` type** — 9-position anchor grid shared by HUD and TileActor
+badges: `"top-left"` / `"top-center"` / `"top-right"` / `"middle-left"` /
+`"middle-center"` / `"middle-right"` / `"bottom-left"` / `"bottom-center"` /
+`"bottom-right"`.
+
+`anchorFractions(anchor: AnchorPlacement): { hFrac, vFrac }` — converts an
+anchor to 0/0.5/1 fractions. Used internally by `hud.ts` and `tile-actor.ts`.
+
+#### `tile-ref.ts`
 
 **`TileRef` type:**
 
@@ -325,19 +344,21 @@ one or more `TileRef`s into a single graphic. Filters `visible:false` layers,
 applies `TileLayerDef.offset` via `GraphicsGrouping.offset`. Use this instead of
 `parseTileRef()` when working with `TileActor` tile options.
 
-**`AnchorPlacement` type** — 9-position anchor grid shared by HUD and TileActor
-badges: `"top-left"` / `"top-center"` / `"top-right"` / `"middle-left"` /
-`"middle-center"` / `"middle-right"` / `"bottom-left"` / `"bottom-center"` /
-`"bottom-right"`.
-
-`anchorFractions(anchor: AnchorPlacement): { hFrac, vFrac }` — converts an
-anchor to 0/0.5/1 fractions. Used internally by `hud.ts` and `tile-actor.ts`.
+#### `label.ts`
 
 **`LabelDef` interface** — configuration for a text label:
 
 - `text`, `bordered?` (default true), `fontSize?`, `color?`, `labelOffset?`
 - `backgroundColor?` — pill background color; default semi-transparent black.
   Pass any `ex.Color` to change it (e.g. blue for a level badge).
+
+Rendering helpers:
+- `makeBorderedLabel(text, opts)` — returns a `GraphicsGroup` with an optional
+  rounded-rect background; accepts `backgroundColor?`
+- `makeLabelActor(label, pos, opts)` — creates an `ex.Actor` whose graphic is a
+  bordered label; returns null when label is undefined
+
+#### `badge.ts`
 
 **`BadgeDef` type** — unified badge content used in `ButtonDef.badge` and
 `TileActorBadgeDef.badge`:
@@ -346,6 +367,19 @@ anchor to 0/0.5/1 fractions. Used internally by `hud.ts` and `tile-actor.ts`.
 - `LabelDef` — full text label control including `backgroundColor`
 - `SpriteBadge` — `{ tile: TileRef; size?: number }` for an icon badge; `size`
   is the rendered edge length in world pixels (default 16)
+
+**`TileActorBadgeDef` interface** — a badge pinned to a corner/edge of a
+TileActor sprite:
+
+- `anchor: AnchorPlacement` — which corner/edge of the sprite to attach to
+- `badge: BadgeDef` — text or sprite content
+- `offset?: ex.Vector` — additional pixel nudge in world space
+
+`makeBadgeActor(badge, pos, opts)` — creates a badge actor from a `BadgeDef`;
+accepts optional `anchor: AnchorPlacement` (default `"top-right"`, for button
+badges).
+
+#### `button.ts`
 
 **`ButtonDef` interface** — base button definition shared by world-space
 TileActor buttons and screen-space HUD buttons. For HUD use, extend with
@@ -358,33 +392,29 @@ TileActor buttons and screen-space HUD buttons. For HUD use, extend with
 - `label?: string | LabelDef` — label rendered below the button
 - `onPressed` — callback
 
-**`TileActorBadgeDef` interface** — a badge pinned to a corner/edge of a
-TileActor sprite:
+`makeButtonGraphic(def, disabled, active, w, h)` — resolves the correct graphic
+and opacity for a button given its current state.
 
-- `anchor: AnchorPlacement` — which corner/edge of the sprite to attach to
-- `badge: BadgeDef` — text or sprite content
-- `offset?: ex.Vector` — additional pixel nudge in world space
+#### `path-line.ts`
 
-**Rendering helpers (internal use):**
+**`PathLineOptions` interface** — visual style for a path line:
 
-- `makeBorderedLabel(text, opts)` — returns a `GraphicsGroup` with an optional
-  rounded-rect background; accepts `backgroundColor?`
-- `makeLabelActor(label, pos, opts)` — creates an `ex.Actor` whose graphic is a
-  bordered label; returns null when label is undefined
-- `makeBadgeActor(badge, pos, opts)` — creates a badge actor from a `BadgeDef`;
-  accepts optional `anchor: AnchorPlacement` (default `"top-right"`, for button
-  badges)
-- `makeButtonGraphic(def, disabled, active, w, h)` — resolves the correct
-  graphic and opacity for a button given its current state
+- `color?` — CSS color string (default: `"rgba(80, 232, 120, 0.85)"`)
+- `thickness?` — stroke width in world pixels (default: 1)
+- `knobRadius?` — endpoint knob radius in world pixels (default: 2)
+- `dashPattern?` — `setLineDash` pattern; `[]` for solid (default: `[2, 4]`)
 
----
+**`makePathLine(from, to, opts?): ex.Actor`** — creates a scene-level actor
+that draws a straight dotted path between two world positions, with circular
+endpoint knobs. Kill the returned actor to remove the line. Used by
+`TileActor.moveTo()` for vessel movement paths; also available for any other
+world-space path rendering.
 
-### `src/hud.ts`
+#### `hud.ts`
 
 Screen-fixed HUD button groups using `ex.ScreenElement`.
 
-**`HudAnchor`** — type alias for `AnchorPlacement` (defined in `ui.ts`),
-re-exported from `hud.ts` for convenience.
+**`HudAnchor`** — type alias for `AnchorPlacement`.
 
 **`HudButtonDef` interface** — extends `ButtonDef` with HUD-only sizing fields:
 
@@ -436,10 +466,10 @@ Defines `TileActor`, the base class for all interactive map entities.
   `null` to suppress
 - `onPressed?` — callback fired when the actor body is tapped
 - `buttons?: ButtonDef[]` — action buttons shown in an arc when selected; see
-  `ButtonDef` in `src/ui.ts`
+  `ButtonDef` in `src/ui/`
 - `badges?: TileActorBadgeDef[]` — decorations pinned to corners/edges of the
   sprite; always visible, never intercept input (see `TileActorBadgeDef` in
-  `src/ui.ts`)
+  `src/ui/`)
 
 **Public fields (all `readonly` — do not assign directly):**
 

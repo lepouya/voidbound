@@ -1,21 +1,15 @@
 import * as ex from "excalibur";
 
-import {
-  anchorFractions,
-  AnchorPlacement,
-  BadgeDef,
-  ButtonDef,
-  LABEL_PAD,
-  makeBadgeActor,
-  makeButtonGraphic,
-  makeLabelActor,
-} from "./ui";
+import { anchorFractions, AnchorPlacement } from "./anchor";
+import { BadgeDef, makeBadgeActor } from "./badge";
+import { ButtonDef, makeButtonGraphic } from "./button";
+import { LABEL_PAD, makeLabelActor } from "./label";
 
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
 
-/** Screen-space anchor alias — same 9-position grid as AnchorPlacement in ui.ts. */
+/** Screen-space anchor alias — same 9-position grid as AnchorPlacement in anchor.ts. */
 export type HudAnchor = AnchorPlacement;
 
 /**
