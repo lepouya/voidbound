@@ -279,19 +279,51 @@ Ship.
 Shared UI primitives used by both `tile-actor.ts` (world-space) and `hud.ts`
 (screen-space).
 
-**`TileRef` format:**
+**`TileRef` type:**
 
 ```ts
-type TileRef = string; // "tileset-name" or "tileset-name:tile_id"
+type TileRef = string | TileLayerDef;
 ```
 
-The `:tile_id` part is optional and defaults to `0`. On animated tilesets,
-`tileId=0` returns the full looping `Animation`; any other value returns the
-individual frame sprite at that index. On static tilesets, `tileId` always
+String forms:
+- `"tileset-name"` — tile 0 from the named tileset
+- `"tileset-name:tile-id"` — specific tile by index
+- `"ts1,ts2:1,ts3"` — comma-separated list; each segment is a layer stacked in
+  painter's order (bottom → top); produces a `GraphicsGroup`
+
+On animated tilesets, `tileId=0` returns the full looping `Animation`; any
+other value returns the individual frame sprite. On static tilesets, `tileId`
 selects the sprite at that grid position.
 
-`parseTileRef(ref: TileRef): ex.Graphic` resolves a `TileRef` to an Excalibur
-graphic. Used by `map-loader.ts` and `tile-actor.ts`.
+**`TileLayerDef` interface** — object form of a tile reference with optional
+per-layer visual effects:
+
+- `tile: string` — tileset name only (no `:tile-id` suffix; use `tileId` field)
+- `tileId?: number` — tile index (default 0)
+- `tint?: ex.Color` — multiplicative color blend; white has no effect
+- `opacity?: number` — alpha 0–1
+- `rotation?: number` — radians
+- `flipHorizontal?`, `flipVertical?: boolean`
+- `scale?: number | ex.Vector` — multiplier on natural pixel size; actor scale
+  applies on top
+- `offset?: ex.Vector` — pixel shift within the composite group; ignored by
+  `buildTileMap` (tilemap tiles have no per-graphic offset)
+- `blendMode?: GlobalCompositeOperation` — stored but NOT yet applied (reserved
+  for future Material/shader work; Excalibur v0.32 has no per-graphic blend mode)
+- `visible?: boolean` — when false, layer is excluded from the composite (default true)
+
+Note: effects on `Animation` graphics mutate the shared cached instance (same
+limitation as existing button/badge code). Effects on `Sprite` graphics are
+applied to a clone.
+
+**`parseTileRef(ref: TileRef): ex.Graphic`** — resolves a single `TileRef` to
+an Excalibur graphic, applying `TileLayerDef` effects. Does not handle `offset`
+or `visible` — use `resolveGraphicLayers()` when those matter.
+
+**`resolveGraphicLayers(refs: TileRef | TileRef[]): ex.Graphic`** — composes
+one or more `TileRef`s into a single graphic. Filters `visible:false` layers,
+applies `TileLayerDef.offset` via `GraphicsGrouping.offset`. Use this instead of
+`parseTileRef()` when working with `TileActor` tile options.
 
 **`AnchorPlacement` type** — 9-position anchor grid shared by HUD and TileActor
 badges: `"top-left"` / `"top-center"` / `"top-right"` / `"middle-left"` /
@@ -392,9 +424,11 @@ Defines `TileActor`, the base class for all interactive map entities.
 
 **Construction — `TileActorOptions`:**
 
-- `tile?: TileRef | null` — sprite to display; omit or pass `null` for an
+- `tile?: TileRef | TileRef[] | null` — sprite(s) to display; pass a single
+  `TileRef` or an array to stack multiple layers; omit or pass `null` for an
   invisible (empty) tile actor
-- `movingTile?: TileRef` — alternative sprite shown while the actor is in motion
+- `movingTile?: TileRef | TileRef[] | null` — alternative sprite(s) shown
+  while the actor is in motion; same layer forms as `tile`
 - `tilemap`, `col`, `row` — position; `width`, `height` — size in tiles (these
   become `colSpan`/`rowSpan` on the constructed actor)
 - `ownerName?`, `ownerId?` — if provided, a label is rendered below the sprite

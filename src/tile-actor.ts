@@ -8,6 +8,7 @@ import {
   makeButtonGraphic,
   makeLabelActor,
   parseTileRef,
+  resolveGraphicLayers,
   TileActorBadgeDef,
   TileRef,
 } from "./ui";
@@ -68,10 +69,17 @@ function makePathLine(from: ex.Vector, to: ex.Vector): ex.Actor {
 }
 
 export interface TileActorOptions {
-  /** Sprite to display. Pass null/undefined for an invisible (empty) tile actor. */
-  tile?: TileRef | null;
-  /** Sprite to display while the actor is in motion. Optional. */
-  movingTile?: TileRef | null;
+  /**
+   * Sprite to display. Pass null/undefined for an invisible (empty) tile actor.
+   * Accepts a single TileRef (string or TileLayerDef) or an array of TileRefs
+   * that are composited in painter's order (bottom → top).
+   */
+  tile?: TileRef | TileRef[] | null;
+  /**
+   * Sprite to display while the actor is in motion. Same format as tile.
+   * Falls back to the base tile graphic on arrival.
+   */
+  movingTile?: TileRef | TileRef[] | null;
   tilemap: ex.TileMap;
   col?: number;
   row?: number;
@@ -154,7 +162,7 @@ export class TileActor extends ex.Actor {
     let w: number;
     let h: number;
     if (tile != null) {
-      graphic = parseTileRef(tile);
+      graphic = resolveGraphicLayers(tile);
       w = width ?? graphic.width / tilemap.tileWidth;
       h = height ?? graphic.height / tilemap.tileHeight;
     } else {
@@ -183,7 +191,9 @@ export class TileActor extends ex.Actor {
     this.colSpan = w;
     this.rowSpan = h;
     this.baseGraphic = graphic;
-    this.movingGraphic = movingTile != null ? parseTileRef(movingTile) : null;
+    this.movingGraphic = movingTile != null
+      ? resolveGraphicLayers(movingTile)
+      : null;
     this.ownerName = ownerName;
     this.ownerId = ownerId;
     this.selectionTile = selection === undefined ? "ui-selection:0" : selection;
