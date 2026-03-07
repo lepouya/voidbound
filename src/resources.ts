@@ -109,6 +109,7 @@ const moduleDefs: TilesetDef[] = Object.entries(allPngs)
 const TILESET_DEFS: TilesetDef[] = [
   sd("test-tileset", png("test-tileset"), 4, 1, 32),
   ad("ui-selection", png("ui-selection"), 6, 6, 256, 32, 66),
+  ad("ui-selection-2", png("ui-selection-2"), 6, 6, 256, 32, 66),
   ad("ss1-base", png("ss1-base"), 6, 6, 256, 32, 66),
   ad("ss1-damaged", png("ss1-damaged"), 6, 6, 256, 32, 66),
   ad("cs1-base", png("cs1-base"), 6, 6, 64, 32, 66),

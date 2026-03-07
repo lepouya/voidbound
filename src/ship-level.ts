@@ -79,6 +79,7 @@ export class ShipLevel extends TiledScene {
       width: 4,
       height: 4,
       ownerName: "Command Module",
+      selection: "ui-selection-2",
       onPressed: onTilePressed,
       badges: [
         {
