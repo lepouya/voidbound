@@ -48,7 +48,7 @@ primary base), manage resources, and form alliances to expand their territory.
 
 - **Package Manager / Task Runner:** [Deno](https://deno.land/) — manages npm
   dependencies (`deno install`) and runs dev scripts (`deno task tauri dev`).
-  Dependencies are in `package.json`; there is no separate `deno.json`.
+  Dependencies are in `package.json`; task definitions are in `deno.json`.
 
 ---
 
@@ -120,12 +120,6 @@ Runs `tsc` to type-check, then `vite build` to produce the production frontend.
 ---
 
 ## 5. Code Formatting and Type Checking
-
-Format source files after modifying them:
-
-```bash
-deno fmt <files>
-```
 
 For type checking, always use `deno check` — never `npx tsc` or `tsc` directly:
 
@@ -273,17 +267,17 @@ The space map scene. Key details:
 The mothership interior scene (compartments). Registered as `"ship"` in
 `main.ts`; the game starts here.
 
-Currently contains one placeholder `module-base` TileActor (`commandModule`,
-4*4 tiles, col 13, row 13) with a bottom-left level badge. Replace with real
-module actors as game content is built out. Two HUD groups mirror `MapLevel`
-but with a Map button instead of Ship.
+Currently contains one placeholder `module-base` TileActor (`commandModule`, 4*4
+tiles, col 13, row 13) with a bottom-left level badge. Replace with real module
+actors as game content is built out. Two HUD groups mirror `MapLevel` but with a
+Map button instead of Ship.
 
 ---
 
 ### `src/ui/`
 
-UI module library. All public symbols are re-exported from `src/ui/index.ts`,
-so consumers always `import { ... } from "./ui"` (or `"../ui"`) — never from
+UI module library. All public symbols are re-exported from `src/ui/index.ts`, so
+consumers always `import { ... } from "./ui"` (or `"../ui"`) — never from
 individual submodule paths.
 
 #### `anchor.ts`
@@ -305,14 +299,15 @@ type TileRef = string | TileLayerDef;
 ```
 
 String forms:
+
 - `"tileset-name"` — tile 0 from the named tileset
 - `"tileset-name:tile-id"` — specific tile by index
 - `"ts1,ts2:1,ts3"` — comma-separated list; each segment is a layer stacked in
   painter's order (bottom → top); produces a `GraphicsGroup`
 
-On animated tilesets, `tileId=0` returns the full looping `Animation`; any
-other value returns the individual frame sprite. On static tilesets, `tileId`
-selects the sprite at that grid position.
+On animated tilesets, `tileId=0` returns the full looping `Animation`; any other
+value returns the individual frame sprite. On static tilesets, `tileId` selects
+the sprite at that grid position.
 
 **`TileLayerDef` interface** — object form of a tile reference with optional
 per-layer visual effects:
@@ -328,19 +323,21 @@ per-layer visual effects:
 - `offset?: ex.Vector` — pixel shift within the composite group; ignored by
   `buildTileMap` (tilemap tiles have no per-graphic offset)
 - `blendMode?: GlobalCompositeOperation` — stored but NOT yet applied (reserved
-  for future Material/shader work; Excalibur v0.32 has no per-graphic blend mode)
-- `visible?: boolean` — when false, layer is excluded from the composite (default true)
+  for future Material/shader work; Excalibur v0.32 has no per-graphic blend
+  mode)
+- `visible?: boolean` — when false, layer is excluded from the composite
+  (default true)
 
 Note: effects on `Animation` graphics mutate the shared cached instance (same
 limitation as existing button/badge code). Effects on `Sprite` graphics are
 applied to a clone.
 
-**`parseTileRef(ref: TileRef): ex.Graphic`** — resolves a single `TileRef` to
-an Excalibur graphic, applying `TileLayerDef` effects. Does not handle `offset`
-or `visible` — use `resolveGraphicLayers()` when those matter.
+**`parseTileRef(ref: TileRef): ex.Graphic`** — resolves a single `TileRef` to an
+Excalibur graphic, applying `TileLayerDef` effects. Does not handle `offset` or
+`visible` — use `resolveGraphicLayers()` when those matter.
 
-**`resolveGraphicLayers(refs: TileRef | TileRef[]): ex.Graphic`** — composes
-one or more `TileRef`s into a single graphic. Filters `visible:false` layers,
+**`resolveGraphicLayers(refs: TileRef | TileRef[]): ex.Graphic`** — composes one
+or more `TileRef`s into a single graphic. Filters `visible:false` layers,
 applies `TileLayerDef.offset` via `GraphicsGrouping.offset`. Use this instead of
 `parseTileRef()` when working with `TileActor` tile options.
 
@@ -353,6 +350,7 @@ applies `TileLayerDef.offset` via `GraphicsGrouping.offset`. Use this instead of
   Pass any `ex.Color` to change it (e.g. blue for a level badge).
 
 Rendering helpers:
+
 - `makeBorderedLabel(text, opts)` — returns a `GraphicsGroup` with an optional
   rounded-rect background; accepts `backgroundColor?`
 - `makeLabelActor(label, pos, opts)` — creates an `ex.Actor` whose graphic is a
@@ -404,11 +402,11 @@ and opacity for a button given its current state.
 - `knobRadius?` — endpoint knob radius in world pixels (default: 2)
 - `dashPattern?` — `setLineDash` pattern; `[]` for solid (default: `[2, 4]`)
 
-**`makePathLine(from, to, opts?): ex.Actor`** — creates a scene-level actor
-that draws a straight dotted path between two world positions, with circular
-endpoint knobs. Kill the returned actor to remove the line. Used by
-`TileActor.moveTo()` for vessel movement paths; also available for any other
-world-space path rendering.
+**`makePathLine(from, to, opts?): ex.Actor`** — creates a scene-level actor that
+draws a straight dotted path between two world positions, with circular endpoint
+knobs. Kill the returned actor to remove the line. Used by `TileActor.moveTo()`
+for vessel movement paths; also available for any other world-space path
+rendering.
 
 #### `hud.ts`
 
@@ -457,8 +455,8 @@ Defines `TileActor`, the base class for all interactive map entities.
 - `tile?: TileRef | TileRef[] | null` — sprite(s) to display; pass a single
   `TileRef` or an array to stack multiple layers; omit or pass `null` for an
   invisible (empty) tile actor
-- `movingTile?: TileRef | TileRef[] | null` — alternative sprite(s) shown
-  while the actor is in motion; same layer forms as `tile`
+- `movingTile?: TileRef | TileRef[] | null` — alternative sprite(s) shown while
+  the actor is in motion; same layer forms as `tile`
 - `tilemap`, `col`, `row` — position; `width`, `height` — size in tiles (these
   become `colSpan`/`rowSpan` on the constructed actor)
 - `ownerName?`, `ownerId?` — if provided, a label is rendered below the sprite

@@ -1,0 +1,5 @@
+{
+  "tasks": {
+    "fmt": "deno fmt && cd src-tauri && cargo fmt"
+  }
+}
