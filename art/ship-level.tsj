@@ -1,0 +1,14 @@
+{ "columns":6,
+ "image":"ship-tiles.png",
+ "imageheight":384,
+ "imagewidth":384,
+ "margin":0,
+ "name":"ship-level",
+ "spacing":0,
+ "tilecount":36,
+ "tiledversion":"1.11.2",
+ "tileheight":64,
+ "tilewidth":64,
+ "type":"tileset",
+ "version":"1.10"
+}

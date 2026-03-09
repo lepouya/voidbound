@@ -18,8 +18,8 @@ interface TileMapData {
  * Sprites are cloned before scaling to avoid mutating the shared registry
  * instance (which would affect every other consumer of that sprite).
  * GraphicsGroups are created fresh by parseTileRef so they are safe to
- * mutate in-place. Animations share a cached instance — a known limitation
- * for animated map tiles; their scale is left unchanged.
+ * mutate in-place. Animations share a cached instance — scaling them here
+ * mutates the shared object and affects all other consumers of that animation.
  */
 function fitToTile(
   graphic: ex.Graphic,
@@ -45,6 +45,7 @@ export async function buildTileMap(mapType: string): Promise<ex.TileMap> {
   });
 
   for (const [i, tileRef] of mapData.tiles.entries()) {
+    if (!tileRef) continue;
     const tile = tilemap.getTile(
       i % mapData.cols,
       Math.floor(i / mapData.cols),

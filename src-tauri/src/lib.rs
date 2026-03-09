@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, serde::Deserialize)]
 pub struct TileMapData {
     pub cols: u32,
     pub rows: u32,
@@ -220,24 +220,18 @@ fn generate_space_map() -> TileMapData {
     }
 }
 
-fn generate_ship_map() -> TileMapData {
-    const COLS: u32 = 30;
-    const ROWS: u32 = 30;
-    let tiles = vec!["ship-tiles:4".to_string(); (COLS * ROWS) as usize];
-    TileMapData {
-        cols: COLS,
-        rows: ROWS,
-        tile_width: 32,
-        tile_height: 32,
-        tiles,
-    }
+fn generate_ship_map() -> Result<TileMapData, String> {
+    // To load from a network call instead, replace include_str! with a
+    // fetched string — the Result propagation is already in place.
+    let json = include_str!("../../src/assets/ship-level.json");
+    serde_json::from_str(json).map_err(|e| format!("ship-level.json parse error: {e}"))
 }
 
 #[tauri::command]
 fn generate_map(map_type: String) -> Result<TileMapData, String> {
     match map_type.as_str() {
         "map" => Ok(generate_space_map()),
-        "ship" => Ok(generate_ship_map()),
+        "ship" => generate_ship_map(),
         other => Err(format!("unrecognized map_type: {other:?}")),
     }
 }
