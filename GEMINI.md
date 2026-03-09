@@ -30,8 +30,10 @@ primary base), manage resources, and form alliances to expand their territory.
 - **Bundler:** [Vite](https://vitejs.dev/) — fast dev server and production
   builds. `vite.config.ts` is specifically tailored for Tauri integration.
 - **Asset Loading:** Sprites and animations are defined in code via a typed
-  catalog in `src/resources.ts` — no external tileset or map files. All PNG
-  spritesheets are discovered automatically via Vite's `import.meta.glob`.
+  catalog in `src/resources.ts`. PNG spritesheets under `src/assets/` are
+  discovered automatically via Vite's `import.meta.glob`. Pre-converted map
+  data is also stored in `src/assets/` as JSON (e.g. `ship-level.json`),
+  embedded at compile time via Rust's `include_str!`.
 
 ### Backend (`src-tauri/`)
 
@@ -73,7 +75,7 @@ primary base), manage resources, and form alliances to expand their territory.
 │   ├── tile-actor.ts     # TileActor class
 │   ├── map-loader.ts     # buildTileMap() via Tauri IPC
 │   ├── resources.ts      # Asset loading and management
-│   └── assets/           # Game assets (PNG spritesheets only)
+│   └── assets/           # Game assets (PNG spritesheets + pre-converted map JSON)
 │
 ├── src-tauri/            # Backend (Rust, Tauri)
 │   ├── src/
@@ -81,7 +83,8 @@ primary base), manage resources, and form alliances to expand their territory.
 │   ├── Cargo.toml        # Rust dependencies
 │   └── tauri.conf.json   # Tauri application configuration
 │
-├── art/                  # Source files for assets (e.g., original images)
+├── art/                  # Source files for assets (original images, Tiled maps)
+├── tools/                # Art pipeline scripts (Python); run from art/ shell scripts
 ├── package.json          # Frontend npm dependencies
 ├── vite.config.ts        # Vite build configuration
 ├── tsconfig.json         # TypeScript configuration
@@ -265,12 +268,14 @@ The space map scene. Key details:
 ### `src/ship-level.ts`
 
 The mothership interior scene (compartments). Registered as `"ship"` in
-`main.ts`; the game starts here.
+`main.ts`; the game starts here. Background is black (`ex.Color.Black`).
 
-Currently contains one placeholder `module-base` TileActor (`commandModule`, 4*4
-tiles, col 13, row 13) with a bottom-left level badge. Replace with real module
-actors as game content is built out. Two HUD groups mirror `MapLevel` but with a
-Map button instead of Ship.
+Loads a **40*40 tile map** (32px world tiles, 64px sprite resolution) from
+`src/assets/ship-level.json` via the Rust backend. Currently contains one
+placeholder `module-base` TileActor (`commandModule`, 4*4 tiles, col 18, row 18
+— centered on the 40*40 grid) with a bottom-left level badge. Replace with real
+module actors as game content is built out. Two HUD groups mirror `MapLevel` but
+with a Map button instead of Ship.
 
 ---
 
@@ -548,6 +553,7 @@ Vite's glob and throws early if missing. Do not import PNGs directly.
 | `ss1-damaged`  | animated | 6*6  | 256px     | Mothership (damaged)             |
 | `cs1-base`     | animated | 6*6  | 64px      | Vessel (idle)                    |
 | `cs1-moving`   | animated | 6*6  | 64px      | Vessel (in motion)               |
+| `ship-tiles`   | static   | 6*6  | 64px      | Ship interior floor/wall tiles   |
 | `ui-button-*`  | static   | 3*2  | 64px      | Action buttons (auto-registered) |
 | `module-*`     | animated | 4*4  | 256px     | Ship modules (auto-registered)   |
 
@@ -557,9 +563,48 @@ Vite's glob and throws early if missing. Do not import PNGs directly.
 
 ### `src-tauri/src/lib.rs`
 
-Tauri command definitions. Currently: `generate_map(map_type)` — returns a
-100*100 grid of 32*32px tiles as `TileRef` strings. The `map_type` parameter is
-reserved for future map variants.
+Tauri command definitions. `generate_map(map_type) -> Result<TileMapData, String>` dispatches on `map_type`:
+
+- `"map"` — returns a procedurally generated 100*100 space map (32*32px tiles,
+  `test-tileset` placeholder rects).
+- `"ship"` — deserializes `src/assets/ship-level.json` (embedded at compile
+  time via `include_str!`) into a 40*40 grid of 32*32px world tiles referencing
+  the `ship-tiles` spritesheet. To switch to a network fetch, replace the
+  `include_str!` call in `generate_ship_map()` with a fetched string — the
+  `Result` propagation is already in place.
+
+`TileMapData` fields: `cols`, `rows`, `tile_width`, `tile_height`,
+`tiles: Vec<String>` (flat row-major array of `TileRef` strings; empty string
+means no tile at that cell).
+
+---
+
+### `tools/` and `art/gen_*.sh`
+
+Python scripts for the art pipeline. All scripts use Pillow. Run the shell
+scripts from any directory (each does `cd "$(dirname "$0")"` and `set -e`).
+
+| Script | Purpose |
+|---|---|
+| `tools/sprite_extract.py` | Extract and uniform-resize sprites from a padded sheet |
+| `tools/sprite_merge.py` | Merge sprites from multiple sheets into one output sheet |
+| `tools/sprite_transition.py` | Generate animated spritesheets with fade/roll/scale/rotate transitions |
+| `tools/tmj_to_tilemap.py` | Convert a Tiled `.tmj` file → `TileMapData` JSON asset |
+
+`tmj_to_tilemap.py` flags: `-s SOURCE -d DEST -t TILESET [-W tile_width] [-H tile_height]`.
+Only single-tileset maps are supported. `-W`/`-H` override the logical tile size
+in the output (useful to store 32px world tiles while the sprites are 64px, giving
+extra resolution on zoom).
+
+Shell scripts in `art/` drive asset generation and write directly to `src/assets/`:
+
+| Script | Output |
+|---|---|
+| `art/gen_ship_level.sh` | `ship-tiles.png` (sprite_merge) + `ship-level.json` (tmj_to_tilemap) |
+| `art/gen_cs1.sh` | `cs1-base.png`, `cs1-moving.png` |
+| `art/gen_ss1.sh` | `ss1-base.png`, `ss1-damaged.png` |
+| `art/gen_modules.sh` | `module-base.png` |
+| `art/gen_ui.sh` | `ui-selection.png`, `ui-selection-2.png`, `ui-button-*.png` |
 
 ---
 
