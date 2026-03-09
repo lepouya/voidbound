@@ -107,3 +107,11 @@ vite.config.ts.timestamp-*
 *.pem
 .vercel
 .netlify
+
+# =========================
+# Project-specific
+# =========================
+# Tiled editor session state (ephemeral, not source)
+art/*.tiled-session
+# Claude Code internal memory (managed separately)
+.claude/
