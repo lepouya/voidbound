@@ -7,6 +7,7 @@ import { TiledScene } from "./tiled-scene";
 export class ShipLevel extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
     super.onInitialize(engine);
+    this.backgroundColor = ex.Color.Black;
     this.addHudGroup({
       anchor: "top-right",
       gap: 8,
@@ -74,8 +75,8 @@ export class ShipLevel extends TiledScene {
       tilemap: this.tilemap,
       edgeFallthrough: this.supportsEmptyTileActor(),
       tile: "module-base:0",
-      col: 13,
-      row: 13,
+      col: 18, // (40 - 4) / 2 — centered on the 40*40 map
+      row: 18,
       width: 4,
       height: 4,
       ownerName: "Command Module",
