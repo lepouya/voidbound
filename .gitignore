@@ -113,5 +113,8 @@ vite.config.ts.timestamp-*
 # =========================
 # Tiled editor session state (ephemeral, not source)
 art/*.tiled-session
-# Claude Code internal memory (managed separately)
-.claude/
+# Claude Code: ignore everything under .claude/ by default, but keep
+# project-shared skills and settings committed. Local overrides stay ignored.
+.claude/*
+!.claude/skills/
+!.claude/settings.json

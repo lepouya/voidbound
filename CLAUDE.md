@@ -1,7 +1,232 @@
-# CLAUDE.md
+# Voidbound — AI Agent Steering Document
 
-@GEMINI.md
+**Before considering any task complete**, run `deno task fmt` (formats TS and
+Rust in one step) and `deno check src/**/*.ts` (type-check). Never `tsc`
+directly; `prettier` is not installed.
 
-Always run `deno task fmt` on source files you modify **before considering the
-task complete** — not just before committing. This formats all TypeScript and
-Rust files in one step.
+## 1. Project Overview
+
+Voidbound is a mobile-first MMORTS set in space. Players colonize a star system,
+build and upgrade a mothership (primary base), gather resources, and form
+alliances. See `README.md` for full game design.
+
+- **Platform:** Tauri desktop + web browser, portrait 390*844
+- **Frontend:** TypeScript + [Excalibur.js v0.32](https://excaliburjs.com/docs/)
+  (`FitScreenAndFill`, `pixelArt: true`)
+- **Backend:** Rust + [Tauri v2](https://tauri.app/v2/develop/). Only plugin in
+  use: `tauri-plugin-opener`.
+- **Toolchain:** [Deno](https://deno.land/) runs scripts (`deno task tauri dev`,
+  `deno task build`) that delegate to `package.json`. The only Deno-native task
+  is `deno task fmt` in `deno.json`.
+- **Bundler:** Vite. `vite.config.ts` sets `assetsInlineLimit: 0` — required so
+  Excalibur can load image assets in production builds. HMR on port 1421 when
+  running under Tauri dev.
+- **Testing:** There is no test suite. Type checking (`deno check`) and the
+  running app are the only safety nets — keep both passing.
+
+## 2. Project Layout
+
+```text
+src/                  # Frontend (TypeScript + Excalibur.js)
+  main.ts             # Engine init; registers scenes; starts on "ship"
+  tiled-scene.ts      # Abstract base scene (camera, input, HUD, selection)
+  map-level.ts        # Space map scene — canonical event-pattern example
+  ship-level.ts       # Mothership interior scene — game starts here
+  tile-actor.ts       # Base class for all interactive entities
+  map-loader.ts       # buildTileMap() via Tauri IPC
+  resources.ts        # TILESET_DEFS catalog + TilesetRegistry
+  ui/                 # UI module library (always import from "./ui" barrel)
+  assets/             # PNG spritesheets + pre-converted map JSON
+
+src-tauri/            # Backend (Rust + Tauri)
+  src/lib.rs          # #[tauri::command] definitions (generate_map, …)
+
+art/                  # Source art (original PNGs, Tiled .tmj maps)
+  gen_*.sh            # Art pipeline shell scripts → write to src/assets/
+tools/                # Python art pipeline (Pillow); called from art/gen_*.sh
+```
+
+## 3. Conventions
+
+### Code style
+
+- **Always** `import * as ex from "excalibur"` — never named imports from
+  excalibur. Same applies to Tauri: `import { invoke } from "@tauri-apps/api"`.
+- UI library imports: always `from "./ui"` (barrel), never `from "./ui/button"`.
+  See [src/ui/index.ts](src/ui/index.ts).
+- **Dimensions/grids** use `*` not `×` in code, comments, and docs (e.g. `3*2`,
+  `cols*rows`) — Unicode `×` is too close to Latin `x`.
+
+### Naming
+
+- **mothership** — large ships (`ss-*` sprites, 4*4 tiles). Also "space
+  station".
+- **vessel** — small ship dispatched by a mothership (`cs-*` sprites, 1*1
+  tiles). Never "cargo ship" — their role is broader.
+- Tileset names: lowercase-kebab, stable, used directly in `TileRef` strings.
+
+### Sprite orientation
+
+**All sprites must face upward (−y) at rotation 0.** `TileActor.moveTo()` and
+`setFacing()` assume this. New art that doesn't hold this invariant will render
+rotated wrong during movement.
+
+### Excalibur v0.32 gotcha: `Actor.width` / `Actor.height`
+
+These already return world-scaled values (`localBounds.width * globalScale`).
+**Do not multiply by `this.scale.x/y`** — that double-counts scale and breaks
+arc radii, circumradii, and any world-space math.
+
+### Multiplayer-ready event pattern
+
+Every state-mutating action must be modeled from day one as:
+
+1. An `<Action>Event` interface (plain data, everything a server would send)
+2. A **public** `apply<Action>Event(event)` method — scene-state mutation only,
+   **no UI housekeeping**, handles "entity already exists"
+3. A local method that builds the event and calls `apply*Event`, then does UI
+   cleanup (deselect, suppress input)
+
+Canonical example: `VesselMoveEvent` / `applyVesselMoveEvent()` in
+[src/map-level.ts](src/map-level.ts). **Use the `/add-game-event` skill** when
+adding any new action.
+
+### Input model (handled by `TiledScene`, don't reimplement)
+
+- Drag-to-pan, pinch/scroll-to-zoom, camera clamped to map bounds
+- Tap-to-select via `pendingActor` (set on pointerdown, committed on pointerup)
+  — distinguishes taps from drags
+- `suppressNextPointerUp = true` after a button click that already handled the
+  interaction, so the parent scene doesn't also react
+- Empty tile actor system — subclasses override `createEmptyTileActor()` to
+  spawn an invisible actor with action buttons when the player taps empty space
+  (see `MapLevel` for the canonical Move/Deploy use)
+- `edgeFallthrough` on a `TileActor` (+ scene opt-in via
+  `supportsEmptyTileActor()`) makes taps on the empty _interior_ of a multi-tile
+  actor fall through to the tile beneath. Required for things like the
+  mothership where you want to deploy vessels "next to" it by tapping around its
+  edges.
+
+### Z-ordering
+
+HUD elements render above the world at `HUD_BASE_Z = 10_000` (see
+[src/ui/hud.ts](src/ui/hud.ts)). HUD groups can pass `zOffset` to stack relative
+to that base. World-space actors use Excalibur defaults; don't set `z` unless
+you have a specific layering need.
+
+### Asset pipeline
+
+- **Never edit `src/assets/` PNGs or generated JSON by hand** — re-run the
+  matching `art/gen_*.sh` script instead.
+- **Never `import` a PNG directly.** In `resources.ts`, wrap with the local
+  `png("name")` helper; it resolves via `import.meta.glob` and throws at startup
+  if the file is missing.
+- All tilesets are registered in `TILESET_DEFS` at the top of
+  [src/resources.ts](src/resources.ts). Two auto-registered filename patterns
+  skip manual registration: `ui-button-*.png` (static 3*2 64px) and
+  `module-*.png` (animated 4*4 256px, 16 frames @ 66ms). Every other animated
+  tileset in the catalog uses 32 frames @ 66ms.
+- Use the `/gen-art` skill to run or create a pipeline script, and
+  `/add-tileset` to register a new PNG.
+
+## 4. Architecture notes
+
+### Scene lifecycle (`TiledScene` subclasses)
+
+Subclasses **must** implement:
+
+- `buildMap(): Promise<ex.TileMap>` — return the tilemap
+- `setupActors(onTilePressed)` — add `TileActor`s; pass `onTilePressed` as each
+  actor's `onPressed`
+
+May override: `createEmptyTileActor()`, `supportsEmptyTileActor()`,
+`initialCameraTarget()`.
+
+Useful protected members: `tilemap`, `handleTilePressed`, `pendingActor`,
+`suppressNextPointerUp`, `deselectActor()`, `addHudGroup(def)` (call from
+`onInitialize` **after** `super.onInitialize(engine)`).
+
+**Adding a new scene:** use the `/add-scene` skill — it handles Rust map-arm
+wiring, `main.ts` registration, and HUD setup.
+
+### UI library (`src/ui/`)
+
+One barrel (`src/ui/index.ts`) re-exports everything. Modules:
+
+- `anchor.ts` — `AnchorPlacement` 9-position type + `anchorFractions()`
+- `tile-ref.ts` — `TileRef` string/object forms, `parseTileRef()`,
+  `resolveGraphicLayers()` (use the latter for `TileActor.tile`)
+- `label.ts` — `LabelDef`, `makeBorderedLabel`, `makeLabelActor`
+- `badge.ts` — `BadgeDef` (number | string | LabelDef | SpriteBadge),
+  `TileActorBadgeDef` (corner-pinned on TileActors)
+- `button.ts` — `ButtonDef` base (shared by world + HUD), `makeButtonGraphic`
+- `path-line.ts` — `makePathLine()` dotted world-space path actor
+- `hud.ts` — `HudGroupDef`, `HudGroupHandle`, `spawnHudGroup`, `addHudGroup()`
+
+Full field lists live in the source — read `src/ui/<file>.ts` when you need the
+exact interface rather than duplicating it here.
+
+### `TileRef` system
+
+String forms, parsed by `parseTileRef`:
+
+- `"name"` — tile 0 of the named tileset
+- `"name:id"` — specific tile index
+- `"ts1,ts2:1,ts3"` — comma-separated layers, painter's order (bottom → top)
+
+Object form `TileLayerDef` supports per-layer `tint`, `opacity`, `rotation`,
+`flipHorizontal/Vertical`, `scale`, `offset`, `visible`, `tileId`. See
+[src/ui/tile-ref.ts](src/ui/tile-ref.ts) for the full interface.
+
+On **animated** tilesets, `tileId=0` returns the full looping `ex.Animation`;
+non-zero returns the individual frame sprite. On **static** tilesets, `tileId`
+is the grid index.
+
+**Caveat:** effects on `Animation` graphics mutate the shared cached instance.
+Effects on `Sprite` graphics are applied to a clone.
+
+### `TileActor`
+
+Base class for all interactive map entities. Key options (full list in
+[src/tile-actor.ts](src/tile-actor.ts)):
+
+- `tile` / `movingTile` — `TileRef | TileRef[] | null`; the array form stacks
+  layers, null makes the actor invisible (empty tile pattern)
+- `buttons` — action buttons shown in an arc when the actor is selected
+- `badges` — `TileActorBadgeDef[]` pinned to sprite corners
+- `ownerName` / `ownerId` — renders a label below the sprite
+- `edgeFallthrough` — see Input model above
+
+Key methods: `moveTo(col, row, speed, onComplete?)` auto-rotates, swaps to
+`movingTile`, draws a `makePathLine` from source to destination;
+`setFacing(angle)`; `select()` / `deselect()`.
+
+`readonly col`/`row` are the **construction** position — they do **not** update
+during `moveTo`. Derive current tile from `actor.pos` divided by
+`tileWidth`/`tileHeight`.
+
+Labels, buttons, and badges always render upright regardless of actor rotation.
+
+### IPC / Rust backend
+
+`generate_map(map_type) -> Result<TileMapData, String>` in
+[src-tauri/src/lib.rs](src-tauri/src/lib.rs) dispatches on `map_type`:
+
+- `"map"` — procedural 100*100 space map (test-tileset placeholder)
+- `"ship"` — `include_str!`-embedded `src/assets/ship-level.json` (40*40, 32px
+  world tiles, `ship-tiles` spritesheet)
+
+`TileMapData`: `cols`, `rows`, `tile_width`, `tile_height`, `tiles: Vec<String>`
+(row-major `TileRef` strings; empty string = no tile). Both `Serialize` and
+`Deserialize` are derived. To swap `"ship"` to a network fetch later, replace
+the `include_str!` call with a fetched string — the `Result` propagation is
+already in place.
+
+## 5. Skills
+
+Use these for common tasks rather than doing them from scratch:
+
+- `/add-scene` — new `TiledScene` subclass (Rust arm + main.ts + HUD wiring)
+- `/add-game-event` — multiplayer-ready event pattern
+- `/add-tileset` — register a PNG as a tileset
+- `/gen-art` — run or add an `art/gen_*.sh` pipeline script
