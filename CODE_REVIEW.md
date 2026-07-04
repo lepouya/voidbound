@@ -274,7 +274,7 @@ centerpiece). Gaps are "not built yet", not "built wrong" — except 1.3 above.
 
 ### 3.1 Promote the README "Ideas dump" into a structured roadmap
 
-- [ ] Create `ROADMAP.md` (or a README section) with phases
+- [x] Create `ROADMAP.md` (or a README section) with phases
 
 **Suggested phases:** (1) local gameplay loop — modules, resources, build
 timers; (2) persistence — save/load via a Tauri command; (3)

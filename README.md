@@ -64,43 +64,33 @@ game:
 - Shield Generator: Protective shielding around the ship. If the shield is
   breached, the station is forced to warp and relocate
 
-## Ideas dump
+## Design principles
 
-- Set in space. Players arrive as colonizers on a new system. The mothership is
-  constructed in space as they progress through the game. This is also their
-  "base" in traditional RTS terminology.
-- Each player works on building and expanding their mothership. There are
-  different modules ("buildings" in RTS terminologies) that each serve a
-  specific function. Each one can be upgraded by different criteria.
-- There are aspects of resource collection. Both productivity from within the
-  base elements (bays, modules, technologies, etc) and by mining external
-  resources spread on the map.
-- Keep the number of resources to a small set to avoid confusion or information
-  exhaustion. At the moment I'm considering 4 main resources: (a) construction
-  material: From rocky or iron-rich asteroids for example, (b) high-tech
-  materials: Like for electronics and reactors and such from rare asteroids, (c)
-  biological materials: water, food, and such, from icy asteroids or terrarium,
-  and (d) fuel material: like hydrogen or methane. Not sure if uranium should be
-  included here or if that's too much.
-- Let's avoid having concepts such as amount of energy limited to a day. Instead
-  maybe replace this by diminishing returns of repeating actions over the course
-  of a day, and then have them reset at a specific point.
-- We can have the resource nodes / capture asteroids, moons, planets /
-  territories get higher level and more difficult as we get closer to the center
-  of the map. This introduces a certain pacing to the game as alliances have to
-  gain power together to be able to proceed towards the center.
-- These games often have issues with new players finding it impossible to catch
-  up to people who started much earlier than them. For this reason, we might
-  want to have new players arrive at a new system to play in the same world as
-  others who started around the same time.
-- However, this means that the activity on a server slowly dies off as people
-  leave the game, and some planets may no longer have enough people to sustain
-  an enjoyable experience.
-- One concept that some games introduce is "seasons", where after a certain
-  amount of time or some milestones, the remaining players move on to a new
-  system with a different setup. This also provides opportunity for merging
-  worlds or resetting back to beginning. Perhaps with some specific bonuses for
-  the players who ascended from a previous season.
+- Set in space. Players arrive as colonizers on a new star system. The
+  mothership is constructed in space as they progress through the game, and is
+  their "base" in traditional RTS terminology.
+- Modules are the RTS "buildings": each serves a specific function and is
+  upgraded by its own criteria (see Ship design above).
+- Resources come from two places: production inside the base (bays, modules,
+  technologies) and mining external nodes spread across the map.
+- Exactly 4 resources, to avoid information exhaustion: (a) construction
+  material — from rocky or iron-rich asteroids, (b) high-tech materials — for
+  electronics and reactors, from rare asteroids, (c) biological materials —
+  water, food, and such, from icy asteroids or terrariums, and (d) fuel material
+  — like hydrogen or methane. (Open question: whether uranium fits here or is
+  one resource too many.)
+- No hard daily energy caps. Repeating actions over the course of a day yields
+  diminishing returns instead, resetting at a fixed point.
+- Resource nodes (asteroids, moons, planets) get higher level and more difficult
+  toward the center of the map, pacing the game: alliances have to gain power
+  together to push inward.
+- New players arrive in a fresh system alongside players who started around the
+  same time, so nobody faces an impossible catch-up. Seasons keep those worlds
+  alive as activity declines: after a time or milestone, remaining players move
+  on to a new system, with opportunities for world merging and bonuses for
+  players ascending from a previous season.
+
+For the order these land in development, see [ROADMAP.md](ROADMAP.md).
 
 ## Running
 
