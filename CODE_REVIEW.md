@@ -117,7 +117,7 @@ so a suppressed tap can still press a HUD button underneath.
 
 ### 1.6 No drag threshold — real-device taps get swallowed as drags
 
-- [ ] Add a small movement threshold before a pointer-move counts as a drag
+- [x] Add a small movement threshold before a pointer-move counts as a drag
 
 **Evidence:** `src/tiled-scene.ts` (~line 321) sets `hasDragged = true` on any
 `move` event. Touch taps almost always jitter 1-3 px, so on real hardware many

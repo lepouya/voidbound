@@ -39,6 +39,9 @@ export abstract class TiledScene extends ex.Scene {
   private drawH = 0;
   private minZoom = 0;
   private static readonly MAX_ZOOM = 4;
+  // Movement below this many screen px from the pointer-down position is
+  // jitter, not a drag — touch taps on real devices wobble a few px.
+  private static readonly DRAG_THRESHOLD_PX = 5;
 
   // --- Lifecycle helpers ---
   private isActive = false;
@@ -329,6 +332,17 @@ export abstract class TiledScene extends ex.Scene {
         const p2 = pointer2.lastScreenPos;
         if (p2) this.applyPinchZoom(evt.screenPos, p2);
         this.lastScreenPos = evt.screenPos.clone();
+        return;
+      }
+      // Until the threshold is crossed, ignore the move entirely: the tap
+      // stays a tap and the camera doesn't micro-jitter. lastScreenPos is
+      // only updated once dragging starts, so before that it still holds the
+      // pointer-down position.
+      if (
+        !this.hasDragged &&
+        evt.screenPos.distance(this.lastScreenPos) <
+          TiledScene.DRAG_THRESHOLD_PX
+      ) {
         return;
       }
       this.hasDragged = true;
