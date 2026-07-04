@@ -47,7 +47,7 @@ export class MapLevel extends TiledScene {
       tile: "ui-button-shipview:1",
       width: 64,
       height: 64,
-      label: { text: "Ship", labelOffset: ex.vec(0, -1), bordered: false },
+      label: "Ship",
       onPressed: () => engine.goToScene("ship"),
     });
   }
@@ -86,30 +86,22 @@ export class MapLevel extends TiledScene {
       buttons: [
         {
           tile: "ui-button-details:0",
-          label: {
-            text: "Details",
-            bordered: false,
-            labelOffset: ex.vec(0, -1),
-          },
+          label: "Details",
           onPressed: () => console.log("Details my spaceship"),
         },
         {
           tile: "ui-button-enter:0",
-          label: { text: "Enter", bordered: false, labelOffset: ex.vec(0, -1) },
+          label: "Enter",
           onPressed: () => console.log("Enter my spaceship"),
         },
         {
           tile: "ui-button-upgrade:2",
-          label: {
-            text: "Upgrade",
-            bordered: false,
-            labelOffset: ex.vec(0, -1),
-          },
+          label: "Upgrade",
           onPressed: () => console.log("Upgrade my spaceship"),
         },
         {
           tile: "ui-button-warp:1",
-          label: { text: "Move", bordered: false, labelOffset: ex.vec(0, -1) },
+          label: "Move",
           onPressed: () => console.log("Move my spaceship"),
         },
       ],
@@ -131,29 +123,17 @@ export class MapLevel extends TiledScene {
         buttons: [
           {
             tile: "ui-button-details:0",
-            label: {
-              text: "Details",
-              bordered: false,
-              labelOffset: ex.vec(0, -1),
-            },
+            label: "Details",
             onPressed: () => console.log("Details enemy spaceship"),
           },
           {
             tile: "ui-button-message:0",
-            label: {
-              text: "Message",
-              bordered: false,
-              labelOffset: ex.vec(0, -1),
-            },
+            label: "Message",
             onPressed: () => console.log("Message enemy spaceship"),
           },
           {
             tile: "ui-button-attack:4",
-            label: {
-              text: "Attack",
-              bordered: false,
-              labelOffset: ex.vec(0, -1),
-            },
+            label: "Attack",
             onPressed: () => console.log("Attack enemy spaceship"),
           },
         ],
@@ -174,16 +154,12 @@ export class MapLevel extends TiledScene {
       buttons: [
         {
           tile: "ui-button-warp:1",
-          label: { text: "Move", bordered: false, labelOffset: ex.vec(0, -1) },
+          label: "Move",
           onPressed: () => console.log("Move empty tile"),
         },
         {
           tile: "ui-button-deploy:0",
-          label: {
-            text: "Deploy",
-            bordered: false,
-            labelOffset: ex.vec(0, -1),
-          },
+          label: "Deploy",
           onPressed: () => this.dispatchVessel(col, row),
         },
       ],
@@ -282,20 +258,12 @@ export class MapLevel extends TiledScene {
       buttons: [
         {
           tile: "ui-button-details:4",
-          label: {
-            text: "Details",
-            bordered: false,
-            labelOffset: ex.vec(0, -1),
-          },
+          label: "Details",
           onPressed: () => console.log("Details vessel", event.vesselId),
         },
         {
           tile: "ui-button-back:0",
-          label: {
-            text: "Return",
-            bordered: false,
-            labelOffset: ex.vec(0, -1),
-          },
+          label: "Return",
           onPressed: () => {
             const v = this.vessels.get(event.vesselId);
             if (v) this.returnVessel(v, event);

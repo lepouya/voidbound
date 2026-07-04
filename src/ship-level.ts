@@ -12,7 +12,7 @@ export class ShipLevel extends TiledScene {
       tile: "ui-button-mapview:0",
       width: 64,
       height: 64,
-      label: { text: "Map", labelOffset: ex.vec(0, -1), bordered: false },
+      label: "Map",
       onPressed: () => engine.goToScene("map"),
     });
   }

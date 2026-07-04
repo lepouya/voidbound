@@ -9,6 +9,7 @@ import {
   makeLabelActor,
   makePathLine,
   parseTileRef,
+  resolveButtonLabel,
   resolveGraphicLayers,
   TileActorBadgeDef,
   TileRef,
@@ -455,7 +456,7 @@ export class TileActor extends ex.Actor {
 
       // Label below the button, top-center aligned on the button center x.
       const labelActor = makeLabelActor(
-        btn.label,
+        resolveButtonLabel(btn.label),
         ex.vec(0, tileH / 2 + LABEL_PAD),
         { visible: false },
       );

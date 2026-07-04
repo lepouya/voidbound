@@ -28,7 +28,11 @@ export interface ButtonDef {
   disabled?: boolean;
   /** Small overlay counter/indicator at the button's top-right corner. */
   badge?: BadgeDef;
-  /** Optional label rendered below the button. */
+  /**
+   * Optional label rendered below the button. Button labels default to
+   * borderless with labelOffset (0, -1) (see resolveButtonLabel) — pass a
+   * plain string unless you need to override those.
+   */
   label?: string | LabelDef;
   onPressed: () => void;
 }

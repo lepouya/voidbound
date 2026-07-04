@@ -38,6 +38,20 @@ export function resolveLabel(
   return label;
 }
 
+/**
+ * Normalizes a button label (ButtonDef.label) to a LabelDef with button
+ * defaults applied: borderless, nudged one font-size up toward the button
+ * (labelOffset (0, -1)). Explicit LabelDef fields override the defaults, so
+ * callers only spell out what deviates.
+ */
+export function resolveButtonLabel(
+  label: string | LabelDef | undefined,
+): LabelDef | undefined {
+  if (label === undefined) return undefined;
+  const def = typeof label === "string" ? { text: label } : label;
+  return { bordered: false, labelOffset: ex.vec(0, -1), ...def };
+}
+
 // ---------------------------------------------------------------------------
 // Label rendering helpers
 // ---------------------------------------------------------------------------

@@ -318,7 +318,7 @@ for free (`/add-scene` skill updated to mention it).
 
 ### 4.2 Kill the button-label boilerplate
 
-- [ ] Default button labels to `bordered: false, labelOffset: (0, -1)`
+- [x] Default button labels to `bordered: false, labelOffset: (0, -1)`
 
 **Evidence:** `{ bordered: false, labelOffset: ex.vec(0, -1) }` is repeated on
 ~15 buttons across both scenes.

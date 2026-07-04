@@ -3,7 +3,7 @@ import * as ex from "excalibur";
 import { anchorFractions, AnchorPlacement } from "./anchor";
 import { BadgeDef, makeBadgeActor } from "./badge";
 import { ButtonDef, makeButtonGraphic } from "./button";
-import { LABEL_PAD, makeLabelActor } from "./label";
+import { LABEL_PAD, makeLabelActor, resolveButtonLabel } from "./label";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -270,7 +270,10 @@ export function spawnHudGroup(
     // a second path through ScreenElement pointer events would double-fire.
 
     // Label below the button. Button center is at (0,0) in local space.
-    const labelActor = makeLabelActor(btn.label, ex.vec(0, h / 2 + LABEL_PAD));
+    const labelActor = makeLabelActor(
+      resolveButtonLabel(btn.label),
+      ex.vec(0, h / 2 + LABEL_PAD),
+    );
     if (labelActor) el.addChild(labelActor);
 
     // Badge overlay at top-right corner. Button center is (0,0) in local space,
