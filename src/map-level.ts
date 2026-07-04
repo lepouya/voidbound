@@ -343,7 +343,29 @@ export class MapLevel extends TiledScene {
     // Centralized cleanup: any kill path drops the tracking entry.
     vessel.on("kill", () => this.vessels.delete(event.vesselId));
     this.add(vessel);
+
+    // Late-join lerp: an aged event (e.g. received in a snapshot after
+    // joining) spawns the vessel at its current in-flight position instead of
+    // replaying the whole flight. t >= 1 snaps to the destination and moveTo
+    // completes immediately, running the normal arrival handling.
+    const duration = event.arrivalAt - event.dispatchedAt;
+    const t = duration > 0
+      ? ex.clamp((Date.now() - event.dispatchedAt) / duration, 0, 1)
+      : 1;
+    if (t > 0) {
+      const src = this.tileCenter(event.srcCol, event.srcRow);
+      const dest = this.tileCenter(event.destCol, event.destRow);
+      vessel.pos = src.add(dest.sub(src).scale(t));
+    }
     vessel.moveTo(event.destCol, event.destRow, event.speed, onArrival);
+  }
+
+  /** World-space center of the given tile (matches 1*1 TileActor placement). */
+  private tileCenter(col: number, row: number): ex.Vector {
+    return ex.vec(
+      col * this.tilemap.tileWidth + this.tilemap.tileWidth / 2,
+      row * this.tilemap.tileHeight + this.tilemap.tileHeight / 2,
+    );
   }
 
   /**

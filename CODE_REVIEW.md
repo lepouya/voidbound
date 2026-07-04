@@ -148,7 +148,7 @@ and HUD anchors go stale.
 
 ### 1.8 `applyVesselMoveEvent` ignores `dispatchedAt` / `arrivalAt`
 
-- [ ] Implement late-join lerp so the event fields keep their promise
+- [x] Implement late-join lerp so the event fields keep their promise
 
 **Evidence:** the `VesselMoveEvent` interface (and the `/add-game-event` skill)
 promise that late-joining clients can lerp to the current position from
