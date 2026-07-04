@@ -1,5 +1,5 @@
 {
   "tasks": {
-    "fmt": "deno fmt && cd src-tauri && cargo fmt"
+    "fmt": "deno fmt && deno check src/**/*.ts && cd src-tauri && cargo fmt"
   }
 }

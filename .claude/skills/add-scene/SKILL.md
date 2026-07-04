@@ -124,14 +124,8 @@ Typically this lives in the bottom-right group alongside Mail/Items.
 
 ## 5. Finalize
 
-Run from the project root:
-
-```bash
-deno task fmt
-deno check src/**/*.ts
-```
-
-Fix any type errors before declaring the task complete.
+Run `deno task fmt` per `CLAUDE.md` and fix any type errors before declaring
+the task complete.
 
 ## Reference: existing scenes
 

@@ -125,7 +125,7 @@ private dispatchVessel(destCol: number, destRow: number): void {
 - [ ] `apply*Event` handles the "entity already exists" case.
 - [ ] Local action method constructs the event and calls `apply*Event`; does not
       touch scene state directly.
-- [ ] `deno task fmt` and `deno check src/**/*.ts` both pass.
+- [ ] `deno task fmt` passes (formats and type-checks).
 
 ## Reference
 

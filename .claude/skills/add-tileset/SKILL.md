@@ -86,15 +86,8 @@ object form `TileLayerDef` instead of the string form. See `src/ui/tile-ref.ts`.
 
 ## 6. Finalize
 
-Run from the project root:
-
-```bash
-deno task fmt
-deno check src/**/*.ts
-```
-
-If the scene using the new tileset is running, the Vite dev server will
-hot-reload — no manual rebuild needed.
+Run `deno task fmt` per `CLAUDE.md`. If the scene using the new tileset is
+running, the Vite dev server will hot-reload — no manual rebuild needed.
 
 ## Troubleshooting
 

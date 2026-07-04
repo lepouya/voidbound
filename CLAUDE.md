@@ -1,8 +1,7 @@
 # Voidbound — AI Agent Steering Document
 
-**Before considering any task complete**, run `deno task fmt` (formats TS and
-Rust in one step) and `deno check src/**/*.ts` (type-check). Never `tsc`
-directly; `prettier` is not installed.
+**Before considering any task complete**, run `deno task fmt` — formats TS and
+Rust, then type-checks TS, in one step. Never run `tsc` or `prettier` directly.
 
 ## 1. Project Overview
 
@@ -79,17 +78,11 @@ arc radii, circumradii, and any world-space math.
 
 ### Multiplayer-ready event pattern
 
-Every state-mutating action must be modeled from day one as:
-
-1. An `<Action>Event` interface (plain data, everything a server would send)
-2. A **public** `apply<Action>Event(event)` method — scene-state mutation only,
-   **no UI housekeeping**, handles "entity already exists"
-3. A local method that builds the event and calls `apply*Event`, then does UI
-   cleanup (deselect, suppress input)
-
-Canonical example: `VesselMoveEvent` / `applyVesselMoveEvent()` in
-[src/map-level.ts](src/map-level.ts). **Use the `/add-game-event` skill** when
-adding any new action.
+Every state-mutating action must be modeled as an event from day one (event
+interface + public `apply<Action>Event` + local action method) so local and
+networked code paths stay identical. Canonical example: `VesselMoveEvent` /
+`applyVesselMoveEvent()` in [src/map-level.ts](src/map-level.ts). **Use the
+`/add-game-event` skill** when adding any new action.
 
 ### Input model (handled by `TiledScene`, don't reimplement)
 
@@ -118,16 +111,10 @@ you have a specific layering need.
 
 - **Never edit `src/assets/` PNGs or generated JSON by hand** — re-run the
   matching `art/gen_*.sh` script instead.
-- **Never `import` a PNG directly.** In `resources.ts`, wrap with the local
-  `png("name")` helper; it resolves via `import.meta.glob` and throws at startup
-  if the file is missing.
-- All tilesets are registered in `TILESET_DEFS` at the top of
-  [src/resources.ts](src/resources.ts). Two auto-registered filename patterns
-  skip manual registration: `ui-button-*.png` (static 3*2 64px) and
-  `module-*.png` (animated 4*4 256px, 16 frames @ 66ms). Every other animated
-  tileset in the catalog uses 32 frames @ 66ms.
+- **Never `import` a PNG directly** — wrap with the `png("name")` helper in
+  [src/resources.ts](src/resources.ts) instead.
 - Use the `/gen-art` skill to run or create a pipeline script, and
-  `/add-tileset` to register a new PNG.
+  `/add-tileset` to register a new PNG as a tileset.
 
 ## 4. Architecture notes
 
@@ -161,7 +148,8 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   `TileActorBadgeDef` (corner-pinned on TileActors)
 - `button.ts` — `ButtonDef` base (shared by world + HUD), `makeButtonGraphic`
 - `path-line.ts` — `makePathLine()` dotted world-space path actor
-- `hud.ts` — `HudGroupDef`, `HudGroupHandle`, `spawnHudGroup`, `addHudGroup()`
+- `hud.ts` — `HudGroupDef`, `HudGroupHandle`, `spawnHudGroup` (wrapped by
+  `TiledScene.addHudGroup()`)
 
 Full field lists live in the source — read `src/ui/<file>.ts` when you need the
 exact interface rather than duplicating it here.
@@ -221,6 +209,9 @@ Labels, buttons, and badges always render upright regardless of actor rotation.
 `Deserialize` are derived. To swap `"ship"` to a network fetch later, replace
 the `include_str!` call with a fetched string — the `Result` propagation is
 already in place.
+
+Tauri commands return `Result<T, String>` — propagate errors as strings, don't
+`unwrap`/panic in command handlers.
 
 ## 5. Skills
 
