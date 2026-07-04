@@ -336,7 +336,7 @@ then pass plain strings.
 
 ### 4.4 Deduplicate tileset auto-registration
 
-- [ ] Extract `autoRegister(prefix, makeDef)` in `src/resources.ts`
+- [x] Extract `autoRegister(prefix, makeDef)` in `src/resources.ts`
 
 **Evidence:** the `buttonDefs` and `moduleDefs` glob-filter blocks are
 copy-paste twins.

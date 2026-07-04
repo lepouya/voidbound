@@ -87,23 +87,29 @@ const ad = (
   frameDuration,
 });
 
+// Auto-register every PNG under assets/ whose filename starts with `prefix`,
+// building its def from the derived name and Vite-resolved URL.
+const autoRegister = (
+  prefix: string,
+  makeDef: (name: string, src: string) => TilesetDef,
+): TilesetDef[] =>
+  Object.entries(allPngs)
+    .filter(([path]) => path.split("/").pop()?.startsWith(prefix) ?? false)
+    .map(([path, src]) =>
+      makeDef(path.replace("./assets/", "").replace(".png", ""), src)
+    );
+
 // Button tilesets: 3*2 grid, 64 px cells, static.
-// Any ui-button-*.png anywhere under assets/ is picked up automatically.
-const buttonDefs: TilesetDef[] = Object.entries(allPngs)
-  .filter(([path]) => path.split("/").pop()?.startsWith("ui-button-") ?? false)
-  .map(([path, src]) => {
-    const name = path.replace("./assets/", "").replace(".png", "");
-    return sd(name, src, 3, 2, 64);
-  });
+const buttonDefs = autoRegister(
+  "ui-button-",
+  (name, src) => sd(name, src, 3, 2, 64),
+);
 
 // Module tilesets: 6*6 grid, 256 px cells, animated (32 frames, 66 ms/frame).
-// Any module-*.png anywhere under assets/ is picked up automatically.
-const moduleDefs: TilesetDef[] = Object.entries(allPngs)
-  .filter(([path]) => path.split("/").pop()?.startsWith("module-") ?? false)
-  .map(([path, src]) => {
-    const name = path.replace("./assets/", "").replace(".png", "");
-    return ad(name, src, 6, 6, 256, 32, 66);
-  });
+const moduleDefs = autoRegister(
+  "module-",
+  (name, src) => ad(name, src, 6, 6, 256, 32, 66),
+);
 
 //                  name             cols rows  sz   frames ms/f
 const TILESET_DEFS: TilesetDef[] = [
