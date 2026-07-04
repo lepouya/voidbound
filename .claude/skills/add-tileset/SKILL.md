@@ -39,12 +39,7 @@ If the filename matches one of these patterns, you're **done** after step 1 —
 | Filename pattern  | Auto-registered as                                  |
 | ----------------- | --------------------------------------------------- |
 | `ui-button-*.png` | static, 3*2 grid, 64 px cells                       |
-| `module-*.png`    | animated, 4*4 grid, 256 px cells, 16 frames @ 66 ms |
-
-Note: every other animated tileset in the repo catalog uses **32 frames @ 66
-ms** (see `ss1-*`, `cs1-*`, `ui-selection*` in `src/resources.ts`). Match that
-when adding a new hand-registered animated tileset unless you have a reason not
-to.
+| `module-*.png`    | animated, 6*6 grid, 256 px cells, 32 frames @ 66 ms |
 
 So `src/assets/ui-button-trade.png` immediately becomes usable as the `TileRef`
 `"ui-button-trade:0"` (etc.) with no edit to `resources.ts`.

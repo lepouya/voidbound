@@ -111,6 +111,9 @@ you have a specific layering need.
 
 - **Never edit `src/assets/` PNGs or generated JSON by hand** — re-run the
   matching `art/gen_*.sh` script instead.
+- **Canonical animated sheet spec:** 6*6 grid, 32 frames @ 66 ms per frame (cell
+  size varies per asset). Every animated tileset in the catalog uses this shape
+  — match it for new animated assets unless there's a specific reason not to.
 - **Never `import` a PNG directly** — wrap with the `png("name")` helper in
   [src/resources.ts](src/resources.ts) instead.
 - Use the `/gen-art` skill to run or create a pipeline script, and

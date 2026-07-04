@@ -15,8 +15,8 @@ item lists the evidence and a concrete fix plan.
 
 ### 1.1 `module-*` tilesets registered with wrong grid (CONFIRMED)
 
-- [ ] Fix `moduleDefs` registration in `src/resources.ts`
-- [ ] Fix the documented pattern in `.claude/skills/add-tileset/SKILL.md`
+- [x] Fix `moduleDefs` registration in `src/resources.ts`
+- [x] Fix the documented pattern in `.claude/skills/add-tileset/SKILL.md`
 
 **Evidence:** `art/gen_modules.sh` runs `sprite_transition.py` with
 `-n 32 -z 256`, producing a 6\*6 grid of 32 frames (`module-base.png` on disk is
@@ -293,7 +293,7 @@ server-time-offset handshake so clients never trust `Date.now()`.
 
 ### 3.3 Guideline additions to CLAUDE.md
 
-- [ ] Canonical animated sheet spec: 6\*6 grid, 32 frames @ 66 ms (after 1.1)
+- [x] Canonical animated sheet spec: 6\*6 grid, 32 frames @ 66 ms (after 1.1)
 - [ ] Note that generated files under `src/assets/` are fmt-excluded (after 1.9)
 - [ ] Updated input-model rules once 1.4/1.5 land (auto-suppression replaces
       per-handler `suppressNextPointerUp` boilerplate)
