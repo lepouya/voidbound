@@ -56,7 +56,7 @@ item".
 
 ### 1.3 `returnVessel` bypasses the multiplayer event pattern
 
-- [ ] Route vessel returns through `VesselMoveEvent` / `applyVesselMoveEvent`
+- [x] Route vessel returns through `VesselMoveEvent` / `applyVesselMoveEvent`
 
 **Evidence:** the doc comment on `returnVessel` in `src/map-level.ts`
 (~line 331) claims it "internally constructs a return VesselMoveEvent" — it
@@ -194,7 +194,7 @@ commit the stable representation.
 - [ ] Wheel zoom can compute a negative factor: `1 - evt.deltaY * 0.01` goes
       negative for `deltaY > 100` (fast wheel). Clamp the factor (e.g. to [0.5,
       2] per event) before multiplying.
-- [ ] `vessels` map leak: entries are only deleted in `returnVessel`'s
+- [x] `vessels` map leak: entries are only deleted in `returnVessel`'s
       completion callback. Any other kill path leaks the map entry. Consider
       centralizing removal (e.g. a `removeVessel(id)` helper, or subscribing to
       the actor's `kill` event). Folds naturally into item 1.3's rework.
@@ -232,7 +232,7 @@ each has its own timer — document that instead, it's the actual gotcha.
 
 ### 2.2 `returnVessel` doc comment describes behavior the code doesn't have
 
-- [ ] Fixed as part of item 1.3 (comment updated when code is fixed)
+- [x] Fixed as part of item 1.3 (comment updated when code is fixed)
 
 ### 2.3 CLAUDE.md claims web browser support that can't work today
 

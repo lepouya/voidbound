@@ -276,15 +276,32 @@ export class MapLevel extends TiledScene {
     this.suppressNextPointerUp = true; // prevent onP1Up from re-creating it
   }
 
+  /** True if (col, row) is one of the mothership's inner 2*2 docking tiles. */
+  private isDockTile(col: number, row: number): boolean {
+    const halfCols = this.mothership.colSpan / 2;
+    const halfRows = this.mothership.rowSpan / 2;
+    return (
+      col >= this.mothership.col + halfCols - 1 &&
+      col <= this.mothership.col + halfCols &&
+      row >= this.mothership.row + halfRows - 1 &&
+      row <= this.mothership.row + halfRows
+    );
+  }
+
   /**
    * Creates or redirects a vessel according to the given event. Designed to be
    * called both for local player actions and for server-pushed events from other
-   * players.
+   * players. A move whose destination is a mothership dock tile is a return:
+   * the vessel docks and despawns on arrival.
    */
   applyVesselMoveEvent(event: VesselMoveEvent): void {
+    const onArrival = this.isDockTile(event.destCol, event.destRow)
+      ? () => this.vessels.get(event.vesselId)?.kill()
+      : undefined;
+
     const existing = this.vessels.get(event.vesselId);
     if (existing) {
-      existing.moveTo(event.destCol, event.destRow, event.speed);
+      existing.moveTo(event.destCol, event.destRow, event.speed, onArrival);
       return;
     }
 
@@ -324,13 +341,17 @@ export class MapLevel extends TiledScene {
       ],
     });
     this.vessels.set(event.vesselId, vessel);
+    // Centralized cleanup: any kill path drops the tracking entry.
+    vessel.on("kill", () => this.vessels.delete(event.vesselId));
     this.add(vessel);
-    vessel.moveTo(event.destCol, event.destRow, event.speed);
+    vessel.moveTo(event.destCol, event.destRow, event.speed, onArrival);
   }
 
   /**
-   * Sends a vessel back to the closest mothership docking tile. Internally
-   * constructs a return VesselMoveEvent from the vessel's current position.
+   * Sends a vessel back to the closest mothership docking tile by constructing
+   * a return VesselMoveEvent from the vessel's current position and routing it
+   * through applyVesselMoveEvent, so local and server-pushed returns behave
+   * identically. Docking (arrival at a dock tile) despawns the vessel.
    */
   private returnVessel(
     vessel: TileActor,
@@ -344,9 +365,19 @@ export class MapLevel extends TiledScene {
       (vessel.pos.y - this.tilemap.tileHeight / 2) / this.tilemap.tileHeight,
     );
     const dock = this.closestDockTile(currentCol, currentRow);
-    vessel.moveTo(dock.col, dock.row, originalEvent.speed, () => {
-      vessel.kill();
-      this.vessels.delete(originalEvent.vesselId);
+    const distPx = Math.hypot(
+      (dock.col - currentCol) * this.tilemap.tileWidth,
+      (dock.row - currentRow) * this.tilemap.tileHeight,
+    );
+    const now = Date.now();
+    this.applyVesselMoveEvent({
+      ...originalEvent,
+      srcCol: currentCol,
+      srcRow: currentRow,
+      destCol: dock.col,
+      destRow: dock.row,
+      dispatchedAt: now,
+      arrivalAt: now + (distPx / originalEvent.speed) * 1000,
     });
   }
 }
