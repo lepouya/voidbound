@@ -118,7 +118,12 @@ export abstract class TiledScene extends ex.Scene {
 
   override onInitialize(engine: ex.Engine): void {
     this.engineRef = engine;
-    this.setupScene();
+    this.setupScene().catch((err) => {
+      // Without this, a generate_map failure is an unhandled rejection and
+      // the scene silently never loads. Log it and make the failure visible.
+      console.error(`Scene "${this.constructor.name}" failed to load:`, err);
+      this.backgroundColor = ex.Color.fromRGB(96, 0, 0);
+    });
   }
 
   override onActivate(): void {
@@ -382,7 +387,11 @@ export abstract class TiledScene extends ex.Scene {
     pointer1.on("cancel", onP1Cancel);
 
     const onP2Down = (evt: ex.PointerEvent) => {
-      this.pinchDistance = pointer1.lastScreenPos.distance(evt.screenPos);
+      // Only start a pinch if finger 1 is actually down. Use our tracked
+      // position — pointer1.lastScreenPos can be stale/(0,0) if finger 1
+      // never moved before finger 2 landed.
+      if (!this.lastScreenPos) return;
+      this.pinchDistance = this.lastScreenPos.distance(evt.screenPos);
       this.hasDragged = true;
     };
     pointer2.on("down", onP2Down);
@@ -403,7 +412,9 @@ export abstract class TiledScene extends ex.Scene {
     // Trackpad scroll pans; trackpad pinch arrives as wheel + ctrlKey and zooms
     const onWheel = (evt: ex.WheelEvent) => {
       if ((evt.ev as WheelEvent).ctrlKey) {
-        this.camera.zoom *= 1 - evt.deltaY * 0.01;
+        // Clamp the per-event factor: a fast wheel can send deltaY > 100,
+        // which would make the factor zero or negative.
+        this.camera.zoom *= ex.clamp(1 - evt.deltaY * 0.01, 0.5, 2);
       } else {
         this.camera.x += evt.deltaX / this.camera.zoom;
         this.camera.y += evt.deltaY / this.camera.zoom;

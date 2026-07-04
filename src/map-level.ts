@@ -27,6 +27,19 @@ export interface VesselMoveEvent {
   arrivalAt: number;
 }
 
+/**
+ * Random unique id for locally-created events. crypto.randomUUID requires a
+ * secure context (always true under Tauri), so fall back to random hex when
+ * the vite dev build is served over plain http to a LAN device.
+ */
+function newEventId(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return Array.from(
+    crypto.getRandomValues(new Uint8Array(16)),
+    (b) => b.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
 export class MapLevel extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
     super.onInitialize(engine);
@@ -258,7 +271,7 @@ export class MapLevel extends TiledScene {
     );
     const now = Date.now();
     const event: VesselMoveEvent = {
-      vesselId: crypto.randomUUID(),
+      vesselId: newEventId(),
       ownerId: "player-1",
       ownerName: "Player 1",
       mothershipId: "player-1",

@@ -183,22 +183,22 @@ commit the stable representation.
 
 ### 1.10 Smaller corner cases (batch)
 
-- [ ] Surface scene-load failures: `setupScene()` is async and un-awaited in
+- [x] Surface scene-load failures: `setupScene()` is async and un-awaited in
       `onInitialize`; a `generate_map` error becomes an unhandled rejection and
       the scene silently never loads. Add a `.catch` that logs and shows a
       visible error (even a `console.error` + colored background is a start).
-- [ ] Pinch start with stale pointer1: `onP2Down` in `src/tiled-scene.ts`
+- [x] Pinch start with stale pointer1: `onP2Down` in `src/tiled-scene.ts`
       (~line 342) uses `pointer1.lastScreenPos`, which may be stale/(0,0) if
       finger 2 lands before finger 1 ever moved. Guard: only start a pinch if
       pointer1 is actually down; otherwise ignore pointer 2.
-- [ ] Wheel zoom can compute a negative factor: `1 - evt.deltaY * 0.01` goes
+- [x] Wheel zoom can compute a negative factor: `1 - evt.deltaY * 0.01` goes
       negative for `deltaY > 100` (fast wheel). Clamp the factor (e.g. to [0.5,
       2] per event) before multiplying.
 - [x] `vessels` map leak: entries are only deleted in `returnVessel`'s
       completion callback. Any other kill path leaks the map entry. Consider
       centralizing removal (e.g. a `removeVessel(id)` helper, or subscribing to
       the actor's `kill` event). Folds naturally into item 1.3's rework.
-- [ ] `crypto.randomUUID()` requires a secure context — fine under Tauri, can
+- [x] `crypto.randomUUID()` requires a secure context — fine under Tauri, can
       throw when serving the vite dev build over plain http on a LAN device. Add
       a tiny fallback ID helper if/when remote-device testing matters.
 
