@@ -32,7 +32,9 @@ Goal: game state survives a restart.
 
 ## Phase 3 — Server-authoritative events
 
-Goal: the event pattern goes live over the network.
+Goal: the event pattern goes live over the network. The intended server model
+(event log, verification, broadcast, snapshot + replay) is sketched in
+`SERVER.md`.
 
 - WebSocket event bus: server verifies, timestamps, and broadcasts events;
   clients feed them into the existing `apply*Event` entry points.

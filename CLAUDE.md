@@ -84,7 +84,9 @@ Every state-mutating action must be modeled as an event from day one (event
 interface + public `apply<Action>Event` + local action method) so local and
 networked code paths stay identical. Canonical example: `VesselMoveEvent` /
 `applyVesselMoveEvent()` in [src/map-level.ts](src/map-level.ts). **Use the
-`/add-game-event` skill** when adding any new action.
+`/add-game-event` skill** when adding any new action. The server model this
+pattern targets (event log, verification, broadcast, snapshot + replay,
+server-time offsets) is sketched in `SERVER.md`.
 
 ### Input model (handled by `TiledScene`, don't reimplement)
 

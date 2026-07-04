@@ -284,7 +284,8 @@ the README bullet ideas under the phase where they land.
 
 ### 3.2 Write a short server-architecture sketch
 
-- [ ] Document the intended server model that the event pattern presupposes
+- [x] Document the intended server model that the event pattern presupposes (see
+      `SERVER.md`)
 
 **Why:** future event interfaces will be more consistent if the model (event
 log, authoritative timestamps, verification, broadcast, late-join snapshot) is
