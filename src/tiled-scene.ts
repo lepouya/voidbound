@@ -124,6 +124,8 @@ export abstract class TiledScene extends ex.Scene {
   override onActivate(): void {
     this.isActive = true;
     if (this.mapReady) {
+      // The window may have resized while this scene was inactive.
+      this.handleResize();
       this.resetCamera();
       this.registerInputHandlers();
     }
@@ -181,6 +183,28 @@ export abstract class TiledScene extends ex.Scene {
     );
   }
 
+  /**
+   * Recompute the zoom-1 draw dimensions and the resulting minimum zoom.
+   * screen.resolution is the zoom-1 draw size (screen.drawWidth divides by
+   * the current camera zoom), which is the baseline clampedPos expects.
+   */
+  private recomputeViewBounds(): void {
+    this.drawW = this.engineRef.screen.resolution.width;
+    this.drawH = this.engineRef.screen.resolution.height;
+    this.minZoom = Math.max(
+      this.drawW / this.mapWidth,
+      this.drawH / this.mapHeight,
+    );
+  }
+
+  /** Re-derive everything that depends on the screen size. */
+  private handleResize(): void {
+    for (const handle of this.hudHandles) handle.relayout(this.engineRef);
+    if (!this.mapReady) return;
+    this.recomputeViewBounds();
+    this.clampCamera();
+  }
+
   private resetCamera(): void {
     const target = this.initialCameraTarget();
     this.camera.x = target.pos.x;
@@ -217,19 +241,11 @@ export abstract class TiledScene extends ex.Scene {
 
     this.setupActors(this.handleTilePressed);
 
-    // Capture draw dimensions at zoom=1 — clampedPos uses these as the
-    // zoom=1 baseline, so they must be read before applying any other zoom.
-    this.camera.zoom = 1;
-    this.drawW = this.camera.viewport.width;
-    this.drawH = this.camera.viewport.height;
-    this.minZoom = Math.max(
-      this.drawW / this.mapWidth,
-      this.drawH / this.mapHeight,
-    );
-
-    this.resetCamera();
-
     this.mapReady = true;
+    // Recompute view bounds and HUD layout now: the window may have resized
+    // between HUD spawn in onInitialize and the async map load finishing.
+    this.handleResize();
+    this.resetCamera();
     // The scene may already be active (e.g. it is the start scene and
     // onActivate fired before the async map load finished).
     if (this.isActive) this.registerInputHandlers();
@@ -396,7 +412,11 @@ export abstract class TiledScene extends ex.Scene {
     };
     engine.input.pointers.on("wheel", onWheel);
 
+    const onResize = () => this.handleResize();
+    engine.screen.events.on("resize", onResize);
+
     this.inputCleanup = [
+      () => engine.screen.events.off("resize", onResize),
       () => pointer1.off("down", onP1Down),
       () => pointer1.off("move", onP1Move),
       () => pointer1.off("up", onP1Up),

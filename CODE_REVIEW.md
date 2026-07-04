@@ -129,8 +129,8 @@ ignore the move entirely so the camera doesn't micro-jitter.
 
 ### 1.7 Window resize is never handled
 
-- [ ] Recompute camera clamp bounds on resize
-- [ ] Reposition HUD groups on resize
+- [x] Recompute camera clamp bounds on resize
+- [x] Reposition HUD groups on resize
 
 **Evidence:** `TiledScene.setupScene` captures `drawW`/`drawH`/`minZoom` once;
 `spawnHudGroup` computes positions from `engine.drawWidth/drawHeight` once at

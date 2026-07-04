@@ -67,6 +67,11 @@ export interface HudGroupHandle {
   /** Remove all buttons in this group from the scene. */
   remove(): void;
   /**
+   * Recompute button positions for the current screen dimensions. Call after
+   * a screen resize; all runtime state (visibility, disabled, badges) is kept.
+   */
+  relayout(engine: ex.Engine): void;
+  /**
    * If screenPos falls within a button's hit area, fires its onPressed (unless
    * disabled) and returns true. Returns false if no button was hit.
    * Used by TiledScene to handle clicks without relying on actor pointer events.
@@ -133,28 +138,27 @@ function applyButtonGraphic(
   el.graphics.opacity = opacity;
 }
 
-// ---------------------------------------------------------------------------
-// Main factory
-// ---------------------------------------------------------------------------
-
-export function spawnHudGroup(
-  engine: ex.Engine,
+/**
+ * Computes the visual-center screen position of every button in the group for
+ * the given screen dimensions (the zoom-1 resolution — screen space is not
+ * affected by camera zoom). Shared by the initial spawn and relayout-on-resize.
+ */
+function layoutButtonCenters(
   def: HudGroupDef,
-): { elements: ex.ScreenElement[]; handle: HudGroupHandle } {
+  sizes: Array<{ w: number; h: number }>,
+  drawWidth: number,
+  drawHeight: number,
+): ex.Vector[] {
   const padding = def.padding ?? 8;
   const gap = def.gap ?? 4;
   const offset = def.offset ?? 0;
-  // HUD elements must always render above all world-space actors and tilemaps.
-  // Use a large base z; zOffset is relative between overlapping HUD groups.
-  const HUD_BASE_Z = 10_000;
-  const z = HUD_BASE_Z + (def.zOffset ?? 0);
   const direction = def.direction ?? inferDirection(def.anchor);
 
   const { hFrac, vFrac, bx, by } = anchorLayout(
     def.anchor,
     padding,
-    engine.drawWidth,
-    engine.drawHeight,
+    drawWidth,
+    drawHeight,
   );
 
   // Determine stacking axis. For 'center', buttons spread along the anchor's
@@ -164,12 +168,6 @@ export function spawnHudGroup(
     (direction === "center" &&
       !def.anchor.startsWith("top") &&
       !def.anchor.startsWith("bottom"));
-
-  // Resolve sizes for all buttons up front (needed for 'center' pre-computation).
-  const sizes = def.buttons.map((btn) => ({
-    w: btn.width ?? 32,
-    h: btn.height ?? 32,
-  }));
 
   // Compute the starting position along the stack axis.
   let startPos: number;
@@ -186,12 +184,10 @@ export function spawnHudGroup(
     startPos = (isVertical ? by : bx) - offset;
   }
 
-  const elements: ex.ScreenElement[] = [];
-  const states: ButtonState[] = [];
+  const centers: ex.Vector[] = [];
   let cursor = startPos;
 
   for (let i = 0; i < def.buttons.length; i++) {
-    const btn = def.buttons[i];
     const { w, h } = sizes[i];
     const size = isVertical ? h : w;
 
@@ -205,11 +201,59 @@ export function spawnHudGroup(
     const elX = isVertical ? bx : direction === "left" ? cursor + size : cursor;
     const elY = isVertical ? (direction === "up" ? cursor + size : cursor) : by;
 
+    // Shift from the anchor-edge position to the button's visual center so
+    // that children can be placed relative to (0,0) = button center.
+    centers.push(ex.vec(elX + (0.5 - hFrac) * w, elY + (0.5 - vFrac) * h));
+
+    // Advance cursor.
+    if (direction === "up" || direction === "left") {
+      cursor -= gap;
+    } else {
+      cursor += size + gap;
+    }
+  }
+  return centers;
+}
+
+// ---------------------------------------------------------------------------
+// Main factory
+// ---------------------------------------------------------------------------
+
+export function spawnHudGroup(
+  engine: ex.Engine,
+  def: HudGroupDef,
+): { elements: ex.ScreenElement[]; handle: HudGroupHandle } {
+  // HUD elements must always render above all world-space actors and tilemaps.
+  // Use a large base z; zOffset is relative between overlapping HUD groups.
+  const HUD_BASE_Z = 10_000;
+  const z = HUD_BASE_Z + (def.zOffset ?? 0);
+
+  // Resolve sizes for all buttons up front (needed for 'center' pre-computation).
+  const sizes = def.buttons.map((btn) => ({
+    w: btn.width ?? 32,
+    h: btn.height ?? 32,
+  }));
+
+  // screen.resolution is the zoom-1 draw size; engine.drawWidth/drawHeight
+  // divide by the current camera zoom and would misplace screen-space HUD
+  // elements whenever the camera is zoomed.
+  const centers = layoutButtonCenters(
+    def,
+    sizes,
+    engine.screen.resolution.width,
+    engine.screen.resolution.height,
+  );
+
+  const elements: ex.ScreenElement[] = [];
+  const states: ButtonState[] = [];
+
+  for (let i = 0; i < def.buttons.length; i++) {
+    const btn = def.buttons[i];
+    const { w, h } = sizes[i];
+
     const el = new ex.ScreenElement({
-      // Shift from the anchor-edge position to the button's visual center so
-      // that children can be placed relative to (0,0) = button center.
-      x: elX + (0.5 - hFrac) * w,
-      y: elY + (0.5 - vFrac) * h,
+      x: centers[i].x,
+      y: centers[i].y,
       width: w + (btn.hitPadding ?? 0) * 2,
       height: h + (btn.hitPadding ?? 0) * 2,
       anchor: ex.vec(0.5, 0.5),
@@ -246,13 +290,6 @@ export function spawnHudGroup(
     };
     states.push(state);
     elements.push(el);
-
-    // Advance cursor.
-    if (direction === "up" || direction === "left") {
-      cursor -= gap;
-    } else {
-      cursor += size + gap;
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -316,6 +353,18 @@ export function spawnHudGroup(
 
     remove() {
       for (const el of elements) el.kill();
+    },
+
+    relayout(engine: ex.Engine) {
+      const centers = layoutButtonCenters(
+        def,
+        sizes,
+        engine.screen.resolution.width,
+        engine.screen.resolution.height,
+      );
+      for (let i = 0; i < elements.length; i++) {
+        elements[i].pos = centers[i].clone();
+      }
     },
 
     tryPointerUp(screenPos: ex.Vector): boolean {
