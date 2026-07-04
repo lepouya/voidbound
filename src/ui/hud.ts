@@ -221,10 +221,9 @@ export function spawnHudGroup(
 
     applyButtonGraphic(el, btn, initDisabled, initActive, w, h);
 
-    el.on("pointerup", () => {
-      if (state.disabled) return;
-      btn.onPressed();
-    });
+    // Note: no pointer event registration here. HUD clicks are dispatched
+    // exclusively via handle.tryPointerUp() polled by TiledScene.handleTap —
+    // a second path through ScreenElement pointer events would double-fire.
 
     // Label below the button. Button center is at (0,0) in local space.
     const labelActor = makeLabelActor(btn.label, ex.vec(0, h / 2 + LABEL_PAD));

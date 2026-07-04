@@ -39,7 +39,7 @@ animates through wrong cells (0-3, 6-9, 12-15, 18-21) and drops half the frames.
 
 ### 1.2 HUD buttons have two live dispatch paths (double-fire risk)
 
-- [ ] Remove one of the two `onPressed` dispatch paths for HUD buttons
+- [x] Remove one of the two `onPressed` dispatch paths for HUD buttons
 
 **Evidence:** `src/ui/hud.ts` (~line 224) registers `el.on("pointerup", ...)` on
 each ScreenElement, AND `src/tiled-scene.ts` (~line 239) polls
