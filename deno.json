@@ -1,5 +1,8 @@
 {
   "tasks": {
     "fmt": "deno fmt && deno check src/**/*.ts && cd src-tauri && cargo fmt"
+  },
+  "fmt": {
+    "exclude": ["src/assets/"]
   }
 }

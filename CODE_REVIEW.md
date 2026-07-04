@@ -164,7 +164,7 @@ networked test becomes trivial.
 
 ### 1.9 `deno fmt` churns the generated map JSON
 
-- [ ] Exclude `src/assets/` from `deno fmt`
+- [x] Exclude `src/assets/` from `deno fmt`
 
 **Evidence:** `tools/tmj_to_tilemap.py` writes compact JSON
 (`separators=(",", ":")`), but the committed `src/assets/ship-level.json` is
@@ -294,7 +294,7 @@ server-time-offset handshake so clients never trust `Date.now()`.
 ### 3.3 Guideline additions to CLAUDE.md
 
 - [x] Canonical animated sheet spec: 6\*6 grid, 32 frames @ 66 ms (after 1.1)
-- [ ] Note that generated files under `src/assets/` are fmt-excluded (after 1.9)
+- [x] Note that generated files under `src/assets/` are fmt-excluded (after 1.9)
 - [x] Updated input-model rules once 1.4/1.5 land (auto-suppression replaces
       per-handler `suppressNextPointerUp` boilerplate)
 - [ ] Map JSON changes need a Rust rebuild in dev (mirror of 2.4)

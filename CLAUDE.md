@@ -118,6 +118,9 @@ you have a specific layering need.
   — match it for new animated assets unless there's a specific reason not to.
 - **Never `import` a PNG directly** — wrap with the `png("name")` helper in
   [src/resources.ts](src/resources.ts) instead.
+- Generated files under `src/assets/` are excluded from `deno fmt`
+  (`fmt.exclude` in `deno.json`) so regen + fmt cycles stay diff-free — commit
+  them in the compact form the pipeline writes.
 - Use the `/gen-art` skill to run or create a pipeline script, and
   `/add-tileset` to register a new PNG as a tileset.
 
