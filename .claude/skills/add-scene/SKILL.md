@@ -26,13 +26,19 @@ export class <Name>Level extends TiledScene {
 
     // Optional: this.backgroundColor = ex.Color.Black;
 
-    this.addHudGroup({
-      anchor: "top-right",
-      gap: 8,
-      buttons: [
-        // HudButtonDef entries — see src/ui/hud.ts
-      ],
+    // Standard HUD (Shop/Events top-right, Mail/Items bottom-right) plus the
+    // scene-switch button back to wherever players come from. Returns
+    // { topRight, bottomRight } HudGroupHandles for badge/visibility control.
+    this.addCommonHud({
+      tile: "ui-button-<icon>:0",
+      width: 64,
+      height: 64,
+      label: { text: "<Label>", labelOffset: ex.vec(0, -1), bordered: false },
+      onPressed: () => engine.goToScene("<other-scene>"),
     });
+
+    // Scene-specific groups go through addHudGroup — HudButtonDef entries,
+    // see src/ui/hud.ts.
   }
 
   protected override buildMap(): Promise<ex.TileMap> {
@@ -69,8 +75,11 @@ export class <Name>Level extends TiledScene {
 
 **Key rules:**
 
-- `super.onInitialize(engine)` must be called **before** any `addHudGroup` call
-  — `addHudGroup` depends on `engineRef` which `super` sets.
+- `super.onInitialize(engine)` must be called **before** any `addCommonHud` /
+  `addHudGroup` call — both depend on `engineRef` which `super` sets.
+- Use `addCommonHud(switchButton)` for the standard HUD instead of redefining
+  the Shop/Events and Mail/Items groups; only the scene-switch button def is
+  scene-specific. Reserve `addHudGroup` for groups unique to the scene.
 - Every `TileActor` you create in `setupActors` should receive
   `onPressed: onTilePressed` and
   `edgeFallthrough: this.supportsEmptyTileActor()` so taps route correctly
@@ -123,7 +132,9 @@ exactly — unknown strings fall through to the `other =>` error branch.
 ## 4. Wire up navigation from other scenes
 
 Add a HUD button to existing scenes that calls `engine.goToScene("<name>")`.
-Typically this lives in the bottom-right group alongside Mail/Items.
+Existing scenes get their single scene-switch button from `addCommonHud`; if a
+scene needs to reach more than one destination, add the extra button via a
+scene-specific `addHudGroup` group.
 
 ## 5. Finalize
 

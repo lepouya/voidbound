@@ -145,8 +145,11 @@ May override: `createEmptyTileActor()`, `supportsEmptyTileActor()`,
 `initialCameraTarget()`.
 
 Useful protected members: `tilemap`, `handleTilePressed`, `pendingActor`,
-`suppressNextPointerUp`, `deselectActor()`, `addHudGroup(def)` (call from
-`onInitialize` **after** `super.onInitialize(engine)`).
+`suppressNextPointerUp`, `deselectActor()`, `addHudGroup(def)`, and
+`addCommonHud(switchButton)` — spawns the standard Shop/Events + Mail/Items HUD
+around the given scene-switch button; prefer it over redefining those groups per
+scene. Call both HUD helpers from `onInitialize` **after**
+`super.onInitialize(engine)`.
 
 **Adding a new scene:** use the `/add-scene` skill — it handles Rust map-arm
 wiring, `main.ts` registration, and HUD setup.

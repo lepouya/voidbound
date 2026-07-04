@@ -43,61 +43,12 @@ function newEventId(): string {
 export class MapLevel extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
     super.onInitialize(engine);
-    this.addHudGroup({
-      anchor: "top-right",
-      gap: 8,
-      buttons: [
-        {
-          tile: "ui-button-buy:1",
-          width: 48,
-          height: 48,
-          label: { text: "Shop", labelOffset: ex.vec(0, -1), bordered: false },
-          onPressed: () => console.log("shop"),
-        },
-        {
-          tile: "ui-button-events:0",
-          width: 32,
-          height: 32,
-          badge: { text: "@", bordered: false, color: ex.Color.Red },
-          label: {
-            text: "Events",
-            labelOffset: ex.vec(0, -1),
-            bordered: false,
-          },
-          onPressed: () => console.log("events"),
-        },
-      ],
-    });
-    this.addHudGroup({
-      anchor: "bottom-right",
-      gap: 8,
-      buttons: [
-        {
-          tile: "ui-button-shipview:1",
-          width: 64,
-          height: 64,
-          label: { text: "Ship", labelOffset: ex.vec(0, -1), bordered: false },
-          onPressed: () => engine.goToScene("ship"),
-        },
-        {
-          tile: "ui-button-message:0",
-          width: 32,
-          height: 32,
-          label: {
-            text: "Mail",
-            labelOffset: ex.vec(0, -1),
-            bordered: false,
-          },
-          onPressed: () => console.log("messages"),
-        },
-        {
-          tile: "ui-button-items:0",
-          width: 32,
-          height: 32,
-          label: { text: "Items", labelOffset: ex.vec(0, -1), bordered: false },
-          onPressed: () => console.log("items"),
-        },
-      ],
+    this.addCommonHud({
+      tile: "ui-button-shipview:1",
+      width: 64,
+      height: 64,
+      label: { text: "Ship", labelOffset: ex.vec(0, -1), bordered: false },
+      onPressed: () => engine.goToScene("ship"),
     });
   }
 

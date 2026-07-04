@@ -1,6 +1,6 @@
 import * as ex from "excalibur";
 
-import { HudGroupDef, HudGroupHandle, spawnHudGroup } from "./ui";
+import { HudButtonDef, HudGroupDef, HudGroupHandle, spawnHudGroup } from "./ui";
 import { TileActor } from "./tile-actor";
 
 /**
@@ -467,5 +467,68 @@ export abstract class TiledScene extends ex.Scene {
     };
     this.hudHandles.push(wrapped);
     return wrapped;
+  }
+
+  /**
+   * Spawn the standard HUD shared by every scene: Shop/Events in the
+   * top-right, and the given scene-switch button stacked above Mail/Items in
+   * the bottom-right. Call from onInitialize after super.onInitialize(engine).
+   * Returns both group handles for runtime control (e.g. wiring the Events or
+   * Mail badges to real counts).
+   */
+  protected addCommonHud(
+    switchButton: HudButtonDef,
+  ): { topRight: HudGroupHandle; bottomRight: HudGroupHandle } {
+    const topRight = this.addHudGroup({
+      anchor: "top-right",
+      gap: 8,
+      buttons: [
+        {
+          tile: "ui-button-buy:1",
+          width: 48,
+          height: 48,
+          label: { text: "Shop", labelOffset: ex.vec(0, -1), bordered: false },
+          onPressed: () => console.log("shop"),
+        },
+        {
+          tile: "ui-button-events:0",
+          width: 32,
+          height: 32,
+          badge: { text: "@", bordered: false, color: ex.Color.Red },
+          label: {
+            text: "Events",
+            labelOffset: ex.vec(0, -1),
+            bordered: false,
+          },
+          onPressed: () => console.log("events"),
+        },
+      ],
+    });
+    const bottomRight = this.addHudGroup({
+      anchor: "bottom-right",
+      gap: 8,
+      buttons: [
+        switchButton,
+        {
+          tile: "ui-button-message:0",
+          width: 32,
+          height: 32,
+          label: {
+            text: "Mail",
+            labelOffset: ex.vec(0, -1),
+            bordered: false,
+          },
+          onPressed: () => console.log("messages"),
+        },
+        {
+          tile: "ui-button-items:0",
+          width: 32,
+          height: 32,
+          label: { text: "Items", labelOffset: ex.vec(0, -1), bordered: false },
+          onPressed: () => console.log("items"),
+        },
+      ],
+    });
+    return { topRight, bottomRight };
   }
 }

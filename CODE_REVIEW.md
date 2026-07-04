@@ -306,7 +306,7 @@ server-time-offset handshake so clients never trust `Date.now()`.
 
 ### 4.1 Deduplicate HUD group definitions between scenes
 
-- [ ] Extract a shared `addCommonHud()` helper
+- [x] Extract a shared `addCommonHud()` helper
 
 **Evidence:** `MapLevel.onInitialize` and `ShipLevel.onInitialize` define nearly
 identical Shop/Events (top-right) and Mail/Items (bottom-right) groups; only the
