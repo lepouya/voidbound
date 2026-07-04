@@ -77,7 +77,7 @@ CLAUDE.md and `/add-game-event`.
 
 ### 1.4 World-space action buttons fire on `pointerdown` instead of confirmed tap
 
-- [ ] Make TileActor arc buttons fire on tap confirmation (pointer-up, no drag)
+- [x] Make TileActor arc buttons fire on tap confirmation (pointer-up, no drag)
 
 **Evidence:** `src/tile-actor.ts` (~line 413) fires `btn.onPressed()` inside
 `pointerdown`. Starting a drag-to-pan with a finger on a visible button triggers
@@ -93,9 +93,9 @@ actor's `pendingButton` before other handling and fires it there; any drag
 
 ### 1.5 Forgetting `suppressNextPointerUp` in a button handler deselects the actor
 
-- [ ] Auto-suppress the pointer-up after any world-button press (framework
+- [x] Auto-suppress the pointer-up after any world-button press (framework
       level, not per-handler)
-- [ ] Fix ordering: check `suppressNextPointerUp` before polling HUD handles
+- [x] Fix ordering: check `suppressNextPointerUp` before polling HUD handles
 
 **Evidence:** pressing e.g. the mothership's "Details" button (handler is a bare
 `console.log`) ends with `handleTap` → no `pendingActor` → `handleEmptyTap` →
@@ -295,7 +295,7 @@ server-time-offset handshake so clients never trust `Date.now()`.
 
 - [x] Canonical animated sheet spec: 6\*6 grid, 32 frames @ 66 ms (after 1.1)
 - [ ] Note that generated files under `src/assets/` are fmt-excluded (after 1.9)
-- [ ] Updated input-model rules once 1.4/1.5 land (auto-suppression replaces
+- [x] Updated input-model rules once 1.4/1.5 land (auto-suppression replaces
       per-handler `suppressNextPointerUp` boilerplate)
 - [ ] Map JSON changes need a Rust rebuild in dev (mirror of 2.4)
 

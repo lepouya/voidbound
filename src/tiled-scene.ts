@@ -20,8 +20,9 @@ export abstract class TiledScene extends ex.Scene {
   private lastScreenPos: ex.Vector | null = null;
   private selectedActor: TileActor | null = null;
   protected pendingActor: TileActor | null = null;
-  // Set by subclasses to skip selection logic on the next pointer-up (e.g.
-  // when a button action has already handled the interaction).
+  // Escape hatch for subclasses: skip all tap handling on the next pointer-up.
+  // World-space button presses are consumed automatically (see handleTap), so
+  // button handlers do NOT need to set this.
   protected suppressNextPointerUp = false;
   private emptyTileActor: TileActor | null = null;
   private pinchDistance: number | null = null;
@@ -138,6 +139,9 @@ export abstract class TiledScene extends ex.Scene {
     this.lastScreenPos = null;
     this.pinchDistance = null;
     this.suppressNextPointerUp = false;
+    // Discard any button press that never got tap confirmation (e.g. the
+    // press turned into a drag, or the pointer was cancelled).
+    this.selectedActor?.takePendingButton();
   }
 
   protected deselectActor(): void {
@@ -229,17 +233,26 @@ export abstract class TiledScene extends ex.Scene {
   }
 
   /**
-   * Dispatches a confirmed tap (no drag) to the appropriate handler.
-   * HUD buttons take priority; then actor-tap or empty-tile-tap.
+   * Dispatches a confirmed tap (no drag) to the appropriate handler, in
+   * priority order: the `suppressNextPointerUp` escape hatch, world-space
+   * action buttons (recorded on pointer-down, fired here on confirmation),
+   * HUD buttons, then actor-tap or empty-tile-tap.
    * `suppressNextPointerUp` is cleared by the subsequent resetPointerState().
    */
   private handleTap(screenPos: ex.Vector): void {
-    // HUD buttons take priority — actor-level pointer events on ScreenElements
-    // are unreliable, so we poll handles manually.
+    if (this.suppressNextPointerUp) return;
+    // A world-button press consumes the whole tap, so handlers never need to
+    // suppress the pointer-up themselves.
+    const pendingButton = this.selectedActor?.takePendingButton();
+    if (pendingButton) {
+      pendingButton.onPressed();
+      return;
+    }
+    // Actor-level pointer events on ScreenElements are unreliable, so HUD
+    // clicks are dispatched by polling the handles manually.
     for (const handle of this.hudHandles) {
       if (handle.tryPointerUp(screenPos)) return;
     }
-    if (this.suppressNextPointerUp) return;
     if (this.pendingActor) {
       this.handleActorTap(this.pendingActor);
     } else {

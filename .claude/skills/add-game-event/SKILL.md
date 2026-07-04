@@ -113,7 +113,6 @@ private dispatchVessel(destCol: number, destRow: number): void {
 
   // UI housekeeping — local only, NOT in applyVesselMoveEvent:
   this.deselectActor();
-  this.suppressNextPointerUp = true;
 }
 ```
 

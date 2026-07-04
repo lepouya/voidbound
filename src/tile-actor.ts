@@ -73,6 +73,9 @@ export class TileActor extends ex.Actor {
   // Set by a button child's pointerdown to prevent the parent from treating
   // the same press as a tap on the actor body.
   private suppressNextPress = false;
+  // Button pressed during the current tap. Fired by TiledScene on tap
+  // confirmation (pointer-up without drag) via takePendingButton().
+  private pendingButton: ButtonDef | null = null;
   // select() called before onInitialize sets this flag; onInitialize applies it.
   private pendingSelect = false;
   // Child actors that must stay upright (zero screen rotation) at a fixed
@@ -171,7 +174,20 @@ export class TileActor extends ex.Actor {
   deselect(): void {
     this.pendingSelect = false;
     this.suppressNextPress = false;
+    this.pendingButton = null;
     this.setSelectionVisible(false);
+  }
+
+  /**
+   * Returns and clears the action button pressed during the current tap, if
+   * any. TiledScene calls this on tap confirmation (pointer-up without drag)
+   * to fire the button, and on pointer reset to discard a press that turned
+   * into a drag.
+   */
+  takePendingButton(): ButtonDef | null {
+    const btn = this.pendingButton;
+    this.pendingButton = null;
+    return btn;
   }
 
   /**
@@ -414,7 +430,9 @@ export class TileActor extends ex.Actor {
         if (!btnActor.graphics.isVisible) return;
         if (btn.disabled) return;
         this.suppressNextPress = true;
-        btn.onPressed();
+        // Defer firing to the scene's tap confirmation so starting a
+        // drag-to-pan on a visible button doesn't trigger its action.
+        this.pendingButton = btn;
       });
       this.addChild(btnActor);
       this.selectionVisuals.push(btnActor);

@@ -273,7 +273,6 @@ export class MapLevel extends TiledScene {
     };
     this.applyVesselMoveEvent(event);
     this.deselectActor(); // clear the destination empty tile actor
-    this.suppressNextPointerUp = true; // prevent onP1Up from re-creating it
   }
 
   /** True if (col, row) is one of the mothership's inner 2*2 docking tiles. */

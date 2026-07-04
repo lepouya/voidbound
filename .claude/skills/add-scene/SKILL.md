@@ -75,8 +75,11 @@ export class <Name>Level extends TiledScene {
   `onPressed: onTilePressed` and
   `edgeFallthrough: this.supportsEmptyTileActor()` so taps route correctly
   through the base-class selection flow.
-- If you need post-action cleanup (e.g. after a button handler runs), set
-  `this.suppressNextPointerUp = true` and call `this.deselectActor()`.
+- Button presses are consumed by the tap flow automatically — button handlers
+  never need to set `suppressNextPointerUp`. Call `this.deselectActor()` in a
+  handler if the action should clear the current selection.
+  `suppressNextPointerUp = true` remains as an escape hatch for interactions
+  handled outside the button flow.
 - To give an actor a custom selection ring, pass `selection: "ui-selection-2"`
   (or any other `ui-selection*` tileset) in its `TileActorOptions`. Default is
   `ui-selection`. See `ShipLevel.commandModule` for an example.

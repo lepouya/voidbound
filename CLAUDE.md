@@ -89,8 +89,10 @@ networked code paths stay identical. Canonical example: `VesselMoveEvent` /
 - Drag-to-pan, pinch/scroll-to-zoom, camera clamped to map bounds
 - Tap-to-select via `pendingActor` (set on pointerdown, committed on pointerup)
   — distinguishes taps from drags
-- `suppressNextPointerUp = true` after a button click that already handled the
-  interaction, so the parent scene doesn't also react
+- Action buttons (world-space and HUD) fire on confirmed tap (pointer-up, no
+  drag), and a world-button press consumes the whole tap automatically — button
+  handlers never need to set any flag. `suppressNextPointerUp = true` remains as
+  an escape hatch for interactions handled outside the button flow
 - Empty tile actor system — subclasses override `createEmptyTileActor()` to
   spawn an invisible actor with action buttons when the player taps empty space
   (see `MapLevel` for the canonical Move/Deploy use)
