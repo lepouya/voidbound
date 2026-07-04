@@ -1,15 +1,21 @@
 {
   "permissions": {
     "allow": [
+      "WebFetch",
+      "WebSearch",
       "Edit(/.claude/**)",
+      "Edit(/.claude/skills/**)",
       "Bash(deno task:*)",
       "Bash(deno check:*)",
       "Bash(deno fmt:*)",
       "Bash(deno install)",
+      "Bash(deno --version)",
       "Bash(cargo check:*)",
       "Bash(cargo build:*)",
       "Bash(cargo fmt:*)",
       "Bash(cargo clippy:*)",
+      "Bash(cargo update:*)",
+      "Bash(cargo --version)",
       "Bash(git status)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -22,16 +28,14 @@
       "Bash(gh issue list:*)",
       "Bash(gh run view:*)",
       "Bash(gh run list:*)",
-      "Bash(ls:*)",
       "Bash(pwd)",
+      "Bash(ls:*)",
       "Bash(file:*)",
       "Bash(wc:*)",
       "Bash(stat:*)",
+      "Bash(echo:*)",
       "Bash(python3 tools/*)",
-      "Bash(art/gen_*.sh)",
-      "WebFetch",
-      "WebSearch",
-      "Edit(/.claude/skills/**)"
+      "Bash(art/gen_*.sh)"
     ]
   }
 }
