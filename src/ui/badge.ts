@@ -71,8 +71,9 @@ export function makeBadgeActor(
   if (typeof badge === "object" && "tile" in badge) {
     const base = parseTileRef(badge.tile);
     const size = badge.size ?? DEFAULT_BADGE_SIZE;
-    // Clone only plain Sprites to avoid mutating the shared cached instance.
-    // Animations and GraphicsGroups (multi-layer tiles) are used as-is.
+    // Clone only plain Sprites — they are shared cached instances. Animations
+    // and GraphicsGroups (multi-layer tiles) are constructed fresh per call,
+    // so they are safe to mutate.
     const g = base instanceof ex.Sprite ? base.clone() : base;
     g.scale = ex.vec(size / base.width, size / base.height);
     const actor = new ex.Actor({ pos, anchor: ex.vec(hFrac, vFrac), scale });

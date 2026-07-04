@@ -44,9 +44,9 @@ game:
 
 - Research Lab: The center for technological advancement. Spend resources here
   to unlock new module blueprints, improve vessel stats, or increase efficiency.
-- Fabrication Bay: Faster module construction, lower resource requirments.
-- Assembly Line: Faster weapon construction, lower resource requirments.
-- Data Archive: Faster researches, lower resource reqs.
+- Fabrication Bay: Faster module construction, lower resource requirements.
+- Assembly Line: Faster weapon construction, lower resource requirements.
+- Data Archive: Faster researches, lower resource requirements.
 
 ### Combat
 

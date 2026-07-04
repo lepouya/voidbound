@@ -42,7 +42,8 @@ export interface ButtonDef {
  * disabled/active state. The graphic is pre-scaled to exactly w×h pixels.
  *
  * Sprites are cloned before scaling so the shared cached instance is not
- * mutated. Animations are used as-is (their scale property is instance-level).
+ * mutated. Animations are constructed fresh per getGraphic call, so scaling
+ * them in-place is safe.
  * When no tile is available a semi-transparent placeholder rectangle is used.
  *
  * Returns the ready-to-use graphic and the target opacity (0.5 when disabled
@@ -63,8 +64,9 @@ export function makeButtonGraphic(
   let graphic: ex.Graphic;
   if (tileRef) {
     const base = parseTileRef(tileRef);
-    // Clone only plain Sprites to avoid mutating the shared cached instance.
-    // Animations and GraphicsGroups (multi-layer tiles) are used as-is.
+    // Clone only plain Sprites — they are shared cached instances. Animations
+    // and GraphicsGroups (multi-layer tiles) are constructed fresh per call,
+    // so they are safe to mutate.
     const g = base instanceof ex.Sprite ? base.clone() : base;
     g.scale = ex.vec(w / base.width, h / base.height);
     graphic = g;

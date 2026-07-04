@@ -17,9 +17,9 @@ interface TileMapData {
  *
  * Sprites are cloned before scaling to avoid mutating the shared registry
  * instance (which would affect every other consumer of that sprite).
- * GraphicsGroups are created fresh by parseTileRef so they are safe to
- * mutate in-place. Animations share a cached instance — scaling them here
- * mutates the shared object and affects all other consumers of that animation.
+ * GraphicsGroups are created fresh by parseTileRef and Animations are
+ * constructed fresh by every getGraphic call, so both are safe to scale
+ * in-place.
  */
 function fitToTile(
   graphic: ex.Graphic,

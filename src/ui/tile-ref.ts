@@ -76,10 +76,11 @@ function parseSegment(segment: string): ex.Graphic {
  * declared on a TileLayerDef. Comma-separated string refs produce a
  * GraphicsGroup with one member per segment.
  *
- * Note: Sprites are cloned before effects are applied to avoid mutating the
- * shared cached instance. Animations are used as-is (same as existing
- * makeButtonGraphic behavior); effects on animations mutate the shared
- * instance — a known limitation.
+ * Note: Sprites are cloned before effects are applied — the registry hands
+ * out shared spritesheet instances. Animations are constructed fresh by every
+ * getGraphic call, so per-instance effects are safe; the flip side is that
+ * each consumer runs its own animation timer, so separate instances are not
+ * frame-synchronized.
  *
  * The `offset` and `blendMode` fields of TileLayerDef are NOT handled here;
  * use resolveGraphicLayers() when those are needed.

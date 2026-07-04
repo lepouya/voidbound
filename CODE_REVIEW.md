@@ -208,7 +208,7 @@ commit the stable representation.
 
 ### 2.1 The "Animations mutate the shared cached instance" caveat is wrong
 
-- [ ] Correct the caveat everywhere it appears
+- [x] Correct the caveat everywhere it appears
 
 **Evidence:** `TilesetRegistry.getGraphic` constructs a **fresh** `ex.Animation`
 on every call (`src/resources.ts` ~line 162). Verified against Excalibur 0.32
@@ -236,7 +236,7 @@ each has its own timer — document that instead, it's the actual gotcha.
 
 ### 2.3 CLAUDE.md claims web browser support that can't work today
 
-- [ ] Reword the Platform line or plan the web fallback
+- [x] Reword the Platform line or plan the web fallback
 
 **Evidence:** CLAUDE.md says "Platform: Tauri desktop + web browser", but all
 map data flows through Tauri IPC (`invoke("generate_map")`). A pure web build
@@ -248,7 +248,7 @@ fetch-based map source behind the same `buildTileMap` signature.
 
 ### 2.4 `/gen-art` skill: HMR claim is false for the embedded map JSON
 
-- [ ] Add an explicit note about `include_str!` + cargo rebuild
+- [x] Add an explicit note about `include_str!` + cargo rebuild
 
 **Evidence:** the skill's checklist says Vite HMR picks up regenerated assets.
 True for PNGs; false for `src/assets/ship-level.json`, which is embedded into
@@ -261,7 +261,7 @@ hot-reload via Vite; `ship-level.json` is embedded in Rust — restart `tauri de
 
 ### 2.5 README typos
 
-- [ ] Fix "requirments" → "requirements" (Fabrication Bay, Assembly Line) and
+- [x] Fix "requirments" → "requirements" (Fabrication Bay, Assembly Line) and
       "resource reqs" → "resource requirements" (Data Archive)
 
 ---
@@ -297,7 +297,7 @@ server-time-offset handshake so clients never trust `Date.now()`.
 - [x] Note that generated files under `src/assets/` are fmt-excluded (after 1.9)
 - [x] Updated input-model rules once 1.4/1.5 land (auto-suppression replaces
       per-handler `suppressNextPointerUp` boilerplate)
-- [ ] Map JSON changes need a Rust rebuild in dev (mirror of 2.4)
+- [x] Map JSON changes need a Rust rebuild in dev (mirror of 2.4)
 
 ---
 

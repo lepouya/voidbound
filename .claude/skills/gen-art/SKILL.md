@@ -84,8 +84,11 @@ px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at
 ## Checklist after regenerating
 
 - [ ] New/updated files are in `src/assets/` (not committed to `art/`).
-- [ ] If the dev server is running, Vite HMR should pick up the change. Force a
-      browser reload if you don't see it.
+- [ ] If the dev server is running, Vite HMR picks up regenerated **PNGs**
+      (force a browser reload if you don't see it). Map JSON like
+      `ship-level.json` is embedded in the Rust binary via `include_str!` and
+      only refreshes on a cargo rebuild — restart `deno task tauri dev` to see
+      map changes.
 - [ ] For new tilesets not matching an auto-register pattern, also run
       `/add-tileset`.
 - [ ] For Tiled map changes feeding a scene, ensure the Rust `generate_map` arm

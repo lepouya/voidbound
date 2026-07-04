@@ -9,7 +9,9 @@ Voidbound is a mobile-first MMORTS set in space. Players colonize a star system,
 build and upgrade a mothership (primary base), gather resources, and form
 alliances. See `README.md` for full game design.
 
-- **Platform:** Tauri desktop + web browser, portrait 390*844
+- **Platform:** Tauri desktop, portrait 390*844. Web browser is planned but not
+  functional yet — all map data flows over Tauri IPC, so a pure web build needs
+  an HTTP fallback for `generate_map` first.
 - **Frontend:** TypeScript + [Excalibur.js v0.32](https://excaliburjs.com/docs/)
   (`FitScreenAndFill`, `pixelArt: true`)
 - **Backend:** Rust + [Tauri v2](https://tauri.app/v2/develop/). Only plugin in
@@ -121,6 +123,9 @@ you have a specific layering need.
 - Generated files under `src/assets/` are excluded from `deno fmt`
   (`fmt.exclude` in `deno.json`) so regen + fmt cycles stay diff-free — commit
   them in the compact form the pipeline writes.
+- In dev, regenerated PNGs hot-reload via Vite, but map JSON (e.g.
+  `ship-level.json`) is embedded in the Rust binary via `include_str!` — map
+  changes need a cargo rebuild (restart `deno task tauri dev`).
 - Use the `/gen-art` skill to run or create a pipeline script, and
   `/add-tileset` to register a new PNG as a tileset.
 
@@ -178,8 +183,10 @@ On **animated** tilesets, `tileId=0` returns the full looping `ex.Animation`;
 non-zero returns the individual frame sprite. On **static** tilesets, `tileId`
 is the grid index.
 
-**Caveat:** effects on `Animation` graphics mutate the shared cached instance.
-Effects on `Sprite` graphics are applied to a clone.
+**Caveat:** `Sprite` graphics are shared spritesheet instances (effects are
+applied to a clone). `Animation` graphics are constructed fresh on every
+`getGraphic` call, so per-instance effects are safe — but each consumer runs its
+own animation timer, so separate instances are **not frame-synchronized**.
 
 ### `TileActor`
 
