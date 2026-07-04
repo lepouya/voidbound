@@ -330,7 +330,7 @@ then pass plain strings.
 
 ### 4.3 Collapse the Rust rect table
 
-- [ ] Replace 170 lines of `Rect` struct literals in `src-tauri/src/lib.rs` with
+- [x] Replace 170 lines of `Rect` struct literals in `src-tauri/src/lib.rs` with
       a `Rect::new(x, y, w, h, tile)` constructor or a
       `[(u32, u32, u32, u32, &str); N]` table + map
 

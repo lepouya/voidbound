@@ -9,202 +9,49 @@ pub struct TileMapData {
     pub tiles: Vec<String>,
 }
 
-struct Rect {
-    x: u32,
-    y: u32,
-    w: u32,
-    h: u32,
-    tile: &'static str,
-}
-
 fn generate_space_map() -> TileMapData {
     const COLS: u32 = 100;
     const ROWS: u32 = 100;
     // Tile IDs within test-tileset: 0 = gray (background), 1 = blue, 2 = red, 3 = green
-    let rects = [
-        Rect {
-            x: 2,
-            y: 2,
-            w: 12,
-            h: 12,
-            tile: "test-tileset:1",
-        },
-        Rect {
-            x: 20,
-            y: 5,
-            w: 8,
-            h: 8,
-            tile: "test-tileset:2",
-        },
-        Rect {
-            x: 35,
-            y: 2,
-            w: 15,
-            h: 10,
-            tile: "test-tileset:3",
-        },
-        Rect {
-            x: 60,
-            y: 3,
-            w: 10,
-            h: 10,
-            tile: "test-tileset:1",
-        },
-        Rect {
-            x: 80,
-            y: 1,
-            w: 18,
-            h: 14,
-            tile: "test-tileset:2",
-        },
-        Rect {
-            x: 5,
-            y: 20,
-            w: 10,
-            h: 15,
-            tile: "test-tileset:3",
-        },
-        Rect {
-            x: 25,
-            y: 22,
-            w: 20,
-            h: 6,
-            tile: "test-tileset:1",
-        },
-        Rect {
-            x: 50,
-            y: 18,
-            w: 12,
-            h: 12,
-            tile: "test-tileset:2",
-        },
-        Rect {
-            x: 70,
-            y: 20,
-            w: 8,
-            h: 20,
-            tile: "test-tileset:3",
-        },
-        Rect {
-            x: 85,
-            y: 25,
-            w: 14,
-            h: 10,
-            tile: "test-tileset:1",
-        },
-        Rect {
-            x: 10,
-            y: 40,
-            w: 18,
-            h: 8,
-            tile: "test-tileset:2",
-        },
-        Rect {
-            x: 35,
-            y: 38,
-            w: 10,
-            h: 10,
-            tile: "test-tileset:3",
-        },
-        Rect {
-            x: 55,
-            y: 42,
-            w: 14,
-            h: 14,
-            tile: "test-tileset:1",
-        },
-        Rect {
-            x: 78,
-            y: 45,
-            w: 20,
-            h: 8,
-            tile: "test-tileset:2",
-        },
-        Rect {
-            x: 3,
-            y: 55,
-            w: 8,
-            h: 16,
-            tile: "test-tileset:1",
-        },
-        Rect {
-            x: 20,
-            y: 58,
-            w: 12,
-            h: 12,
-            tile: "test-tileset:3",
-        },
-        Rect {
-            x: 40,
-            y: 55,
-            w: 16,
-            h: 10,
-            tile: "test-tileset:2",
-        },
-        Rect {
-            x: 65,
-            y: 60,
-            w: 10,
-            h: 10,
-            tile: "test-tileset:3",
-        },
-        Rect {
-            x: 82,
-            y: 58,
-            w: 16,
-            h: 16,
-            tile: "test-tileset:1",
-        },
-        Rect {
-            x: 8,
-            y: 78,
-            w: 14,
-            h: 12,
-            tile: "test-tileset:3",
-        },
-        Rect {
-            x: 30,
-            y: 75,
-            w: 10,
-            h: 18,
-            tile: "test-tileset:1",
-        },
-        Rect {
-            x: 50,
-            y: 80,
-            w: 18,
-            h: 8,
-            tile: "test-tileset:2",
-        },
-        Rect {
-            x: 75,
-            y: 78,
-            w: 12,
-            h: 12,
-            tile: "test-tileset:3",
-        },
-        Rect {
-            x: 90,
-            y: 82,
-            w: 8,
-            h: 16,
-            tile: "test-tileset:2",
-        },
+    // Rects as (x, y, w, h, tile).
+    #[rustfmt::skip]
+    let rects: [(u32, u32, u32, u32, &str); 24] = [
+        (2, 2, 12, 12, "test-tileset:1"),
+        (20, 5, 8, 8, "test-tileset:2"),
+        (35, 2, 15, 10, "test-tileset:3"),
+        (60, 3, 10, 10, "test-tileset:1"),
+        (80, 1, 18, 14, "test-tileset:2"),
+        (5, 20, 10, 15, "test-tileset:3"),
+        (25, 22, 20, 6, "test-tileset:1"),
+        (50, 18, 12, 12, "test-tileset:2"),
+        (70, 20, 8, 20, "test-tileset:3"),
+        (85, 25, 14, 10, "test-tileset:1"),
+        (10, 40, 18, 8, "test-tileset:2"),
+        (35, 38, 10, 10, "test-tileset:3"),
+        (55, 42, 14, 14, "test-tileset:1"),
+        (78, 45, 20, 8, "test-tileset:2"),
+        (3, 55, 8, 16, "test-tileset:1"),
+        (20, 58, 12, 12, "test-tileset:3"),
+        (40, 55, 16, 10, "test-tileset:2"),
+        (65, 60, 10, 10, "test-tileset:3"),
+        (82, 58, 16, 16, "test-tileset:1"),
+        (8, 78, 14, 12, "test-tileset:3"),
+        (30, 75, 10, 18, "test-tileset:1"),
+        (50, 80, 18, 8, "test-tileset:2"),
+        (75, 78, 12, 12, "test-tileset:3"),
+        (90, 82, 8, 16, "test-tileset:2"),
     ];
 
     let mut tiles = vec!["test-tileset:0".to_string(); (COLS * ROWS) as usize];
 
-    for rect in &rects {
-        for ry in rect.y..rect.y + rect.h {
-            for rx in rect.x..rect.x + rect.w {
+    for &(x, y, w, h, tile) in &rects {
+        for ry in y..y + h {
+            for rx in x..x + w {
                 if rx < COLS && ry < ROWS {
-                    let is_border = ry == rect.y
-                        || ry == rect.y + rect.h - 1
-                        || rx == rect.x
-                        || rx == rect.x + rect.w - 1;
+                    let is_border = ry == y || ry == y + h - 1 || rx == x || rx == x + w - 1;
 
                     if is_border {
-                        tiles[(ry * COLS + rx) as usize] = rect.tile.to_string();
+                        tiles[(ry * COLS + rx) as usize] = tile.to_string();
                     }
                 }
             }
