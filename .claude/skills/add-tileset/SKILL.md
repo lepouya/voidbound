@@ -44,26 +44,27 @@ If the filename matches one of these patterns, you're **done** after step 1 —
 So `src/assets/ui-button-trade.png` immediately becomes usable as the `TileRef`
 `"ui-button-trade:0"` (etc.) with no edit to `resources.ts`.
 
-## 4. Otherwise, add a row to `TILESET_DEFS`
+## 4. Otherwise, add a row to `TILESET_GEOMETRY`
 
-Open `src/resources.ts` and add one line to the `TILESET_DEFS` array using
-`sd(...)` for static or `ad(...)` for animated:
+Open `src/tileset-geometry.ts` (pure data — no imports) and add one row to the
+`TILESET_GEOMETRY` array. A row with `frames` is animated; without, static:
 
 ```ts
-// static: sd(name, src, cols, rows, tileSize)
-sd("my-atlas", png("my-atlas"), 4, 4, 32),
+// static: sheet of independent sprites
+{ name: "my-atlas", cols: 4, rows: 4, tileSize: 32 },
 
-// animated: ad(name, src, cols, rows, tileSize, frames, frameDuration)
-ad("my-fx", png("my-fx"), 6, 6, 128, 32, 66),
+// animated: prefer the canonical 6*6 / 32 frames @ 66 ms spec
+{ name: "my-fx", tileSize: 128, ...CANONICAL_ANIM },
 ```
 
 **Important:**
 
-- Always wrap the path with `png("name")` — this is the local helper that
-  resolves a Vite-glob asset URL and throws at startup if the PNG is missing.
-  **Never import PNGs directly.**
-- The `name` field is the key used in every `TileRef` referring to this tileset.
-  Pick a stable, lowercase-kebab name.
+- `name` must exactly match the PNG path under `src/assets/` without the
+  extension — `src/resources.ts` resolves the asset URL from it (via the `png()`
+  helper, which throws at startup if the file is missing). **Never import PNGs
+  directly.**
+- `name` is also the key used in every `TileRef` referring to this tileset. Pick
+  a stable, lowercase-kebab name.
 
 ## 5. Use it
 
@@ -81,8 +82,11 @@ object form `TileLayerDef` instead of the string form. See `src/ui/tile-ref.ts`.
 
 ## 6. Finalize
 
-Run `deno task fmt` per `CLAUDE.md`. If the scene using the new tileset is
-running, the Vite dev server will hot-reload — no manual rebuild needed.
+Run `deno task fmt` per `CLAUDE.md`, then `deno task test` — the test suite
+cross-checks every PNG's real dimensions against the catalog (and fails on any
+unregistered PNG), so it immediately catches a wrong `cols`/`rows`/`tileSize`.
+If the scene using the new tileset is running, the Vite dev server will
+hot-reload — no manual rebuild needed.
 
 ## Troubleshooting
 
@@ -90,7 +94,7 @@ running, the Vite dev server will hot-reload — no manual rebuild needed.
   doesn't match a file under `src/assets/` (without extension). Check spelling
   and subdirectory.
 - **`Tileset not found: "..."`** at runtime — the `TileRef` name doesn't match
-  any entry in `TILESET_DEFS`. Make sure step 4 was done, or that the filename
-  matches an auto-register pattern from step 3.
+  any entry in `TILESET_GEOMETRY`. Make sure step 4 was done, or that the
+  filename matches an auto-register pattern from step 3.
 - **Sprite appears rotated** — your source art probably doesn't face upward at
   frame 0. Re-author or re-run the art pipeline with a fix.

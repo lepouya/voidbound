@@ -1,6 +1,13 @@
 /// <reference types="vite/client" />
 import * as ex from "excalibur";
 
+import {
+  AUTO_TILESET_RULES,
+  AutoTilesetRule,
+  TILESET_GEOMETRY,
+  TilesetGridGeometry,
+} from "./tileset-geometry";
+
 // All PNG assets under src/assets/, including any future subdirectories.
 // Keys are paths relative to this file, e.g. "./assets/cs1-base.png" or
 // "./assets/weapons/sword.png". Values are Vite-resolved URLs.
@@ -32,8 +39,10 @@ const png = (name: string): string => {
 //              sheet. TileRef "name:0" returns the Animation; "name:N" (N > 0)
 //              returns the individual frame sprite at index N.
 //
-// To add a new non-button tileset: drop the PNG in src/assets/ and add a row
-// to TILESET_DEFS below — no import statement needed.
+// The catalog itself (grid geometry per tileset + auto-register rules) lives
+// in src/tileset-geometry.ts as pure data. To add a new tileset: drop the PNG
+// in src/assets/ and add a row (or match an auto-register prefix) there — no
+// import statement needed.
 
 type StaticDef = {
   kind: "static";
@@ -59,70 +68,45 @@ type AnimatedDef = {
 
 type TilesetDef = StaticDef | AnimatedDef;
 
-// Shorthand constructors keep the catalog rows concise.
-const sd = (
+// Build a TilesetDef from catalog geometry + a resolved asset URL.
+// A row with `frames` is animated; one without is static.
+const defFrom = (
   name: string,
   src: string,
-  cols: number,
-  rows: number,
-  tileSize: number,
-): StaticDef => ({ kind: "static", name, src, cols, rows, tileSize });
+  g: TilesetGridGeometry,
+): TilesetDef =>
+  g.frames != null
+    ? {
+      kind: "animated",
+      name,
+      src,
+      cols: g.cols,
+      rows: g.rows,
+      tileSize: g.tileSize,
+      frames: g.frames,
+      frameDuration: g.frameDuration ?? 66,
+    }
+    : {
+      kind: "static",
+      name,
+      src,
+      cols: g.cols,
+      rows: g.rows,
+      tileSize: g.tileSize,
+    };
 
-const ad = (
-  name: string,
-  src: string,
-  cols: number,
-  rows: number,
-  tileSize: number,
-  frames: number,
-  frameDuration: number,
-): AnimatedDef => ({
-  kind: "animated",
-  name,
-  src,
-  cols,
-  rows,
-  tileSize,
-  frames,
-  frameDuration,
-});
-
-// Auto-register every PNG under assets/ whose filename starts with `prefix`,
-// building its def from the derived name and Vite-resolved URL.
-const autoRegister = (
-  prefix: string,
-  makeDef: (name: string, src: string) => TilesetDef,
-): TilesetDef[] =>
+// Auto-register every PNG under assets/ whose filename starts with the rule's
+// prefix, deriving the tileset name from the path and the shape from the rule.
+const autoRegister = (rule: AutoTilesetRule): TilesetDef[] =>
   Object.entries(allPngs)
-    .filter(([path]) => path.split("/").pop()?.startsWith(prefix) ?? false)
+    .filter(([path]) => path.split("/").pop()?.startsWith(rule.prefix) ?? false)
     .map(([path, src]) =>
-      makeDef(path.replace("./assets/", "").replace(".png", ""), src)
+      defFrom(path.replace("./assets/", "").replace(".png", ""), src, rule)
     );
 
-// Button tilesets: 3*2 grid, 64 px cells, static.
-const buttonDefs = autoRegister(
-  "ui-button-",
-  (name, src) => sd(name, src, 3, 2, 64),
-);
-
-// Module tilesets: 6*6 grid, 256 px cells, animated (32 frames, 66 ms/frame).
-const moduleDefs = autoRegister(
-  "module-",
-  (name, src) => ad(name, src, 6, 6, 256, 32, 66),
-);
-
-//                  name             cols rows  sz   frames ms/f
 const TILESET_DEFS: TilesetDef[] = [
-  sd("test-tileset", png("test-tileset"), 4, 1, 32),
-  sd("ship-tiles", png("ship-tiles"), 6, 6, 64),
-  ad("ui-selection", png("ui-selection"), 6, 6, 256, 32, 66),
-  ad("ui-selection-2", png("ui-selection-2"), 6, 6, 256, 32, 66),
-  ad("ss1-base", png("ss1-base"), 6, 6, 256, 32, 66),
-  ad("ss1-damaged", png("ss1-damaged"), 6, 6, 256, 32, 66),
-  ad("cs1-base", png("cs1-base"), 6, 6, 64, 32, 66),
-  ad("cs1-moving", png("cs1-moving"), 6, 6, 64, 32, 66),
-  ...buttonDefs,
-  ...moduleDefs,
+  ...TILESET_GEOMETRY.map((g) => defFrom(g.name, png(g.name), g)),
+  ...AUTO_TILESET_RULES.flatMap(autoRegister),
 ];
 
 // -- TilesetRegistry -----------------------------------------------------------

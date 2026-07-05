@@ -343,19 +343,24 @@ copy-paste twins.
 
 ### 4.5 Add a minimal test suite + CI
 
-- [ ] `deno test` for pure logic: `parseTileRef`, `resolveGraphicLayers`,
-      `anchorFractions`, HUD layout math (`anchorLayout` / stacking),
-      `closestDockTile`
-- [ ] Python: a small test for `tmj_to_tilemap.py` (fixture .tmj → expected
-      JSON)
-- [ ] CI workflow: `deno fmt --check`, `deno check src/**/*.ts`, `cargo check`
-      (and `cargo fmt --check`)
-- [ ] Add a LICENSE file (repo currently has none)
+- [x] `deno test` for pure logic: `anchorFractions` + the PNG-geometry
+      cross-check (see note below). `parseTileRef` / `resolveGraphicLayers` /
+      HUD layout / `closestDockTile` are not covered — their import chains pull
+      in `import.meta.glob` (Vite-only) and Excalibur, which don't load under
+      plain `deno test`; would need a registry-injection refactor first.
+- [x] Python: a small test for `tmj_to_tilemap.py` (fixture .tmj → expected
+      JSON) — `tools/test_tmj_to_tilemap.py`
+- [x] CI workflow: `deno fmt --check`, `deno task check`, `deno task test`,
+      Python tests, `cargo fmt --check` + `cargo check`
+      (`.github/workflows/ci.yml`)
+- [ ] Add a LICENSE file (repo currently has none — license choice is the
+      owner's call)
 
 **Note:** the registry/asset mismatch in 1.1 is exactly the class of drift a
-tiny "PNG dimensions match TILESET_DEFS" test would catch — worth writing as a
-`deno test` that reads PNG headers (width/height are in the IHDR chunk, no image
-lib needed) and cross-checks `cols*tileSize` / `rows*tileSize`.
+tiny "PNG dimensions match TILESET_DEFS" test would catch — implemented as
+`tests/tileset_geometry_test.ts`, which reads PNG IHDR headers and cross-checks
+`cols*tileSize` / `rows*tileSize` against `src/tileset-geometry.ts` (the grid
+catalog, extracted to a pure-data module so tests can import it without Vite).
 
 ---
 

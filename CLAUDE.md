@@ -22,8 +22,12 @@ alliances. See `README.md` for full game design.
 - **Bundler:** Vite. `vite.config.ts` sets `assetsInlineLimit: 0` — required so
   Excalibur can load image assets in production builds. HMR on port 1421 when
   running under Tauri dev.
-- **Testing:** There is no test suite. Type checking (`deno check`) and the
-  running app are the only safety nets — keep both passing.
+- **Testing:** `deno task test` runs the pure-logic suite in `tests/` (anchor
+  math + a PNG-dimensions-vs-catalog cross-check);
+  `python3 -m unittest discover -s tools` covers the art-pipeline converter. CI
+  (`.github/workflows/ci.yml`) runs fmt/type/test/cargo checks on push and PR.
+  There is no runtime/scene coverage — the running app is still the safety net
+  there.
 
 ## 2. Project Layout
 
@@ -35,12 +39,15 @@ src/                  # Frontend (TypeScript + Excalibur.js)
   ship-level.ts       # Mothership interior scene — game starts here
   tile-actor.ts       # Base class for all interactive entities
   map-loader.ts       # buildTileMap() via Tauri IPC
-  resources.ts        # TILESET_DEFS catalog + TilesetRegistry
+  resources.ts        # TilesetRegistry; builds defs from tileset-geometry.ts
+  tileset-geometry.ts # Pure-data tileset catalog (grid geometry + auto-rules)
   ui/                 # UI module library (always import from "./ui" barrel)
   assets/             # PNG spritesheets + pre-converted map JSON
 
 src-tauri/            # Backend (Rust + Tauri)
   src/lib.rs          # #[tauri::command] definitions (generate_map, …)
+
+tests/                # deno test pure-logic suite (run: deno task test)
 
 art/                  # Source art (original PNGs, Tiled .tmj maps)
   gen_*.sh            # Art pipeline shell scripts → write to src/assets/

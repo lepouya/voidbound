@@ -1,0 +1,61 @@
+// Pure-data tileset catalog: grid geometry for every tileset in the game.
+//
+// This module has NO imports and NO side effects — it is consumed both by
+// src/resources.ts (which resolves asset URLs and builds SpriteSheets) and by
+// tests/tileset_geometry_test.ts (which cross-checks each PNG's real pixel
+// dimensions against these rows without needing Vite or Excalibur).
+//
+// To add a tileset: drop the PNG in src/assets/ and either match an
+// auto-register prefix in AUTO_TILESET_RULES or add a row to TILESET_GEOMETRY.
+// See the /add-tileset skill for the full checklist.
+
+/** Grid shape of a tileset sheet, without its name or asset URL. */
+export interface TilesetGridGeometry {
+  cols: number;
+  rows: number;
+  /** Square cell size in px. Sheet must be exactly cols*tileSize by rows*tileSize. */
+  tileSize: number;
+  /**
+   * Present → animated tileset using the first `frames` cells.
+   * Absent → static sheet of independent sprites.
+   */
+  frames?: number;
+  /** Duration of each animation frame in ms. Set together with `frames`. */
+  frameDuration?: number;
+}
+
+/** A named catalog row. `name` must match the PNG path under src/assets/ (sans .png). */
+export interface TilesetGeometry extends TilesetGridGeometry {
+  name: string;
+}
+
+/** Auto-registration rule: any PNG whose filename starts with `prefix` gets this shape. */
+export interface AutoTilesetRule extends TilesetGridGeometry {
+  prefix: string;
+}
+
+/** Canonical animated sheet spec (see CLAUDE.md): 6*6 grid, 32 frames @ 66 ms. */
+export const CANONICAL_ANIM = {
+  cols: 6,
+  rows: 6,
+  frames: 32,
+  frameDuration: 66,
+} as const;
+
+export const TILESET_GEOMETRY: TilesetGeometry[] = [
+  { name: "test-tileset", cols: 4, rows: 1, tileSize: 32 },
+  { name: "ship-tiles", cols: 6, rows: 6, tileSize: 64 },
+  { name: "ui-selection", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "ui-selection-2", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "ss1-base", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "ss1-damaged", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "cs1-base", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "cs1-moving", tileSize: 64, ...CANONICAL_ANIM },
+];
+
+export const AUTO_TILESET_RULES: AutoTilesetRule[] = [
+  // UI buttons: static 3*2 sheet.
+  { prefix: "ui-button-", cols: 3, rows: 2, tileSize: 64 },
+  // Mothership modules: canonical animated sheet.
+  { prefix: "module-", tileSize: 256, ...CANONICAL_ANIM },
+];

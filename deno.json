@@ -1,6 +1,8 @@
 {
   "tasks": {
-    "fmt": "deno fmt && deno check src/**/*.ts && cd src-tauri && cargo fmt"
+    "fmt": "deno fmt && deno task check && cd src-tauri && cargo fmt",
+    "check": "deno check src/**/*.ts tests/*.ts",
+    "test": "deno test --allow-read tests/"
   },
   "fmt": {
     "exclude": ["src/assets/"]
