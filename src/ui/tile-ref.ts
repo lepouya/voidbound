@@ -1,73 +1,23 @@
 import * as ex from "excalibur";
 
 import { Resources } from "../resources";
+import {
+  parseSegment,
+  splitRefLayers,
+  TileLayerDef,
+  TileRef,
+  visibleLayers,
+} from "./tile-ref-parse";
 
-/**
- * Object form of a tile reference with optional per-layer visual effects.
- * Use this when you need tint, opacity, rotation, flip, scale, or offset
- * on a specific layer. For simple cases, the string shorthand is preferred.
- */
-export interface TileLayerDef {
-  /** Tileset name only — no ":tile-id" suffix (use tileId field for that). */
-  tile: string;
-  /** Tile index within the tileset. Default: 0. */
-  tileId?: number;
-  /** Multiplicative color blend. White (default) has no effect. */
-  tint?: ex.Color;
-  /** Alpha, 0–1. Default: 1. */
-  opacity?: number;
-  /** Rotation in radians applied to this layer. Default: 0. */
-  rotation?: number;
-  /** Mirror the graphic horizontally. Default: false. */
-  flipHorizontal?: boolean;
-  /** Mirror the graphic vertically. Default: false. */
-  flipVertical?: boolean;
-  /**
-   * Scale multiplier on the graphic's natural pixel size. The actor's overall
-   * scale (tile-fill scaling) is applied on top. Pass a number for uniform
-   * scaling or an ex.Vector for non-uniform. Default: 1.
-   */
-  scale?: number | ex.Vector;
-  /**
-   * Pixel offset from the layer's default position within the composite group.
-   * Only meaningful in a multi-layer context; ignored by buildTileMap
-   * (tile.addGraphic has no per-graphic offset).
-   */
-  offset?: ex.Vector;
-  /**
-   * Canvas 2D globalCompositeOperation for this layer (e.g. "lighter" for
-   * additive blending, "multiply", "screen").
-   *
-   * NOTE: ex.Graphic and GraphicsGrouping have no blend mode property in
-   * Excalibur v0.32. This field is stored but NOT yet applied — reserved for
-   * future Material/shader integration.
-   */
-  blendMode?: GlobalCompositeOperation;
-  /**
-   * When false, this layer is excluded from the composite entirely.
-   * Cheaper than opacity:0 (no draw call). Default: true.
-   */
-  visible?: boolean;
-}
+// The TileRef types and the pure parsing helpers live in tile-ref-parse.ts
+// (no runtime imports, so they are testable under plain `deno test`); this
+// module adds the Excalibur graphic construction on top. Re-export the types
+// so consumers keep importing them from the "./ui" barrel unchanged.
+export type { TileLayerDef, TileRef };
 
-/**
- * A tile reference: either a string shorthand or a full TileLayerDef.
- *
- * String forms:
- *   "tileset-name"            — tile 0 from named tileset
- *   "tileset-name:tile-id"    — specific tile by index
- *   "ts1,ts2:1,ts3"           — comma-separated list; each segment is a layer
- *                               stacked in painter's order (bottom → top)
- *
- * Object form: TileLayerDef — tileset name + optional tile-id + visual effects.
- */
-export type TileRef = string | TileLayerDef;
-
-/** Parse a single "tileset-name" or "tileset-name:tile-id" segment (no commas). */
-function parseSegment(segment: string): ex.Graphic {
-  const colon = segment.indexOf(":");
-  const name = colon === -1 ? segment : segment.slice(0, colon);
-  const tileId = colon === -1 ? 0 : parseInt(segment.slice(colon + 1), 10);
+/** Resolve a single "tileset-name[:tile-id]" segment to its graphic. */
+function segmentGraphic(segment: string): ex.Graphic {
+  const { name, tileId } = parseSegment(segment);
   return Resources.Tilesets.getGraphic(name, tileId);
 }
 
@@ -87,13 +37,13 @@ function parseSegment(segment: string): ex.Graphic {
  */
 export function parseTileRef(ref: TileRef): ex.Graphic {
   if (typeof ref === "string") {
-    const parts = ref.split(",").map((s) => s.trim()).filter(Boolean);
-    if (parts.length === 1) return parseSegment(parts[0]);
+    const parts = splitRefLayers(ref);
+    if (parts.length === 1) return segmentGraphic(parts[0]);
     return new ex.GraphicsGroup({
       useAnchor: true,
       members: parts.map((part) => ({
         offset: ex.vec(0, 0),
-        graphic: parseSegment(part),
+        graphic: segmentGraphic(part),
       })),
     });
   }
@@ -125,11 +75,7 @@ export function parseTileRef(ref: TileRef): ex.Graphic {
  * - Use this instead of parseTileRef() when working with TileActor tile options.
  */
 export function resolveGraphicLayers(refs: TileRef | TileRef[]): ex.Graphic {
-  const arr = Array.isArray(refs) ? refs : [refs];
-  // Filter out object-form layers explicitly marked invisible.
-  const visibleRefs = arr.filter(
-    (ref) => !(typeof ref === "object" && ref.visible === false),
-  );
+  const visibleRefs = visibleLayers(refs);
   if (visibleRefs.length === 0) {
     // All layers hidden. Returns a 1×1 placeholder; callers should supply
     // explicit width/height when all layers may be invisible.

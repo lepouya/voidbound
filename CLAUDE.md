@@ -23,11 +23,15 @@ alliances. See `README.md` for full game design.
   Excalibur can load image assets in production builds. HMR on port 1421 when
   running under Tauri dev.
 - **Testing:** `deno task test` runs the pure-logic suite in `tests/` (anchor
-  math + a PNG-dimensions-vs-catalog cross-check);
+  math, TileRef parsing, HUD layout, dock-tile math, and a
+  PNG-dimensions-vs-catalog cross-check);
   `python3 -m unittest discover -s tools` covers the art-pipeline converter. CI
   (`.github/workflows/ci.yml`) runs fmt/type/test/cargo checks on push and PR.
-  There is no runtime/scene coverage — the running app is still the safety net
-  there.
+  Logic that should be unit-tested lives in pure modules with no runtime
+  Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
+  `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`) — Excalibur cannot load
+  under Deno, so keep new testable logic in that shape. There is no
+  runtime/scene coverage — the running app is still the safety net there.
 
 ## 2. Project Layout
 
@@ -166,8 +170,10 @@ wiring, `main.ts` registration, and HUD setup.
 One barrel (`src/ui/index.ts`) re-exports everything. Modules:
 
 - `anchor.ts` — `AnchorPlacement` 9-position type + `anchorFractions()`
-- `tile-ref.ts` — `TileRef` string/object forms, `parseTileRef()`,
-  `resolveGraphicLayers()` (use the latter for `TileActor.tile`)
+- `tile-ref.ts` — `parseTileRef()`, `resolveGraphicLayers()` (use the latter for
+  `TileActor.tile`); re-exports the `TileRef`/`TileLayerDef` types
+- `tile-ref-parse.ts` — pure TileRef types + parsing helpers (no runtime
+  imports; unit-tested). Not in the barrel — app code imports via tile-ref
 - `label.ts` — `LabelDef`, `makeBorderedLabel`, `makeLabelActor`
 - `badge.ts` — `BadgeDef` (number | string | LabelDef | SpriteBadge),
   `TileActorBadgeDef` (corner-pinned on TileActors)
@@ -175,6 +181,11 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
 - `path-line.ts` — `makePathLine()` dotted world-space path actor
 - `hud.ts` — `HudGroupDef`, `HudGroupHandle`, `spawnHudGroup` (wrapped by
   `TiledScene.addHudGroup()`)
+- `hud-layout.ts` — pure HUD layout math (`layoutButtonCenters`; no runtime
+  imports; unit-tested). Not in the barrel — hud.ts consumes it
+
+Pure grid math shared by scenes (dock tiles) lives outside `ui/` in
+[src/grid-math.ts](src/grid-math.ts).
 
 Full field lists live in the source — read `src/ui/<file>.ts` when you need the
 exact interface rather than duplicating it here.

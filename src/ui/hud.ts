@@ -1,9 +1,15 @@
 import * as ex from "excalibur";
 
-import { anchorFractions, AnchorPlacement } from "./anchor";
+import { AnchorPlacement } from "./anchor";
 import { BadgeDef, makeBadgeActor } from "./badge";
 import { ButtonDef, makeButtonGraphic } from "./button";
+import { HudStackDir, layoutButtonCenters } from "./hud-layout";
 import { LABEL_PAD, makeLabelActor, resolveButtonLabel } from "./label";
+
+// Layout math (anchor placement + button stacking) lives in hud-layout.ts —
+// a pure module testable under plain `deno test`. Re-export its direction
+// type so consumers keep importing it from the "./ui" barrel unchanged.
+export type { HudStackDir };
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -11,18 +17,6 @@ import { LABEL_PAD, makeLabelActor, resolveButtonLabel } from "./label";
 
 /** Screen-space anchor alias — same 9-position grid as AnchorPlacement in anchor.ts. */
 export type HudAnchor = AnchorPlacement;
-
-/**
- * Stack direction for buttons within a HUD group.
- *
- * 'down' / 'up' / 'left' / 'right' — buttons grow in that direction from the
- * anchor edge.
- *
- * 'center' — buttons are distributed symmetrically around the anchor point
- * along the primary axis (vertical for middle-* anchors; horizontal for top-*
- * / bottom-* anchors). An offset shifts the whole group.
- */
-export type HudStackDir = "down" | "up" | "left" | "right" | "center";
 
 /**
  * HUD-specific button definition. Extends ButtonDef with size and hit-area
@@ -95,35 +89,6 @@ interface ButtonState {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Returns the ex.ScreenElement anchor fractions (hFrac, vFrac) and the base
- * screen position (bx, by) for a given HudAnchor + padding.
- */
-function anchorLayout(
-  anchor: AnchorPlacement,
-  padding: number,
-  drawWidth: number,
-  drawHeight: number,
-): { hFrac: number; vFrac: number; bx: number; by: number } {
-  const { hFrac, vFrac } = anchorFractions(anchor);
-  const bx = hFrac === 0
-    ? padding
-    : hFrac === 1
-    ? drawWidth - padding
-    : drawWidth / 2;
-  const by = vFrac === 0
-    ? padding
-    : vFrac === 1
-    ? drawHeight - padding
-    : drawHeight / 2;
-  return { hFrac, vFrac, bx, by };
-}
-
-/** Infer a default stack direction from the anchor. */
-function inferDirection(anchor: AnchorPlacement): HudStackDir {
-  return anchor.startsWith("bottom") ? "up" : "down";
-}
-
 /** Apply the correct graphic and opacity to a ScreenElement for the given state. */
 function applyButtonGraphic(
   el: ex.ScreenElement,
@@ -136,83 +101,6 @@ function applyButtonGraphic(
   const { graphic, opacity } = makeButtonGraphic(def, disabled, active, w, h);
   el.graphics.use(graphic);
   el.graphics.opacity = opacity;
-}
-
-/**
- * Computes the visual-center screen position of every button in the group for
- * the given screen dimensions (the zoom-1 resolution — screen space is not
- * affected by camera zoom). Shared by the initial spawn and relayout-on-resize.
- */
-function layoutButtonCenters(
-  def: HudGroupDef,
-  sizes: Array<{ w: number; h: number }>,
-  drawWidth: number,
-  drawHeight: number,
-): ex.Vector[] {
-  const padding = def.padding ?? 8;
-  const gap = def.gap ?? 4;
-  const offset = def.offset ?? 0;
-  const direction = def.direction ?? inferDirection(def.anchor);
-
-  const { hFrac, vFrac, bx, by } = anchorLayout(
-    def.anchor,
-    padding,
-    drawWidth,
-    drawHeight,
-  );
-
-  // Determine stacking axis. For 'center', buttons spread along the anchor's
-  // primary edge: horizontal for top-*/bottom-* anchors, vertical otherwise.
-  const isVertical = direction === "down" ||
-    direction === "up" ||
-    (direction === "center" &&
-      !def.anchor.startsWith("top") &&
-      !def.anchor.startsWith("bottom"));
-
-  // Compute the starting position along the stack axis.
-  let startPos: number;
-  if (direction === "center") {
-    const totalExtent = isVertical
-      ? sizes.reduce((sum, s) => sum + s.h, 0) + (sizes.length - 1) * gap
-      : sizes.reduce((sum, s) => sum + s.w, 0) + (sizes.length - 1) * gap;
-    const anchorPos = isVertical ? by : bx;
-    startPos = anchorPos - totalExtent / 2 + offset;
-  } else if (direction === "down" || direction === "right") {
-    startPos = (isVertical ? by : bx) + offset;
-  } else {
-    // 'up' or 'left': buttons grow inward from the anchor
-    startPos = (isVertical ? by : bx) - offset;
-  }
-
-  const centers: ex.Vector[] = [];
-  let cursor = startPos;
-
-  for (let i = 0; i < def.buttons.length; i++) {
-    const { w, h } = sizes[i];
-    const size = isVertical ? h : w;
-
-    // For 'up'/'left', position is the far edge; adjust cursor before placing.
-    if (direction === "up" || direction === "left") {
-      cursor -= size;
-    }
-
-    // For 'up'/'left', cursor is the far (leading) edge after subtracting size.
-    // The position formula below expects the anchor edge, so add size back.
-    const elX = isVertical ? bx : direction === "left" ? cursor + size : cursor;
-    const elY = isVertical ? (direction === "up" ? cursor + size : cursor) : by;
-
-    // Shift from the anchor-edge position to the button's visual center so
-    // that children can be placed relative to (0,0) = button center.
-    centers.push(ex.vec(elX + (0.5 - hFrac) * w, elY + (0.5 - vFrac) * h));
-
-    // Advance cursor.
-    if (direction === "up" || direction === "left") {
-      cursor -= gap;
-    } else {
-      cursor += size + gap;
-    }
-  }
-  return centers;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +254,7 @@ export function spawnHudGroup(
         engine.screen.resolution.height,
       );
       for (let i = 0; i < elements.length; i++) {
-        elements[i].pos = centers[i].clone();
+        elements[i].pos = ex.vec(centers[i].x, centers[i].y);
       }
     },
 

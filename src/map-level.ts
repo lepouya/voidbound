@@ -1,5 +1,6 @@
 import * as ex from "excalibur";
 
+import { closestDockTile, isDockTile } from "./grid-math";
 import { buildTileMap } from "./map-loader";
 import { TileActor } from "./tile-actor";
 import { TiledScene } from "./tiled-scene";
@@ -167,31 +168,12 @@ export class MapLevel extends TiledScene {
   }
 
   /**
-   * Returns the center tile of the mothership's inner 2*2 that is closest to
-   * the given destination. Used as the spawn/dock point for vessels.
-   */
-  private closestDockTile(
-    destCol: number,
-    destRow: number,
-  ): { col: number; row: number } {
-    const halfCols = this.mothership.colSpan / 2;
-    const halfRows = this.mothership.rowSpan / 2;
-    const col = destCol < this.mothership.col + halfCols
-      ? this.mothership.col + halfCols - 1
-      : this.mothership.col + halfCols;
-    const row = destRow < this.mothership.row + halfRows
-      ? this.mothership.row + halfRows - 1
-      : this.mothership.row + halfRows;
-    return { col, row };
-  }
-
-  /**
    * Constructs a VesselMoveEvent for a new dispatch and applies it locally.
    * In future this event will be sent to the server for verification before
    * being broadcast to all clients via applyVesselMoveEvent().
    */
   private dispatchVessel(destCol: number, destRow: number): void {
-    const dock = this.closestDockTile(destCol, destRow);
+    const dock = closestDockTile(this.mothership, destCol, destRow);
     const distPx = Math.hypot(
       (destCol - dock.col) * this.tilemap.tileWidth,
       (destRow - dock.row) * this.tilemap.tileHeight,
@@ -215,18 +197,6 @@ export class MapLevel extends TiledScene {
     this.deselectActor(); // clear the destination empty tile actor
   }
 
-  /** True if (col, row) is one of the mothership's inner 2*2 docking tiles. */
-  private isDockTile(col: number, row: number): boolean {
-    const halfCols = this.mothership.colSpan / 2;
-    const halfRows = this.mothership.rowSpan / 2;
-    return (
-      col >= this.mothership.col + halfCols - 1 &&
-      col <= this.mothership.col + halfCols &&
-      row >= this.mothership.row + halfRows - 1 &&
-      row <= this.mothership.row + halfRows
-    );
-  }
-
   /**
    * Creates or redirects a vessel according to the given event. Designed to be
    * called both for local player actions and for server-pushed events from other
@@ -234,7 +204,7 @@ export class MapLevel extends TiledScene {
    * the vessel docks and despawns on arrival.
    */
   applyVesselMoveEvent(event: VesselMoveEvent): void {
-    const onArrival = this.isDockTile(event.destCol, event.destRow)
+    const onArrival = isDockTile(this.mothership, event.destCol, event.destRow)
       ? () => this.vessels.get(event.vesselId)?.kill()
       : undefined;
 
@@ -317,7 +287,7 @@ export class MapLevel extends TiledScene {
     const currentRow = Math.round(
       (vessel.pos.y - this.tilemap.tileHeight / 2) / this.tilemap.tileHeight,
     );
-    const dock = this.closestDockTile(currentCol, currentRow);
+    const dock = closestDockTile(this.mothership, currentCol, currentRow);
     const distPx = Math.hypot(
       (dock.col - currentCol) * this.tilemap.tileWidth,
       (dock.row - currentRow) * this.tilemap.tileHeight,
