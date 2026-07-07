@@ -16,6 +16,12 @@ import { parseTileRef, TileRef } from "./tile-ref";
  * with width, height, and hitPadding.
  */
 export interface ButtonDef {
+  /** Base frame/chrome tile (e.g., circular border or HUD box). */
+  frameTile?: TileRef;
+  /** Shown instead of frameTile when active is true. Falls back to frameTile if absent. */
+  activeFrameTile?: TileRef;
+  /** Shown instead of frameTile when disabled is true. Falls back to frameTile if absent. */
+  disabledFrameTile?: TileRef;
   /** Sprite to display. For world-space buttons, always provide this. */
   tile?: TileRef;
   /** Shown instead of tile when active is true. Falls back to tile if absent. */
@@ -60,20 +66,35 @@ export function makeButtonGraphic(
   w: number,
   h: number,
 ): { graphic: ex.Graphic; opacity: number } {
+  let frameRef: TileRef | undefined;
+  if (disabled && def.disabledFrameTile) frameRef = def.disabledFrameTile;
+  else if (active && def.activeFrameTile) frameRef = def.activeFrameTile;
+  else frameRef = def.frameTile;
+
   let tileRef: TileRef | undefined;
   if (disabled && def.disabledTile) tileRef = def.disabledTile;
   else if (active && def.activeTile) tileRef = def.activeTile;
   else tileRef = def.tile;
 
-  let graphic: ex.Graphic;
-  if (tileRef) {
-    const base = parseTileRef(tileRef);
-    // Clone only plain Sprites — they are shared cached instances. Animations
-    // and GraphicsGroups (multi-layer tiles) are constructed fresh per call,
-    // so they are safe to mutate.
+  const resolveScaled = (ref: TileRef): ex.Graphic => {
+    const base = parseTileRef(ref);
     const g = base instanceof ex.Sprite ? base.clone() : base;
     g.scale = ex.vec(w / base.width, h / base.height);
-    graphic = g;
+    return g;
+  };
+
+  let graphic: ex.Graphic;
+  if (frameRef && tileRef) {
+    graphic = new ex.GraphicsGroup({
+      members: [
+        { graphic: resolveScaled(frameRef), offset: ex.vec(0, 0) },
+        { graphic: resolveScaled(tileRef), offset: ex.vec(0, 0) },
+      ],
+    });
+  } else if (frameRef) {
+    graphic = resolveScaled(frameRef);
+  } else if (tileRef) {
+    graphic = resolveScaled(tileRef);
   } else {
     graphic = new ex.Rectangle({
       width: w,
@@ -81,5 +102,9 @@ export function makeButtonGraphic(
       color: ex.Color.fromHex("#ffffff33"),
     });
   }
-  return { graphic, opacity: disabled && !def.disabledTile ? 0.5 : 1 };
+
+  const opacity = disabled && !def.disabledTile && !def.disabledFrameTile
+    ? 0.5
+    : 1;
+  return { graphic, opacity };
 }

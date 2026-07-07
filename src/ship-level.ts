@@ -9,7 +9,12 @@ export class ShipLevel extends TiledScene {
     super.onInitialize(engine);
     this.backgroundColor = ex.Color.Black;
     this.addCommonHud({
-      tile: "ui-button-mapview:0",
+      frameTile: "ui-frame-square:0",
+      activeFrameTile: "ui-frame-square:1",
+      disabledFrameTile: "ui-frame-square:2",
+      tile: "ui-icon-mapview:0",
+      activeTile: "ui-icon-mapview:1",
+      disabledTile: "ui-icon-mapview:2",
       width: 64,
       height: 64,
       label: "Map",

@@ -1,0 +1,28 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <g
+    stroke="#COLOR2"
+    stroke-width="2"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  >
+    <path d="M18 46 L42 22 L46 18 L46 22 L22 46 Z" fill="#COLOR1" />
+    <path d="M18 42 L22 46" stroke="#COLOR1" stroke-width="4" />
+    <path d="M14 50 L18 46" stroke="#COLOR2" stroke-width="3" />
+    <path
+      d="M46 18 L42 22 L18 46 L14 46 L14 50 L18 50 L42 26 L46 22 Z"
+      fill="#COLOR1"
+    />
+    <path d="M46 46 L22 22 L18 18 L22 18 L46 42 Z" fill="#COLOR1" />
+    <path d="M46 42 L42 46" stroke="#COLOR1" stroke-width="4" />
+    <path d="M50 50 L46 46" stroke="#COLOR2" stroke-width="3" />
+    <path
+      d="M18 18 L22 22 L46 46 L50 46 L50 50 L46 50 L22 26 L18 22 Z"
+      fill="#COLOR1"
+    />
+  </g>
+</svg>

@@ -1,0 +1,18 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <g
+    stroke="#COLOR2"
+    stroke-width="3"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  >
+    <path
+      d="M42 24 L28 24 L28 18 L16 32 L28 46 L28 40 L42 40 Z"
+      fill="#COLOR1"
+    />
+  </g>
+</svg>

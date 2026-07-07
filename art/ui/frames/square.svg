@@ -1,0 +1,31 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <rect
+    x="3"
+    y="3"
+    width="58"
+    height="58"
+    rx="10"
+    ry="10"
+    fill="#COLOR1"
+    fill-opacity="0.15"
+    stroke="#COLOR2"
+    stroke-width="3"
+  />
+  <rect
+    x="7"
+    y="7"
+    width="50"
+    height="50"
+    rx="7"
+    ry="7"
+    fill="none"
+    stroke="#COLOR1"
+    stroke-width="1"
+    stroke-opacity="0.4"
+  />
+</svg>

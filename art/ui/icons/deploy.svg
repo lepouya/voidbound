@@ -1,0 +1,24 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <g
+    stroke="#COLOR2"
+    stroke-width="3"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  >
+    <path
+      d="M32 16 L44 36 L38 36 L38 48 L26 48 L26 36 L20 36 Z"
+      fill="#COLOR1"
+    />
+    <polyline
+      points="22,26 32,16 42,26"
+      stroke="#COLOR2"
+      stroke-width="3"
+      fill="none"
+    />
+  </g>
+</svg>

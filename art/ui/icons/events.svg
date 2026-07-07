@@ -1,0 +1,19 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <g
+    stroke="#COLOR2"
+    stroke-width="2"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  >
+    <polygon
+      points="32,14 37,25 49,27 40,36 42,48 32,42 22,48 24,36 15,27 27,25"
+      fill="#COLOR1"
+    />
+    <circle cx="32" cy="33" r="5" fill="#COLOR2" />
+  </g>
+</svg>

@@ -26,10 +26,20 @@ python3 ../tools/sprite_transition.py \
     -t scale:ui/selection-2.png:8:23:1.1:0.9 \
     -t scale:ui/selection-2.png:24:31:0.9:1
 
-# UI buttons (ui/button-*.png → ui-button-*.png)
-# Any new button-*.png added to ui/ is picked up automatically.
-for src in ui/button-*.png; do
-    name="${src#ui/button-}"   # strip leading "ui/button-"
-    name="${name%.png}"        # strip trailing ".png"
-    python3 ../tools/sprite_extract.py -s "$src" -c 3 -r 2 -z 64 -d "../src/assets/ui-button-${name}.png"
+# Clean vector UI frames and icons (ui/frames/*.svg and ui/icons/*.svg)
+COLOR1="#FFFFFF"
+COLOR2="#00d2ff"
+
+for src in ui/frames/*.svg; do
+    [ -e "$src" ] || continue
+    name="${src#ui/frames/}"
+    name="${name%.svg}"
+    python3 ../tools/svg_ui_gen.py -s "$src" -c 3 -r 1 -z 64 -d "../src/assets/ui-frame-${name}.png" --color1 "$COLOR1" --color2 "$COLOR2"
+done
+
+for src in ui/icons/*.svg; do
+    [ -e "$src" ] || continue
+    name="${src#ui/icons/}"
+    name="${name%.svg}"
+    python3 ../tools/svg_ui_gen.py -s "$src" -c 3 -r 1 -z 64 -d "../src/assets/ui-icon-${name}.png" --color1 "$COLOR1" --color2 "$COLOR2"
 done

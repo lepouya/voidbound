@@ -54,8 +54,9 @@ export const TILESET_GEOMETRY: TilesetGeometry[] = [
 ];
 
 export const AUTO_TILESET_RULES: AutoTilesetRule[] = [
-  // UI buttons: static 3*2 sheet.
-  { prefix: "ui-button-", cols: 3, rows: 2, tileSize: 64 },
+  // UI button frames and icons: static 3*1 sheet (normal, active, disabled).
+  { prefix: "ui-frame-", cols: 3, rows: 1, tileSize: 64 },
+  { prefix: "ui-icon-", cols: 3, rows: 1, tileSize: 64 },
   // Mothership modules: canonical animated sheet.
   { prefix: "module-", tileSize: 256, ...CANONICAL_ANIM },
 ];
