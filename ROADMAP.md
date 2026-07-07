@@ -4,24 +4,83 @@ Development phases for the game design described in `README.md`. Settled design
 principles live there; this file tracks the order features land in. Later phases
 build directly on earlier ones — in particular, everything in phase 3 assumes
 actions are already event-modeled (see the multiplayer-ready event pattern in
-`CLAUDE.md`; the server model is sketched in `SERVER.md`).
+`CLAUDE.md`; the server model is sketched in `SERVER.md`). Phase 0 is the
+engine/tooling scaffolding all of that already sits on.
 
 **How to use this file:** tasks have stable IDs (`P<phase>.<n>`) so sessions and
 commits can reference them — check off a task when it's committed and
 `deno task fmt` + `deno task test` pass. Within a phase, tasks are listed in
 rough dependency order, but anything without an explicit "needs" note can be
-picked up independently. (The 2026-07-04 code review's remaining ideas were
-absorbed here; the review file itself is retired — see git history for
-`CODE_REVIEW.md`.)
+picked up independently.
 
-## Phase 1 — Local gameplay loop
+## Phase 0 — Engine and tooling scaffolding
+
+Goal: the technical foundation everything else is built on. Most of this is
+already done — captured retroactively from the current code and git history
+rather than from when it was actually planned, so task order here doesn't imply
+build order. A later pass will try to associate each of these with the earlier
+phase(s) it actually satisfies.
+
+- [x] **P0.1 — Excalibur engine bootstrap + scene registration.** `main.ts`
+      creates the single `ex.Engine` (390\*844 portrait, `FitScreenAndFill`,
+      `pixelArt: true`), registers the `map`/`ship` scenes, and starts on `ship`
+      with a shared `loader` and fade transition.
+- [x] **P0.2 — `TiledScene` base class.** Camera drag-pan/pinch-zoom/clamp,
+      tap-vs-drag disambiguation, actor/HUD/empty-tile tap dispatch priority,
+      selection with animated camera recenter, HUD group wiring
+      (`addHudGroup`/`addCommonHud`), resize and scene-load-failure handling —
+      the shared foundation every scene extends.
+- [x] **P0.3 — `TileActor` base entity.** Tile/movingTile rendering via
+      `resolveGraphicLayers`, arc-arranged selection action buttons, corner
+      badges, owner labels, `moveTo`/auto-facing with a path-line, upright
+      (non-rotating) children, edge-fallthrough for multi-tile actors, and the
+      empty-tile-actor (null tile) pattern.
+- [x] **P0.4 — TileRef / tileset system.** String/object `TileRef` parsing
+      (`tile-ref-parse.ts`), graphic resolution and multi-layer compositing
+      (`tile-ref.ts`), the `TilesetRegistry` + pure-data geometry catalog
+      (`tileset-geometry.ts`), and the prefix-based `autoRegister()` pattern so
+      new `ui-button-*`/`module-*` PNGs need no registry code.
+- [x] **P0.5 — UI component library (`src/ui/`).** `anchor`, `badge`, `button`,
+      `hud`/`hud-layout`, `label`, `path-line` modules — shared primitives for
+      both world-space TileActor UI and screen-space HUD.
+- [x] **P0.6 — Map loading + IPC.** `buildTileMap()` invoking the Tauri
+      `generate_map` command; the Rust side dispatches to a procedural 100\*100
+      space map (`"map"`) or an `include_str!`-embedded pre-baked ship map
+      (`"ship"`).
+- [x] **P0.7 — MapLevel + ShipLevel scenes.** The two scenes playable today:
+      space map with a mothership, an "enemy" ship, and empty-tile Move/Deploy;
+      ship interior with a single Command Module. Action buttons beyond vessel
+      dispatch are still `console.log` stubs.
+- [x] **P0.8 — Vessel-move event pattern reference implementation.**
+      `VesselMoveEvent`/`applyVesselMoveEvent`/`dispatchVessel`/`returnVessel`
+      in `map-level.ts` — the one concrete instance of the multiplayer-ready
+      event pattern that `/add-game-event` and `SERVER.md` generalize from.
+- [x] **P0.9 — Art pipeline tooling.** Python Pillow CLIs (`sprite_extract`,
+      `sprite_merge`, `sprite_transition`, `tmj_to_tilemap`) and the
+      `art/gen_*.sh` orchestrators that turn source art and Tiled maps into the
+      PNGs/JSON under `src/assets/`.
+- [x] **P0.10 — Testing + CI infrastructure.** The deno pure-logic test suite
+      (anchor, grid-math, hud-layout, tile-ref-parse, tileset-geometry cross
+      check), the Python `tmj_to_tilemap` unittest suite, and the GitHub Actions
+      CI workflow (frontend + rust jobs).
+- [x] **P0.11 — Tooling/build setup.** Deno as task runner (`deno task fmt`
+      formats + type-checks + `cargo fmt` in one step), Vite config
+      (`assetsInlineLimit: 0` for Excalibur, dev-server/HMR quirks), Tauri
+      config wired to the Deno tasks, strict `tsconfig.json`.
+- [ ] **P0.12 — Shared cross-scene game-state module.** `MapLevel` and
+      `ShipLevel` are separate scene instances with no mechanism to share data
+      today — each only holds scene-local fields (e.g. `MapLevel`'s `vessels`
+      map). P1.1's resource counts need to be readable/writable from both (mined
+      in `MapLevel`, spent in `ShipLevel`), so this has to land first: a plain
+      module (e.g. `src/game-state.ts` — `resources.ts` is already taken by the
+      tileset registry) that both scenes import. Blocks P1.1.
 
 Goal: a playable single-player loop, no persistence yet.
 
 - [ ] **P1.1 — Resource state + production tick.** The 4 resources
       (construction, high-tech, biological, fuel) as game state with a periodic
       production tick. Baseline production comes from the Command Module so the
-      player can never get stuck.
+      player can never get stuck. Needs P0.12.
 - [ ] **P1.2 — Resource bar HUD group.** Screen-top display of the 4 resource
       counts — first real use of `HudGroupHandle.setBadge`, updated from the
       P1.1 tick. Needs P1.1.
@@ -52,6 +111,16 @@ Goal: a playable single-player loop, no persistence yet.
       input polish, independent of the rest of the phase.
 - [ ] **P1.9 — Minimap.** Overview widget for the 100\*100 space map; becomes
       necessary once P1.6 spreads play across the map. Needs P1.6.
+- [ ] **P1.10 — Crew Quarters + crew capacity.** Ship-wide crew capacity stat,
+      scaled by module level; production and functional penalties apply when
+      crew is short relative to ship size and active modules. Needs P1.4.
+- [ ] **P1.11 — Storage Bay + Armory capacity caps.** Storage limits on the 4
+      resources (Storage Bay) and on produced weapons (Armory, needs P5.4);
+      upgrades raise caps and may boost production. Needs P1.4.
+- [ ] **P1.12 — Trading Post + NPC shop.** Buy/sell the 4 resources with NPCs at
+      a markup/markdown, independent of the Phase 4 alliance economy — the
+      README's answer for players who need resources between mining runs. Needs
+      P1.1.
 
 ## Phase 2 — Persistence
 
@@ -106,3 +175,33 @@ Goal: the MMO layer.
 - [ ] **P4.5 — Seasons.** After a time or milestone, remaining players move on
       to a new system — the answer to server activity dying off. Enables world
       merging and ascension bonuses for players carrying over. Needs P4.4.
+
+## Phase 5 — Technologies, combat, and defence
+
+Goal: the README's Technologies, Combat, and Defence module categories, none of
+which have a task yet.
+
+- [ ] **P5.1 — Research Lab + tech tree.** Spend resources to unlock module
+      blueprints, vessel stat upgrades, and efficiency bonuses; gates which
+      later Phase 5 modules and vessel stats are available. Needs P1.4.
+- [ ] **P5.2 — Fabrication Bay, Assembly Line, Data Archive.** Speed/cost
+      multipliers applied respectively to module builds (P1.3), weapon
+      production (P5.4), and research (P5.1). Needs P5.1.
+- [ ] **P5.3 — Vessel Shipyard + vessel stats.** Durability, damage, cargo
+      capacity, and weapons capacity as per-vessel upgradeable stats, replacing
+      the flat `vesselSpeed` constant with a real stat block. Needs P1.6.
+- [ ] **P5.4 — Weapons Factory, Drone Factory, Plasma Factory.** Three
+      weapon-type production lines (kinetic, drone, plasma) feeding the vessel
+      weapons capacity from P5.3. Event-modeled via `/add-game-event`. Needs
+      P5.3.
+- [ ] **P5.5 — PvP combat resolution.** Attacking another player's mothership or
+      vessels: damage exchange using P5.4 weapons and P5.3 stats, resolved
+      server-side so neither side can lie about the outcome. Needs P3.1, P5.4.
+- [ ] **P5.6 — Repair Shop.** Repairs weapon/vessel damage from P5.5 combat
+      using resources and time, mirroring the P1.3 build-timer pattern. Needs
+      P5.5.
+- [ ] **P5.7 — Hangar Bay.** Station weapons/vessels at the mothership as a
+      passive defense contribution to P5.5 combat resolution. Needs P5.5.
+- [ ] **P5.8 — Shield Generator.** Protective shielding that absorbs damage in
+      P5.5 combat; when breached, forces the mothership to warp and relocate.
+      Needs P5.5.

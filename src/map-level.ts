@@ -5,6 +5,7 @@ import { buildTileMap } from "./map-loader";
 import { TileActor } from "./tile-actor";
 import { TiledScene } from "./tiled-scene";
 
+/** See SERVER.md for the server-authoritative model this event is written against. */
 export interface VesselMoveEvent {
   vesselId: string;
   ownerId: string;

@@ -7,7 +7,8 @@ Rust, then type-checks TS, in one step. Never run `tsc` or `prettier` directly.
 
 Voidbound is a mobile-first MMORTS set in space. Players colonize a star system,
 build and upgrade a mothership (primary base), gather resources, and form
-alliances. See `README.md` for full game design.
+alliances. See `README.md` for full game design and `ROADMAP.md` for the phased
+task list that tracks what's built vs. planned.
 
 - **Platform:** Tauri desktop, portrait 390*844. Web browser is planned but not
   functional yet — all map data flows over Tauri IPC, so a pure web build needs

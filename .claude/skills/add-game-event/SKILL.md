@@ -10,6 +10,10 @@ modeled as an event struct from day one — even while running locally. This kee
 local and networked code paths identical, so when the server lands later, the
 only change is the event source (local vs. socket push).
 
+See `SERVER.md` for the full server model this pattern targets — why fields must
+be server-verifiable, why `apply*Event` must be idempotent (network redirects,
+replay), and how timestamps drive late-join snapshot + replay.
+
 The pattern has three parts:
 
 1. An **event interface** — plain data, everything a server would send.
@@ -129,4 +133,5 @@ private dispatchVessel(destCol: number, destRow: number): void {
 ## Reference
 
 See `src/map-level.ts` for the canonical example: `VesselMoveEvent` +
-`applyVesselMoveEvent` + `dispatchVessel` + `returnVessel`.
+`applyVesselMoveEvent` + `dispatchVessel` + `returnVessel`. See `SERVER.md` for
+the architecture this pattern is written against.

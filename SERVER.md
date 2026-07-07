@@ -91,7 +91,11 @@ When writing a new `*Event` via `/add-game-event`, assume:
 
 - Every field is something the **server** would compute or verify — if the
   client can lie about it, it doesn't belong in the event (send it in the
-  request instead and let the server echo the verified value).
+  request instead and let the server echo the verified value). This matters most
+  for ROADMAP.md phase 5's combat events (P5.5): damage dealt, hit/miss, and
+  remaining durability must all be server-computed, never client-declared —
+  combat is the first genuinely adversarial user of this model, unlike
+  cooperative actions like vessel movement.
 - Timestamps are server epoch ms and time-based actions precompute their
   completion time.
 - `apply*Event` will one day be called by a socket handler with no scene context
