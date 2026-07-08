@@ -1,5 +1,6 @@
 import * as ex from "excalibur";
 
+import { GameStateResource } from "./game-state-loader.ts";
 import { MapLevel } from "./map-level.ts";
 import { loader } from "./resources.ts";
 import { ShipLevel } from "./ship-level.ts";
@@ -14,6 +15,11 @@ const game = new ex.Engine({
     ship: ShipLevel,
   },
 });
+
+// The backend game-state sync rides the loader alongside asset loading, so
+// the splash/loading screen covers the fetch. Scenes tolerate late or failed
+// loads — see GameStateResource.
+loader.addResource(new GameStateResource());
 
 game
   .start("ship", {

@@ -49,10 +49,10 @@ export interface TileActorOptions {
 }
 
 export class TileActor extends ex.Actor {
-  // Set once at construction; ownerName label is baked in onInitialize so
-  // mutating it afterwards would have no visible effect.
-  readonly ownerName: string | undefined;
-  readonly ownerId: string | undefined;
+  // Update via setOwner() — label graphics are baked at creation time, so
+  // assigning these fields directly has no visible effect once initialized.
+  ownerName: string | undefined;
+  ownerId: string | undefined;
   readonly col: number;
   readonly row: number;
   /** Actor width in tiles. */
@@ -91,6 +91,9 @@ export class TileActor extends ex.Actor {
   // Sibling scene actor drawn while this actor is in motion; killed on arrival
   // or when a new moveTo() supersedes the previous one.
   private pathLine: ex.Actor | null = null;
+  // Current owner-label child's uprightChildren entry, so setOwner() can
+  // remove and rebuild it.
+  private ownerLabel: { actor: ex.Actor; wx: number; wy: number } | null = null;
 
   constructor({
     tilemap,
@@ -289,19 +292,7 @@ export class TileActor extends ex.Actor {
       this.selectionVisuals.push(selActor);
     }
 
-    const ownerLabelActor = makeLabelActor(this.ownerName, ex.vec(0, 0), {
-      anchor: "top-center",
-      scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
-    });
-    if (ownerLabelActor) {
-      this.addChild(ownerLabelActor);
-      // World offset: just below the actor sprite, with consistent padding.
-      this.uprightChildren.push({
-        actor: ownerLabelActor,
-        wx: 0,
-        wy: this.height / 2 + LABEL_PAD,
-      });
-    }
+    this.rebuildOwnerLabel();
 
     this.setupActionButtons();
     this.setupBadges();
@@ -312,6 +303,46 @@ export class TileActor extends ex.Actor {
       this.pendingSelect = false;
       this.select();
     }
+  }
+
+  /**
+   * Update the owner identity after construction — e.g. when the shared game
+   * state finishes loading from the backend and the placeholder identity is
+   * replaced. Rebuilds the owner label child, since label graphics are baked
+   * at creation time.
+   */
+  setOwner(ownerName: string | undefined, ownerId: string | undefined): void {
+    if (ownerName === this.ownerName && ownerId === this.ownerId) return;
+    this.ownerName = ownerName;
+    this.ownerId = ownerId;
+    // Not initialized yet: onInitialize will bake the updated fields.
+    if (this.isInitialized) this.rebuildOwnerLabel();
+  }
+
+  /** (Re)creates the owner-name label child from the current ownerName. */
+  private rebuildOwnerLabel(): void {
+    if (this.ownerLabel) {
+      this.removeChild(this.ownerLabel.actor);
+      this.ownerLabel.actor.kill();
+      const idx = this.uprightChildren.indexOf(this.ownerLabel);
+      if (idx !== -1) this.uprightChildren.splice(idx, 1);
+      this.ownerLabel = null;
+    }
+    const labelActor = makeLabelActor(this.ownerName, ex.vec(0, 0), {
+      anchor: "top-center",
+      scale: ex.vec(1 / this.scale.x, 1 / this.scale.y),
+    });
+    if (!labelActor) return;
+    this.addChild(labelActor);
+    // World offset: just below the actor sprite, with consistent padding.
+    this.ownerLabel = {
+      actor: labelActor,
+      wx: 0,
+      wy: this.height / 2 + LABEL_PAD,
+    };
+    this.uprightChildren.push(this.ownerLabel);
+    // Place immediately so the label doesn't spend a frame at (0,0).
+    this.repositionUprightChildren();
   }
 
   /**

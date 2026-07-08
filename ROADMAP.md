@@ -67,13 +67,21 @@ phase(s) it actually satisfies.
       formats + type-checks + `cargo fmt` in one step), Vite config
       (`assetsInlineLimit: 0` for Excalibur, dev-server/HMR quirks), Tauri
       config wired to the Deno tasks, strict `tsconfig.json`.
-- [ ] **P0.12 — Shared cross-scene game-state module.** `MapLevel` and
+- [x] **P0.12 — Shared cross-scene game-state module.** `MapLevel` and
       `ShipLevel` are separate scene instances with no mechanism to share data
       today — each only holds scene-local fields (e.g. `MapLevel`'s `vessels`
       map). P1.1's resource counts need to be readable/writable from both (mined
       in `MapLevel`, spent in `ShipLevel`), so this has to land first: a plain
-      module (e.g. `src/game-state.ts` — `resources.ts` is already taken by the
-      tileset registry) that both scenes import. Blocks P1.1.
+      module (`src/game-state.ts` — `resources.ts` is already taken by the
+      tileset registry) that both scenes import: the `gameState` singleton with
+      a subscribe/update change-notification mechanism, synced from the backend
+      `load_game_state` Tauri command during the loader/splash phase
+      (`GameStateResource` in `game-state-loader.ts`). Scenes stay resilient to
+      slow/failed loads (new player, future login flow): state starts on
+      new-player defaults and subscribers re-stamp when a load lands — e.g.
+      `MapLevel` re-stamps the mothership's owner identity. Blocks P1.1.
+
+## Phase 1 — Core gameplay loop
 
 Goal: a playable single-player loop, no persistence yet.
 

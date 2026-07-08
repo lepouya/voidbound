@@ -1,5 +1,6 @@
 import * as ex from "excalibur";
 
+import { gameState } from "./game-state.ts";
 import { closestDockTile, isDockTile } from "./grid-math.ts";
 import { buildTileMap } from "./map-loader.ts";
 import { TileActor } from "./tile-actor.ts";
@@ -57,6 +58,14 @@ export class MapLevel extends TiledScene {
       label: "Ship",
       onPressed: () => engine.goToScene("ship"),
     });
+    // The backend state may load (or a future login complete) after this
+    // scene is built — re-stamp the mothership when the identity changes.
+    // No unsubscribe: scenes live for the whole app run.
+    gameState.subscribe(() => {
+      // Optional chain: fires before setupActors when the async map load is
+      // still in flight; construction then reads the fresh state anyway.
+      this.mothership?.setOwner(gameState.player.name, gameState.player.id);
+    });
   }
 
   protected override initialCameraTarget(): { pos: ex.Vector; zoom: number } {
@@ -86,8 +95,8 @@ export class MapLevel extends TiledScene {
       row: 48,
       width: 4,
       height: 4,
-      ownerName: "Player 1",
-      ownerId: "player-1",
+      ownerName: gameState.player.name,
+      ownerId: gameState.player.id,
       onPressed: onTilePressed,
       edgeFallthrough,
       buttons: [
@@ -232,9 +241,9 @@ export class MapLevel extends TiledScene {
     const now = Date.now();
     const event: VesselMoveEvent = {
       vesselId: newEventId(),
-      ownerId: "player-1",
-      ownerName: "Player 1",
-      mothershipId: "player-1",
+      ownerId: gameState.player.id,
+      ownerName: gameState.player.name,
+      mothershipId: gameState.player.id,
       vesselType: "cs1",
       srcCol: dock.col,
       srcRow: dock.row,

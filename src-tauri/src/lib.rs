@@ -83,11 +83,37 @@ fn generate_map(map_type: String) -> Result<TileMapData, String> {
     }
 }
 
+#[derive(Serialize, serde::Deserialize)]
+pub struct PlayerIdentity {
+    pub id: String,
+    pub name: String,
+}
+
+/// Initial game state pushed to the client on startup. Mirrors the TS
+/// `GameStateData` in `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize)]
+pub struct GameStateData {
+    pub player: PlayerIdentity,
+}
+
+/// Load the player's game state. Hardcoded for now; later this hydrates from
+/// the phase-2 local save file and then the phase-3 server snapshot — the
+/// Result propagation is already in place for both.
+#[tauri::command]
+fn load_game_state() -> Result<GameStateData, String> {
+    Ok(GameStateData {
+        player: PlayerIdentity {
+            id: "player-1".to_string(),
+            name: "Player 1".to_string(),
+        },
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![generate_map])
+        .invoke_handler(tauri::generate_handler![generate_map, load_game_state])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
