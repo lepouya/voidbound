@@ -78,7 +78,10 @@ game:
   electronics and reactors, from rare asteroids, (c) biological materials —
   water, food, and such, from icy asteroids or terrariums, and (d) fuel material
   — like hydrogen or methane. (Open question: whether uranium fits here or is
-  one resource too many.)
+  one resource too many.) Alongside the materials there is a generic trade
+  currency — working name "credits", final name settled in the display layer —
+  earned through trade rather than production or mining; its exact role isn't
+  fleshed out yet.
 - No hard daily energy caps. Repeating actions over the course of a day yields
   diminishing returns instead, resetting at a fixed point.
 - Resource nodes (asteroids, moons, planets) get higher level and more difficult

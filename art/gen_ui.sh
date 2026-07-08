@@ -41,5 +41,14 @@ for src in ui/icons/*.svg; do
     [ -e "$src" ] || continue
     name="${src#ui/icons/}"
     name="${name%.svg}"
-    python3 ../tools/svg_ui_gen.py -s "$src" -c 3 -r 1 -z 64 -d "../src/assets/ui-icon-${name}.png" --color1 "$COLOR1" --color2 "$COLOR2"
+    # Resource icons carry a per-resource accent so they stay tellable at
+    # the tiny resource-bar size; everything else uses the shared accent.
+    accent="$COLOR2"
+    case "$name" in
+        construction) accent="#ff9d45" ;;
+        biological)   accent="#54e05e" ;;
+        fuel)         accent="#ff5470" ;;
+        credits)      accent="#ffd75e" ;;
+    esac
+    python3 ../tools/svg_ui_gen.py -s "$src" -c 3 -r 1 -z 64 -d "../src/assets/ui-icon-${name}.png" --color1 "$COLOR1" --color2 "$accent"
 done

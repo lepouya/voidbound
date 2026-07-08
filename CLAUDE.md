@@ -30,9 +30,10 @@ task list that tracks what's built vs. planned.
   (`.github/workflows/ci.yml`) runs fmt/type/test/cargo checks on push and PR.
   Logic that should be unit-tested lives in pure modules with no runtime
   Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
-  `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`) — Excalibur cannot load
-  under Deno, so keep new testable logic in that shape. There is no
-  runtime/scene coverage — the running app is still the safety net there.
+  `src/game-state.ts`, `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`,
+  `src/ui/format.ts`) — Excalibur cannot load under Deno, so keep new testable
+  logic in that shape. There is no runtime/scene coverage — the running app is
+  still the safety net there.
 
 ## 2. Project Layout
 
@@ -175,6 +176,8 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   `TileActor.tile`); re-exports the `TileRef`/`TileLayerDef` types
 - `tile-ref-parse.ts` — pure TileRef types + parsing helpers (no runtime
   imports; unit-tested). Not in the barrel — app code imports via tile-ref
+- `format.ts` — pure number-display helpers (`formatCompactCount`; no runtime
+  imports; unit-tested). In the barrel, unlike the other pure modules
 - `label.ts` — `LabelDef`, `makeBorderedLabel`, `makeLabelActor`
 - `badge.ts` — `BadgeDef` (number | string | LabelDef | SpriteBadge),
   `TileActorBadgeDef` (corner-pinned on TileActors)

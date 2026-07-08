@@ -4,7 +4,12 @@ import { AnchorPlacement } from "./anchor.ts";
 import { BadgeDef, makeBadgeActor } from "./badge.ts";
 import { ButtonDef, makeButtonGraphic } from "./button.ts";
 import { HudStackDir, layoutButtonCenters } from "./hud-layout.ts";
-import { LABEL_PAD, makeLabelActor, resolveButtonLabel } from "./label.ts";
+import {
+  LABEL_PAD,
+  LabelDef,
+  makeLabelActor,
+  resolveButtonLabel,
+} from "./label.ts";
 
 // Layout math (anchor placement + button stacking) lives in hud-layout.ts —
 // a pure module testable under plain `deno test`. Re-export its direction
@@ -58,6 +63,12 @@ export interface HudGroupHandle {
   setButtonActive(index: number, active: boolean): void;
   /** Update or remove the badge on an individual button by index. */
   setBadge(index: number, badge: BadgeDef | undefined): void;
+  /**
+   * Update or remove the label below an individual button by index — e.g.
+   * the live counts on the resource bar. Same normalization as
+   * HudButtonDef.label (plain string → borderless button label).
+   */
+  setLabel(index: number, label: string | LabelDef | undefined): void;
   /** Remove all buttons in this group from the scene. */
   remove(): void;
   /**
@@ -83,6 +94,7 @@ interface ButtonState {
   disabled: boolean;
   active: boolean;
   badgeActor: ex.Actor | null;
+  labelActor: ex.Actor | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +190,7 @@ export function spawnHudGroup(
       disabled: initDisabled,
       active: initActive,
       badgeActor,
+      labelActor,
     };
     states.push(state);
     elements.push(el);
@@ -239,6 +252,23 @@ export function spawnHudGroup(
         const actor = makeBadgeActor(badge, ex.vec(w / 2, -h / 2));
         state.element.addChild(actor);
         state.badgeActor = actor;
+      }
+    },
+
+    setLabel(index: number, label: string | LabelDef | undefined) {
+      const state = states[index];
+      if (!state) return;
+      if (state.labelActor) {
+        state.labelActor.kill();
+        state.labelActor = null;
+      }
+      const actor = makeLabelActor(
+        resolveButtonLabel(label),
+        ex.vec(0, sizes[index].h / 2 + LABEL_PAD),
+      );
+      if (actor) {
+        state.element.addChild(actor);
+        state.labelActor = actor;
       }
     },
 

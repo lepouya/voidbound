@@ -1,6 +1,7 @@
 export * from "./anchor.ts";
 export * from "./badge.ts";
 export * from "./button.ts";
+export * from "./format.ts";
 export * from "./hud.ts";
 export * from "./label.ts";
 export * from "./path-line.ts";

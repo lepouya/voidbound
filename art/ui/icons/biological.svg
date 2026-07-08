@@ -1,0 +1,21 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <!-- Leaf with a central vein and a short stem. -->
+  <g
+    stroke="#COLOR2"
+    stroke-width="2"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  >
+    <line x1="20" y1="46" x2="14" y2="52" />
+    <path
+      d="M20,46 C18,30 28,17 46,15 C46,33 36,44 20,46 Z"
+      fill="#COLOR1"
+    />
+    <path d="M23,43 C30,38 38,28 43,19" fill="none" />
+  </g>
+</svg>

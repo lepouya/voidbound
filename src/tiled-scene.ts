@@ -1,12 +1,29 @@
 import * as ex from "excalibur";
 
 import {
+  formatCompactCount,
   HudButtonDef,
   HudGroupDef,
   HudGroupHandle,
+  LabelDef,
   spawnHudGroup,
 } from "./ui/index.ts";
+import { gameState, RESOURCE_KINDS, ResourceKind } from "./game-state.ts";
 import { TileActor } from "./tile-actor.ts";
+
+/**
+ * Tileset (ui-icon-* PNG) for each resource's bar icon. Icon art is generated
+ * from art/ui/icons/*.svg by art/gen_ui.sh; the "credits" icon keeps its
+ * working name even after the currency's display name settles (see
+ * game-state.ts).
+ */
+const RESOURCE_ICON_TILESET: Record<ResourceKind, string> = {
+  construction: "ui-icon-construction",
+  highTech: "ui-icon-hightech",
+  biological: "ui-icon-biological",
+  fuel: "ui-icon-fuel",
+  credits: "ui-icon-credits",
+};
 
 /**
  * Abstract base scene for any level that displays a tile-based map with
@@ -475,15 +492,47 @@ export abstract class TiledScene extends ex.Scene {
   }
 
   /**
-   * Spawn the standard HUD shared by every scene: Shop/Events in the
-   * top-right, and the given scene-switch button stacked above Mail/Items in
-   * the bottom-right. Call from onInitialize after super.onInitialize(engine).
-   * Returns both group handles for runtime control (e.g. wiring the Events or
-   * Mail badges to real counts).
+   * Spawn the standard HUD shared by every scene: the resource bar along the
+   * top-left, Shop/Events in the top-right, and the given scene-switch button
+   * stacked above Mail/Items in the bottom-right. Call from onInitialize
+   * after super.onInitialize(engine). Returns the group handles for runtime
+   * control (e.g. wiring the Events or Mail badges to real counts).
    */
   protected addCommonHud(
     switchButton: HudButtonDef,
-  ): { topRight: HudGroupHandle; bottomRight: HudGroupHandle } {
+  ): {
+    resourceBar: HudGroupHandle;
+    topRight: HudGroupHandle;
+    bottomRight: HudGroupHandle;
+  } {
+    // Resource bar (ROADMAP P1.2): one icon per ResourceKind with its count
+    // below, kept live via the gameState subscription. Scenes live for the
+    // whole app run, so the subscription is deliberately never torn down
+    // (see GameState.subscribe). The zero labelOffset cancels the default
+    // upward button-label nudge, which would overlap the count onto these
+    // small frameless icons.
+    const resourceLabel = (kind: ResourceKind): LabelDef => ({
+      text: formatCompactCount(gameState.resources[kind]),
+      labelOffset: ex.vec(0, 0),
+    });
+    const resourceBar = this.addHudGroup({
+      anchor: "top-left",
+      direction: "right",
+      gap: 16,
+      buttons: RESOURCE_KINDS.map((kind) => ({
+        tile: `${RESOURCE_ICON_TILESET[kind]}:0`,
+        width: 22,
+        height: 22,
+        label: resourceLabel(kind),
+        onPressed: () => console.log(`resource ${kind}`),
+      })),
+    });
+    gameState.subscribe(() => {
+      RESOURCE_KINDS.forEach((kind, i) =>
+        resourceBar.setLabel(i, resourceLabel(kind))
+      );
+    });
+
     const topRight = this.addHudGroup({
       anchor: "top-right",
       gap: 8,
@@ -546,6 +595,6 @@ export abstract class TiledScene extends ex.Scene {
         },
       ],
     });
-    return { topRight, bottomRight };
+    return { resourceBar, topRight, bottomRight };
   }
 }

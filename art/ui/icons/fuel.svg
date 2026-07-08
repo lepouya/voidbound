@@ -1,0 +1,20 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <!-- Flame with an inner hot core. -->
+  <path
+    d="M32,12 C36,20 45,25 45,35 A13,13 0 0 1 19,35 C19,25 28,20 32,12 Z"
+    fill="#COLOR1"
+    stroke="#COLOR2"
+    stroke-width="2"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+  <path
+    d="M32,30 C34,34 38,36 38,40 A6,6 0 0 1 26,40 C26,36 30,34 32,30 Z"
+    fill="#COLOR2"
+  />
+</svg>

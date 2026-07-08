@@ -89,22 +89,45 @@ pub struct PlayerIdentity {
     pub name: String,
 }
 
+/// The player's stock of the four material resources plus the generic trade
+/// currency ("credits" — placeholder term, renamed in the display layer if
+/// needed). Mirrors the TS `ResourceCounts` in `src/game-state.ts` — keep
+/// the two in sync.
+#[derive(Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceCounts {
+    pub construction: u64,
+    pub high_tech: u64,
+    pub biological: u64,
+    pub fuel: u64,
+    pub credits: u64,
+}
+
 /// Initial game state pushed to the client on startup. Mirrors the TS
 /// `GameStateData` in `src/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize)]
 pub struct GameStateData {
     pub player: PlayerIdentity,
+    pub resources: ResourceCounts,
 }
 
-/// Load the player's game state. Hardcoded for now; later this hydrates from
-/// the phase-2 local save file and then the phase-3 server snapshot — the
-/// Result propagation is already in place for both.
+/// Load the player's game state. Hardcoded new-player values for now (must
+/// match the TS defaults in `GameState`); later this hydrates from the
+/// phase-2 local save file and then the phase-3 server snapshot — the Result
+/// propagation is already in place for both.
 #[tauri::command]
 fn load_game_state() -> Result<GameStateData, String> {
     Ok(GameStateData {
         player: PlayerIdentity {
             id: "player-1".to_string(),
             name: "Player 1".to_string(),
+        },
+        resources: ResourceCounts {
+            construction: 0,
+            high_tech: 0,
+            biological: 0,
+            fuel: 0,
+            credits: 0,
         },
     })
 }

@@ -85,13 +85,15 @@ phase(s) it actually satisfies.
 
 Goal: a playable single-player loop, no persistence yet.
 
-- [ ] **P1.1 — Resource state + production tick.** The 4 resources
+- [x] **P1.1 — Resource state + production tick.** The 4 resources
       (construction, high-tech, biological, fuel) as game state with a periodic
       production tick. Baseline production comes from the Command Module so the
       player can never get stuck. Needs P0.12.
-- [ ] **P1.2 — Resource bar HUD group.** Screen-top display of the 4 resource
-      counts — first real use of `HudGroupHandle.setBadge`, updated from the
-      P1.1 tick. Needs P1.1.
+- [x] **P1.2 — Resource bar HUD group.** Screen-top display of the resource
+      counts — first real use of runtime HUD text updates
+      (`HudGroupHandle.setLabel`, added for this since counts read better as
+      labels under the icons than as corner badges), updated from the P1.1 tick.
+      Needs P1.1.
 - [ ] **P1.3 — Module placement + build timers.** `BuildModuleEvent` via
       `/add-game-event` (its `completesAt` field gives build timers for free),
       plus the placement UI: `createEmptyTileActor` in the ship view with a
