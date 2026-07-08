@@ -1,6 +1,6 @@
 import * as ex from "excalibur";
 
-import { anchorFractions, AnchorPlacement } from "./anchor";
+import { anchorFractions, AnchorPlacement } from "./anchor.ts";
 
 export const LABEL_FONT_SIZE = 10;
 export const LABEL_PAD = 3;

@@ -1,7 +1,7 @@
 // Pure HUD layout math — no runtime dependencies beyond anchor.ts (also
 // pure), so tests/hud_layout_test.ts can exercise it under plain `deno test`.
 // Positions are plain {x, y} records; hud.ts wraps them into ex.Vectors.
-import { anchorFractions, AnchorPlacement } from "./anchor";
+import { anchorFractions, AnchorPlacement } from "./anchor.ts";
 
 /**
  * Stack direction for buttons within a HUD group.

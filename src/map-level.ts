@@ -1,9 +1,9 @@
 import * as ex from "excalibur";
 
-import { closestDockTile, isDockTile } from "./grid-math";
-import { buildTileMap } from "./map-loader";
-import { TileActor } from "./tile-actor";
-import { TiledScene } from "./tiled-scene";
+import { closestDockTile, isDockTile } from "./grid-math.ts";
+import { buildTileMap } from "./map-loader.ts";
+import { TileActor } from "./tile-actor.ts";
+import { TiledScene } from "./tiled-scene.ts";
 
 /** See SERVER.md for the server-authoritative model this event is written against. */
 export interface VesselMoveEvent {

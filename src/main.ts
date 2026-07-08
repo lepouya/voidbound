@@ -1,8 +1,8 @@
 import * as ex from "excalibur";
 
-import { MapLevel } from "./map-level";
-import { loader } from "./resources";
-import { ShipLevel } from "./ship-level";
+import { MapLevel } from "./map-level.ts";
+import { loader } from "./resources.ts";
+import { ShipLevel } from "./ship-level.ts";
 
 const game = new ex.Engine({
   width: 390,

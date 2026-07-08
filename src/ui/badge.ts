@@ -1,8 +1,8 @@
 import * as ex from "excalibur";
 
-import { anchorFractions, AnchorPlacement } from "./anchor";
-import { LABEL_FONT_SIZE, LabelDef, makeLabelActor } from "./label";
-import { parseTileRef, TileRef } from "./tile-ref";
+import { anchorFractions, AnchorPlacement } from "./anchor.ts";
+import { LABEL_FONT_SIZE, LabelDef, makeLabelActor } from "./label.ts";
+import { parseTileRef, TileRef } from "./tile-ref.ts";
 
 export const DEFAULT_BADGE_SIZE = 16;
 

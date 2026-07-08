@@ -6,7 +6,7 @@ import {
   AutoTilesetRule,
   TILESET_GEOMETRY,
   TilesetGridGeometry,
-} from "./tileset-geometry";
+} from "./tileset-geometry.ts";
 
 // All PNG assets under src/assets/, including any future subdirectories.
 // Keys are paths relative to this file, e.g. "./assets/cs1-base.png" or

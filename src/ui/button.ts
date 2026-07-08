@@ -1,8 +1,8 @@
 import * as ex from "excalibur";
 
-import { BadgeDef } from "./badge";
-import { LabelDef } from "./label";
-import { parseTileRef, TileRef } from "./tile-ref";
+import { BadgeDef } from "./badge.ts";
+import { LabelDef } from "./label.ts";
+import { parseTileRef, TileRef } from "./tile-ref.ts";
 
 // ---------------------------------------------------------------------------
 // Button types

@@ -13,7 +13,7 @@ import {
   resolveGraphicLayers,
   TileActorBadgeDef,
   TileRef,
-} from "./ui";
+} from "./ui/index.ts";
 
 export interface TileActorOptions {
   /**

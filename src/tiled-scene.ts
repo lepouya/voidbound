@@ -1,7 +1,12 @@
 import * as ex from "excalibur";
 
-import { HudButtonDef, HudGroupDef, HudGroupHandle, spawnHudGroup } from "./ui";
-import { TileActor } from "./tile-actor";
+import {
+  HudButtonDef,
+  HudGroupDef,
+  HudGroupHandle,
+  spawnHudGroup,
+} from "./ui/index.ts";
+import { TileActor } from "./tile-actor.ts";
 
 /**
  * Abstract base scene for any level that displays a tile-based map with

@@ -9,6 +9,7 @@
       "Bash(deno check:*)",
       "Bash(deno fmt:*)",
       "Bash(deno install)",
+      "Bash(deno lint:*)",
       "Bash(deno --version)",
       "Bash(cargo check:*)",
       "Bash(cargo build:*)",

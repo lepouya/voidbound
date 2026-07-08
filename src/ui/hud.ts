@@ -1,10 +1,10 @@
 import * as ex from "excalibur";
 
-import { AnchorPlacement } from "./anchor";
-import { BadgeDef, makeBadgeActor } from "./badge";
-import { ButtonDef, makeButtonGraphic } from "./button";
-import { HudStackDir, layoutButtonCenters } from "./hud-layout";
-import { LABEL_PAD, makeLabelActor, resolveButtonLabel } from "./label";
+import { AnchorPlacement } from "./anchor.ts";
+import { BadgeDef, makeBadgeActor } from "./badge.ts";
+import { ButtonDef, makeButtonGraphic } from "./button.ts";
+import { HudStackDir, layoutButtonCenters } from "./hud-layout.ts";
+import { LABEL_PAD, makeLabelActor, resolveButtonLabel } from "./label.ts";
 
 // Layout math (anchor placement + button stacking) lives in hud-layout.ts —
 // a pure module testable under plain `deno test`. Re-export its direction

@@ -2,7 +2,7 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { parseTileRef } from "./ui";
+import { parseTileRef } from "./ui/index.ts";
 
 interface TileMapData {
   cols: number;

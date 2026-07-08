@@ -1,13 +1,13 @@
 import * as ex from "excalibur";
 
-import { Resources } from "../resources";
+import { Resources } from "../resources.ts";
 import {
   parseSegment,
   splitRefLayers,
   TileLayerDef,
   TileRef,
   visibleLayers,
-} from "./tile-ref-parse";
+} from "./tile-ref-parse.ts";
 
 // The TileRef types and the pure parsing helpers live in tile-ref-parse.ts
 // (no runtime imports, so they are testable under plain `deno test`); this

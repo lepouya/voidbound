@@ -1,8 +1,8 @@
 import * as ex from "excalibur";
 
-import { buildTileMap } from "./map-loader";
-import { TileActor } from "./tile-actor";
-import { TiledScene } from "./tiled-scene";
+import { buildTileMap } from "./map-loader.ts";
+import { TileActor } from "./tile-actor.ts";
+import { TiledScene } from "./tiled-scene.ts";
 
 export class ShipLevel extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
