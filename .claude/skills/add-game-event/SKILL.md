@@ -23,6 +23,15 @@ The pattern has three parts:
 3. A **local action method** that constructs the event and calls
    `apply<Action>Event` directly.
 
+**Resource-touching actions must be server-verified** (never trust the client
+with resource math): instead of constructing the event locally, the action
+method invokes a Tauri command that verifies the request against `ServerState`
+in `src-tauri/src/lib.rs`, mutates resources there, and returns the authorized
+event (+ updated `ResourceCounts`, applied via `gameState.syncResources`). Steps
+1 and 2 are unchanged; the event interface gains a Rust mirror struct (serde
+`rename_all = "camelCase"`) and the game rule gets a `#[cfg(test)]` unit test.
+Canonical example: `BuildModuleEvent` / `request_build_module`.
+
 ## 1. Define the event interface
 
 Place the interface at the top of the scene file that owns the action.

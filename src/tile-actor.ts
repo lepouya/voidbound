@@ -59,7 +59,7 @@ export class TileActor extends ex.Actor {
   readonly colSpan: number;
   /** Actor height in tiles. */
   readonly rowSpan: number;
-  private readonly baseGraphic: ex.Graphic;
+  private baseGraphic: ex.Graphic;
   private readonly movingGraphic: ex.Graphic | null;
   private readonly selectionTile: TileRef | null;
   private readonly onPressed: ((actor: TileActor) => void) | undefined;
@@ -192,6 +192,20 @@ export class TileActor extends ex.Actor {
     const btn = this.pendingButton;
     this.pendingButton = null;
     return btn;
+  }
+
+  /**
+   * Replace the base tile graphic after construction — e.g. swapping an
+   * under-construction ghost for the finished module sprite. The replacement
+   * must have the same pixel dimensions as the construction-time tile: the
+   * actor's scale was baked from it and is not recomputed. If the actor is
+   * mid-moveTo showing movingTile, the new base appears on arrival.
+   */
+  setTile(tile: TileRef | TileRef[]): void {
+    this.baseGraphic = resolveGraphicLayers(tile);
+    if (this.graphics.current !== this.movingGraphic) {
+      this.graphics.use(this.baseGraphic);
+    }
   }
 
   /**

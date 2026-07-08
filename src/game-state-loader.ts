@@ -2,7 +2,7 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { gameState, GameStateData } from "./game-state.ts";
+import { gameState, GameStateData, PRODUCTION_TICK_MS } from "./game-state.ts";
 
 /**
  * Excalibur loader resource that fetches the initial game state from the
@@ -41,4 +41,27 @@ export class GameStateResource implements ex.Loadable<GameStateData | null> {
   isLoaded(): boolean {
     return this.attempted;
   }
+}
+
+/**
+ * Poll the backend for the authoritative game state once per production
+ * interval (ROADMAP P1.1). All resource math is server-side — this poll is
+ * how produced resources reach the client between actions; command responses
+ * (e.g. request_build_module) carry updated counts in between.
+ *
+ * Same resilience contract as the loader fetch: a failed poll keeps the
+ * last-synced counts and retries next interval, logging only when the outage
+ * starts rather than every 5 seconds.
+ */
+export function startGameStateSync(intervalMs = PRODUCTION_TICK_MS): void {
+  let failing = false;
+  setInterval(async () => {
+    try {
+      gameState.load(await invoke<GameStateData>("load_game_state"));
+      failing = false;
+    } catch (err) {
+      if (!failing) console.warn("game-state sync failing; will retry:", err);
+      failing = true;
+    }
+  }, intervalMs);
 }

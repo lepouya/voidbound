@@ -96,10 +96,14 @@ arc radii, circumradii, and any world-space math.
 Every state-mutating action must be modeled as an event from day one (event
 interface + public `apply<Action>Event` + local action method) so local and
 networked code paths stay identical. Canonical example: `VesselMoveEvent` /
-`applyVesselMoveEvent()` in [src/map-level.ts](src/map-level.ts). **Use the
-`/add-game-event` skill** when adding any new action. The server model this
-pattern targets (event log, verification, broadcast, snapshot + replay,
-server-time offsets) is sketched in `SERVER.md`.
+`applyVesselMoveEvent()` in [src/map-level.ts](src/map-level.ts).
+`BuildModuleEvent` in [src/ship-level.ts](src/ship-level.ts) shows the
+server-verified stage of the same pattern: the local action method sends a
+request to the backend, which verifies it and returns the event — required for
+any action that touches resources. **Use the `/add-game-event` skill** when
+adding any new action. The server model this pattern targets (event log,
+verification, broadcast, snapshot + replay, server-time offsets) is sketched in
+`SERVER.md`.
 
 ### Input model (handled by `TiledScene`, don't reimplement)
 
@@ -251,6 +255,22 @@ Labels, buttons, and badges always render upright regardless of actor rotation.
 `Deserialize` are derived. To swap `"ship"` to a network fetch later, replace
 the `include_str!` call with a fetched string — the `Result` propagation is
 already in place.
+
+**The backend is authoritative for game state** (`ServerState` in lib.rs): all
+resource math — production accrual, build costs and verification — happens
+Rust-side, never in TS, because the client can be tampered with. The client
+renders what commands return and asks for actions:
+
+- `load_game_state` — identity + resource counts, with production lazily accrued
+  on read. Fetched once during the loader phase, then polled every production
+  interval by `startGameStateSync` (game-state-loader.ts).
+- `request_build_module(col, row, module_type)` — verifies placement (room grid)
+  and cost, deducts resources, returns the authorized `BuildModuleEvent` plus
+  updated counts.
+
+Gameplay constants (production tick, module cost/build time, room grid) live in
+lib.rs with display-only TS mirrors — comments mark each pair; keep them in
+sync. `cargo test` covers the game-rule logic.
 
 Tauri commands return `Result<T, String>` — propagate errors as strings, don't
 `unwrap`/panic in command handlers.

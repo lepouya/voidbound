@@ -3,6 +3,8 @@
     "allow": [
       "WebFetch",
       "WebSearch",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
       "Edit(/.claude/**)",
       "Edit(/.claude/skills/**)",
       "Bash(deno task:*)",
@@ -10,6 +12,7 @@
       "Bash(deno fmt:*)",
       "Bash(deno install)",
       "Bash(deno lint:*)",
+      "Bash(deno test:*)",
       "Bash(deno --version)",
       "Bash(cargo check:*)",
       "Bash(cargo build:*)",
@@ -36,7 +39,8 @@
       "Bash(stat:*)",
       "Bash(echo:*)",
       "Bash(python3 tools/*)",
-      "Bash(art/gen_*.sh)"
+      "Bash(art/gen_*.sh)",
+      "Bash(./art/gen_*.sh)"
     ]
   }
 }

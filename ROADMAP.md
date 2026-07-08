@@ -94,7 +94,7 @@ Goal: a playable single-player loop, no persistence yet.
       (`HudGroupHandle.setLabel`, added for this since counts read better as
       labels under the icons than as corner badges), updated from the P1.1 tick.
       Needs P1.1.
-- [ ] **P1.3 — Module placement + build timers.** `BuildModuleEvent` via
+- [x] **P1.3 — Module placement + build timers.** `BuildModuleEvent` via
       `/add-game-event` (its `completesAt` field gives build timers for free),
       plus the placement UI: `createEmptyTileActor` in the ship view with a
       Build button, mirroring the map view's Move/Deploy pattern.

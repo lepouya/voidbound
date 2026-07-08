@@ -1,7 +1,6 @@
 import * as ex from "excalibur";
 
-import { GameStateResource } from "./game-state-loader.ts";
-import { gameState } from "./game-state.ts";
+import { GameStateResource, startGameStateSync } from "./game-state-loader.ts";
 import { MapLevel } from "./map-level.ts";
 import { loader } from "./resources.ts";
 import { ShipLevel } from "./ship-level.ts";
@@ -22,10 +21,9 @@ const game = new ex.Engine({
 // loads — see GameStateResource.
 loader.addResource(new GameStateResource());
 
-// Production tick (ROADMAP P1.1): applyProduction only accrues whole
-// intervals, so driving it from the frame loop is free between ticks and
-// catches up in one call after a pause.
-game.on("postupdate", () => gameState.applyProduction(Date.now()));
+// Production (ROADMAP P1.1) accrues server-side; this poll pulls the
+// authoritative counts down every interval so the resource bar stays live.
+startGameStateSync();
 
 game
   .start("ship", {

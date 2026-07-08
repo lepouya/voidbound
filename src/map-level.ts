@@ -1,5 +1,6 @@
 import * as ex from "excalibur";
 
+import { newEventId } from "./event-id.ts";
 import { gameState } from "./game-state.ts";
 import { closestDockTile, isDockTile } from "./grid-math.ts";
 import { buildTileMap } from "./map-loader.ts";
@@ -28,19 +29,6 @@ export interface VesselMoveEvent {
    *  Lets late-joining clients lerp to the current position without re-computing
    *  travel time. */
   arrivalAt: number;
-}
-
-/**
- * Random unique id for locally-created events. crypto.randomUUID requires a
- * secure context (always true under Tauri), so fall back to random hex when
- * the vite dev build is served over plain http to a LAN device.
- */
-function newEventId(): string {
-  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  return Array.from(
-    crypto.getRandomValues(new Uint8Array(16)),
-    (b) => b.toString(16).padStart(2, "0"),
-  ).join("");
 }
 
 export class MapLevel extends TiledScene {
