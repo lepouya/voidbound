@@ -24,8 +24,10 @@ jobs:
       - name: Type check
         run: deno task check
 
+      # test:ts only — the full `deno task test` also runs cargo test, which
+      # the separate rust job covers (with the Tauri system deps it needs).
       - name: Deno tests
-        run: deno task test
+        run: deno task test:ts
 
       - name: Art pipeline tests
         run: python3 -m unittest discover -s tools -v

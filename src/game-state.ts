@@ -48,6 +48,64 @@ export const RESOURCE_KINDS: readonly ResourceKind[] = [
 export type ResourceCounts = Record<ResourceKind, number>;
 
 /**
+ * A mothership on the space map, as reported by the backend — the single
+ * source of truth for placement. MapLevel builds its map actors from the
+ * snapshot list rather than hardcoding positions, so moved ships or newly
+ * joined players arrive through the same reconcile with no client changes.
+ * Mirrors the Rust `MothershipData` in src-tauri/src/game_state.rs — keep
+ * the two in sync.
+ */
+export interface MothershipData {
+  /** One mothership per player for now, so ids equal the owner id. */
+  mothershipId: string;
+  ownerId: string;
+  /** Display name shown below the ship sprite. */
+  ownerName: string;
+  /** Sprite/capability type, e.g. "ss1" — resolves art as `<type>-base` /
+   *  `<type>-damaged`. */
+  shipType: string;
+  /** Renders the `-damaged` sprite variant when true. */
+  damaged: boolean;
+  /** Anchor (top-left) tile of the footprint. */
+  col: number;
+  row: number;
+  /** Footprint size in tiles (span*span). */
+  span: number;
+}
+
+/**
+ * A vessel movement authorized by the backend — dispatches, recalls, and (in
+ * phase 3) moves pushed from other players all use this one shape (see
+ * SERVER.md). Lives here rather than in map-level.ts because it rides the
+ * load_game_state snapshot: the shared state holds the vessel table between
+ * scenes. srcCol/srcRow may be fractional — a recall departs from the
+ * vessel's lerped mid-flight position. Mirrors the Rust `VesselMoveEventData`
+ * in src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface VesselMoveEvent {
+  vesselId: string;
+  ownerId: string;
+  /** Display name shown below the vessel sprite. */
+  ownerName: string;
+  /** Which mothership dispatched or will receive this vessel. */
+  mothershipId: string;
+  /** Sprite/capability type, e.g. "cs1". */
+  vesselType: string;
+  srcCol: number;
+  srcRow: number;
+  destCol: number;
+  destRow: number;
+  /** World px/s, server-verified. */
+  speed: number;
+  /** Server epoch ms when the move was authorized. */
+  dispatchedAt: number;
+  /** Pre-computed arrival time: dispatchedAt + (distancePx / speed * 1000).
+   *  Lets late-joining clients lerp to the current position without
+   *  re-computing travel time. */
+  arrivalAt: number;
+}
+
+/**
  * Length of one backend production interval — the cadence at which the
  * client polls `load_game_state` so produced resources reach the resource
  * bar as they land. Mirrors PRODUCTION_TICK_MS in src-tauri/src/lib.rs —
@@ -62,6 +120,12 @@ export const PRODUCTION_TICK_MS = 5_000;
 export interface GameStateData {
   player: PlayerIdentity;
   resources: ResourceCounts;
+  /** Every mothership on the space map — placement is server-owned; the
+   *  client builds its map actors from this list. */
+  motherships: MothershipData[];
+  /** Every vessel currently in flight or parked on the map, in dispatch
+   *  order — the snapshot half of SERVER.md's snapshot + replay. */
+  vessels: VesselMoveEvent[];
 }
 
 export type GameStateListener = () => void;
@@ -95,6 +159,26 @@ export class GameState {
     fuel: 0,
     credits: 0,
   };
+
+  /**
+   * Every mothership on the space map, keyed by mothershipId, as last
+   * reported by the backend. Replaced wholesale by each load() snapshot —
+   * which is also how updates (a moved ship, a newly joined player) reach
+   * the client until a push channel lands. Empty until load() lands: the
+   * client hardcodes no placements. MapLevel reconciles its actors from
+   * this table whenever subscribers are notified.
+   */
+  motherships = new Map<string, MothershipData>();
+
+  /**
+   * Every vessel in flight or parked on the map, keyed by vesselId, holding
+   * its latest backend-authorized move. Replaced wholesale by each load()
+   * snapshot and merged per-event by applyVesselEvent(). Held here rather
+   * than in the map scene so vessel state stays current (via the periodic
+   * sync poll) while other scenes are active — MapLevel reconciles its
+   * actors from this table whenever subscribers are notified.
+   */
+  vessels = new Map<string, VesselMoveEvent>();
 
   private listeners = new Set<GameStateListener>();
 
@@ -132,6 +216,18 @@ export class GameState {
   }
 
   /**
+   * Merge a single authorized vessel event from a command response (or, in
+   * phase 3, a server push), notifying subscribers. The next load() snapshot
+   * supersedes it — the backend records every event it authorizes, so the
+   * snapshot already contains it.
+   */
+  applyVesselEvent(event: VesselMoveEvent): void {
+    this.update((s) => {
+      s.vessels.set(event.vesselId, event);
+    });
+  }
+
+  /**
    * Replace this state with backend-loaded data, notifying subscribers.
    * Routed through update() so a re-sync at any time (the periodic poll, a
    * post-login refresh, a phase-3 server snapshot) refreshes live scenes the
@@ -141,6 +237,10 @@ export class GameState {
     this.update((s) => {
       s.player = data.player;
       s.resources = { ...data.resources };
+      s.motherships = new Map(
+        data.motherships.map((m) => [m.mothershipId, m]),
+      );
+      s.vessels = new Map(data.vessels.map((e) => [e.vesselId, e]));
       s.loaded = true;
     });
   }

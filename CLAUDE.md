@@ -23,12 +23,14 @@ task list that tracks what's built vs. planned.
 - **Bundler:** Vite. `vite.config.ts` sets `assetsInlineLimit: 0` — required so
   Excalibur can load image assets in production builds. HMR on port 1421 when
   running under Tauri dev.
-- **Testing:** `deno task test` runs the pure-logic suite in `tests/` (anchor
-  math, TileRef parsing, HUD layout, dock-tile math, and a
-  PNG-dimensions-vs-catalog cross-check);
+- **Testing:** `deno task test` runs both halves: the pure-logic TS suite in
+  `tests/` (anchor math, TileRef parsing, HUD layout, dock-tile math, and a
+  PNG-dimensions-vs-catalog cross-check) and the Rust game-rule tests via cargo.
+  `deno task test:ts` / `deno task test:rs` run one half alone;
   `python3 -m unittest discover -s tools` covers the art-pipeline converter. CI
-  (`.github/workflows/ci.yml`) runs fmt/type/test/cargo checks on push and PR.
-  Logic that should be unit-tested lives in pure modules with no runtime
+  (`.github/workflows/ci.yml`) runs fmt/type/test/cargo checks on push and PR
+  (the frontend job runs `test:ts`; the rust job runs cargo test itself). Logic
+  that should be unit-tested lives in pure modules with no runtime
   Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
   `src/game-state.ts`, `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`,
   `src/ui/format.ts`) — Excalibur cannot load under Deno, so keep new testable
@@ -51,9 +53,11 @@ src/                  # Frontend (TypeScript + Excalibur.js)
   assets/             # PNG spritesheets + pre-converted map JSON
 
 src-tauri/            # Backend (Rust + Tauri)
-  src/lib.rs          # #[tauri::command] definitions (generate_map, …)
+  src/lib.rs          # Tauri entry point; registers the command handlers
+  src/game_state.rs   # ServerState + gameplay commands (game rules live here)
+  src/map.rs          # generate_map command (map data)
 
-tests/                # deno test pure-logic suite (run: deno task test)
+tests/                # deno test pure-logic suite (run: deno task test:ts)
 
 art/                  # Source art (original PNGs, Tiled .tmj maps)
   gen_*.sh            # Art pipeline shell scripts → write to src/assets/
@@ -95,15 +99,19 @@ arc radii, circumradii, and any world-space math.
 
 Every state-mutating action must be modeled as an event from day one (event
 interface + public `apply<Action>Event` + local action method) so local and
-networked code paths stay identical. Canonical example: `VesselMoveEvent` /
-`applyVesselMoveEvent()` in [src/map-level.ts](src/map-level.ts).
-`BuildModuleEvent` in [src/ship-level.ts](src/ship-level.ts) shows the
-server-verified stage of the same pattern: the local action method sends a
-request to the backend, which verifies it and returns the event — required for
-any action that touches resources. **Use the `/add-game-event` skill** when
-adding any new action. The server model this pattern targets (event log,
-verification, broadcast, snapshot + replay, server-time offsets) is sketched in
-`SERVER.md`.
+networked code paths stay identical. Both canonical examples are
+**server-verified**: the local action method sends a request to the backend,
+which verifies it and returns the authorized event — required for any action
+that touches resources or shared world state. `BuildModuleEvent` /
+`request_build_module` in [src/ship-level.ts](src/ship-level.ts) is the simple
+form; `VesselMoveEvent` (in [src/game-state.ts](src/game-state.ts), applied by
+`applyVesselMoveEvent()` in [src/map-level.ts](src/map-level.ts)) additionally
+rides the `load_game_state` snapshot as `gameState.vessels`, with
+`MapLevel.syncVessels()` reconciling scene actors from that table — the
+snapshot + replay model that keeps vessel progress correct across scene switches
+and, later, late joins. **Use the `/add-game-event` skill** when adding any new
+action. The server model this pattern targets (event log, verification,
+broadcast, snapshot + replay, server-time offsets) is sketched in `SERVER.md`.
 
 ### Input model (handled by `TiledScene`, don't reimplement)
 
@@ -256,21 +264,36 @@ Labels, buttons, and badges always render upright regardless of actor rotation.
 the `include_str!` call with a fetched string — the `Result` propagation is
 already in place.
 
-**The backend is authoritative for game state** (`ServerState` in lib.rs): all
-resource math — production accrual, build costs and verification — happens
-Rust-side, never in TS, because the client can be tampered with. The client
-renders what commands return and asks for actions:
+**The backend is authoritative for game state** (`ServerState` in
+src-tauri/src/game_state.rs): all resource math — production accrual, build
+costs and verification — plus mothership placement and the vessel table
+(positions implicit in event timestamps) live Rust-side, never in TS, because
+the client can be tampered with. The client renders what commands return and
+asks for actions:
 
-- `load_game_state` — identity + resource counts, with production lazily accrued
-  on read. Fetched once during the loader phase, then polled every production
-  interval by `startGameStateSync` (game-state-loader.ts).
+- `load_game_state` — identity + resource counts (production lazily accrued on
+  read) + mothership placements + the active-vessel event list (the snapshot
+  half of SERVER.md's snapshot + replay). Fetched once during the loader phase,
+  then polled every production interval by `startGameStateSync`
+  (game-state-loader.ts). The map scene hardcodes no world content:
+  `MapLevel.syncMotherships()`/`syncVessels()` reconcile actors from the
+  snapshot, so server-side changes (a moved mothership, a new player) reach the
+  client through the same path.
 - `request_build_module(col, row, module_type)` — verifies placement (room grid)
   and cost, deducts resources, returns the authorized `BuildModuleEvent` plus
   updated counts.
+- `request_dispatch_vessel(dest_col, dest_row)` /
+  `request_recall_vessel(vessel_id)` — verify the move, derive dock, speed, and
+  arrival time (recalls depart from the server-lerped current position), record
+  it in the vessel table, and return the authorized `VesselMoveEvent`. Vessels
+  that finish a return onto a dock tile are pruned lazily, like production.
 
-Gameplay constants (production tick, module cost/build time, room grid) live in
-lib.rs with display-only TS mirrors — comments mark each pair; keep them in
-sync. `cargo test` covers the game-rule logic.
+Gameplay constants (production tick, module cost/build time, room grid, map
+geometry, vessel speed) live in game_state.rs with display-only TS mirrors —
+comments mark each pair; keep them in sync. Mothership placement is data, not a
+constant: it is seeded in `ServerState::new` and reaches the client only via the
+snapshot. The game-rule logic is covered by the Rust tests (part of
+`deno task test`).
 
 Tauri commands return `Result<T, String>` — propagate errors as strings, don't
 `unwrap`/panic in command handlers.

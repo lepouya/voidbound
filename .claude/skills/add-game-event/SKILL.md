@@ -20,21 +20,36 @@ The pattern has three parts:
 2. An `apply<Action>Event(event)` **method** — consumes the event and mutates
    scene state. This is the entry point for both local actions and future
    server-pushed events.
-3. A **local action method** that constructs the event and calls
-   `apply<Action>Event` directly.
+3. A **local action method** that obtains the event — from the backend for
+   server-verified actions, or by constructing it directly for purely local ones
+   — and routes it into `apply<Action>Event`.
 
-**Resource-touching actions must be server-verified** (never trust the client
-with resource math): instead of constructing the event locally, the action
-method invokes a Tauri command that verifies the request against `ServerState`
-in `src-tauri/src/lib.rs`, mutates resources there, and returns the authorized
-event (+ updated `ResourceCounts`, applied via `gameState.syncResources`). Steps
-1 and 2 are unchanged; the event interface gains a Rust mirror struct (serde
-`rename_all = "camelCase"`) and the game rule gets a `#[cfg(test)]` unit test.
-Canonical example: `BuildModuleEvent` / `request_build_module`.
+**Actions that touch resources or shared world state must be server-verified**
+(never trust the client with resource math or with facts other players will
+see): instead of constructing the event locally, the action method invokes a
+Tauri command that verifies the request against `ServerState` in
+`src-tauri/src/game_state.rs`, mutates state there, and returns the authorized
+event (for resource-touching actions, plus updated `ResourceCounts`, applied via
+`gameState.syncResources`). Steps 1 and 2 are unchanged; the event interface
+gains a Rust mirror struct (serde `rename_all = "camelCase"`) and the game rule
+gets a `#[cfg(test)]` unit test. Canonical examples: `BuildModuleEvent` /
+`request_build_module` and `VesselMoveEvent` / `request_dispatch_vessel` /
+`request_recall_vessel`. Constructing the event locally (with `newEventId()`
+from `src/event-id.ts`) remains valid only for actions with nothing to verify.
+
+**Events that must survive scene switches or late joins** should also ride the
+`load_game_state` snapshot: the backend records them in `ServerState`, the
+snapshot returns the active list, the shared `gameState` holds the table and
+merges command responses into it (`applyVesselEvent`), and the owning scene
+reconciles its actors from the table on every notify plus a forced re-lerp in
+`onActivate` (see `gameState.vessels` + `MapLevel.syncVessels()`). Such event
+interfaces live in `src/game-state.ts` (pure module) instead of the scene file.
 
 ## 1. Define the event interface
 
-Place the interface at the top of the scene file that owns the action.
+Place the interface at the top of the scene file that owns the action — or in
+`src/game-state.ts` when the event rides the `load_game_state` snapshot (like
+`VesselMoveEvent`), since the pure shared-state module can't import from scenes.
 
 ```ts
 export interface <Action>Event {
@@ -94,53 +109,52 @@ applyVesselMoveEvent(event: VesselMoveEvent): void {
 This is the private method called by UI buttons, keyboard shortcuts, etc. It is
 responsible for:
 
-- Reading local context (positions, selected actor, …)
-- Constructing the event with `crypto.randomUUID()` for new IDs, `Date.now()`
-  for `dispatchedAt`, and any server-style derived fields (`arrivalAt`, …)
-- Calling `this.apply<Action>Event(event)` — NOT mutating scene state directly
+- Reading local context (positions, selected actor, …) — only the _inputs_ to
+  the action; everything derivable belongs to the verifier
+- Obtaining the authorized event: `await invoke(...)` for server-verified
+  actions, or — for purely local ones — constructing it with `newEventId()`
+  (src/event-id.ts) for new IDs, `Date.now()` for `dispatchedAt`, and any
+  server-style derived fields (`arrivalAt`, …)
+- Routing the event into `apply<Action>Event` — NOT mutating scene state
+  directly. Snapshot-riding events route via the shared-state merge
+  (`gameState.applyVesselEvent`-style), which notifies the scene's reconciler
 - Handling post-action UI cleanup (deselect, suppress input, close menus)
 
 ```ts
-private dispatchVessel(destCol: number, destRow: number): void {
-  const dock = this.closestDockTile(destCol, destRow);
-  const distPx = Math.hypot(
-    (destCol - dock.col) * this.tilemap.tileWidth,
-    (destRow - dock.row) * this.tilemap.tileHeight,
-  );
-  const now = Date.now();
-  const event: VesselMoveEvent = {
-    vesselId: crypto.randomUUID(),
-    ownerId: "player-1",
-    ownerName: "Player 1",
-    mothershipId: "player-1",
-    vesselType: "cs1",
-    srcCol: dock.col,
-    srcRow: dock.row,
-    destCol,
-    destRow,
-    speed: this.vesselSpeed,
-    dispatchedAt: now,
-    arrivalAt: now + (distPx / this.vesselSpeed) * 1000,
-  };
-  this.applyVesselMoveEvent(event);
-
+private async dispatchVessel(destCol: number, destRow: number): Promise<void> {
   // UI housekeeping — local only, NOT in applyVesselMoveEvent:
   this.deselectActor();
+  try {
+    // The backend verifies the destination and derives dock, speed, and
+    // arrival time; the returned event is authoritative.
+    const event = await invoke<VesselMoveEvent>("request_dispatch_vessel", {
+      destCol,
+      destRow,
+    });
+    gameState.applyVesselEvent(event); // fans out to syncVessels → apply*Event
+  } catch (err) {
+    console.warn("request_dispatch_vessel rejected:", err);
+  }
 }
 ```
 
 ## Checklist before declaring done
 
-- [ ] Event interface is `export`ed from the scene module.
+- [ ] Event interface is `export`ed (scene module, or game-state.ts if it rides
+      the snapshot).
 - [ ] All fields a server would return are present (IDs, positions, timing).
 - [ ] `apply*Event` is **public** and contains **zero** UI housekeeping.
 - [ ] `apply*Event` handles the "entity already exists" case.
-- [ ] Local action method constructs the event and calls `apply*Event`; does not
-      touch scene state directly.
+- [ ] Local action method obtains the event (invoke or local construction) and
+      routes it through `apply*Event`; does not touch scene state directly.
+- [ ] Server-verified: Rust mirror struct + verifier on `ServerState` +
+      `#[cfg(test)]` unit test; command registered in lib.rs.
 - [ ] `deno task fmt` passes (formats and type-checks).
 
 ## Reference
 
-See `src/map-level.ts` for the canonical example: `VesselMoveEvent` +
-`applyVesselMoveEvent` + `dispatchVessel` + `returnVessel`. See `SERVER.md` for
-the architecture this pattern is written against.
+See the canonical example: `VesselMoveEvent` (src/game-state.ts) +
+`applyVesselMoveEvent` / `syncVessels` / `dispatchVessel` / `recallVessel`
+(src/map-level.ts) + `dispatch_vessel` / `recall_vessel`
+(src-tauri/src/game_state.rs). See `SERVER.md` for the architecture this pattern
+is written against.

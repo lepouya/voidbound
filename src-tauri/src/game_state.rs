@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -30,6 +30,16 @@ pub struct ResourceCounts {
 pub struct GameStateData {
     pub player: PlayerIdentity,
     pub resources: ResourceCounts,
+    /// Every mothership on the space map — placement is server-owned, so the
+    /// client builds its map actors from this list (and picks up moved ships
+    /// or newly joined players from later snapshots the same way).
+    pub motherships: Vec<MothershipData>,
+    /// Every vessel currently in flight or parked on the map, in dispatch
+    /// order — the snapshot half of SERVER.md's snapshot + replay. The client
+    /// replays these through applyVesselMoveEvent, so vessels dispatched
+    /// before it connected (or while it was in another scene) land at their
+    /// correct in-progress position.
+    pub vessels: Vec<VesselMoveEventData>,
 }
 
 // -- Server-authoritative game rules ----------------------------------------
@@ -56,6 +66,19 @@ const ROOM_PITCH: i64 = 8;
 const ROOM_COUNT: i64 = 5;
 /// Modules occupy the 4*4 center of their 6*6 room.
 const MODULE_SPAN: i64 = 4;
+
+/// Space-map bounds — mirror COLS/ROWS in `map.rs::generate_space_map`;
+/// keep in sync.
+const MAP_COLS: i64 = 100;
+const MAP_ROWS: i64 = 100;
+/// Map-scene tile size in world px — mirrors the tile_width/tile_height in
+/// `map.rs::generate_space_map`; keep in sync.
+const MAP_TILE_PX: f64 = 32.0;
+/// Vessel travel speed in world px/s. Server-verified: clients render the
+/// speed the event carries, they never choose it. Update on upgrade (P4).
+const VESSEL_SPEED_PX_S: f64 = 32.0;
+/// Sprite/capability type of the only vessel class so far.
+const VESSEL_TYPE: &str = "cs1";
 
 /// The local player. Hardcoded until a login flow exists (phase 3).
 fn player_identity() -> PlayerIdentity {
@@ -94,6 +117,100 @@ fn module_anchor_at(col: i64, row: i64) -> Option<(i64, i64)> {
     Some((room_col + inset, room_row + inset))
 }
 
+/// A mothership on the space map. Placement is server-owned: the client
+/// renders whatever the load_game_state snapshot says (MapLevel reconciles
+/// its actors from the list), so moved ships or newly joined players reach
+/// every client through the same snapshot with no hardcoded positions.
+/// Mirrors the TS `MothershipData` in `src/game-state.ts` — keep the two in
+/// sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MothershipData {
+    /// One mothership per player for now, so ids equal the owner id.
+    pub mothership_id: String,
+    pub owner_id: String,
+    pub owner_name: String,
+    /// Sprite/capability type, e.g. "ss1" — resolves art as `<type>-base` /
+    /// `<type>-damaged`.
+    pub ship_type: String,
+    /// Renders the `-damaged` sprite variant when true.
+    pub damaged: bool,
+    /// Anchor (top-left) tile of the footprint.
+    pub col: i64,
+    pub row: i64,
+    /// Footprint size in tiles (span*span).
+    pub span: i64,
+}
+
+/// Center tile of the ship's inner 2*2 that is closest to the given position
+/// — the spawn/dock point for vessels. Positions are fractional because
+/// recalls depart from a lerped mid-flight position. Mirrors closestDockTile
+/// in `src/grid-math.ts` — keep the two in sync.
+fn closest_dock_tile(ship: &MothershipData, col: f64, row: f64) -> (i64, i64) {
+    let axis = |v: f64, origin: i64| {
+        let half = origin + ship.span / 2;
+        if v < half as f64 {
+            half - 1
+        } else {
+            half
+        }
+    };
+    (axis(col, ship.col), axis(row, ship.row))
+}
+
+/// True if (col, row) is one of the ship's inner 2*2 docking tiles.
+/// Mirrors isDockTile in `src/grid-math.ts` — keep the two in sync.
+fn is_dock_tile(ship: &MothershipData, col: i64, row: i64) -> bool {
+    let on_axis = |v: i64, origin: i64| {
+        let half = origin + ship.span / 2;
+        v == half - 1 || v == half
+    };
+    on_axis(col, ship.col) && on_axis(row, ship.row)
+}
+
+/// Straight-line travel time between two tile positions at the given speed.
+fn travel_time_ms(
+    src_col: f64,
+    src_row: f64,
+    dest_col: f64,
+    dest_row: f64,
+    speed_px_s: f64,
+) -> u64 {
+    let dist_px = ((dest_col - src_col) * MAP_TILE_PX).hypot((dest_row - src_row) * MAP_TILE_PX);
+    (dist_px / speed_px_s * 1000.0).round() as u64
+}
+
+/// A vessel movement authorized by the backend — dispatches, recalls, and
+/// (in phase 3) moves pushed from other players all use this one shape.
+/// `src_col`/`src_row` are fractional for recalls, which depart from the
+/// vessel's lerped mid-flight position. Mirrors the TS `VesselMoveEvent` in
+/// `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct VesselMoveEventData {
+    pub vessel_id: String,
+    pub owner_id: String,
+    pub owner_name: String,
+    pub mothership_id: String,
+    pub vessel_type: String,
+    pub src_col: f64,
+    pub src_row: f64,
+    pub dest_col: i64,
+    pub dest_row: i64,
+    pub speed: f64,
+    pub dispatched_at: u64,
+    pub arrival_at: u64,
+}
+
+/// Progress of a vessel's move at `now_ms`, clamped to [0, 1].
+fn move_progress(v: &VesselMoveEventData, now_ms: u64) -> f64 {
+    let duration = v.arrival_at.saturating_sub(v.dispatched_at);
+    if duration == 0 || now_ms >= v.arrival_at {
+        return 1.0;
+    }
+    now_ms.saturating_sub(v.dispatched_at) as f64 / duration as f64
+}
+
 /// A module construction authorized by the backend. Mirrors the TS
 /// `BuildModuleEvent` in `src/ship-level.ts` — keep the two in sync.
 #[derive(Serialize, Debug)]
@@ -129,6 +246,16 @@ pub struct ServerState {
     occupied_rooms: HashSet<(i64, i64)>,
     /// Monotonic sequence mixed into module ids for uniqueness.
     next_module_seq: u64,
+    /// Every mothership on the map, keyed by mothership id — the single
+    /// source of truth for placement (the client renders the snapshot).
+    motherships: HashMap<String, MothershipData>,
+    /// Every vessel in flight or parked, keyed by vessel id, each holding its
+    /// latest authorized move. Time-based state is implicit in the event
+    /// timestamps, so nothing ticks: vessels that finish a return onto a dock
+    /// tile are pruned lazily on read/mutation (like production accrual).
+    vessels: HashMap<String, VesselMoveEventData>,
+    /// Monotonic sequence mixed into vessel ids for uniqueness.
+    next_vessel_seq: u64,
 }
 
 impl ServerState {
@@ -137,6 +264,37 @@ impl ServerState {
         // The Command Module pre-exists, centered on the map at (18, 18) —
         // see ShipLevel::setupActors.
         occupied_rooms.insert(room_origin_at(18, 18).expect("command module room"));
+        // Placeholder world: the player's mothership plus one sample enemy.
+        // Persistence (P2) / the real server (P3) will load these instead.
+        let player = player_identity();
+        let motherships = HashMap::from([
+            (
+                player.id.clone(),
+                MothershipData {
+                    mothership_id: player.id.clone(),
+                    owner_id: player.id,
+                    owner_name: player.name,
+                    ship_type: "ss1".to_string(),
+                    damaged: false,
+                    col: 48,
+                    row: 48,
+                    span: 4,
+                },
+            ),
+            (
+                "player-2".to_string(),
+                MothershipData {
+                    mothership_id: "player-2".to_string(),
+                    owner_id: "player-2".to_string(),
+                    owner_name: "Enemy".to_string(),
+                    ship_type: "ss1".to_string(),
+                    damaged: true,
+                    col: 53,
+                    row: 49,
+                    span: 4,
+                },
+            ),
+        ]);
         Self {
             resources: ResourceCounts {
                 construction: 0,
@@ -148,7 +306,17 @@ impl ServerState {
             last_production_at: now_ms,
             occupied_rooms,
             next_module_seq: 0,
+            motherships,
+            vessels: HashMap::new(),
+            next_vessel_seq: 0,
         }
+    }
+
+    /// The requesting player's own mothership — dispatch departs from it.
+    fn player_mothership(&self) -> Result<&MothershipData, String> {
+        self.motherships
+            .get(&player_identity().id)
+            .ok_or_else(|| "player has no mothership".to_string())
     }
 
     /// Accrue Command-Module baseline production (1 of each material per
@@ -216,6 +384,131 @@ impl ServerState {
             completes_at: now_ms + MODULE_BUILD_TIME_MS,
         })
     }
+
+    /// Drop vessels that have finished a move onto a docking tile of their
+    /// own mothership — docking despawns the vessel (mirrors the arrival
+    /// handling in applyVesselMoveEvent, src/map-level.ts). Vessels parked at
+    /// any other destination persist until recalled.
+    fn prune_docked_vessels(&mut self, now_ms: u64) {
+        let motherships = &self.motherships;
+        self.vessels.retain(|_, v| {
+            now_ms < v.arrival_at
+                || !motherships
+                    .get(&v.mothership_id)
+                    .is_some_and(|ship| is_dock_tile(ship, v.dest_col, v.dest_row))
+        });
+    }
+
+    /// Verify and execute a vessel dispatch: the destination must be on the
+    /// map and not a docking tile (arriving on a dock despawns the vessel —
+    /// that's what recalls are for). The departure dock, speed, and arrival
+    /// time are all derived here; the returned event is authoritative and
+    /// already recorded, so the next load_game_state snapshot includes it.
+    fn dispatch_vessel(
+        &mut self,
+        dest_col: i64,
+        dest_row: i64,
+        now_ms: u64,
+    ) -> Result<VesselMoveEventData, String> {
+        self.prune_docked_vessels(now_ms);
+        let ship = self.player_mothership()?;
+        if !(0..MAP_COLS).contains(&dest_col) || !(0..MAP_ROWS).contains(&dest_row) {
+            return Err(format!("({dest_col}, {dest_row}) is outside the map"));
+        }
+        if is_dock_tile(ship, dest_col, dest_row) {
+            return Err(format!("({dest_col}, {dest_row}) is a docking tile"));
+        }
+        let (src_col, src_row) = closest_dock_tile(ship, dest_col as f64, dest_row as f64);
+        let mothership_id = ship.mothership_id.clone();
+        self.next_vessel_seq += 1;
+        let player = player_identity();
+        let event = VesselMoveEventData {
+            vessel_id: format!("vessel-{}-{}", now_ms, self.next_vessel_seq),
+            owner_id: player.id,
+            owner_name: player.name,
+            mothership_id,
+            vessel_type: VESSEL_TYPE.to_string(),
+            src_col: src_col as f64,
+            src_row: src_row as f64,
+            dest_col,
+            dest_row,
+            speed: VESSEL_SPEED_PX_S,
+            dispatched_at: now_ms,
+            arrival_at: now_ms
+                + travel_time_ms(
+                    src_col as f64,
+                    src_row as f64,
+                    dest_col as f64,
+                    dest_row as f64,
+                    VESSEL_SPEED_PX_S,
+                ),
+        };
+        self.vessels.insert(event.vessel_id.clone(), event.clone());
+        Ok(event)
+    }
+
+    /// Verify and execute a recall: the vessel must exist and belong to the
+    /// requesting player. The return leg departs from the vessel's current
+    /// (lerped, possibly fractional) position toward the closest docking
+    /// tile; arriving there despawns it (see prune_docked_vessels).
+    fn recall_vessel(
+        &mut self,
+        vessel_id: &str,
+        now_ms: u64,
+    ) -> Result<VesselMoveEventData, String> {
+        self.prune_docked_vessels(now_ms);
+        let vessel = self
+            .vessels
+            .get(vessel_id)
+            .ok_or_else(|| format!("unknown vessel: {vessel_id:?}"))?;
+        if vessel.owner_id != player_identity().id {
+            return Err(format!("vessel {vessel_id:?} belongs to another player"));
+        }
+        let ship = self
+            .motherships
+            .get(&vessel.mothership_id)
+            .ok_or_else(|| format!("vessel {vessel_id:?} has no mothership to return to"))?;
+        let t = move_progress(vessel, now_ms);
+        let src_col = vessel.src_col + (vessel.dest_col as f64 - vessel.src_col) * t;
+        let src_row = vessel.src_row + (vessel.dest_row as f64 - vessel.src_row) * t;
+        let (dock_col, dock_row) = closest_dock_tile(ship, src_col, src_row);
+        let event = VesselMoveEventData {
+            src_col,
+            src_row,
+            dest_col: dock_col,
+            dest_row: dock_row,
+            dispatched_at: now_ms,
+            arrival_at: now_ms
+                + travel_time_ms(
+                    src_col,
+                    src_row,
+                    dock_col as f64,
+                    dock_row as f64,
+                    vessel.speed,
+                ),
+            ..vessel.clone()
+        };
+        self.vessels.insert(vessel_id.to_string(), event.clone());
+        Ok(event)
+    }
+
+    /// Every mothership on the map, in stable id order — the placement slice
+    /// of the load_game_state snapshot.
+    fn motherships_snapshot(&self) -> Vec<MothershipData> {
+        let mut ships: Vec<_> = self.motherships.values().cloned().collect();
+        ships.sort_by(|a, b| a.mothership_id.cmp(&b.mothership_id));
+        ships
+    }
+
+    /// Every vessel currently in flight or parked, in dispatch order — the
+    /// vessel slice of the load_game_state snapshot.
+    fn active_vessels(&mut self, now_ms: u64) -> Vec<VesselMoveEventData> {
+        self.prune_docked_vessels(now_ms);
+        let mut vessels: Vec<_> = self.vessels.values().cloned().collect();
+        vessels
+            .sort_by(|a, b| (a.dispatched_at, &a.vessel_id).cmp(&(b.dispatched_at, &b.vessel_id)));
+        vessels
+    }
 }
 
 /// Load the player's current game state, first accruing any production that
@@ -227,11 +520,39 @@ pub(crate) fn load_game_state(
     state: tauri::State<'_, Mutex<ServerState>>,
 ) -> Result<GameStateData, String> {
     let mut s = state.lock().map_err(|e| e.to_string())?;
-    s.accrue_production(now_ms());
+    let now = now_ms();
+    s.accrue_production(now);
     Ok(GameStateData {
         player: player_identity(),
         resources: s.resources,
+        motherships: s.motherships_snapshot(),
+        vessels: s.active_vessels(now),
     })
+}
+
+/// Request dispatch of a vessel from the player's mothership to the given
+/// map tile. Destination, departure dock, speed, and arrival time are
+/// verified/derived here — the returned event is authoritative and already
+/// part of subsequent load_game_state snapshots.
+#[tauri::command]
+pub(crate) fn request_dispatch_vessel(
+    state: tauri::State<'_, Mutex<ServerState>>,
+    dest_col: i64,
+    dest_row: i64,
+) -> Result<VesselMoveEventData, String> {
+    let mut s = state.lock().map_err(|e| e.to_string())?;
+    s.dispatch_vessel(dest_col, dest_row, now_ms())
+}
+
+/// Request recall of an in-flight or parked vessel back to the mothership.
+/// The return leg departs from the vessel's server-computed current position.
+#[tauri::command]
+pub(crate) fn request_recall_vessel(
+    state: tauri::State<'_, Mutex<ServerState>>,
+    vessel_id: String,
+) -> Result<VesselMoveEventData, String> {
+    let mut s = state.lock().map_err(|e| e.to_string())?;
+    s.recall_vessel(&vessel_id, now_ms())
 }
 
 /// Request construction of a module at the given anchor tile. Placement and
@@ -372,5 +693,97 @@ mod tests {
             .build_module(2, 2, "base".to_string(), 0)
             .unwrap_err()
             .contains("already has a module"));
+    }
+
+    #[test]
+    fn dispatch_departs_from_the_closest_dock_with_arrival_time() {
+        let mut s = ServerState::new(0);
+        let event = s.dispatch_vessel(50, 60, 1_000).unwrap();
+        // Mothership at (48, 48), 4*4: the inner docks are (49..=50, 49..=50).
+        assert_eq!((event.src_col, event.src_row), (50.0, 50.0));
+        assert_eq!((event.dest_col, event.dest_row), (50, 60));
+        assert_eq!(event.owner_id, player_identity().id);
+        assert_eq!(event.speed, VESSEL_SPEED_PX_S);
+        assert_eq!(event.dispatched_at, 1_000);
+        // 10 tiles * 32 px at 32 px/s = 10 s of travel.
+        assert_eq!(event.arrival_at, 11_000);
+        assert_eq!(s.active_vessels(1_000).len(), 1);
+    }
+
+    #[test]
+    fn dispatch_rejects_off_map_and_docking_destinations() {
+        let mut s = ServerState::new(0);
+        for (col, row) in [(100, 5), (5, -1), (-3, 3), (2, 100)] {
+            let err = s.dispatch_vessel(col, row, 0).unwrap_err();
+            assert!(err.contains("outside the map"), "{err}");
+        }
+        let err = s.dispatch_vessel(49, 50, 0).unwrap_err();
+        assert!(err.contains("docking tile"), "{err}");
+        assert!(s.active_vessels(0).is_empty());
+    }
+
+    #[test]
+    fn recall_redirects_from_the_lerped_mid_flight_position() {
+        let mut s = ServerState::new(0);
+        let out = s.dispatch_vessel(50, 60, 0).unwrap();
+        // Halfway through the 10 s outbound flight the vessel sits at row 55.
+        let back = s.recall_vessel(&out.vessel_id, 5_000).unwrap();
+        assert_eq!(back.vessel_id, out.vessel_id);
+        assert_eq!((back.src_col, back.src_row), (50.0, 55.0));
+        assert_eq!((back.dest_col, back.dest_row), (50, 50));
+        assert_eq!(back.dispatched_at, 5_000);
+        assert_eq!(back.arrival_at, 10_000);
+        // Docking completes: the vessel leaves the snapshot...
+        assert!(s.active_vessels(10_000).is_empty());
+        // ...and can no longer be recalled.
+        let err = s.recall_vessel(&out.vessel_id, 10_000).unwrap_err();
+        assert!(err.contains("unknown vessel"), "{err}");
+    }
+
+    #[test]
+    fn arrived_vessels_stay_parked_until_recalled() {
+        let mut s = ServerState::new(0);
+        let out = s.dispatch_vessel(50, 60, 0).unwrap();
+        // Long past arrival the vessel is still on the map, parked at dest.
+        assert_eq!(s.active_vessels(60_000).len(), 1);
+        let back = s.recall_vessel(&out.vessel_id, 60_000).unwrap();
+        assert_eq!((back.src_col, back.src_row), (50.0, 60.0));
+        assert_eq!((back.dest_col, back.dest_row), (50, 50));
+        assert_eq!(back.arrival_at, 70_000);
+    }
+
+    #[test]
+    fn recall_of_an_unknown_vessel_fails() {
+        let mut s = ServerState::new(0);
+        let err = s.recall_vessel("vessel-x", 0).unwrap_err();
+        assert!(err.contains("unknown vessel"), "{err}");
+    }
+
+    #[test]
+    fn snapshot_includes_the_seeded_motherships() {
+        let s = ServerState::new(0);
+        let ships = s.motherships_snapshot();
+        assert_eq!(ships.len(), 2);
+        let player = ships.iter().find(|m| m.owner_id == "player-1").unwrap();
+        assert_eq!((player.col, player.row, player.span), (48, 48, 4));
+        assert!(!player.damaged);
+        let enemy = ships.iter().find(|m| m.owner_id == "player-2").unwrap();
+        assert_eq!((enemy.col, enemy.row), (53, 49));
+        assert!(enemy.damaged);
+    }
+
+    #[test]
+    fn vessel_docks_follow_the_mothership_position() {
+        let mut s = ServerState::new(0);
+        // Relocate the player's mothership: docks must move with it, for
+        // dispatch departure, recall destination, and docked pruning alike.
+        let ship = s.motherships.get_mut("player-1").unwrap();
+        ship.col = 10;
+        ship.row = 10;
+        let out = s.dispatch_vessel(12, 30, 0).unwrap();
+        assert_eq!((out.src_col, out.src_row), (12.0, 12.0));
+        let back = s.recall_vessel(&out.vessel_id, 0).unwrap();
+        assert_eq!((back.dest_col, back.dest_row), (12, 12));
+        assert!(s.active_vessels(back.arrival_at).is_empty());
     }
 }

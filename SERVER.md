@@ -3,9 +3,11 @@
 The intended server model behind the multiplayer-ready event pattern
 (`CLAUDE.md` § Conventions, `/add-game-event`). Nothing here is built yet — this
 exists so that every new `*Event` interface is written against the same model
-and stays compatible when ROADMAP.md phase 3 lands. `VesselMoveEvent` /
-`applyVesselMoveEvent` in `src/map-level.ts` is the reference implementation of
-the client half.
+and stays compatible when ROADMAP.md phase 3 lands. `VesselMoveEvent` (in
+`src/game-state.ts`) / `applyVesselMoveEvent` in `src/map-level.ts` is the
+reference implementation of the client half, including the snapshot half:
+`load_game_state` returns the active-vessel event list, and
+`MapLevel.syncVessels()` reconciles scene actors from it.
 
 ## Model in one paragraph
 
@@ -24,10 +26,12 @@ event lands the entity at its correct in-progress position (see the lerp in
 ## Request → event lifecycle
 
 1. **Client sends an action request** — the _inputs_ to an action (e.g. "move
-   vessel to col/row"), not the finished event. Locally today, the private
-   action method (e.g. `dispatchVessel`) plays the server's role: it builds the
-   full event and applies it. When the socket lands, that method becomes "send
-   request, wait for the broadcast".
+   vessel to col/row"), not the finished event. Locally today, the in-process
+   Rust backend plays the server's role: action methods like `dispatchVessel`,
+   `recallVessel`, and `buildModule` already send a request over Tauri IPC
+   (`request_dispatch_vessel`, …), and `ServerState` verifies it and returns the
+   authorized event. When the socket lands, only the transport and the broadcast
+   fan-out change.
 2. **Server verifies** — the requester owns the entity, the action is legal
    (resources available, target in range, no conflicting in-flight action), and
    rate limits hold. Rejections return an error to the requester only.
