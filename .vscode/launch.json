@@ -3,11 +3,11 @@
   "configurations": [
     {
       "name": "Tauri Dev",
-      "type": "node",
+      "type": "node-terminal",
       "request": "launch",
-      "preLaunchTask": "Tauri Dev",
-      "program": "",
-      "cwd": "${workspaceFolder}"
+      "command": "deno task tauri dev",
+      "cwd": "${workspaceFolder}",
+      "autoAttachChildProcesses": false
     }
   ]
 }
