@@ -9,9 +9,9 @@ engine/tooling scaffolding all of that already sits on.
 
 **How to use this file:** tasks have stable IDs (`P<phase>.<n>`) so sessions and
 commits can reference them — check off a task when it's committed and
-`deno task fmt` + `deno task test` pass. Within a phase, tasks are listed in
-rough dependency order, but anything without an explicit "needs" note can be
-picked up independently.
+`deno task format` + `deno task check` + `deno task test` pass. Within a phase,
+tasks are listed in rough dependency order, but anything without an explicit
+"needs" note can be picked up independently.
 
 ## Phase 0 — Engine and tooling scaffolding
 
@@ -63,8 +63,8 @@ phase(s) it actually satisfies.
       (anchor, grid-math, hud-layout, tile-ref-parse, tileset-geometry cross
       check), the Python `tmj_to_tilemap` unittest suite, and the GitHub Actions
       CI workflow (frontend + rust jobs).
-- [x] **P0.11 — Tooling/build setup.** Deno as task runner (`deno task fmt`
-      formats + type-checks + `cargo fmt` in one step), Vite config
+- [x] **P0.11 — Tooling/build setup.** Deno as task runner (`format`/`check`
+      tasks, each split into `:ts`/`:rs` halves), Vite config
       (`assetsInlineLimit: 0` for Excalibur, dev-server/HMR quirks), Tauri
       config wired to the Deno tasks, strict `tsconfig.json`.
 - [x] **P0.12 — Shared cross-scene game-state module.** `MapLevel` and

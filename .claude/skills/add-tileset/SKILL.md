@@ -82,11 +82,11 @@ object form `TileLayerDef` instead of the string form. See `src/ui/tile-ref.ts`.
 
 ## 6. Finalize
 
-Run `deno task fmt` per `CLAUDE.md`, then `deno task test` — the test suite
-cross-checks every PNG's real dimensions against the catalog (and fails on any
-unregistered PNG), so it immediately catches a wrong `cols`/`rows`/`tileSize`.
-If the scene using the new tileset is running, the Vite dev server will
-hot-reload — no manual rebuild needed.
+Run `deno task format` then `deno task check` per `CLAUDE.md`, then
+`deno task test` — the test suite cross-checks every PNG's real dimensions
+against the catalog (and fails on any unregistered PNG), so it immediately
+catches a wrong `cols`/`rows`/`tileSize`. If the scene using the new tileset is
+running, the Vite dev server will hot-reload — no manual rebuild needed.
 
 ## Troubleshooting
 

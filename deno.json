@@ -1,8 +1,14 @@
 {
   "tasks": {
-    "fmt": "deno fmt && deno task check && cd src-tauri && cargo fmt",
-    "check": "deno check src/**/*.ts tests/*.ts",
-    "test": "deno test --allow-read tests/"
+    "format": "deno task format:ts && deno task format:rs",
+    "format:ts": "deno fmt",
+    "format:rs": "cd src-tauri && cargo fmt",
+    "check": "deno task check:ts && deno task check:rs",
+    "check:ts": "deno check src/**/*.ts tests/*.ts",
+    "check:rs": "cd src-tauri && cargo check",
+    "test": "deno task test:ts && deno task test:rs",
+    "test:ts": "deno test --allow-read tests/",
+    "test:rs": "cd src-tauri && cargo test"
   },
   "fmt": {
     "exclude": ["src/assets/"]

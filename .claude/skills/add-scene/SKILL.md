@@ -138,8 +138,8 @@ scene-specific `addHudGroup` group.
 
 ## 5. Finalize
 
-Run `deno task fmt` per `CLAUDE.md` and fix any type errors before declaring the
-task complete.
+Run `deno task format` then `deno task check` per `CLAUDE.md` and fix any type
+errors before declaring the task complete.
 
 ## Reference: existing scenes
 

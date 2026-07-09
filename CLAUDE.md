@@ -1,7 +1,8 @@
 # Voidbound — AI Agent Steering Document
 
-**Before considering any task complete**, run `deno task fmt` — formats TS and
-Rust, then type-checks TS, in one step. Never run `tsc` or `prettier` directly.
+**Before considering any task complete**, run `deno task format` (formats TS and
+Rust) then `deno task check` (type-checks TS and Rust). Never run `tsc`,
+`prettier`, `cargo fmt`, or `cargo check` directly.
 
 ## 1. Project Overview
 
@@ -18,8 +19,10 @@ task list that tracks what's built vs. planned.
 - **Backend:** Rust + [Tauri v2](https://tauri.app/v2/develop/). Only plugin in
   use: `tauri-plugin-opener`.
 - **Toolchain:** [Deno](https://deno.land/) runs scripts (`deno task tauri dev`,
-  `deno task build`) that delegate to `package.json`. The only Deno-native task
-  is `deno task fmt` in `deno.json`.
+  `deno task build`) that delegate to `package.json`. The Deno-native tasks —
+  `format`, `check`, `test` — live in `deno.json`; each is split into a `:ts`
+  and `:rs` half (e.g. `format:ts` runs `deno fmt`, `format:rs` runs
+  `cargo fmt`) and the bare task runs both halves in sequence.
 - **Bundler:** Vite. `vite.config.ts` sets `assetsInlineLimit: 0` — required so
   Excalibur can load image assets in production builds. HMR on port 1421 when
   running under Tauri dev.
@@ -28,9 +31,9 @@ task list that tracks what's built vs. planned.
   PNG-dimensions-vs-catalog cross-check) and the Rust game-rule tests via cargo.
   `deno task test:ts` / `deno task test:rs` run one half alone;
   `python3 -m unittest discover -s tools` covers the art-pipeline converter. CI
-  (`.github/workflows/ci.yml`) runs fmt/type/test/cargo checks on push and PR
-  (the frontend job runs `test:ts`; the rust job runs cargo test itself). Logic
-  that should be unit-tested lives in pure modules with no runtime
+  (`.github/workflows/ci.yml`) runs format/check/test/cargo checks on push and
+  PR (the frontend job runs `test:ts`; the rust job runs cargo test itself).
+  Logic that should be unit-tested lives in pure modules with no runtime
   Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
   `src/game-state.ts`, `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`,
   `src/ui/format.ts`) — Excalibur cannot load under Deno, so keep new testable

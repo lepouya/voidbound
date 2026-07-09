@@ -149,7 +149,8 @@ private async dispatchVessel(destCol: number, destRow: number): Promise<void> {
       routes it through `apply*Event`; does not touch scene state directly.
 - [ ] Server-verified: Rust mirror struct + verifier on `ServerState` +
       `#[cfg(test)]` unit test; command registered in lib.rs.
-- [ ] `deno task fmt` passes (formats and type-checks).
+- [ ] `deno task format` and `deno task check` pass (formats and type-checks TS
+      and Rust).
 
 ## Reference
 
