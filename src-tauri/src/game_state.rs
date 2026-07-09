@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,11 +10,23 @@ pub struct PlayerIdentity {
     pub name: String,
 }
 
+/// One of the four material resources a module can produce or a build can
+/// cost. Excludes `credits`, which is trade-only and never produced by a
+/// module. Mirrors the material subset of the TS `ResourceKind` in
+/// `src/game-state.ts` — keep the two in sync.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ResourceKind {
+    Construction,
+    HighTech,
+    Biological,
+    Fuel,
+}
+
 /// The player's stock of the four material resources plus the generic trade
 /// currency ("credits" — placeholder term, renamed in the display layer if
 /// needed). Mirrors the TS `ResourceCounts` in `src/game-state.ts` — keep
 /// the two in sync.
-#[derive(Serialize, serde::Deserialize, Clone, Copy)]
+#[derive(Serialize, serde::Deserialize, Clone, Copy, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResourceCounts {
     pub construction: u64,
@@ -22,6 +34,162 @@ pub struct ResourceCounts {
     pub biological: u64,
     pub fuel: u64,
     pub credits: u64,
+}
+
+impl ResourceCounts {
+    fn add(&mut self, kind: ResourceKind, amount: u64) {
+        match kind {
+            ResourceKind::Construction => self.construction += amount,
+            ResourceKind::HighTech => self.high_tech += amount,
+            ResourceKind::Biological => self.biological += amount,
+            ResourceKind::Fuel => self.fuel += amount,
+        }
+    }
+
+    /// Every module cost is stubbed as construction-only for now (ROADMAP
+    /// P1.4) — fine-tuned to a real per-resource mix later.
+    fn spend_construction(&mut self, amount: u64) -> Result<(), String> {
+        if self.construction < amount {
+            return Err(format!(
+                "not enough construction material: need {amount}, have {}",
+                self.construction
+            ));
+        }
+        self.construction -= amount;
+        Ok(())
+    }
+}
+
+/// One entry in the module catalog (ROADMAP P1.4): production, cost, build
+/// time, and unlock prerequisite for a module type. Cost/time/production all
+/// scale by `scale_for_level` — a deliberate doubling-per-level stub until
+/// real balancing lands. Mirrors the TS `MODULE_CATALOG` in
+/// `src/module-catalog.ts` — keep the two in sync.
+pub struct ModuleCatalogEntry {
+    /// Wire key — the `module_type` string on `ModuleData` and build requests.
+    pub module_type: &'static str,
+    pub display_name: &'static str,
+    /// Resources produced per production tick at level 1; doubles per level.
+    pub produces: &'static [(ResourceKind, u64)],
+    /// Construction-material cost to build (or level up to) level 1; doubles
+    /// per level thereafter.
+    pub base_cost_construction: u64,
+    /// Build/level-up time in ms at level 1; doubles per level thereafter.
+    pub base_build_time_ms: u64,
+    /// Minimum Command Module level required before this type can be built.
+    pub unlock_command_level: u32,
+}
+
+pub const COMMAND_MODULE_TYPE: &str = "command";
+
+/// The module catalog. The Command Module is a catalog entry like every
+/// other type (formalized per ROADMAP P1.4) even though it's pre-built at
+/// game start rather than player-constructed — its level still advances
+/// through the same `levelup_module` path as everything else, and its level
+/// gates every other type's unlock and level cap (README § Ship design).
+pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
+    ModuleCatalogEntry {
+        module_type: COMMAND_MODULE_TYPE,
+        display_name: "Command Module",
+        produces: &[
+            (ResourceKind::Construction, 1),
+            (ResourceKind::HighTech, 1),
+            (ResourceKind::Biological, 1),
+            (ResourceKind::Fuel, 1),
+        ],
+        base_cost_construction: 20,
+        base_build_time_ms: 30_000,
+        unlock_command_level: 0,
+    },
+    ModuleCatalogEntry {
+        module_type: "ore-refinery",
+        display_name: "Ore Refinery",
+        produces: &[(ResourceKind::Construction, 2)],
+        base_cost_construction: 10,
+        base_build_time_ms: 15_000,
+        unlock_command_level: 1,
+    },
+    ModuleCatalogEntry {
+        module_type: "electronics-fabricator",
+        display_name: "Electronics Fabricator",
+        produces: &[(ResourceKind::HighTech, 2)],
+        base_cost_construction: 10,
+        base_build_time_ms: 15_000,
+        unlock_command_level: 1,
+    },
+    ModuleCatalogEntry {
+        module_type: "hydroponics-bay",
+        display_name: "Hydroponics Bay",
+        produces: &[(ResourceKind::Biological, 2)],
+        base_cost_construction: 10,
+        base_build_time_ms: 15_000,
+        unlock_command_level: 1,
+    },
+    ModuleCatalogEntry {
+        module_type: "fusion-reactor",
+        display_name: "Fusion Reactor",
+        produces: &[(ResourceKind::Fuel, 2)],
+        base_cost_construction: 10,
+        base_build_time_ms: 15_000,
+        unlock_command_level: 1,
+    },
+];
+
+fn catalog_entry(module_type: &str) -> Option<&'static ModuleCatalogEntry> {
+    MODULE_CATALOG.iter().find(|e| e.module_type == module_type)
+}
+
+/// Doubles `base` for every level above 1 — the stub scaling rule shared by
+/// cost, build time, and production until real balancing lands (ROADMAP
+/// P1.4). Level 0 (not yet built) scales to 0.
+fn scale_for_level(base: u64, level: u32) -> u64 {
+    if level == 0 {
+        return 0;
+    }
+    base.saturating_mul(2u64.saturating_pow(level - 1))
+}
+
+/// A module placed in the ship, with its catalog type and current level.
+/// Level 0 means the first build hasn't completed yet. `pending` carries the
+/// in-progress timer for either a first build (level 0 → 1) or a level-up
+/// (level N → N+1, during which the module keeps functioning at level N).
+/// Mirrors the TS `ModuleData` in `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleData {
+    pub module_id: String,
+    pub owner_id: String,
+    pub owner_name: String,
+    /// Catalog key, e.g. "ore-refinery" — until per-type art lands, the
+    /// client renders every module with the same "module-base" sprite.
+    pub module_type: String,
+    /// Anchor (top-left) tile of the module footprint.
+    pub col: i64,
+    pub row: i64,
+    /// Highest level this module has fully completed; 0 while the first
+    /// build is still running.
+    pub level: u32,
+    /// Present while a build/upgrade is in flight.
+    pub pending: Option<ModulePendingBuild>,
+}
+
+/// Mirrors the TS `ModulePendingBuild` in `src/game-state.ts` — keep the two
+/// in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModulePendingBuild {
+    /// The level this build completes to.
+    pub level: u32,
+    pub dispatched_at: u64,
+    pub completes_at: u64,
+}
+
+/// Result of a verified build/level-up request: the affected module's
+/// current state plus the resource counts after the cost was deducted.
+#[derive(Serialize, Debug)]
+pub struct ModuleActionResponse {
+    pub module: ModuleData,
+    pub resources: ResourceCounts,
 }
 
 /// Game state pushed to the client. Mirrors the TS `GameStateData` in
@@ -40,6 +208,10 @@ pub struct GameStateData {
     /// before it connected (or while it was in another scene) land at their
     /// correct in-progress position.
     pub vessels: Vec<VesselMoveEventData>,
+    /// Every module in the ship, built or under construction, including the
+    /// Command Module — placement and level are server-owned, so ShipLevel
+    /// builds its actors from this list with no hardcoded layout.
+    pub modules: Vec<ModuleData>,
 }
 
 // -- Server-authoritative game rules ----------------------------------------
@@ -52,11 +224,6 @@ pub struct GameStateData {
 /// Length of one production interval. The TS PRODUCTION_TICK_MS mirrors this
 /// as the client's poll cadence — keep the two in sync.
 const PRODUCTION_TICK_MS: u64 = 5_000;
-/// Build timer of the placeholder "base" module (P1.4 catalog: per type/level).
-const MODULE_BUILD_TIME_MS: u64 = 15_000;
-/// Cost of the placeholder "base" module, in `construction` resources. The
-/// TS MODULE_COST_CONSTRUCTION mirrors this for display — keep in sync.
-const MODULE_COST_CONSTRUCTION: u64 = 10;
 
 /// Ship-interior room layout — mirrors SHIP_ROOM_GRID in `src/grid-math.ts`
 /// and the geometry drawn in art/ship-level.tmj; keep all three in sync.
@@ -211,29 +378,6 @@ fn move_progress(v: &VesselMoveEventData, now_ms: u64) -> f64 {
     now_ms.saturating_sub(v.dispatched_at) as f64 / duration as f64
 }
 
-/// A module construction authorized by the backend. Mirrors the TS
-/// `BuildModuleEvent` in `src/ship-level.ts` — keep the two in sync.
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct BuildModuleEventData {
-    pub module_id: String,
-    pub owner_id: String,
-    pub owner_name: String,
-    pub module_type: String,
-    pub col: i64,
-    pub row: i64,
-    pub dispatched_at: u64,
-    pub completes_at: u64,
-}
-
-/// Result of a verified build request: the authorized event plus the
-/// resource counts after the cost was deducted.
-#[derive(Serialize)]
-pub struct BuildModuleResponse {
-    pub event: BuildModuleEventData,
-    pub resources: ResourceCounts,
-}
-
 /// Authoritative per-player state, held in memory for the app's lifetime.
 /// Phase 2 serializes it to a save file; the phase-3 server owns it remotely.
 pub struct ServerState {
@@ -242,8 +386,10 @@ pub struct ServerState {
     /// accrues lazily in whole intervals whenever state is read or mutated,
     /// so no background timer thread is needed.
     last_production_at: u64,
-    /// Room-origin coords that already host a module.
-    occupied_rooms: HashSet<(i64, i64)>,
+    /// Every module in the ship, built or under construction, keyed by module
+    /// id — the single source of truth for the ship's catalog state (the
+    /// client renders the snapshot, Command Module included).
+    modules: HashMap<String, ModuleData>,
     /// Monotonic sequence mixed into module ids for uniqueness.
     next_module_seq: u64,
     /// Every mothership on the map, keyed by mothership id — the single
@@ -260,13 +406,27 @@ pub struct ServerState {
 
 impl ServerState {
     pub fn new(now_ms: u64) -> Self {
-        let mut occupied_rooms = HashSet::new();
+        let player = player_identity();
         // The Command Module pre-exists, centered on the map at (18, 18) —
-        // see ShipLevel::setupActors.
-        occupied_rooms.insert(room_origin_at(18, 18).expect("command module room"));
+        // one entry in `modules` like everything else (ROADMAP P1.4), just
+        // pre-built at level 1 instead of player-constructed.
+        let (command_col, command_row) = module_anchor_at(18, 18).expect("command module room");
+        let mut modules = HashMap::new();
+        modules.insert(
+            "module-command".to_string(),
+            ModuleData {
+                module_id: "module-command".to_string(),
+                owner_id: player.id.clone(),
+                owner_name: player.name.clone(),
+                module_type: COMMAND_MODULE_TYPE.to_string(),
+                col: command_col,
+                row: command_row,
+                level: 1,
+                pending: None,
+            },
+        );
         // Placeholder world: the player's mothership plus one sample enemy.
         // Persistence (P2) / the real server (P3) will load these instead.
-        let player = player_identity();
         let motherships = HashMap::from([
             (
                 player.id.clone(),
@@ -304,7 +464,7 @@ impl ServerState {
                 credits: 0,
             },
             last_production_at: now_ms,
-            occupied_rooms,
+            modules,
             next_module_seq: 0,
             motherships,
             vessels: HashMap::new(),
@@ -319,40 +479,124 @@ impl ServerState {
             .ok_or_else(|| "player has no mothership".to_string())
     }
 
-    /// Accrue Command-Module baseline production (1 of each material per
-    /// tick) for every whole interval elapsed since the last applied tick.
-    /// Credits are earned through trade (P1.12), never produced. A clock
-    /// that went backwards re-anchors instead of freezing production.
+    /// The module already occupying the given room, if any — a build target
+    /// must land on a free room.
+    fn room_occupant(&self, room: (i64, i64)) -> Option<&ModuleData> {
+        self.modules
+            .values()
+            .find(|m| room_origin_at(m.col, m.row) == Some(room))
+    }
+
+    /// The Command Module's current level, or 0 if it somehow doesn't exist
+    /// yet — every other type's unlock and level cap read from this.
+    fn command_level(&self) -> u32 {
+        self.modules
+            .values()
+            .find(|m| m.module_type == COMMAND_MODULE_TYPE)
+            .map(|m| m.level)
+            .unwrap_or(0)
+    }
+
+    /// Promote every module whose pending build/upgrade has finished — lazy
+    /// settlement on read/mutation, like production accrual and docked-vessel
+    /// pruning, so nothing needs a background timer.
+    fn settle_modules(&mut self, now_ms: u64) {
+        for module in self.modules.values_mut() {
+            if let Some(pending) = &module.pending {
+                if now_ms >= pending.completes_at {
+                    module.level = pending.level;
+                    module.pending = None;
+                }
+            }
+        }
+    }
+
+    /// Accrue production for every whole interval elapsed since the last
+    /// applied tick, summed across every settled (level >= 1) module's
+    /// catalog `produces` entry, scaled by its current level. A clock that
+    /// went backwards re-anchors instead of freezing production. Credits are
+    /// earned through trade (P1.12), never produced.
     fn accrue_production(&mut self, now_ms: u64) {
         if now_ms < self.last_production_at {
             self.last_production_at = now_ms;
+            self.settle_modules(now_ms);
             return;
         }
-        let ticks = (now_ms - self.last_production_at) / PRODUCTION_TICK_MS;
+        let interval_start = self.last_production_at;
+        let ticks = (now_ms - interval_start) / PRODUCTION_TICK_MS;
         if ticks == 0 {
+            self.settle_modules(now_ms);
             return;
         }
-        self.resources.construction += ticks;
-        self.resources.high_tech += ticks;
-        self.resources.biological += ticks;
-        self.resources.fuel += ticks;
+        // Settling (bumping `level`) happens only after this loop: a module
+        // whose pending build/upgrade completes partway through this window
+        // must be credited its OLD level for the whole ticks fully elapsed
+        // before completion, and its NEW level only for the ticks after —
+        // never its new level retroactively for time it hadn't reached yet.
+        for module in self.modules.values() {
+            let (old_level, new_level, old_ticks) = match &module.pending {
+                Some(p) if p.completes_at > interval_start && p.completes_at <= now_ms => {
+                    let elapsed_before = p.completes_at - interval_start;
+                    (
+                        module.level,
+                        p.level,
+                        (elapsed_before / PRODUCTION_TICK_MS).min(ticks),
+                    )
+                }
+                // Already due to settle at (or before) the start of this
+                // window — e.g. a caller settled it directly in between
+                // accrue_production calls — so it's effectively at its
+                // pending level for the entire window.
+                Some(p) if p.completes_at <= interval_start => (p.level, p.level, 0),
+                // No pending, or still pending past the end of this window:
+                // one level for the whole window.
+                _ => (module.level, module.level, ticks),
+            };
+            let new_ticks = ticks - old_ticks;
+            let Some(entry) = catalog_entry(&module.module_type) else {
+                continue;
+            };
+            if old_level > 0 && old_ticks > 0 {
+                for &(kind, base) in entry.produces {
+                    self.resources
+                        .add(kind, scale_for_level(base, old_level) * old_ticks);
+                }
+            }
+            if new_level > 0 && new_ticks > 0 {
+                for &(kind, base) in entry.produces {
+                    self.resources
+                        .add(kind, scale_for_level(base, new_level) * new_ticks);
+                }
+            }
+        }
         self.last_production_at += ticks * PRODUCTION_TICK_MS;
+        self.settle_modules(now_ms);
     }
 
-    /// Verify and execute a build request: the spot must be the free canonical
-    /// anchor of a room and the player must afford the cost. Deducts the cost
-    /// and returns the authorized event.
+    /// Verify and execute a build request: the type must be a real,
+    /// non-Command catalog entry unlocked by the current Command Module
+    /// level, the spot must be the free canonical anchor of a room, and the
+    /// player must afford the level-1 cost. Deducts the cost and returns the
+    /// new module (level 0, pending its first completion).
     fn build_module(
         &mut self,
         col: i64,
         row: i64,
         module_type: String,
         now_ms: u64,
-    ) -> Result<BuildModuleEventData, String> {
-        if module_type != "base" {
-            return Err(format!("unknown module type: {module_type:?}"));
-        }
+    ) -> Result<ModuleActionResponse, String> {
         self.accrue_production(now_ms);
+        let entry = catalog_entry(&module_type)
+            .ok_or_else(|| format!("unknown module type: {module_type:?}"))?;
+        if entry.module_type == COMMAND_MODULE_TYPE {
+            return Err("the Command Module is already built".to_string());
+        }
+        if entry.unlock_command_level > self.command_level() {
+            return Err(format!(
+                "{} requires Command Module level {}",
+                entry.display_name, entry.unlock_command_level
+            ));
+        }
         let anchor = module_anchor_at(col, row).ok_or("build spot is not inside a room")?;
         if anchor != (col, row) {
             return Err(format!(
@@ -360,29 +604,103 @@ impl ServerState {
             ));
         }
         let room = room_origin_at(col, row).expect("anchor implies a room");
-        if self.occupied_rooms.contains(&room) {
+        if self.room_occupant(room).is_some() {
             return Err(format!("room at {room:?} already has a module"));
         }
-        if self.resources.construction < MODULE_COST_CONSTRUCTION {
-            return Err(format!(
-                "not enough construction material: need {MODULE_COST_CONSTRUCTION}, have {}",
-                self.resources.construction
-            ));
-        }
-        self.resources.construction -= MODULE_COST_CONSTRUCTION;
-        self.occupied_rooms.insert(room);
+        let cost = scale_for_level(entry.base_cost_construction, 1);
+        self.resources.spend_construction(cost)?;
         self.next_module_seq += 1;
         let player = player_identity();
-        Ok(BuildModuleEventData {
+        let module = ModuleData {
             module_id: format!("module-{}-{}", now_ms, self.next_module_seq),
             owner_id: player.id,
             owner_name: player.name,
             module_type,
             col,
             row,
-            dispatched_at: now_ms,
-            completes_at: now_ms + MODULE_BUILD_TIME_MS,
+            level: 0,
+            pending: Some(ModulePendingBuild {
+                level: 1,
+                dispatched_at: now_ms,
+                completes_at: now_ms + scale_for_level(entry.base_build_time_ms, 1),
+            }),
+        };
+        self.modules
+            .insert(module.module_id.clone(), module.clone());
+        Ok(ModuleActionResponse {
+            module,
+            resources: self.resources,
         })
+    }
+
+    /// Verify and execute a level-up: the module must exist, belong to the
+    /// player, and not already have a build/upgrade pending; a non-Command
+    /// module additionally can't level past the Command Module's own level
+    /// (README § Ship design: the Command Module gates everyone else's max
+    /// level). Cost and build time scale with the target level (doubling
+    /// stub, `scale_for_level`); production scales the same way once the
+    /// level-up settles, since `accrue_production` reads the current level.
+    fn levelup_module(
+        &mut self,
+        module_id: &str,
+        now_ms: u64,
+    ) -> Result<ModuleActionResponse, String> {
+        self.accrue_production(now_ms);
+        let (owner_id, module_type, current_level, pending) = {
+            let module = self
+                .modules
+                .get(module_id)
+                .ok_or_else(|| format!("unknown module: {module_id:?}"))?;
+            (
+                module.owner_id.clone(),
+                module.module_type.clone(),
+                module.level,
+                module.pending.is_some(),
+            )
+        };
+        if owner_id != player_identity().id {
+            return Err(format!("module {module_id:?} belongs to another player"));
+        }
+        if pending {
+            return Err(format!(
+                "module {module_id:?} is already under construction"
+            ));
+        }
+        let entry = catalog_entry(&module_type)
+            .ok_or_else(|| format!("unknown module type: {module_type:?}"))?;
+        let next_level = current_level + 1;
+        if entry.module_type != COMMAND_MODULE_TYPE && next_level > self.command_level() {
+            return Err(format!(
+                "{} cannot exceed the Command Module's level ({})",
+                entry.display_name,
+                self.command_level()
+            ));
+        }
+        let cost = scale_for_level(entry.base_cost_construction, next_level);
+        self.resources.spend_construction(cost)?;
+        let completes_at = now_ms + scale_for_level(entry.base_build_time_ms, next_level);
+        let module = self
+            .modules
+            .get_mut(module_id)
+            .expect("existence checked above");
+        module.pending = Some(ModulePendingBuild {
+            level: next_level,
+            dispatched_at: now_ms,
+            completes_at,
+        });
+        Ok(ModuleActionResponse {
+            module: module.clone(),
+            resources: self.resources,
+        })
+    }
+
+    /// Every module, in stable id order — the modules slice of the
+    /// load_game_state snapshot.
+    fn modules_snapshot(&mut self, now_ms: u64) -> Vec<ModuleData> {
+        self.settle_modules(now_ms);
+        let mut modules: Vec<_> = self.modules.values().cloned().collect();
+        modules.sort_by(|a, b| a.module_id.cmp(&b.module_id));
+        modules
     }
 
     /// Drop vessels that have finished a move onto a docking tile of their
@@ -527,6 +845,7 @@ pub(crate) fn load_game_state(
         resources: s.resources,
         motherships: s.motherships_snapshot(),
         vessels: s.active_vessels(now),
+        modules: s.modules_snapshot(now),
     })
 }
 
@@ -555,22 +874,32 @@ pub(crate) fn request_recall_vessel(
     s.recall_vessel(&vessel_id, now_ms())
 }
 
-/// Request construction of a module at the given anchor tile. Placement and
-/// cost are verified here — on success the cost is already deducted and the
-/// returned event + resource counts are authoritative.
+/// Request construction of a new module at the given anchor tile. Catalog
+/// type, unlock level, placement, and cost are all verified here — on
+/// success the cost is already deducted and the returned module + resource
+/// counts are authoritative.
 #[tauri::command]
 pub(crate) fn request_build_module(
     state: tauri::State<'_, Mutex<ServerState>>,
     col: i64,
     row: i64,
     module_type: String,
-) -> Result<BuildModuleResponse, String> {
+) -> Result<ModuleActionResponse, String> {
     let mut s = state.lock().map_err(|e| e.to_string())?;
-    let event = s.build_module(col, row, module_type, now_ms())?;
-    Ok(BuildModuleResponse {
-        event,
-        resources: s.resources,
-    })
+    s.build_module(col, row, module_type, now_ms())
+}
+
+/// Request a level-up of an existing module. Ownership, pending state, and
+/// the Command Module's level cap are all verified here — on success the
+/// cost is already deducted and the returned module + resource counts are
+/// authoritative.
+#[tauri::command]
+pub(crate) fn request_levelup_module(
+    state: tauri::State<'_, Mutex<ServerState>>,
+    module_id: String,
+) -> Result<ModuleActionResponse, String> {
+    let mut s = state.lock().map_err(|e| e.to_string())?;
+    s.levelup_module(&module_id, now_ms())
 }
 
 #[cfg(test)]
@@ -579,11 +908,21 @@ mod tests {
 
     const TICK: u64 = PRODUCTION_TICK_MS;
 
-    /// A state that can afford `builds` modules, with production anchored so
-    /// no further accrual lands at time `at`.
+    fn ore_refinery_cost() -> u64 {
+        catalog_entry("ore-refinery")
+            .unwrap()
+            .base_cost_construction
+    }
+
+    fn ore_refinery_build_time() -> u64 {
+        catalog_entry("ore-refinery").unwrap().base_build_time_ms
+    }
+
+    /// A state that can afford `builds` ore-refinery builds, with production
+    /// anchored so no further accrual lands at time `at`.
     fn funded_state(builds: u64, at: u64) -> ServerState {
         let mut s = ServerState::new(at);
-        s.resources.construction = builds * MODULE_COST_CONSTRUCTION;
+        s.resources.construction = builds * ore_refinery_cost();
         s
     }
 
@@ -611,6 +950,19 @@ mod tests {
     }
 
     #[test]
+    fn new_state_seeds_the_command_module_at_level_one() {
+        let mut s = ServerState::new(0);
+        let modules = s.modules_snapshot(0);
+        assert_eq!(modules.len(), 1);
+        let command = &modules[0];
+        assert_eq!(command.module_id, "module-command");
+        assert_eq!(command.module_type, COMMAND_MODULE_TYPE);
+        assert_eq!((command.col, command.row), (18, 18));
+        assert_eq!(command.level, 1);
+        assert!(command.pending.is_none());
+    }
+
+    #[test]
     fn production_accrues_whole_ticks_with_remainder_carryover() {
         let mut s = ServerState::new(0);
         s.accrue_production(TICK - 1);
@@ -634,34 +986,45 @@ mod tests {
     }
 
     #[test]
-    fn build_deducts_cost_and_returns_a_timed_event() {
+    fn build_deducts_cost_and_returns_a_pending_level_one_module() {
         let mut s = funded_state(1, 0);
-        let event = s.build_module(2, 2, "base".to_string(), 1_000).unwrap();
+        let response = s
+            .build_module(2, 2, "ore-refinery".to_string(), 1_000)
+            .unwrap();
         assert_eq!(s.resources.construction, 0);
-        assert_eq!((event.col, event.row), (2, 2));
-        assert_eq!(event.dispatched_at, 1_000);
-        assert_eq!(event.completes_at, 1_000 + MODULE_BUILD_TIME_MS);
-        assert_eq!(event.owner_id, player_identity().id);
+        let module = response.module;
+        assert_eq!((module.col, module.row), (2, 2));
+        assert_eq!(module.level, 0);
+        assert_eq!(module.owner_id, player_identity().id);
+        let pending = module.pending.unwrap();
+        assert_eq!(pending.level, 1);
+        assert_eq!(pending.dispatched_at, 1_000);
+        assert_eq!(pending.completes_at, 1_000 + ore_refinery_build_time());
     }
 
     #[test]
     fn build_accrues_due_production_before_the_cost_check() {
         // 0 on hand, but by the time of the request enough ticks have passed.
         let mut s = ServerState::new(0);
-        let at = MODULE_COST_CONSTRUCTION * TICK;
-        assert!(s.build_module(2, 2, "base".to_string(), at).is_ok());
+        let at = ore_refinery_cost() * TICK;
+        assert!(s.build_module(2, 2, "ore-refinery".to_string(), at).is_ok());
         assert_eq!(s.resources.construction, 0);
     }
 
     #[test]
     fn build_rejects_insufficient_resources_without_side_effects() {
         let mut s = ServerState::new(0);
-        s.resources.construction = MODULE_COST_CONSTRUCTION - 1;
-        let err = s.build_module(2, 2, "base".to_string(), 0).unwrap_err();
+        s.resources.construction = ore_refinery_cost() - 1;
+        let err = s
+            .build_module(2, 2, "ore-refinery".to_string(), 0)
+            .unwrap_err();
         assert!(err.contains("not enough construction"), "{err}");
-        assert_eq!(s.resources.construction, MODULE_COST_CONSTRUCTION - 1);
+        assert_eq!(s.resources.construction, ore_refinery_cost() - 1);
         // The room was not marked occupied by the failed attempt.
-        assert!(s.build_module(2, 2, "base".to_string(), TICK).is_ok());
+        s.resources.construction = ore_refinery_cost();
+        assert!(s
+            .build_module(2, 2, "ore-refinery".to_string(), TICK)
+            .is_ok());
     }
 
     #[test]
@@ -669,17 +1032,17 @@ mod tests {
         let mut s = funded_state(10, 0);
         // The command module's room is pre-occupied.
         assert!(s
-            .build_module(18, 18, "base".to_string(), 0)
+            .build_module(18, 18, "ore-refinery".to_string(), 0)
             .unwrap_err()
             .contains("already has a module"));
         // Corridor tile: not inside a room.
         assert!(s
-            .build_module(7, 7, "base".to_string(), 0)
+            .build_module(7, 7, "ore-refinery".to_string(), 0)
             .unwrap_err()
             .contains("not inside a room"));
         // Inside a room but not the canonical anchor.
         assert!(s
-            .build_module(1, 1, "base".to_string(), 0)
+            .build_module(1, 1, "ore-refinery".to_string(), 0)
             .unwrap_err()
             .contains("not a module anchor"));
         // Unknown type.
@@ -688,11 +1051,133 @@ mod tests {
             .unwrap_err()
             .contains("unknown module type"));
         // A successful build occupies the room for the next attempt.
-        assert!(s.build_module(2, 2, "base".to_string(), 0).is_ok());
+        assert!(s.build_module(2, 2, "ore-refinery".to_string(), 0).is_ok());
         assert!(s
-            .build_module(2, 2, "base".to_string(), 0)
+            .build_module(2, 2, "ore-refinery".to_string(), 0)
             .unwrap_err()
             .contains("already has a module"));
+    }
+
+    #[test]
+    fn build_rejects_the_command_module_type() {
+        let mut s = funded_state(1, 0);
+        let err = s
+            .build_module(2, 2, COMMAND_MODULE_TYPE.to_string(), 0)
+            .unwrap_err();
+        assert!(err.contains("already built"), "{err}");
+    }
+
+    #[test]
+    fn build_rejects_types_below_the_command_level_requirement() {
+        let mut s = funded_state(1, 0);
+        // Simulate a Command Module that hasn't reached the unlock level.
+        s.modules.get_mut("module-command").unwrap().level = 0;
+        let err = s
+            .build_module(2, 2, "ore-refinery".to_string(), 0)
+            .unwrap_err();
+        assert!(err.contains("requires Command Module level"), "{err}");
+    }
+
+    #[test]
+    fn levelup_rejects_while_a_build_is_pending() {
+        let mut s = funded_state(2, 0);
+        s.build_module(2, 2, "ore-refinery".to_string(), 0).unwrap();
+        let module_id = s.modules_snapshot(0)[0].module_id.clone();
+        let err = s.levelup_module(&module_id, 0).unwrap_err();
+        assert!(err.contains("already under construction"), "{err}");
+    }
+
+    #[test]
+    fn levelup_rejects_exceeding_the_command_level_cap() {
+        let mut s = funded_state(2, 0);
+        let build = s.build_module(2, 2, "ore-refinery".to_string(), 0).unwrap();
+        // Let the first build complete: level 1, same as the Command Module.
+        s.settle_modules(ore_refinery_build_time());
+        let err = s
+            .levelup_module(&build.module.module_id, ore_refinery_build_time())
+            .unwrap_err();
+        assert!(
+            err.contains("cannot exceed the Command Module's level"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn levelup_scales_cost_and_time_and_sets_the_pending_target() {
+        let mut s = funded_state(1, 0);
+        // Level the Command Module up first so a refinery can follow it.
+        s.resources.construction += scale_for_level(
+            catalog_entry(COMMAND_MODULE_TYPE)
+                .unwrap()
+                .base_cost_construction,
+            2,
+        );
+        let command = s.levelup_module("module-command", 0).unwrap().module;
+        let command_done = command.pending.unwrap().completes_at;
+        s.settle_modules(command_done);
+        assert_eq!(s.command_level(), 2);
+
+        let build = s
+            .build_module(2, 2, "ore-refinery".to_string(), command_done)
+            .unwrap();
+        s.settle_modules(build.module.pending.unwrap().completes_at);
+        let refinery_id = build.module.module_id;
+
+        s.resources.construction += 2 * ore_refinery_cost(); // level 2 costs double
+        let response = s.levelup_module(&refinery_id, command_done).unwrap();
+        let pending = response.module.pending.unwrap();
+        assert_eq!(pending.level, 2);
+        assert_eq!(
+            pending.completes_at,
+            command_done + 2 * ore_refinery_build_time()
+        );
+    }
+
+    #[test]
+    fn production_scales_with_module_level() {
+        // Insert an already-settled refinery directly, bypassing the build
+        // timer, to isolate the level -> production scaling in general from
+        // the specific mid-window-completion split covered by
+        // production_is_not_retroactively_credited_before_a_build_completes.
+        let mut s = ServerState::new(0);
+        s.modules.insert(
+            "module-refinery".to_string(),
+            ModuleData {
+                module_id: "module-refinery".to_string(),
+                owner_id: player_identity().id,
+                owner_name: player_identity().name,
+                module_type: "ore-refinery".to_string(),
+                col: 2,
+                row: 2,
+                level: 1,
+                pending: None,
+            },
+        );
+        s.accrue_production(TICK);
+        // Command Module (level 1: +1 construction) + refinery (level 1: +2).
+        assert_eq!(s.resources.construction, 3);
+
+        s.modules.get_mut("module-refinery").unwrap().level = 2;
+        s.accrue_production(2 * TICK);
+        // Refinery production doubles at level 2 (+4), command stays +1.
+        assert_eq!(s.resources.construction, 3 + 5);
+    }
+
+    #[test]
+    fn production_is_not_retroactively_credited_before_a_build_completes() {
+        // Build a refinery (15_000ms = 3 ticks) and, with no intermediate
+        // accrual, jump straight to 2 ticks past its completion.
+        let mut s = funded_state(1, 0);
+        let build = s.build_module(2, 2, "ore-refinery".to_string(), 0).unwrap();
+        let completes_at = build.module.pending.unwrap().completes_at;
+        s.accrue_production(completes_at + 2 * TICK);
+        // 5 ticks elapsed in total. The Command Module (unaffected, level 1)
+        // earns all 5: +5. The refinery was level 0 (no production) for the
+        // first 3 ticks and only reaches level 1 (+2/tick) for the last 2:
+        // +4. A naive settle-then-multiply would instead credit the
+        // refinery's level-1 rate for all 5 ticks (+10) — 6 more than
+        // correct.
+        assert_eq!(s.resources.construction, 5 + 4);
     }
 
     #[test]

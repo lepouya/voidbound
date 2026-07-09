@@ -102,19 +102,24 @@ arc radii, circumradii, and any world-space math.
 
 Every state-mutating action must be modeled as an event from day one (event
 interface + public `apply<Action>Event` + local action method) so local and
-networked code paths stay identical. Both canonical examples are
+networked code paths stay identical. All three canonical examples are
 **server-verified**: the local action method sends a request to the backend,
 which verifies it and returns the authorized event — required for any action
-that touches resources or shared world state. `BuildModuleEvent` /
-`request_build_module` in [src/ship-level.ts](src/ship-level.ts) is the simple
-form; `VesselMoveEvent` (in [src/game-state.ts](src/game-state.ts), applied by
-`applyVesselMoveEvent()` in [src/map-level.ts](src/map-level.ts)) additionally
-rides the `load_game_state` snapshot as `gameState.vessels`, with
-`MapLevel.syncVessels()` reconciling scene actors from that table — the
-snapshot + replay model that keeps vessel progress correct across scene switches
-and, later, late joins. **Use the `/add-game-event` skill** when adding any new
-action. The server model this pattern targets (event log, verification,
-broadcast, snapshot + replay, server-time offsets) is sketched in `SERVER.md`.
+that touches resources or shared world state. `VesselMoveEvent` (in
+[src/game-state.ts](src/game-state.ts), applied by `applyVesselEvent()` +
+`MapLevel.syncVessels()` reconciling scene actors from `gameState.vessels`) and
+`ModuleData` (also in game-state.ts, applied by `applyModuleEvent()` +
+`ShipLevel.syncModules()` reconciling from `gameState.modules` — covers both
+`request_build_module` and `request_levelup_module`) both ride the
+`load_game_state` snapshot — the snapshot + replay model that keeps progress
+correct across scene switches and, later, late joins. A `ModuleData` event
+doubles as the entity's full current snapshot rather than a separate
+`<Action>Event` type, since a module's whole state (including its pending
+build's `dispatchedAt`/`completesAt`) _is_ what a server push would send; this
+is the pattern to follow for other persistent, levelable/mutable entities. **Use
+the `/add-game-event` skill** when adding any new action. The server model this
+pattern targets (event log, verification, broadcast, snapshot + replay,
+server-time offsets) is sketched in `SERVER.md`.
 
 ### Input model (handled by `TiledScene`, don't reimplement)
 
@@ -268,35 +273,47 @@ the `include_str!` call with a fetched string — the `Result` propagation is
 already in place.
 
 **The backend is authoritative for game state** (`ServerState` in
-src-tauri/src/game_state.rs): all resource math — production accrual, build
-costs and verification — plus mothership placement and the vessel table
-(positions implicit in event timestamps) live Rust-side, never in TS, because
-the client can be tampered with. The client renders what commands return and
-asks for actions:
+src-tauri/src/game_state.rs): all resource math — production accrual, module
+catalog costs/build times/production, and build verification — plus mothership
+placement, the module table, and the vessel table (positions implicit in event
+timestamps) live Rust-side, never in TS, because the client can be tampered
+with. The client renders what commands return and asks for actions:
 
 - `load_game_state` — identity + resource counts (production lazily accrued on
-  read) + mothership placements + the active-vessel event list (the snapshot
-  half of SERVER.md's snapshot + replay). Fetched once during the loader phase,
-  then polled every production interval by `startGameStateSync`
-  (game-state-loader.ts). The map scene hardcodes no world content:
-  `MapLevel.syncMotherships()`/`syncVessels()` reconcile actors from the
-  snapshot, so server-side changes (a moved mothership, a new player) reach the
-  client through the same path.
-- `request_build_module(col, row, module_type)` — verifies placement (room grid)
-  and cost, deducts resources, returns the authorized `BuildModuleEvent` plus
-  updated counts.
+  read, summed per settled module level) + mothership placements + every module
+  (`ModuleData`, Command Module included — level, and a `pending` build/upgrade
+  timer if one is running) + the active-vessel event list (the snapshot half of
+  SERVER.md's snapshot + replay). Fetched once during the loader phase, then
+  polled every production interval by `startGameStateSync`
+  (game-state-loader.ts), plus on demand by `ShipLevel.requestRefresh()` the
+  instant a module's build/upgrade timer elapses (closes the gap before the next
+  scheduled poll). The map/ship scenes hardcode no world content:
+  `MapLevel.syncMotherships()`/`syncVessels()` and `ShipLevel.syncModules()`
+  reconcile actors from the snapshot, so server-side changes (a moved
+  mothership, a new player, a module leveling up) reach the client through the
+  same path.
+- `request_build_module(col, row, module_type)` — verifies the catalog type, its
+  Command-Module-level unlock, placement (room grid), and level-1 cost, deducts
+  resources, returns the new `ModuleData` (level 0, pending its first
+  completion) plus updated counts (`ModuleActionResponse`).
+- `request_levelup_module(module_id)` — verifies ownership, that no
+  build/upgrade is already pending, and that the target level doesn't exceed the
+  Command Module's own level (README § Ship design), deducts the level-scaled
+  cost, returns the updated `ModuleData` plus updated counts.
 - `request_dispatch_vessel(dest_col, dest_row)` /
   `request_recall_vessel(vessel_id)` — verify the move, derive dock, speed, and
   arrival time (recalls depart from the server-lerped current position), record
   it in the vessel table, and return the authorized `VesselMoveEvent`. Vessels
   that finish a return onto a dock tile are pruned lazily, like production.
 
-Gameplay constants (production tick, module cost/build time, room grid, map
-geometry, vessel speed) live in game_state.rs with display-only TS mirrors —
-comments mark each pair; keep them in sync. Mothership placement is data, not a
-constant: it is seeded in `ServerState::new` and reaches the client only via the
-snapshot. The game-rule logic is covered by the Rust tests (part of
-`deno task test`).
+Gameplay constants (production tick, the module catalog's per-type cost/build
+time/production, room grid, map geometry, vessel speed) live in game_state.rs
+with display-only TS mirrors — comments mark each pair; keep them in sync. The
+module catalog's cost/build-time/production all scale per level through one
+shared doubling-per-level stub (`scale_for_level`/`scaleForLevel`) — real
+balancing is a later pass. Mothership placement is data, not a constant: it is
+seeded in `ServerState::new` and reaches the client only via the snapshot. The
+game-rule logic is covered by the Rust tests (part of `deno task test`).
 
 Tauri commands return `Result<T, String>` — propagate errors as strings, don't
 `unwrap`/panic in command handlers.

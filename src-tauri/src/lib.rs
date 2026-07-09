@@ -14,6 +14,7 @@ pub fn run() {
             map::generate_map,
             game_state::load_game_state,
             game_state::request_build_module,
+            game_state::request_levelup_module,
             game_state::request_dispatch_vessel,
             game_state::request_recall_vessel
         ])

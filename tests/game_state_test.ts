@@ -3,6 +3,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
   GameState,
   gameState,
+  ModuleData,
   MothershipData,
   ResourceCounts,
   VesselMoveEvent,
@@ -50,6 +51,23 @@ function sampleVessel(
     speed: 32,
     dispatchedAt: 1_000,
     arrivalAt: 11_000,
+    ...overrides,
+  };
+}
+
+function sampleModule(
+  id: string,
+  overrides: Partial<ModuleData> = {},
+): ModuleData {
+  return {
+    moduleId: id,
+    ownerId: "player-1",
+    ownerName: "Player 1",
+    moduleType: "ore-refinery",
+    col: 2,
+    row: 2,
+    level: 1,
+    pending: null,
     ...overrides,
   };
 }
@@ -128,6 +146,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     },
     motherships: [sampleMothership("player-42")],
     vessels: [sampleVessel("vessel-a")],
+    modules: [sampleModule("module-command")],
   });
 
   assertEquals(state.player, { id: "player-42", name: "Loaded Player" });
@@ -143,6 +162,10 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     sampleMothership("player-42"),
   );
   assertEquals(state.vessels.get("vessel-a"), sampleVessel("vessel-a"));
+  assertEquals(
+    state.modules.get("module-command"),
+    sampleModule("module-command"),
+  );
   assert(state.loaded);
   assertEquals(notified, 1);
 });
@@ -170,7 +193,26 @@ Deno.test("applyVesselEvent merges by vesselId and notifies", () => {
   assertEquals(notified, 3);
 });
 
-Deno.test("load replaces the vessel and mothership tables wholesale", () => {
+Deno.test("applyModuleEvent merges by moduleId and notifies", () => {
+  const state = new GameState();
+  let notified = 0;
+  state.subscribe(() => notified++);
+
+  state.applyModuleEvent(sampleModule("module-command"));
+  state.applyModuleEvent(sampleModule("module-a"));
+  // A level-up re-stamps the same module with a pending build: replace, not
+  // append.
+  const leveledUp = sampleModule("module-a", {
+    pending: { level: 2, dispatchedAt: 1_000, completesAt: 6_000 },
+  });
+  state.applyModuleEvent(leveledUp);
+
+  assertEquals(state.modules.size, 2);
+  assertEquals(state.modules.get("module-a"), leveledUp);
+  assertEquals(notified, 3);
+});
+
+Deno.test("load replaces the vessel, mothership, and module tables wholesale", () => {
   const state = new GameState();
   state.applyVesselEvent(sampleVessel("vessel-docked"));
   state.load({
@@ -178,6 +220,7 @@ Deno.test("load replaces the vessel and mothership tables wholesale", () => {
     resources: ZERO_RESOURCES,
     motherships: [sampleMothership("player-1")],
     vessels: [],
+    modules: [sampleModule("module-command")],
   });
 
   state.load({
@@ -185,6 +228,7 @@ Deno.test("load replaces the vessel and mothership tables wholesale", () => {
     resources: ZERO_RESOURCES,
     motherships: [sampleMothership("player-9", { col: 10, row: 12 })],
     vessels: [sampleVessel("vessel-live")],
+    modules: [sampleModule("module-command"), sampleModule("module-a")],
   });
 
   // The docked vessel was pruned by the backend and player-1's ship left the
@@ -192,6 +236,10 @@ Deno.test("load replaces the vessel and mothership tables wholesale", () => {
   assertEquals([...state.vessels.keys()], ["vessel-live"]);
   assertEquals([...state.motherships.keys()], ["player-9"]);
   assertEquals(state.motherships.get("player-9")?.col, 10);
+  assertEquals(
+    [...state.modules.keys()].sort(),
+    ["module-a", "module-command"],
+  );
 });
 
 Deno.test("shared singleton starts unloaded with new-player defaults", () => {
@@ -200,6 +248,7 @@ Deno.test("shared singleton starts unloaded with new-player defaults", () => {
   // No hardcoded placements: the world is empty until a snapshot lands.
   assertEquals(gameState.motherships.size, 0);
   assertEquals(gameState.vessels.size, 0);
+  assertEquals(gameState.modules.size, 0);
   assert(!gameState.loaded);
   assert(gameState instanceof GameState);
 });

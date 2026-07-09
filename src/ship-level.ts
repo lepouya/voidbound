@@ -2,82 +2,100 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { gameState, ResourceCounts } from "./game-state.ts";
+import {
+  gameState,
+  GameStateData,
+  ModuleData,
+  ResourceCounts,
+} from "./game-state.ts";
 import { moduleAnchorAt, roomOriginAt, SHIP_ROOM_GRID } from "./grid-math.ts";
 import { buildTileMap } from "./map-loader.ts";
+import {
+  COMMAND_MODULE_TYPE,
+  costAtLevel,
+  MODULE_CATALOG,
+  moduleCatalogEntry,
+} from "./module-catalog.ts";
 import { TileActor } from "./tile-actor.ts";
 import { TiledScene } from "./tiled-scene.ts";
-import { TileRef } from "./ui/index.ts";
+import { ButtonDef, TileRef } from "./ui/index.ts";
 
-/**
- * A module construction authorized by the backend — the backend verifies
- * placement and cost, deducts the resources, and issues this event (see
- * SERVER.md for the server-authoritative model). Mirrors the Rust
- * `BuildModuleEventData` in src-tauri/src/lib.rs — keep the two in sync.
- */
-export interface BuildModuleEvent {
-  moduleId: string;
-  ownerId: string;
-  /** Display name of the owning player. */
-  ownerName: string;
-  /** Catalog type, e.g. "base" — resolves art as `module-<type>`. */
-  moduleType: string;
-  /** Anchor (top-left) tile of the module footprint, server-verified. */
-  col: number;
-  row: number;
-  /** Server epoch ms when the build was authorized. */
-  dispatchedAt: number;
-  /** Pre-computed completion time: dispatchedAt + the type's build time.
-   *  Gives build timers for free and lets late-joining clients show the
-   *  correct remaining time without redoing the clock math locally. */
-  completesAt: number;
-}
-
-// Placeholder single-type "catalog" until P1.4 lands: every build produces a
-// generic level-1 module-base module (real types, costs, and build times
-// come from the catalog, per type and level).
-const MODULE_TYPE = "base";
-const MODULE_DISPLAY_NAME = "Module";
-/**
- * Cost of the placeholder module in `construction` resources — display and
- * button-disable pre-check only; the backend is what actually verifies and
- * deducts it. Mirrors MODULE_COST_CONSTRUCTION in src-tauri/src/lib.rs —
- * keep the two in sync.
- */
-const MODULE_COST_CONSTRUCTION = 10;
 /** Modules occupy the 4*4 center of their 6*6 room. */
 const MODULE_SPAN = 4;
 
-/** Wire shape of the `request_build_module` Tauri command's result. Mirrors
- *  the Rust `BuildModuleResponse` in src-tauri/src/lib.rs — keep in sync. */
-interface BuildModuleResponse {
-  event: BuildModuleEvent;
-  /** Authoritative counts after the build cost was deducted. */
+/**
+ * Every module renders with the same placeholder sprite until per-type art
+ * lands (ROADMAP P1.4 note) — `moduleType` only drives game logic and
+ * display name for now.
+ */
+const MODULE_ART_TYPE = "base";
+
+/** Wire shape of the `request_build_module` / `request_levelup_module` Tauri
+ *  commands' result. Mirrors the Rust `ModuleActionResponse` in
+ *  src-tauri/src/game_state.rs — keep in sync. */
+interface ModuleActionResponse {
+  module: ModuleData;
+  /** Authoritative counts after the cost was deducted. */
   resources: ResourceCounts;
 }
 
-/** Finished module sprite for a catalog type. */
-function moduleTile(moduleType: string): TileRef {
-  return `module-${moduleType}:0`;
+/** Result of levelUpStatus(): whether/why a module's Level Up button would
+ *  currently be enabled. "capped" (blocked by the Command Module's own
+ *  level) is kept distinct from "unaffordable" so the UI can say which one
+ *  it is. */
+type LevelUpStatus = "unavailable" | "capped" | "unaffordable" | "ready";
+
+/** Finished module sprite. */
+function moduleTile(): TileRef {
+  return `module-${MODULE_ART_TYPE}:0`;
 }
 
-/** Translucent ghost of the module sprite, shown while the build runs. */
-function underConstructionTile(moduleType: string): TileRef {
-  return { tile: `module-${moduleType}`, tileId: 0, opacity: 0.4 };
+/** Translucent ghost of the module sprite, shown while a build/preview runs. */
+function ghostModuleTile(opacity: number): TileRef {
+  return { tile: `module-${MODULE_ART_TYPE}`, tileId: 0, opacity };
 }
 
-/** Owner label shown under a module while its build timer runs. */
-function buildCountdownLabel(completesAt: number, nowMs: number): string {
-  return `${MODULE_DISPLAY_NAME} (${Math.ceil((completesAt - nowMs) / 1000)}s)`;
+/** True when two snapshots describe an identical module — placement, type,
+ *  level, and pending build — so the reconciler can skip rebuilding its
+ *  actor. */
+function sameModule(a: ModuleData, b: ModuleData): boolean {
+  return (
+    a.col === b.col &&
+    a.row === b.row &&
+    a.moduleType === b.moduleType &&
+    a.level === b.level &&
+    a.ownerId === b.ownerId &&
+    a.ownerName === b.ownerName &&
+    (a.pending?.level ?? null) === (b.pending?.level ?? null) &&
+    (a.pending?.completesAt ?? null) === (b.pending?.completesAt ?? null)
+  );
+}
+
+/** Owner label shown while a module's build/level-up timer runs. */
+function buildCountdownLabel(
+  displayName: string,
+  completesAt: number,
+  nowMs: number,
+): string {
+  const remaining = Math.max(0, Math.ceil((completesAt - nowMs) / 1000));
+  return `${displayName} (${remaining}s)`;
 }
 
 export class ShipLevel extends TiledScene {
-  /** Built modules keyed by moduleId (the Command Module is not event-built). */
+  /** Module actors keyed by moduleId. */
   private modules = new Map<string, TileActor>();
-  /** Events whose build timer is still running, keyed by moduleId. */
-  private pendingBuilds = new Map<string, BuildModuleEvent>();
-  /** Room-origin keys ("col,row") that already host a module. */
-  private occupiedRooms = new Set<string>();
+  /** The last ModuleData applied per moduleId, used by syncModules to skip
+   *  rebuilding unchanged modules on every poll. */
+  private appliedModules = new Map<string, ModuleData>();
+  /** The last levelUpStatus() result applied per moduleId — tracked
+   *  alongside ModuleData so a resource or Command-level change that flips a
+   *  Level Up button's status (with no change to the module itself) still
+   *  triggers a rebuild; otherwise the button would freeze at whatever it
+   *  showed the last time this module's own data changed. */
+  private appliedLevelUpStatus = new Map<string, LevelUpStatus>();
+  /** Modules with a build/level-up in progress, keyed by moduleId — drives
+   *  the once-a-frame countdown label tick in onPostUpdate. */
+  private pendingModules = new Map<string, ModuleData>();
 
   override onInitialize(engine: ex.Engine): void {
     super.onInitialize(engine);
@@ -94,6 +112,11 @@ export class ShipLevel extends TiledScene {
       label: "Map",
       onPressed: () => engine.goToScene("map"),
     });
+    // The backend state may load (or a future login complete) after this
+    // scene is built — reconcile module actors (Command Module included)
+    // against the refreshed table on every notify. No unsubscribe: scenes
+    // live for the whole app run.
+    gameState.subscribe(() => this.syncModules());
   }
 
   protected override buildMap(): Promise<ex.TileMap> {
@@ -104,40 +127,178 @@ export class ShipLevel extends TiledScene {
     return true;
   }
 
-  protected override setupActors(onTilePressed: (a: TileActor) => void): void {
-    const commandModule = new TileActor({
-      tilemap: this.tilemap,
-      edgeFallthrough: this.supportsEmptyTileActor(),
-      tile: "module-base:0",
-      col: 18, // (40 - 4) / 2 — centered on the 40*40 map
-      row: 18,
-      width: 4,
-      height: 4,
-      ownerName: "Command Module",
-      selection: "ui-selection-2",
-      onPressed: onTilePressed,
-      badges: [
-        {
-          anchor: "bottom-left",
-          badge: { text: "2", backgroundColor: ex.Color.ExcaliburBlue },
-        },
-      ],
-    });
-    this.add(commandModule);
-    this.occupyRoomAt(commandModule.col, commandModule.row);
-  }
-
-  /** Marks the room containing (col, row) as hosting a module. */
-  private occupyRoomAt(col: number, row: number): void {
-    const room = roomOriginAt(SHIP_ROOM_GRID, col, row);
-    if (room) this.occupiedRooms.add(`${room.col},${room.row}`);
+  protected override setupActors(): void {
+    // Nothing is placed here: every module, including the Command Module, is
+    // server-owned and reconciled from the backend snapshot — which may have
+    // loaded before this scene finished its async map build (hence the
+    // explicit sync), or may land later (the gameState subscription).
+    this.syncModules();
   }
 
   /**
-   * Tapping an empty interior tile offers to build a module in that room
-   * (mirroring the map view's Move/Deploy pattern). The actor shows a faint
-   * placement preview of the module, centered in the room. Taps outside a
-   * room (void, hull, corridors) or in an occupied room do nothing.
+   * Reconcile module actors against gameState.modules — the client mirror of
+   * the backend's module table, refreshed by every load_game_state snapshot
+   * and merged into by build/level-up command responses. New modules spawn,
+   * modules that left the snapshot despawn, and changed modules (leveled up,
+   * build completed) are rebuilt in place — so server-side changes reach the
+   * ship with no client changes, the Command Module included.
+   */
+  private syncModules(): void {
+    // The subscription can fire before the async map load finishes;
+    // setupActors calls this again once the tilemap exists.
+    if (!this.tilemap) return;
+    for (const [id, actor] of this.modules) {
+      if (!gameState.modules.has(id)) {
+        if (this.isSelected(actor)) this.deselectActor();
+        actor.kill();
+        this.modules.delete(id);
+        this.appliedModules.delete(id);
+        this.appliedLevelUpStatus.delete(id);
+        this.pendingModules.delete(id);
+      }
+    }
+    const commandLevel = this.commandModuleLevel();
+    for (const data of gameState.modules.values()) {
+      const status = this.levelUpStatus(data, commandLevel);
+      const applied = this.appliedModules.get(data.moduleId);
+      const appliedStatus = this.appliedLevelUpStatus.get(data.moduleId);
+      if (
+        applied !== undefined && sameModule(applied, data) &&
+        appliedStatus === status
+      ) continue;
+      const existing = this.modules.get(data.moduleId);
+      // A rebuild (e.g. a poll landing a build/level-up completion) replaces
+      // the TileActor instance; carry the selection over so a player with
+      // this module's panel open doesn't see it silently vanish.
+      const wasSelected = existing !== undefined && this.isSelected(existing);
+      existing?.kill();
+      const actor = this.createModuleActor(data, status);
+      this.modules.set(data.moduleId, actor);
+      this.appliedModules.set(data.moduleId, data);
+      this.appliedLevelUpStatus.set(data.moduleId, status);
+      this.add(actor);
+      if (wasSelected) this.reselectActor(actor);
+      if (data.pending !== null) {
+        this.pendingModules.set(data.moduleId, data);
+      } else {
+        this.pendingModules.delete(data.moduleId);
+      }
+    }
+  }
+
+  /**
+   * Whether/why a Level Up button for this module would currently be
+   * enabled — "capped" (README § Ship design: a non-Command module can never
+   * level past the Command Module's own level) is distinct from
+   * "unaffordable" so the UI can tell the player which one it is, instead of
+   * showing a cost badge that looks unmet when the real blocker is the cap.
+   * Shared by createModuleActor (button label/disabled) and syncModules (to
+   * decide whether a resource or Command-level change alone should trigger a
+   * rebuild). Takes the Command Module's level as a parameter — callers
+   * looping over several modules should compute it once (commandModuleLevel
+   * rescans the whole module table) and pass it down, rather than each call
+   * re-deriving it.
+   */
+  private levelUpStatus(data: ModuleData, commandLevel: number): LevelUpStatus {
+    if (data.pending !== null) return "unavailable";
+    const entry = moduleCatalogEntry(data.moduleType);
+    if (!entry) return "unavailable";
+    const nextLevel = data.level + 1;
+    if (entry.moduleType !== COMMAND_MODULE_TYPE && nextLevel > commandLevel) {
+      return "capped";
+    }
+    return gameState.resources.construction >= costAtLevel(entry, nextLevel)
+      ? "ready"
+      : "unaffordable";
+  }
+
+  /** The Command Module's current level, or 0 before the snapshot loads —
+   *  gates which types can be built and every module's level cap. */
+  private commandModuleLevel(): number {
+    for (const data of gameState.modules.values()) {
+      if (data.moduleType === COMMAND_MODULE_TYPE) return data.level;
+    }
+    return 0;
+  }
+
+  /** True if the room containing (col, row) already hosts a module. */
+  private roomOccupied(roomCol: number, roomRow: number): boolean {
+    for (const data of gameState.modules.values()) {
+      const room = roomOriginAt(SHIP_ROOM_GRID, data.col, data.row);
+      if (room && room.col === roomCol && room.row === roomRow) return true;
+    }
+    return false;
+  }
+
+  /** Builds the map actor for one module: the base placeholder sprite (or a
+   *  ghost while its first build is pending), a level badge, and — once idle
+   *  at a real level — a Level Up button. `status` is the levelUpStatus()
+   *  result the caller already computed for the rebuild diff, reused here so
+   *  the two never drift. */
+  private createModuleActor(
+    data: ModuleData,
+    status: LevelUpStatus,
+  ): TileActor {
+    const now = Date.now();
+    const entry = moduleCatalogEntry(data.moduleType);
+    const displayName = entry?.displayName ?? data.moduleType;
+    const firstBuildPending = data.pending !== null && data.level === 0;
+
+    const buttons: ButtonDef[] = [];
+    if (data.pending === null && entry) {
+      const nextLevel = data.level + 1;
+      const cost = costAtLevel(entry, nextLevel);
+      buttons.push({
+        frameTile: "ui-frame-round:0",
+        activeFrameTile: "ui-frame-round:1",
+        disabledFrameTile: "ui-frame-round:2",
+        tile: "ui-icon-upgrade:0",
+        activeTile: "ui-icon-upgrade:1",
+        disabledTile: "ui-icon-upgrade:2",
+        // "capped" (blocked by the Command Module's own level, README § Ship
+        // design) reads very differently from "unaffordable" — say so rather
+        // than showing a cost badge that looks unmet either way.
+        label: status === "capped"
+          ? `Needs Command Lv${nextLevel}`
+          : "Level Up",
+        badge: `${cost}`,
+        disabled: status !== "ready",
+        onPressed: () => void this.levelUpModule(data.moduleId),
+      });
+    }
+
+    return new TileActor({
+      tilemap: this.tilemap,
+      edgeFallthrough: this.supportsEmptyTileActor(),
+      tile: firstBuildPending ? ghostModuleTile(0.4) : moduleTile(),
+      col: data.col,
+      row: data.row,
+      width: MODULE_SPAN,
+      height: MODULE_SPAN,
+      ownerName: data.pending !== null
+        ? buildCountdownLabel(displayName, data.pending.completesAt, now)
+        : displayName,
+      ownerId: data.ownerId,
+      selection: "ui-selection-2",
+      onPressed: this.handleTilePressed,
+      buttons,
+      badges: [
+        {
+          anchor: "bottom-left",
+          badge: {
+            text: `${data.level}`,
+            backgroundColor: ex.Color.ExcaliburBlue,
+          },
+        },
+      ],
+    });
+  }
+
+  /**
+   * Tapping an empty interior tile offers to build any catalog type unlocked
+   * by the current Command Module level, in that room (mirroring the map
+   * view's Move/Deploy pattern). Taps outside a room (void, hull, corridors),
+   * in an occupied room, or when nothing is buildable yet do nothing.
    */
   protected override createEmptyTileActor(
     col: number,
@@ -147,50 +308,66 @@ export class ShipLevel extends TiledScene {
     const anchor = moduleAnchorAt(SHIP_ROOM_GRID, col, row, MODULE_SPAN);
     if (anchor === null) return null;
     const room = roomOriginAt(SHIP_ROOM_GRID, col, row)!;
-    if (this.occupiedRooms.has(`${room.col},${room.row}`)) return null;
+    if (this.roomOccupied(room.col, room.row)) return null;
+
+    const commandLevel = this.commandModuleLevel();
+    const buildable = MODULE_CATALOG.filter(
+      (e) =>
+        e.moduleType !== COMMAND_MODULE_TYPE &&
+        e.unlockCommandLevel <= commandLevel,
+    );
+    if (buildable.length === 0) return null;
+
     return new TileActor({
       tilemap: this.tilemap,
-      tile: { tile: `module-${MODULE_TYPE}`, tileId: 0, opacity: 0.2 },
+      tile: ghostModuleTile(0.2),
       col: anchor.col,
       row: anchor.row,
       width: MODULE_SPAN,
       height: MODULE_SPAN,
       onPressed,
-      buttons: [
-        {
+      buttons: buildable.map((entry) => {
+        const cost = costAtLevel(entry, 1);
+        return {
           frameTile: "ui-frame-round:0",
           activeFrameTile: "ui-frame-round:1",
           disabledFrameTile: "ui-frame-round:2",
           tile: "ui-icon-build:0",
           activeTile: "ui-icon-build:1",
           disabledTile: "ui-icon-build:2",
-          label: "Build",
+          label: entry.displayName,
           // Cost shown as the button badge; affordability is re-checked by
           // the backend on request — this disable is just UX.
-          badge: `${MODULE_COST_CONSTRUCTION}`,
-          disabled: gameState.resources.construction < MODULE_COST_CONSTRUCTION,
-          onPressed: () => void this.buildModule(anchor.col, anchor.row),
-        },
-      ],
+          badge: `${cost}`,
+          disabled: gameState.resources.construction < cost,
+          onPressed: () =>
+            void this.buildModule(anchor.col, anchor.row, entry.moduleType),
+        };
+      }),
     });
   }
 
   /**
-   * Asks the backend to start a module build. The backend verifies placement
-   * and cost, deducts the resources, and returns the authoritative
-   * BuildModuleEvent plus updated resource counts; the client applies both
-   * verbatim. Already the phase-3 shape: send a request, apply the server's
-   * event — only the transport changes (Tauri IPC now, WebSocket in P3.1).
+   * Asks the backend to start a module build. The backend verifies the
+   * catalog type, unlock level, placement, and cost, deducts the resources,
+   * and returns the authoritative ModuleData plus updated resource counts;
+   * merging both into gameState fans out to syncModules. Already the phase-3
+   * shape: send a request, apply the server's response — only the transport
+   * changes (Tauri IPC now, WebSocket in P3.1).
    */
-  private async buildModule(col: number, row: number): Promise<void> {
+  private async buildModule(
+    col: number,
+    row: number,
+    moduleType: string,
+  ): Promise<void> {
     this.deselectActor(); // clear the placement preview actor
     try {
-      const { event, resources } = await invoke<BuildModuleResponse>(
+      const { module, resources } = await invoke<ModuleActionResponse>(
         "request_build_module",
-        { col, row, moduleType: MODULE_TYPE },
+        { col, row, moduleType },
       );
       gameState.syncResources(resources);
-      this.applyBuildModuleEvent(event);
+      gameState.applyModuleEvent(module);
     } catch (err) {
       // No rejection UI yet — the Build button is disabled when unaffordable,
       // so this is a race (or a bug). Log it; state stays untouched.
@@ -199,75 +376,78 @@ export class ShipLevel extends TiledScene {
   }
 
   /**
-   * Spawns the module described by the given event. Designed to be called
-   * both for local player actions and for server-pushed events (including
-   * aged events from a late-join snapshot: a completesAt already in the past
-   * spawns the module finished, mid-build spawns it with the remaining
-   * timer). Duplicate moduleIds and occupied rooms are ignored — the server
-   * verifies placement; locally createEmptyTileActor never offers them.
+   * Asks the backend to level up an existing module. The backend verifies
+   * ownership, that no build is already pending, and the Command Module's
+   * level cap, deducts the scaled cost, and returns the authoritative
+   * ModuleData plus updated resource counts.
    */
-  applyBuildModuleEvent(event: BuildModuleEvent): void {
-    if (this.modules.has(event.moduleId)) return;
-    const room = roomOriginAt(SHIP_ROOM_GRID, event.col, event.row);
-    if (room === null || this.occupiedRooms.has(`${room.col},${room.row}`)) {
-      console.warn("Ignoring invalid module placement", event);
-      return;
+  private async levelUpModule(moduleId: string): Promise<void> {
+    // Unlike buildModule, there's no placement-preview ghost to clear here —
+    // the button lives on the real, already-selected module actor. Leave it
+    // selected while the request is in flight; syncModules() rebuilds it
+    // (carrying the selection forward, see isSelected/reselectActor in
+    // TiledScene) once the response lands and the module shows `pending`.
+    try {
+      const { module, resources } = await invoke<ModuleActionResponse>(
+        "request_levelup_module",
+        { moduleId },
+      );
+      gameState.syncResources(resources);
+      gameState.applyModuleEvent(module);
+    } catch (err) {
+      console.warn("request_levelup_module rejected:", err);
     }
-    this.occupiedRooms.add(`${room.col},${room.row}`);
-
-    const now = Date.now();
-    const building = now < event.completesAt;
-    const module = new TileActor({
-      tilemap: this.tilemap,
-      edgeFallthrough: this.supportsEmptyTileActor(),
-      tile: building
-        ? underConstructionTile(event.moduleType)
-        : moduleTile(event.moduleType),
-      col: event.col,
-      row: event.row,
-      width: MODULE_SPAN,
-      height: MODULE_SPAN,
-      ownerName: building
-        ? buildCountdownLabel(event.completesAt, now)
-        : MODULE_DISPLAY_NAME,
-      ownerId: event.ownerId,
-      selection: "ui-selection-2",
-      onPressed: this.handleTilePressed,
-      badges: [
-        {
-          anchor: "bottom-left",
-          badge: { text: "1", backgroundColor: ex.Color.ExcaliburBlue },
-        },
-      ],
-    });
-    this.modules.set(event.moduleId, module);
-    this.add(module);
-    if (building) this.pendingBuilds.set(event.moduleId, event);
   }
 
   /**
-   * Drives the build timers: while a build is pending its label counts down
-   * once a second; at completesAt the ghost swaps to the finished sprite.
-   * Runs only while this scene is active — an overdue build completes on the
-   * first frame after the player returns to the ship view, consistent with
-   * the completesAt timestamp being the source of truth.
+   * Drives the build/level-up timers: while pending, a module's label counts
+   * down once a second. The moment a timer reaches zero, requestRefresh()
+   * fetches the authoritative snapshot immediately instead of waiting for
+   * the next periodic poll (up to PRODUCTION_TICK_MS away) — completesAt
+   * remains the source of truth, this just closes the visual gap between the
+   * countdown hitting "0s" and the module actually flipping to its finished
+   * sprite/level/Level-Up button. Runs only while this scene is active — an
+   * overdue build completes on the first frame after the player returns to
+   * the ship view.
    */
   override onPostUpdate(): void {
-    if (this.pendingBuilds.size === 0) return;
+    if (this.pendingModules.size === 0) return;
     const now = Date.now();
-    for (const [id, event] of this.pendingBuilds) {
+    let anyDue = false;
+    for (const [id, data] of this.pendingModules) {
+      if (data.pending === null) continue;
       const module = this.modules.get(id);
-      if (now >= event.completesAt) {
-        this.pendingBuilds.delete(id);
-        module?.setTile(moduleTile(event.moduleType));
-        module?.setOwner(MODULE_DISPLAY_NAME, module.ownerId);
-      } else {
-        // setOwner no-ops until the rounded seconds change.
-        module?.setOwner(
-          buildCountdownLabel(event.completesAt, now),
-          module.ownerId,
-        );
-      }
+      const entry = moduleCatalogEntry(data.moduleType);
+      const displayName = entry?.displayName ?? data.moduleType;
+      // setOwner no-ops until the rounded seconds change.
+      module?.setOwner(
+        buildCountdownLabel(displayName, data.pending.completesAt, now),
+        module.ownerId,
+      );
+      if (now >= data.pending.completesAt) anyDue = true;
     }
+    if (anyDue) this.requestRefresh();
+  }
+
+  /** True while a requestRefresh() fetch is in flight, so a timer landing on
+   *  several frames in a row (or several modules completing together)
+   *  triggers one shared request instead of one per frame. */
+  private refreshing = false;
+
+  /**
+   * Fetches the authoritative snapshot on demand — the same call
+   * startGameStateSync polls periodically, but triggered immediately when
+   * onPostUpdate notices a pending timer has elapsed, instead of waiting up
+   * to PRODUCTION_TICK_MS for the next scheduled poll.
+   */
+  private requestRefresh(): void {
+    if (this.refreshing) return;
+    this.refreshing = true;
+    invoke<GameStateData>("load_game_state")
+      .then((data) => gameState.load(data))
+      .catch((err) => console.warn("load_game_state refresh failed:", err))
+      .finally(() => {
+        this.refreshing = false;
+      });
   }
 }

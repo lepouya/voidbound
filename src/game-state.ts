@@ -114,6 +114,50 @@ export interface VesselMoveEvent {
 export const PRODUCTION_TICK_MS = 5_000;
 
 /**
+ * A build or level-up in progress on a module — the level it completes to
+ * and when. Mirrors the Rust `ModulePendingBuild` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface ModulePendingBuild {
+  /** The level this build completes to. */
+  level: number;
+  /** Server epoch ms when the build/upgrade was authorized. */
+  dispatchedAt: number;
+  /** Pre-computed completion time — lets late-joining clients show the
+   *  correct remaining time without redoing the clock math locally. */
+  completesAt: number;
+}
+
+/**
+ * A module placed in the ship (ROADMAP P1.4), with its catalog type and
+ * current level — placement and level are server-owned, so ShipLevel builds
+ * its actors from the `gameState.modules` snapshot with no hardcoded layout
+ * (the Command Module included). Level 0 means the first build hasn't
+ * completed yet; `pending` carries the in-progress timer for either a first
+ * build (level 0 -> 1) or a level-up (level N -> N+1, during which the
+ * module keeps functioning at level N). Mirrors the Rust `ModuleData` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface ModuleData {
+  moduleId: string;
+  ownerId: string;
+  /** Display name shown below the module sprite. */
+  ownerName: string;
+  /** Catalog key, e.g. "ore-refinery" (see src/module-catalog.ts). Until
+   *  per-type art lands, every module renders with the same "module-base"
+   *  sprite regardless of this value. */
+  moduleType: string;
+  /** Anchor (top-left) tile of the module footprint. */
+  col: number;
+  row: number;
+  /** Highest level this module has fully completed; 0 while the first build
+   *  is still running. */
+  level: number;
+  /** Present while a build/upgrade is in flight. */
+  pending: ModulePendingBuild | null;
+}
+
+/**
  * Wire shape of the `load_game_state` Tauri command. Mirrors the Rust
  * `GameStateData` in src-tauri/src/lib.rs — keep the two in sync.
  */
@@ -126,6 +170,9 @@ export interface GameStateData {
   /** Every vessel currently in flight or parked on the map, in dispatch
    *  order — the snapshot half of SERVER.md's snapshot + replay. */
   vessels: VesselMoveEvent[];
+  /** Every module in the ship, built or under construction, including the
+   *  Command Module — placement and level are server-owned. */
+  modules: ModuleData[];
 }
 
 export type GameStateListener = () => void;
@@ -180,6 +227,16 @@ export class GameState {
    */
   vessels = new Map<string, VesselMoveEvent>();
 
+  /**
+   * Every module in the ship, built or under construction (Command Module
+   * included), keyed by moduleId, as last reported by the backend. Replaced
+   * wholesale by each load() snapshot and merged per-module by
+   * applyModuleEvent(). Empty until load() lands: the client hardcodes no
+   * modules. ShipLevel reconciles its actors from this table whenever
+   * subscribers are notified.
+   */
+  modules = new Map<string, ModuleData>();
+
   private listeners = new Set<GameStateListener>();
 
   /**
@@ -228,6 +285,25 @@ export class GameState {
   }
 
   /**
+   * Apply a single authorized module event (build or level-up) from a
+   * command response, notifying subscribers — the CLAUDE.md multiplayer-
+   * ready event pattern's `apply<Action>Event` entry point for module
+   * actions, matching applyVesselEvent's shape: idempotent (merges by
+   * moduleId, so a redirect/replay just overwrites), zero UI housekeeping.
+   * ModuleData itself is the event payload (it already carries the pending
+   * build's dispatchedAt/completesAt, same as VesselMoveEvent's timestamps);
+   * a separate `ModuleEvent` wrapper isn't needed since the module's full
+   * current state *is* what a server push would send. The next load()
+   * snapshot supersedes it — the backend records every module it mutates, so
+   * the snapshot already contains it.
+   */
+  applyModuleEvent(module: ModuleData): void {
+    this.update((s) => {
+      s.modules.set(module.moduleId, module);
+    });
+  }
+
+  /**
    * Replace this state with backend-loaded data, notifying subscribers.
    * Routed through update() so a re-sync at any time (the periodic poll, a
    * post-login refresh, a phase-3 server snapshot) refreshes live scenes the
@@ -241,6 +317,7 @@ export class GameState {
         data.motherships.map((m) => [m.mothershipId, m]),
       );
       s.vessels = new Map(data.vessels.map((e) => [e.vesselId, e]));
+      s.modules = new Map(data.modules.map((m) => [m.moduleId, m]));
       s.loaded = true;
     });
   }

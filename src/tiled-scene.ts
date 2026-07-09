@@ -187,6 +187,26 @@ export abstract class TiledScene extends ex.Scene {
     }
   }
 
+  /** True if `actor` is the currently selected actor — lets a subclass that
+   *  rebuilds an actor in place (e.g. reconciling a server-data refresh)
+   *  check whether the outgoing instance needs its selection carried over to
+   *  the replacement via reselectActor(), instead of the selection silently
+   *  vanishing because the killed instance no longer renders. */
+  protected isSelected(actor: TileActor): boolean {
+    return this.selectedActor === actor;
+  }
+
+  /** Select `actor` as the replacement for whatever was selected before,
+   *  without the normal deselect-then-select handling (no prior actor to
+   *  deselect — it's already been killed by the caller). Pairs with
+   *  isSelected(): rebuild the actor, then call this if the outgoing
+   *  instance was selected, so the player's open panel survives a
+   *  server-driven rebuild instead of silently disappearing. */
+  protected reselectActor(actor: TileActor): void {
+    this.selectedActor = actor;
+    actor.select();
+  }
+
   private selectActor(actor: TileActor): void {
     this.deselectActor();
     this.selectedActor = actor;

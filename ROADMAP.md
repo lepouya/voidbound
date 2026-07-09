@@ -98,12 +98,20 @@ Goal: a playable single-player loop, no persistence yet.
       `/add-game-event` (its `completesAt` field gives build timers for free),
       plus the placement UI: `createEmptyTileActor` in the ship view with a
       Build button, mirroring the map view's Move/Deploy pattern.
-- [ ] **P1.4 — Module catalog.** Types, levels, and resource costs from the
-      README ship design — Command Module (already rendered) and the four
-      producers first (Ore Refinery, Electronics Fabricator, Hydroponics Bay,
-      Fusion Reactor). Producer levels feed the P1.1 tick; costs are spent by
-      P1.3 builds. Art via `/gen-art` + the `module-*` auto-register pattern.
-      Needs P1.1, P1.3.
+- [x] **P1.4 — Module catalog.** Types, levels, and resource costs from the
+      README ship design — Command Module and the four producers (Ore Refinery,
+      Electronics Fabricator, Hydroponics Bay, Fusion Reactor), all formalized
+      as one `MODULE_CATALOG` (`src-tauri/src/game_state.rs`, mirrored
+      display-only in `src/module-catalog.ts`). Every module — Command Module
+      included — is now server-owned `ModuleData` (id, type, level, pending
+      build) reconciled onto the ship the same way motherships /vessels are;
+      ShipLevel hardcodes no layout. Level 0 = first build still running;
+      level-ups reuse the build-timer machinery (`request_levelup_module`) and
+      are capped at the Command Module's own level. Cost, build time, and
+      production all scale via one doubling-per- level stub (`scaleForLevel`) —
+      real balancing is a later pass. Real art is still pending: every module
+      renders with the `module-base` sprite regardless of type until per-type
+      art lands (`/gen-art` + `module-*` auto-register). Needs P1.1, P1.3.
 - [ ] **P1.5 — Local notifications.** Wire the Events HUD badge to real counts:
       module build completions (P1.3), vessel arrivals. Replaces the hardcoded
       "@" placeholder badge. (The Mail badge stays a placeholder until messaging
