@@ -19,6 +19,7 @@
       "Bash(cargo fmt:*)",
       "Bash(cargo clippy:*)",
       "Bash(cargo update:*)",
+      "Bash(cargo test:*)",
       "Bash(cargo --version)",
       "Bash(git status)",
       "Bash(git diff:*)",
@@ -38,9 +39,12 @@
       "Bash(wc:*)",
       "Bash(stat:*)",
       "Bash(echo:*)",
+      "Bash(grep:*)",
+      "Bash(:)",
       "Bash(python3 tools/*)",
       "Bash(art/gen_*.sh)",
-      "Bash(./art/gen_*.sh)"
+      "Bash(./art/gen_*.sh)",
+      "Read(//private/tmp/**)"
     ]
   }
 }
