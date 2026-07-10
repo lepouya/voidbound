@@ -207,6 +207,45 @@ Goal: a playable single-player loop, no persistence yet.
       a markup/markdown, independent of the Phase 4 alliance economy — the
       README's answer for players who need resources between mining runs. Needs
       P1.1.
+- [ ] **P1.13 — Map interest area: windowed world streaming + minimap
+      declutter.** Follow-up from the July 2026 full-size-map playtests: with
+      ~480 nodes the minimap is cluttered, and shipping the entire world to the
+      client scales badly in bandwidth and actors once other players' data rides
+      the snapshot (P3+). Plan (reviewed July 2026): - **Minimap hierarchy:**
+      asteroid dots drop to 50% opacity while ships render at full strength and
+      are drawn after (over) the resource dots — seeing players matters more
+      than seeing nodes. - **Interest area (AOI):** the client only ever holds
+      world entities inside a **100\*100-tile window** centered on the camera.
+      `load_game_state` returns only in-window asteroids and foreign
+      ships/vessels; everything the player owns is always sent regardless of
+      window (a mining vessel must keep existing beyond the edge; alliance ships
+      join the exemption in P4). A new `request_map_window(center)` command
+      re-centers the AOI as the camera pans — with hysteresis (re-request when
+      the camera drifts more than ~N tiles from the last window center, never
+      per frame) — and returns the window's entities; the existing reconcilers
+      (`syncAsteroids` / `syncMotherships` / `syncVessels`) despawn everything
+      that left the window, so out-of-window entities unload from `gameState`
+      and the scene. The windowed response is authoritative for everything
+      inside it (stale mining slots etc. resolve on window re-entry). - **Push
+      filtering:** the scheduler/outbox only emits entity pushes that intersect
+      the subscriber's AOI, with own-entity pushes always exempt — per-client
+      AOI state in `ServerState`, single-client today but shaped exactly like
+      P3.1's per-connection subscriptions (SERVER.md gains an
+      interest-management section). - **Zoom cap:** the map camera never shows
+      more than 100 tiles on its longer axis (supersedes P1.9's 0.1 floor). Keep
+      the visible view strictly smaller than the AOI window (cap below 100, or
+      make the window view-size + hysteresis margin) so unloaded space can never
+      scroll into sight at the window border. - **Minimap beyond the window:**
+      background plus own (later alliance) ships only — the global resource
+      picture intentionally disappears. Tap-to-jump into an unloaded region
+      stays legal: it pans and fires the window request, tolerating a brief
+      empty view until the data lands. - **Notes:** notifications and resource
+      counts stay global (unaffected). With unload in place, local asteroid
+      density becomes a free balancing knob — global count no longer costs
+      actors or bandwidth — and wants revisiting: at P1.9 density a 100\*100
+      window holds only ~5 asteroids, which will feel sparse under the tighter
+      zoom cap. Needs P1.9; feeds P3.1 (per-connection subscriptions) and P4.3
+      (fog of war is this AOI shrunk to a radar radius).
 
 ## Phase 2 — Persistence
 
