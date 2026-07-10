@@ -187,6 +187,19 @@ scene. Call both HUD helpers from `onInitialize` **after**
 **Adding a new scene:** use the `/add-scene` skill — it handles Rust map-arm
 wiring, `main.ts` registration, and HUD setup.
 
+### Startup / loader phase
+
+Startup-time backend work (game-state sync, a future login flow) must ride the
+shared Excalibur `loader` as an `ex.Loadable` (see `GameStateResource` in
+src/game-state-loader.ts) — never block or gate `game.start()`; the loading
+screen exists precisely so slow work happens behind it. A loadable must catch
+its own errors and resolve anyway: a failed or slow backend must never block
+game start (the player continues on new-player defaults). Scenes must tolerate
+the snapshot landing late or never — read `gameState` defaults at init and
+`subscribe()` to re-stamp visuals when a load lands. Player identity never
+changes mid-game (re-launching is the only way to switch users), so this
+resilience only covers the initial load, not live identity swaps.
+
 ### UI library (`src/ui/`)
 
 One barrel (`src/ui/index.ts`) re-exports everything. Modules:
@@ -364,3 +377,6 @@ Use these for common tasks rather than doing them from scratch:
 - `/verify` — launch the dev app and verify a change at runtime (window
   screenshots, streamed client console, temporary TEMP-VERIFY drive hooks) — the
   substitute for the missing runtime/scene test coverage
+- `/roadmap-task` — work a `ROADMAP.md` task end to end (design review for
+  server-model changes, skill chaining, gates, `/verify`, checkbox + commit
+  titled with the task ID)

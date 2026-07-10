@@ -14,7 +14,8 @@ See `SERVER.md` for the full server model this pattern targets — why fields mu
 be server-verifiable, why `apply*Event` must be idempotent (network redirects,
 replay), and how timestamps drive late-join snapshot + replay.
 
-The pattern has three parts:
+The pattern has three parts (plus push-channel wiring — section 4 — whenever the
+action creates a future deadline):
 
 1. An **event interface** — plain data, everything a server would send.
 2. An `apply<Action>Event(event)` **method** — consumes the event and mutates
@@ -138,6 +139,43 @@ private async dispatchVessel(destCol: number, destRow: number): Promise<void> {
 }
 ```
 
+## 4. Wire the push channel (timed / scheduler-settled actions)
+
+If the action creates a **future deadline** — a build `completesAt`, a vessel
+`arrivalAt`, a mining window — the command response is only half the story: the
+scheduler must settle the deadline later and broadcast the result. In
+`src-tauri/src/game_state.rs`:
+
+- **Settlement**: add (or extend) a `settle_*` method and call it from
+  `settle()`; include the new deadline in `next_deadline()` so the scheduler
+  thread (`run_scheduler`) sleeps until it.
+- **Broadcast**: settlement and mutation paths queue messages into the
+  `ServerState` outbox (`self.outbox.push(ServerPush::...)`) — never emit
+  directly. The boundaries (scheduler wake, `finish_command`) drain + emit, so
+  every settlement path broadcasts identically.
+- **Command epilogue**: every command ends with
+  `finish_command(&app, server.inner(), s)` — it drains the outbox after
+  releasing the lock and wakes the scheduler Condvar so a nearer deadline the
+  command just created is picked up (e.g. a short vessel flight).
+- **New push shape**: add a `ServerPush` variant and mirror it in the TS
+  `ServerPush` union in `src/game-state.ts` (comments mark the pair — keep in
+  sync), then route it in `gameState.applyServerPush()` into the **same**
+  apply/sync entry point the command response uses (`applyVesselEvent`,
+  `applyModuleEvent`, …) so pushed and locally-triggered changes are
+  indistinguishable to scenes.
+- **Player-visible completions** get a
+  `push_notification(kind, message,
+  now_ms)` — it queues both the notification
+  push and the snapshot-riding feed entry (capped at 100); the Events HUD badge
+  updates automatically.
+- **Tests**: extend the `#[cfg(test)]` suite — at minimum that `next_deadline()`
+  tracks the new deadline and that settling drains the expected pushes (see
+  `next_deadline_tracks_ticks_builds_and_arrivals`).
+
+Canonical example: the mining loop — `request_mine_asteroid` + `settle_mining`
+emitting `ServerPush::Asteroid` / `ServerPush::AsteroidRemoved` and the
+auto-recall `ServerPush::Vessel`.
+
 ## Checklist before declaring done
 
 - [ ] Event interface is `export`ed (scene module, or game-state.ts if it rides
@@ -149,13 +187,21 @@ private async dispatchVessel(destCol: number, destRow: number): Promise<void> {
       routes it through `apply*Event`; does not touch scene state directly.
 - [ ] Server-verified: Rust mirror struct + verifier on `ServerState` +
       `#[cfg(test)]` unit test; command registered in lib.rs.
+- [ ] Timed actions: deadline in `next_deadline()`, settlement queues outbox
+      pushes, command ends with `finish_command`; TS `ServerPush` union +
+      `applyServerPush` routing updated (section 4).
 - [ ] `deno task format` and `deno task check` pass (formats and type-checks TS
       and Rust).
+- [ ] Run **`/verify`** and drive the new action in the dev app — there is no
+      scene-level test coverage, so the running app is the only end-to-end
+      check.
 
 ## Reference
 
-See the canonical example: `VesselMoveEvent` (src/game-state.ts) +
+See the canonical examples: `VesselMoveEvent` (src/game-state.ts) +
 `applyVesselMoveEvent` / `syncVessels` / `dispatchVessel` / `recallVessel`
-(src/map-level.ts) + `dispatch_vessel` / `recall_vessel`
-(src-tauri/src/game_state.rs). See `SERVER.md` for the architecture this pattern
-is written against.
+(src/map-level.ts) + `request_dispatch_vessel` / `request_recall_vessel`
+(src-tauri/src/game_state.rs); and, for a timed scheduler-settled action,
+`mineAsteroid` (src/map-level.ts) + `request_mine_asteroid` / `settle_mining`
+(game_state.rs). See `SERVER.md` for the architecture this pattern is written
+against.

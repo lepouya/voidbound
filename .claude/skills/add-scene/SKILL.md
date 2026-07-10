@@ -93,6 +93,21 @@ export class <Name>Level extends TiledScene {
   (or any other `ui-selection*` tileset) in its `TileActorOptions`. Default is
   `ui-selection`. See `ShipLevel.commandModule` for an example.
 
+**Rendering server state:** scenes must not hardcode world content the backend
+owns. Entities that ride the `load_game_state` snapshot (motherships, vessels,
+asteroids, modules) are rendered by **reconciling** actors from the shared
+`gameState` tables: write a `sync<Entities>()` method that diffs scene actors
+against the table, seed it from the current snapshot in `setupActors`, and
+re-run it via `gameState.subscribe()` so late loader fetches, command responses,
+and server pushes all land the same way. Subscriptions stay live across scene
+switches (scenes never unsubscribe), so changes made while the scene is inactive
+arrive on their own — an `onActivate` forced re-sync is only needed for entities
+whose current position is lerped from event timestamps (see
+`MapLevel.onActivate` → `syncVessels(true)`). See
+`MapLevel.syncMotherships()`/`syncAsteroids()`/`syncVessels()` and
+`ShipLevel.syncModules()`; for a new server-owned entity type, follow
+`/add-game-event`.
+
 ## 2. Register the scene in `src/main.ts`
 
 Add your class to the `scenes` object passed to `new ex.Engine({...})`:

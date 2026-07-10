@@ -31,9 +31,17 @@ If the argument `$ARGUMENTS` is a script short-name (e.g. `cs1`), run
 
 ## Python tools (in `tools/`)
 
-All require Pillow (`pip install Pillow`). Scripts are called from
-`art/gen_*.sh` — you usually don't invoke them directly except when writing a
-new generator.
+All require Pillow. If a script fails with
+`ModuleNotFoundError: No module named 'PIL'`, the `python3` on PATH lacks Pillow
+— rather than installing into a system Python, prepend the bin directory of a
+Pillow-equipped Python install for the one command:
+
+```bash
+PATH="/path/to/pillow-python/bin:$PATH" art/gen_ui.sh
+```
+
+Scripts are called from `art/gen_*.sh` — you usually don't invoke them directly
+except when writing a new generator.
 
 | Script                 | Purpose                                                                |
 | ---------------------- | ---------------------------------------------------------------------- |
@@ -84,6 +92,12 @@ px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at
 ## Checklist after regenerating
 
 - [ ] New/updated files are in `src/assets/` (not committed to `art/`).
+- [ ] Regeneration rewrites **every** output PNG with byte-level churn (renderer
+      nondeterminism) even when visually unchanged — after a regen,
+      `git checkout --` the semantically untouched PNGs so the diff only shows
+      real changes.
+- [ ] If a `tools/*.py` script changed, run
+      `python3 -m unittest discover -s tools`.
 - [ ] If the dev server is running, Vite HMR picks up regenerated **PNGs**
       (force a browser reload if you don't see it). Map JSON like
       `ship-level.json` is embedded in the Rust binary via `include_str!` and
