@@ -31,6 +31,13 @@ jobs:
       - name: Deno tests
         run: deno task test:ts
 
+      # Pillow + an SVG rasterizer (rsvg-convert) for svg_ui_gen tests; apt
+      # packages sidestep Ubuntu's externally-managed pip restrictions.
+      - name: Install art pipeline dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil librsvg2-bin
+
       - name: Art pipeline tests
         run: python3 -m unittest discover -s tools -v
 
