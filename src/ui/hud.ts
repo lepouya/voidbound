@@ -24,6 +24,26 @@ export type { HudStackDir };
 export type HudAnchor = AnchorPlacement;
 
 /**
+ * Z draw order all HUD elements build on: always above world-space actors
+ * and tilemaps. HudGroupDef.zOffset is relative to this base, and custom
+ * screen-space widgets (e.g. the map minimap) should use it too.
+ */
+export const HUD_BASE_Z = 10_000;
+
+/**
+ * The slice of a HUD element TiledScene needs for dispatch: pointer-up
+ * hit-testing and screen-resize relayout. HudGroupHandle satisfies it; custom
+ * screen-space widgets (e.g. the map minimap) implement it directly and
+ * register via TiledScene.registerHudTarget().
+ */
+export interface HudPointerTarget {
+  /** Recompute positions for the current screen dimensions. */
+  relayout(engine: ex.Engine): void;
+  /** If screenPos hits this element, handle it and return true. */
+  tryPointerUp(screenPos: ex.Vector): boolean;
+}
+
+/**
  * HUD-specific button definition. Extends ButtonDef with size and hit-area
  * fields that are only meaningful in screen-space context.
  */
@@ -54,7 +74,7 @@ export interface HudGroupDef {
   buttons: HudButtonDef[];
 }
 
-export interface HudGroupHandle {
+export interface HudGroupHandle extends HudPointerTarget {
   /** Show or hide all buttons in the group. */
   setVisible(visible: boolean): void;
   /** Enable or disable an individual button by index. */
@@ -71,17 +91,9 @@ export interface HudGroupHandle {
   setLabel(index: number, label: string | LabelDef | undefined): void;
   /** Remove all buttons in this group from the scene. */
   remove(): void;
-  /**
-   * Recompute button positions for the current screen dimensions. Call after
-   * a screen resize; all runtime state (visibility, disabled, badges) is kept.
-   */
-  relayout(engine: ex.Engine): void;
-  /**
-   * If screenPos falls within a button's hit area, fires its onPressed (unless
-   * disabled) and returns true. Returns false if no button was hit.
-   * Used by TiledScene to handle clicks without relying on actor pointer events.
-   */
-  tryPointerUp(screenPos: ex.Vector): boolean;
+  // relayout + tryPointerUp come from HudPointerTarget: relayout keeps all
+  // runtime state (visibility, disabled, badges); tryPointerUp fires the hit
+  // button's onPressed unless disabled.
 }
 
 // ---------------------------------------------------------------------------
@@ -123,9 +135,6 @@ export function spawnHudGroup(
   engine: ex.Engine,
   def: HudGroupDef,
 ): { elements: ex.ScreenElement[]; handle: HudGroupHandle } {
-  // HUD elements must always render above all world-space actors and tilemaps.
-  // Use a large base z; zOffset is relative between overlapping HUD groups.
-  const HUD_BASE_Z = 10_000;
   const z = HUD_BASE_Z + (def.zOffset ?? 0);
 
   // Resolve sizes for all buttons up front (needed for 'center' pre-computation).

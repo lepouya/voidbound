@@ -2,6 +2,7 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
+import { TileGridGeometry } from "./grid-math.ts";
 import { parseTileRef } from "./ui/index.ts";
 
 interface TileMapData {
@@ -10,6 +11,24 @@ interface TileMapData {
   tile_width: number;
   tile_height: number;
   tiles: string[];
+}
+
+/**
+ * Fetch a map's grid geometry without building an ex.TileMap — for
+ * geometry-only scenes (ROADMAP P1.9): the full-size space map ships no
+ * per-tile content (`tiles` comes back empty), so pre-allocating a million
+ * Excalibur Tile objects would buy nothing.
+ */
+export async function fetchGridGeometry(
+  mapType: string,
+): Promise<TileGridGeometry> {
+  const mapData = await invoke<TileMapData>("generate_map", { mapType });
+  return {
+    columns: mapData.cols,
+    rows: mapData.rows,
+    tileWidth: mapData.tile_width,
+    tileHeight: mapData.tile_height,
+  };
 }
 
 /**

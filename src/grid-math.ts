@@ -2,6 +2,21 @@
 // can exercise it under plain `deno test`.
 
 /**
+ * The tile-grid geometry of a scene's map — everything camera clamping,
+ * actor placement, and tap-to-tile math need (ROADMAP P1.9). An `ex.TileMap`
+ * satisfies this structurally, so scenes with a real tilemap (ship) and
+ * geometry-only scenes (the full-size space map, which renders no per-tile
+ * content) share one shape.
+ */
+export interface TileGridGeometry {
+  columns: number;
+  rows: number;
+  /** Tile size in world px. */
+  tileWidth: number;
+  tileHeight: number;
+}
+
+/**
  * A multi-tile footprint on the map grid. TileActor satisfies this
  * structurally (readonly col/row are the construction position; colSpan and
  * rowSpan are the size in tiles).

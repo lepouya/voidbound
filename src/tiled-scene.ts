@@ -8,10 +8,12 @@ import {
   HudButtonDef,
   HudGroupDef,
   HudGroupHandle,
+  HudPointerTarget,
   LabelDef,
   spawnHudGroup,
 } from "./ui/index.ts";
 import { anchoredZoomPos } from "./camera-math.ts";
+import { TileGridGeometry } from "./grid-math.ts";
 import {
   gameState,
   NotificationData,
@@ -35,11 +37,24 @@ const RESOURCE_ICON_TILESET: Record<ResourceKind, string> = {
 };
 
 /**
+ * What buildMap() resolves to: the scene's grid geometry, optionally backed
+ * by a real ex.TileMap (ROADMAP P1.9). All camera/tap/actor math reads the
+ * geometry; the tilemap — when present — is only added to the scene for
+ * rendering. Geometry-only scenes (the full-size space map) render a plain
+ * background instead. An ex.TileMap satisfies TileGridGeometry structurally,
+ * so a tilemap-backed scene returns `{ grid: tilemap, tilemap }`.
+ */
+export interface SceneMap {
+  grid: TileGridGeometry;
+  tilemap?: ex.TileMap;
+}
+
+/**
  * Abstract base scene for any level that displays a tile-based map with
  * drag-to-pan, pinch/scroll-to-zoom, and tap-to-select TileActor support.
  *
  * Subclasses must implement:
- *   buildMap()    – return the ex.TileMap appropriate for this level
+ *   buildMap()    – return the SceneMap (grid geometry + optional tilemap)
  *   setupActors() – add TileActors to the scene after the map is loaded
  *
  * Override `createEmptyTileActor()` to enable tapping empty map tiles:
@@ -57,11 +72,17 @@ export abstract class TiledScene extends ex.Scene {
   protected suppressNextPointerUp = false;
   private emptyTileActor: TileActor | null = null;
   private pinchDistance: number | null = null;
-  /** All HUD group handles, used to dispatch pointer-up events to buttons. */
-  private hudHandles: HudGroupHandle[] = [];
+  /** All HUD pointer targets (button groups and custom widgets like the
+   *  minimap), used to dispatch pointer-up events and resize relayouts. */
+  private hudHandles: HudPointerTarget[] = [];
 
-  /** Stored once buildMap() resolves; accessible to setupActors() via this. */
-  protected tilemap!: ex.TileMap;
+  /** The map's grid geometry, set once buildMap() resolves; accessible to
+   *  setupActors() via this. Undefined before that (guard early
+   *  subscription callbacks on it). */
+  protected grid!: TileGridGeometry;
+  /** The real tilemap, when this scene has one (ship). Geometry-only scenes
+   *  (space map) leave it null. */
+  protected tilemap: ex.TileMap | null = null;
 
   // --- Map-derived constants, set after buildMap() resolves ---
   private mapWidth = 0;
@@ -89,12 +110,12 @@ export abstract class TiledScene extends ex.Scene {
     this.pendingActor = a;
   };
 
-  /** Return the ex.TileMap this scene should display. */
-  protected abstract buildMap(): Promise<ex.TileMap>;
+  /** Return the grid geometry (and optional real tilemap) for this scene. */
+  protected abstract buildMap(): Promise<SceneMap>;
 
   /**
-   * Add TileActors for this level. Called after buildMap() resolves and the
-   * tilemap has been added to the scene. Use `this.tilemap` for positioning.
+   * Add TileActors for this level. Called after buildMap() resolves and any
+   * tilemap has been added to the scene. Use `this.grid` for positioning.
    * Pass `onTilePressed` as the `onPressed` callback for each TileActor.
    */
   protected abstract setupActors(
@@ -116,8 +137,8 @@ export abstract class TiledScene extends ex.Scene {
   protected initialCameraTarget(): { pos: ex.Vector; zoom: number } {
     return {
       pos: ex.vec(
-        this.tilemap.columns * this.tilemap.tileWidth / 2,
-        this.tilemap.rows * this.tilemap.tileHeight / 2,
+        this.grid.columns * this.grid.tileWidth / 2,
+        this.grid.rows * this.grid.tileHeight / 2,
       ),
       zoom: 1,
     };
@@ -240,6 +261,18 @@ export abstract class TiledScene extends ex.Scene {
   }
 
   /**
+   * Lowest camera zoom this scene allows, regardless of how much of the map
+   * would fit on screen. 0 (the default) means "as far as fits the whole
+   * map". Scenes whose map dwarfs the screen (the full-size space map)
+   * override this: past a point, zooming out draws hundreds of sub-pixel
+   * actors at single-digit fps and shows nothing readable — the minimap is
+   * the whole-map overview instead.
+   */
+  protected minZoomFloor(): number {
+    return 0;
+  }
+
+  /**
    * Recompute the zoom-1 draw dimensions and the resulting minimum zoom.
    * screen.resolution is the zoom-1 draw size (screen.drawWidth divides by
    * the current camera zoom), which is the baseline clampedPos expects.
@@ -250,6 +283,7 @@ export abstract class TiledScene extends ex.Scene {
     this.minZoom = Math.max(
       this.drawW / this.mapWidth,
       this.drawH / this.mapHeight,
+      this.minZoomFloor(),
     );
   }
 
@@ -316,11 +350,13 @@ export abstract class TiledScene extends ex.Scene {
   }
 
   private async setupScene(): Promise<void> {
-    this.tilemap = await this.buildMap();
-    this.add(this.tilemap);
+    const { grid, tilemap } = await this.buildMap();
+    this.grid = grid;
+    this.tilemap = tilemap ?? null;
+    if (this.tilemap) this.add(this.tilemap);
 
-    this.mapWidth = this.tilemap.columns * this.tilemap.tileWidth;
-    this.mapHeight = this.tilemap.rows * this.tilemap.tileHeight;
+    this.mapWidth = grid.columns * grid.tileWidth;
+    this.mapHeight = grid.rows * grid.tileHeight;
 
     this.setupActors(this.handleTilePressed);
 
@@ -393,13 +429,13 @@ export abstract class TiledScene extends ex.Scene {
     if (wasRealActorSelected) return;
 
     const worldPos = this.engineRef.screen.screenToWorldCoordinates(screenPos);
-    const col = Math.floor(worldPos.x / this.tilemap.tileWidth);
-    const row = Math.floor(worldPos.y / this.tilemap.tileHeight);
+    const col = Math.floor(worldPos.x / this.grid.tileWidth);
+    const row = Math.floor(worldPos.y / this.grid.tileHeight);
     if (
       col < 0 ||
-      col >= this.tilemap.columns ||
+      col >= this.grid.columns ||
       row < 0 ||
-      row >= this.tilemap.rows
+      row >= this.grid.rows
     ) return;
 
     const emptyActor = this.createEmptyTileActor(
@@ -525,6 +561,24 @@ export abstract class TiledScene extends ex.Scene {
   private unregisterInputHandlers(): void {
     for (const fn of this.inputCleanup) fn();
     this.inputCleanup = [];
+  }
+
+  /**
+   * Register a custom screen-space widget (e.g. the map minimap) into HUD
+   * dispatch: it gets tryPointerUp priority over world taps and a relayout
+   * call on every screen resize. Button groups register automatically via
+   * addHudGroup; this is only for widgets built outside that system.
+   */
+  protected registerHudTarget(target: HudPointerTarget): void {
+    this.hudHandles.push(target);
+  }
+
+  /**
+   * Animate the camera to the given world position (clamped to the map
+   * bounds at the current zoom) — e.g. the minimap's tap-to-jump.
+   */
+  protected panCameraTo(x: number, y: number): void {
+    this.camera.move(this.clampedPos(x, y), 400, ex.easeInOutCubic);
   }
 
   /**

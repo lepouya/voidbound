@@ -1,5 +1,7 @@
 use serde::Serialize;
 
+use crate::game_state::{MAP_COLS, MAP_ROWS, MAP_TILE_PX};
+
 #[derive(Serialize, serde::Deserialize)]
 pub struct TileMapData {
     pub cols: u32,
@@ -9,61 +11,19 @@ pub struct TileMapData {
     pub tiles: Vec<String>,
 }
 
+/// Geometry only (ROADMAP P1.9): at the full 1000*1000 size, per-tile content
+/// would ship a million strings over IPC and pre-allocate a million Excalibur
+/// Tile objects for what is mostly empty space. The empty `tiles` vector
+/// tells the client to render a plain background and treat the grid as pure
+/// coordinate math — asteroids and motherships are the landmarks (a real
+/// starfield is later art work).
 fn generate_space_map() -> TileMapData {
-    const COLS: u32 = 100;
-    const ROWS: u32 = 100;
-    // Tile IDs within test-tileset: 0 = gray (background), 1 = blue, 2 = red, 3 = green
-    // Rects as (x, y, w, h, tile).
-    #[rustfmt::skip]
-    let rects: [(u32, u32, u32, u32, &str); 24] = [
-        (2, 2, 12, 12, "test-tileset:1"),
-        (20, 5, 8, 8, "test-tileset:2"),
-        (35, 2, 15, 10, "test-tileset:3"),
-        (60, 3, 10, 10, "test-tileset:1"),
-        (80, 1, 18, 14, "test-tileset:2"),
-        (5, 20, 10, 15, "test-tileset:3"),
-        (25, 22, 20, 6, "test-tileset:1"),
-        (50, 18, 12, 12, "test-tileset:2"),
-        (70, 20, 8, 20, "test-tileset:3"),
-        (85, 25, 14, 10, "test-tileset:1"),
-        (10, 40, 18, 8, "test-tileset:2"),
-        (35, 38, 10, 10, "test-tileset:3"),
-        (55, 42, 14, 14, "test-tileset:1"),
-        (78, 45, 20, 8, "test-tileset:2"),
-        (3, 55, 8, 16, "test-tileset:1"),
-        (20, 58, 12, 12, "test-tileset:3"),
-        (40, 55, 16, 10, "test-tileset:2"),
-        (65, 60, 10, 10, "test-tileset:3"),
-        (82, 58, 16, 16, "test-tileset:1"),
-        (8, 78, 14, 12, "test-tileset:3"),
-        (30, 75, 10, 18, "test-tileset:1"),
-        (50, 80, 18, 8, "test-tileset:2"),
-        (75, 78, 12, 12, "test-tileset:3"),
-        (90, 82, 8, 16, "test-tileset:2"),
-    ];
-
-    let mut tiles = vec!["test-tileset:0".to_string(); (COLS * ROWS) as usize];
-
-    for &(x, y, w, h, tile) in &rects {
-        for ry in y..y + h {
-            for rx in x..x + w {
-                if rx < COLS && ry < ROWS {
-                    let is_border = ry == y || ry == y + h - 1 || rx == x || rx == x + w - 1;
-
-                    if is_border {
-                        tiles[(ry * COLS + rx) as usize] = tile.to_string();
-                    }
-                }
-            }
-        }
-    }
-
     TileMapData {
-        cols: COLS,
-        rows: ROWS,
-        tile_width: 32,
-        tile_height: 32,
-        tiles,
+        cols: MAP_COLS as u32,
+        rows: MAP_ROWS as u32,
+        tile_width: MAP_TILE_PX as u32,
+        tile_height: MAP_TILE_PX as u32,
+        tiles: Vec::new(),
     }
 }
 

@@ -319,13 +319,14 @@ const ROOM_COUNT: i64 = 5;
 /// Modules occupy the 4*4 center of their 6*6 room.
 const MODULE_SPAN: i64 = 4;
 
-/// Space-map bounds — mirror COLS/ROWS in `map.rs::generate_space_map`;
-/// keep in sync.
-const MAP_COLS: i64 = 100;
-const MAP_ROWS: i64 = 100;
-/// Map-scene tile size in world px — mirrors the tile_width/tile_height in
-/// `map.rs::generate_space_map`; keep in sync.
-const MAP_TILE_PX: f64 = 32.0;
+/// Space-map bounds — the single source `map.rs::generate_space_map` serves
+/// to the client (geometry only since ROADMAP P1.9: no per-tile content at
+/// this size, the scene renders a plain background).
+pub(crate) const MAP_COLS: i64 = 1000;
+pub(crate) const MAP_ROWS: i64 = 1000;
+/// Map-scene tile size in world px — also served by
+/// `map.rs::generate_space_map`.
+pub(crate) const MAP_TILE_PX: f64 = 32.0;
 /// Vessel travel speed in world px/s. Server-verified: clients render the
 /// speed the event carries, they never choose it. Update on upgrade (P4).
 const VESSEL_SPEED_PX_S: f64 = 32.0;
@@ -453,7 +454,10 @@ pub struct AsteroidTierEntry {
     pub min_amount: u64,
     pub max_amount: u64,
     /// How many of this tier ServerState::new seeds — the rarity knob
-    /// (small common, medium uncommon, large rare).
+    /// (small common, medium uncommon, large rare). Sized for the full
+    /// 1000*1000 map: ~480 asteroids total is one per ~45*45-tile
+    /// neighborhood, the same local density the original home-region field
+    /// had.
     pub seed_count: usize,
     /// Simultaneous mining slots. 1 everywhere today; the large tier may
     /// allow more later (README revisit note), so verification reads this
@@ -467,7 +471,7 @@ pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
         span: 1,
         min_amount: 60,
         max_amount: 240,
-        seed_count: 24,
+        seed_count: 320,
         max_miners: 1,
     },
     AsteroidTierEntry {
@@ -475,7 +479,7 @@ pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
         span: 2,
         min_amount: 240,
         max_amount: 960,
-        seed_count: 9,
+        seed_count: 120,
         max_miners: 1,
     },
     AsteroidTierEntry {
@@ -483,7 +487,7 @@ pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
         span: 3,
         min_amount: 960,
         max_amount: 2880,
-        seed_count: 3,
+        seed_count: 40,
         max_miners: 1,
     },
 ];
@@ -578,10 +582,13 @@ fn footprints_clear(
 }
 
 /// Scatter the starter asteroid field (ROADMAP P1.6): ASTEROID_TIERS
-/// seed_counts of each tier, rejection-sampled to keep clear of motherships
-/// and each other, with a deterministic RNG so every run gets the same field
-/// until persistence (P2) stores the world. Resource kinds are weighted so
-/// high-tech shows up least ("rare asteroids", README § Design principles).
+/// seed_counts of each tier, rejection-sampled uniformly across the whole
+/// map (July 2026 playtest feedback: resources spread evenly, not clustered
+/// around the start — seed_counts are area-scaled to keep local density
+/// playable) to keep clear of motherships and each other, with a
+/// deterministic RNG so every run gets the same field until persistence
+/// (P2) stores the world. Resource kinds are weighted so high-tech shows up
+/// least ("rare asteroids", README § Design principles).
 fn seed_asteroids(motherships: &HashMap<String, MothershipData>) -> HashMap<String, AsteroidData> {
     /// Tiles kept empty around every mothership (deploy/dock space).
     const MOTHERSHIP_CLEARANCE: i64 = 6;
@@ -772,8 +779,9 @@ impl ServerState {
                 pending: None,
             },
         );
-        // Placeholder world: the player's mothership plus one sample enemy.
-        // Persistence (P2) / the real server (P3) will load these instead.
+        // Placeholder world: the player's mothership plus one sample enemy,
+        // at the center of the full-size map (ROADMAP P1.9). Persistence
+        // (P2) / the real server (P3) will load these instead.
         let motherships = HashMap::from([
             (
                 player.id.clone(),
@@ -783,8 +791,8 @@ impl ServerState {
                     owner_name: player.name,
                     ship_type: "ss1".to_string(),
                     damaged: false,
-                    col: 48,
-                    row: 48,
+                    col: 498,
+                    row: 498,
                     span: 4,
                 },
             ),
@@ -796,13 +804,13 @@ impl ServerState {
                     owner_name: "Enemy".to_string(),
                     ship_type: "ss1".to_string(),
                     damaged: true,
-                    col: 53,
-                    row: 49,
+                    col: 503,
+                    row: 499,
                     span: 4,
                 },
             ),
         ]);
-        // Placeholder starter asteroid field, seeded around the motherships.
+        // Placeholder starter asteroid field, spread across the map.
         // Persistence (P2) / the real server (P3) will load this instead.
         let asteroids = seed_asteroids(&motherships);
         Self {
@@ -2041,10 +2049,11 @@ mod tests {
     #[test]
     fn dispatch_departs_from_the_closest_dock_with_arrival_time() {
         let mut s = ServerState::new(0);
-        let event = s.dispatch_vessel(50, 60, 1_000).unwrap();
-        // Mothership at (48, 48), 4*4: the inner docks are (49..=50, 49..=50).
-        assert_eq!((event.src_col, event.src_row), (50.0, 50.0));
-        assert_eq!((event.dest_col, event.dest_row), (50, 60));
+        let event = s.dispatch_vessel(500, 510, 1_000).unwrap();
+        // Mothership at (498, 498), 4*4: the inner docks are
+        // (499..=500, 499..=500).
+        assert_eq!((event.src_col, event.src_row), (500.0, 500.0));
+        assert_eq!((event.dest_col, event.dest_row), (500, 510));
         assert_eq!(event.owner_id, player_identity().id);
         assert_eq!(event.speed, VESSEL_SPEED_PX_S);
         assert_eq!(event.dispatched_at, 1_000);
@@ -2056,11 +2065,11 @@ mod tests {
     #[test]
     fn dispatch_rejects_off_map_and_docking_destinations() {
         let mut s = ServerState::new(0);
-        for (col, row) in [(100, 5), (5, -1), (-3, 3), (2, 100)] {
+        for (col, row) in [(1000, 5), (5, -1), (-3, 3), (2, 1000)] {
             let err = s.dispatch_vessel(col, row, 0).unwrap_err();
             assert!(err.contains("outside the map"), "{err}");
         }
-        let err = s.dispatch_vessel(49, 50, 0).unwrap_err();
+        let err = s.dispatch_vessel(499, 500, 0).unwrap_err();
         assert!(err.contains("docking tile"), "{err}");
         assert!(s.active_vessels(0).is_empty());
     }
@@ -2068,12 +2077,12 @@ mod tests {
     #[test]
     fn recall_redirects_from_the_lerped_mid_flight_position() {
         let mut s = ServerState::new(0);
-        let out = s.dispatch_vessel(50, 60, 0).unwrap();
-        // Halfway through the 10 s outbound flight the vessel sits at row 55.
+        let out = s.dispatch_vessel(500, 510, 0).unwrap();
+        // Halfway through the 10 s outbound flight the vessel sits at row 505.
         let back = s.recall_vessel(&out.vessel_id, 5_000).unwrap();
         assert_eq!(back.vessel_id, out.vessel_id);
-        assert_eq!((back.src_col, back.src_row), (50.0, 55.0));
-        assert_eq!((back.dest_col, back.dest_row), (50, 50));
+        assert_eq!((back.src_col, back.src_row), (500.0, 505.0));
+        assert_eq!((back.dest_col, back.dest_row), (500, 500));
         assert_eq!(back.dispatched_at, 5_000);
         assert_eq!(back.arrival_at, 10_000);
         // Docking completes: the vessel leaves the snapshot...
@@ -2086,12 +2095,12 @@ mod tests {
     #[test]
     fn arrived_vessels_stay_parked_until_recalled() {
         let mut s = ServerState::new(0);
-        let out = s.dispatch_vessel(50, 60, 0).unwrap();
+        let out = s.dispatch_vessel(500, 510, 0).unwrap();
         // Long past arrival the vessel is still on the map, parked at dest.
         assert_eq!(s.active_vessels(60_000).len(), 1);
         let back = s.recall_vessel(&out.vessel_id, 60_000).unwrap();
-        assert_eq!((back.src_col, back.src_row), (50.0, 60.0));
-        assert_eq!((back.dest_col, back.dest_row), (50, 50));
+        assert_eq!((back.src_col, back.src_row), (500.0, 510.0));
+        assert_eq!((back.dest_col, back.dest_row), (500, 500));
         assert_eq!(back.arrival_at, 70_000);
     }
 
@@ -2108,10 +2117,10 @@ mod tests {
         let ships = s.motherships_snapshot();
         assert_eq!(ships.len(), 2);
         let player = ships.iter().find(|m| m.owner_id == "player-1").unwrap();
-        assert_eq!((player.col, player.row, player.span), (48, 48, 4));
+        assert_eq!((player.col, player.row, player.span), (498, 498, 4));
         assert!(!player.damaged);
         let enemy = ships.iter().find(|m| m.owner_id == "player-2").unwrap();
-        assert_eq!((enemy.col, enemy.row), (53, 49));
+        assert_eq!((enemy.col, enemy.row), (503, 499));
         assert!(enemy.damaged);
     }
 
@@ -2181,13 +2190,13 @@ mod tests {
     #[test]
     fn vessel_arrival_notifies_once_and_docking_prunes_with_push() {
         let mut s = ServerState::new(0);
-        let out = s.dispatch_vessel(50, 60, 0).unwrap();
+        let out = s.dispatch_vessel(500, 510, 0).unwrap();
         s.drain_pushes();
         s.settle(out.arrival_at);
         assert!(s.drain_pushes().iter().any(|p| matches!(
             p,
             ServerPush::Notification(n)
-                if n.kind == "vessel-arrived" && n.message.contains("(50, 60)")
+                if n.kind == "vessel-arrived" && n.message.contains("(500, 510)")
         )));
         // Parked: later settles stay quiet about it.
         s.settle(out.arrival_at + 5 * TICK);
@@ -2232,7 +2241,7 @@ mod tests {
         s.settle(1_000 + ore_refinery_build_time());
         assert_eq!(s.next_deadline(), 4 * TICK);
         // A short vessel flight beats the tick; its settled arrival doesn't.
-        let out = s.dispatch_vessel(50, 51, 16_000).unwrap();
+        let out = s.dispatch_vessel(500, 501, 16_000).unwrap();
         assert!(out.arrival_at < 4 * TICK);
         assert_eq!(s.next_deadline(), out.arrival_at);
         s.settle(out.arrival_at);
@@ -2261,8 +2270,8 @@ mod tests {
     }
 
     /// A state with production silenced (no modules) and the seeded asteroid
-    /// field replaced by one known asteroid at (49, 60) — 10 tiles / 10 s
-    /// from the (49, 50) dock — so mining math is deterministic.
+    /// field replaced by one known asteroid at (499, 510) — 10 tiles / 10 s
+    /// from the (499, 500) dock — so mining math is deterministic.
     fn mining_state(amount: u64) -> ServerState {
         let mut s = ServerState::new(0);
         s.modules.clear();
@@ -2273,8 +2282,8 @@ mod tests {
                 asteroid_id: "asteroid-x".to_string(),
                 tier: "small".to_string(),
                 resource: ResourceKind::Biological,
-                col: 49,
-                row: 60,
+                col: 499,
+                row: 510,
                 span: 1,
                 total: amount,
                 remaining: amount,
@@ -2301,6 +2310,14 @@ mod tests {
 
         let expected: usize = ASTEROID_TIERS.iter().map(|t| t.seed_count).sum();
         assert_eq!(a.asteroids.len(), expected);
+        // Evenly spread across the map (July 2026 playtest feedback), not
+        // clustered around the start: every map quadrant holds asteroids.
+        let quadrants: std::collections::HashSet<_> = a
+            .asteroids
+            .values()
+            .map(|ast| (ast.col >= MAP_COLS / 2, ast.row >= MAP_ROWS / 2))
+            .collect();
+        assert_eq!(quadrants.len(), 4);
         for asteroid in a.asteroids.values() {
             let tier = asteroid_tier(&asteroid.tier).expect("known tier");
             assert_eq!(asteroid.span, tier.span);
@@ -2336,8 +2353,8 @@ mod tests {
         let event = s.mine_asteroid("asteroid-x", 1_000).unwrap();
         assert_eq!(event.mining_asteroid_id.as_deref(), Some("asteroid-x"));
         assert!(event.cargo.is_none());
-        assert_eq!((event.src_col, event.src_row), (49.0, 50.0));
-        assert_eq!((event.dest_col, event.dest_row), (49, 60));
+        assert_eq!((event.src_col, event.src_row), (499.0, 500.0));
+        assert_eq!((event.dest_col, event.dest_row), (499, 510));
         assert_eq!(event.arrival_at, 11_000);
 
         // Extraction runs from arrival until the deposit is exhausted:
@@ -2382,8 +2399,8 @@ mod tests {
         let back = s.vessels[&out.vessel_id].clone();
         assert_eq!(back.mining_asteroid_id, None);
         assert_eq!(back.dispatched_at, done);
-        assert_eq!((back.src_col, back.src_row), (49.0, 60.0));
-        assert_eq!((back.dest_col, back.dest_row), (49, 50));
+        assert_eq!((back.src_col, back.src_row), (499.0, 510.0));
+        assert_eq!((back.dest_col, back.dest_row), (499, 500));
         let cargo = back.cargo.clone().unwrap();
         assert_eq!(cargo.resource, ResourceKind::Biological);
         assert_eq!(cargo.amount, 240);
@@ -2493,8 +2510,8 @@ mod tests {
                 asteroid_id: "asteroid-x".to_string(),
                 tier: "small".to_string(),
                 resource: ResourceKind::Fuel,
-                col: 49,
-                row: 60,
+                col: 499,
+                row: 510,
                 span: 1,
                 total: 60,
                 remaining: 60,

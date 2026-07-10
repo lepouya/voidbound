@@ -35,10 +35,11 @@ task list that tracks what's built vs. planned.
   PR (the frontend job runs `test:ts`; the rust job runs cargo test itself).
   Logic that should be unit-tested lives in pure modules with no runtime
   Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
-  `src/game-state.ts`, `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`,
-  `src/ui/format.ts`) — Excalibur cannot load under Deno, so keep new testable
-  logic in that shape. There is no runtime/scene coverage — the running app is
-  still the safety net there.
+  `src/game-state.ts`, `src/camera-math.ts`, `src/minimap-math.ts`,
+  `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`, `src/ui/format.ts`) —
+  Excalibur cannot load under Deno, so keep new testable logic in that shape.
+  There is no runtime/scene coverage — the running app is still the safety net
+  there.
 
 ## 2. Project Layout
 
@@ -170,19 +171,26 @@ you have a specific layering need.
 
 Subclasses **must** implement:
 
-- `buildMap(): Promise<ex.TileMap>` — return the tilemap
+- `buildMap(): Promise<SceneMap>` — return `{ grid, tilemap? }`: the
+  `TileGridGeometry` all camera/tap/actor math reads, plus an optional real
+  `ex.TileMap` for rendering. A tilemap-backed scene (ship) returns
+  `{ grid: tilemap, tilemap }` (an `ex.TileMap` satisfies the geometry
+  structurally); a geometry-only scene (the space map) returns just the grid and
+  renders a plain `backgroundColor`.
 - `setupActors(onTilePressed)` — add `TileActor`s; pass `onTilePressed` as each
   actor's `onPressed`
 
 May override: `createEmptyTileActor()`, `supportsEmptyTileActor()`,
 `initialCameraTarget()`.
 
-Useful protected members: `tilemap`, `handleTilePressed`, `pendingActor`,
-`suppressNextPointerUp`, `deselectActor()`, `addHudGroup(def)`, and
-`addCommonHud(switchButton)` — spawns the standard Shop/Events + Mail/Items HUD
-around the given scene-switch button; prefer it over redefining those groups per
-scene. Call both HUD helpers from `onInitialize` **after**
-`super.onInitialize(engine)`.
+Useful protected members: `grid`, `tilemap` (null in geometry-only scenes),
+`handleTilePressed`, `pendingActor`, `suppressNextPointerUp`, `deselectActor()`,
+`panCameraTo(x, y)`, `registerHudTarget(target)` — enrolls a custom screen-space
+widget (e.g. the minimap) into HUD tap dispatch and resize relayout —
+`addHudGroup(def)`, and `addCommonHud(switchButton)` — spawns the standard
+Shop/Events + Mail/Items HUD around the given scene-switch button; prefer it
+over redefining those groups per scene. Call both HUD helpers from
+`onInitialize` **after** `super.onInitialize(engine)`.
 
 **Adding a new scene:** use the `/add-scene` skill — it handles Rust map-arm
 wiring, `main.ts` registration, and HUD setup.
@@ -275,7 +283,10 @@ Labels, buttons, and badges always render upright regardless of actor rotation.
 `generate_map(map_type) -> Result<TileMapData, String>` in
 [src-tauri/src/lib.rs](src-tauri/src/lib.rs) dispatches on `map_type`:
 
-- `"map"` — procedural 100*100 space map (test-tileset placeholder)
+- `"map"` — geometry-only 1000*1000 space map (ROADMAP P1.9): empty `tiles`, no
+  `ex.TileMap` client-side — the scene renders a plain background and treats the
+  grid as coordinate math; a minimap widget (`src/minimap.ts` + pure
+  `src/minimap-math.ts`) covers navigation
 - `"ship"` — `include_str!`-embedded `src/assets/ship-level.json` (40*40, 32px
   world tiles, `ship-tiles` spritesheet)
 

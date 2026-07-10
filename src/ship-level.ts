@@ -12,7 +12,7 @@ import {
   moduleCatalogEntry,
 } from "./module-catalog.ts";
 import { TileActor } from "./tile-actor.ts";
-import { TiledScene } from "./tiled-scene.ts";
+import { SceneMap, TiledScene } from "./tiled-scene.ts";
 import { ButtonDef, TileRef } from "./ui/index.ts";
 
 /** Modules occupy the 4*4 center of their 6*6 room. */
@@ -114,8 +114,9 @@ export class ShipLevel extends TiledScene {
     gameState.subscribe(() => this.syncModules());
   }
 
-  protected override buildMap(): Promise<ex.TileMap> {
-    return buildTileMap("ship");
+  protected override async buildMap(): Promise<SceneMap> {
+    const tilemap = await buildTileMap("ship");
+    return { grid: tilemap, tilemap };
   }
 
   protected override supportsEmptyTileActor(): boolean {
@@ -140,8 +141,8 @@ export class ShipLevel extends TiledScene {
    */
   private syncModules(): void {
     // The subscription can fire before the async map load finishes;
-    // setupActors calls this again once the tilemap exists.
-    if (!this.tilemap) return;
+    // setupActors calls this again once the grid exists.
+    if (!this.grid) return;
     for (const [id, actor] of this.modules) {
       if (!gameState.modules.has(id)) {
         if (this.isSelected(actor)) this.deselectActor();
@@ -263,7 +264,7 @@ export class ShipLevel extends TiledScene {
     }
 
     return new TileActor({
-      tilemap: this.tilemap,
+      grid: this.grid,
       edgeFallthrough: this.supportsEmptyTileActor(),
       tile: firstBuildPending ? ghostModuleTile(0.4) : moduleTile(),
       col: data.col,
@@ -314,7 +315,7 @@ export class ShipLevel extends TiledScene {
     if (buildable.length === 0) return null;
 
     return new TileActor({
-      tilemap: this.tilemap,
+      grid: this.grid,
       tile: ghostModuleTile(0.2),
       col: anchor.col,
       row: anchor.row,

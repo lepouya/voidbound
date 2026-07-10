@@ -10,9 +10,10 @@ import {
   VesselMoveEvent,
 } from "./game-state.ts";
 import { isDockTile } from "./grid-math.ts";
-import { buildTileMap } from "./map-loader.ts";
+import { fetchGridGeometry } from "./map-loader.ts";
+import { spawnMinimap } from "./minimap.ts";
 import { TileActor } from "./tile-actor.ts";
-import { TiledScene } from "./tiled-scene.ts";
+import { SceneMap, TiledScene } from "./tiled-scene.ts";
 import { formatCompactCount } from "./ui/index.ts";
 
 /** True when two snapshots describe an identical ship — placement, art, and
@@ -47,6 +48,10 @@ function sameAsteroid(a: AsteroidData, b: AsteroidData): boolean {
 export class MapLevel extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
     super.onInitialize(engine);
+    // The space map is geometry-only (ROADMAP P1.9): no tilemap, just a
+    // space-dark backdrop — asteroids and motherships are the landmarks
+    // (a real starfield is later art work).
+    this.backgroundColor = ex.Color.fromHex("#060913");
     this.addCommonHud({
       frameTile: "ui-frame-square:0",
       activeFrameTile: "ui-frame-square:1",
@@ -110,12 +115,24 @@ export class MapLevel extends TiledScene {
    *  skip re-applying moves the periodic snapshot poll returned unchanged. */
   private appliedVesselEvents = new Map<string, VesselMoveEvent>();
 
-  protected override buildMap(): Promise<ex.TileMap> {
-    return buildTileMap("map");
+  protected override async buildMap(): Promise<SceneMap> {
+    // Geometry only — the full-size map has no per-tile content to render
+    // (see generate_space_map in src-tauri/src/map.rs).
+    return { grid: await fetchGridGeometry("map") };
   }
 
   protected override supportsEmptyTileActor(): boolean {
     return true;
+  }
+
+  /**
+   * Don't let the camera zoom out past ~a 120*260-tile window: rendering
+   * the full 1000*1000 map draws every asteroid actor at sub-pixel size for
+   * single-digit fps and no readable content — the minimap is the
+   * whole-map overview.
+   */
+  protected override minZoomFloor(): number {
+    return 0.1;
   }
 
   protected override setupActors(): void {
@@ -127,6 +144,17 @@ export class MapLevel extends TiledScene {
     this.syncMotherships();
     this.syncAsteroids();
     this.syncVessels();
+    // The minimap needs the grid, so it spawns here rather than in
+    // onInitialize. Registering its pointer target gives its taps priority
+    // over world taps and re-pins it on every resize.
+    const minimap = spawnMinimap({
+      engine: this.engine,
+      grid: this.grid,
+      camera: this.camera,
+      onJump: (x, y) => this.panCameraTo(x, y),
+    });
+    this.add(minimap.element);
+    this.registerHudTarget(minimap.target);
   }
 
   /**
@@ -141,7 +169,7 @@ export class MapLevel extends TiledScene {
   private syncMotherships(): void {
     // The subscription can fire before the async map load finishes;
     // setupActors calls this again once the tilemap exists.
-    if (!this.tilemap) return;
+    if (!this.grid) return;
     for (const [id, actor] of this.motherships) {
       if (!gameState.motherships.has(id)) {
         actor.kill();
@@ -183,7 +211,7 @@ export class MapLevel extends TiledScene {
       onPressed,
     });
     return new TileActor({
-      tilemap: this.tilemap,
+      grid: this.grid,
       tile: `${data.shipType}-${data.damaged ? "damaged" : "base"}:0`,
       col: data.col,
       row: data.row,
@@ -243,7 +271,7 @@ export class MapLevel extends TiledScene {
   private syncAsteroids(): void {
     // The subscription can fire before the async map load finishes;
     // setupActors calls this again once the tilemap exists.
-    if (!this.tilemap) return;
+    if (!this.grid) return;
     for (const [id, actor] of this.asteroids) {
       if (!gameState.asteroids.has(id)) {
         actor.kill();
@@ -271,7 +299,7 @@ export class MapLevel extends TiledScene {
    */
   private createAsteroidActor(data: AsteroidData): TileActor {
     return new TileActor({
-      tilemap: this.tilemap,
+      grid: this.grid,
       tile: {
         tile: `asteroid-${data.tier}`,
         tint: ex.Color.fromHex(ASTEROID_TINTS[data.resource]),
@@ -345,7 +373,7 @@ export class MapLevel extends TiledScene {
   private syncVessels(force = false): void {
     // The subscription can fire before the async map load finishes;
     // setupActors calls syncVessels again once the tilemap exists.
-    if (!this.tilemap) return;
+    if (!this.grid) return;
     for (const [vesselId, actor] of this.vessels) {
       if (!gameState.vessels.has(vesselId)) actor.kill();
     }
@@ -386,7 +414,7 @@ export class MapLevel extends TiledScene {
     onPressed: (a: TileActor) => void,
   ): TileActor {
     return new TileActor({
-      tilemap: this.tilemap,
+      grid: this.grid,
       col,
       row,
       onPressed,
@@ -478,7 +506,7 @@ export class MapLevel extends TiledScene {
     }
 
     const vessel = new TileActor({
-      tilemap: this.tilemap,
+      grid: this.grid,
       tile: `${event.vesselType}-base:0`,
       movingTile: `${event.vesselType}-moving:0`,
       col: event.srcCol,
@@ -522,8 +550,8 @@ export class MapLevel extends TiledScene {
   /** World-space center of the given tile (matches 1*1 TileActor placement). */
   private tileCenter(col: number, row: number): ex.Vector {
     return ex.vec(
-      col * this.tilemap.tileWidth + this.tilemap.tileWidth / 2,
-      row * this.tilemap.tileHeight + this.tilemap.tileHeight / 2,
+      col * this.grid.tileWidth + this.grid.tileWidth / 2,
+      row * this.grid.tileHeight + this.grid.tileHeight / 2,
     );
   }
 

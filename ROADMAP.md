@@ -152,7 +152,7 @@ Goal: a playable single-player loop, no persistence yet.
       pure `anchoredZoomPos` (`src/camera-math.ts`, unit-tested); the scene
       clamps the target zoom _before_ computing the compensating pan so the
       camera never drifts while pinned at min/max zoom.
-- [ ] **P1.9 — Minimap + full-size space map.** Overview widget for the space
+- [x] **P1.9 — Minimap + full-size space map.** Overview widget for the space
       map; becomes necessary once P1.6 spreads play across the map. Lands
       together with restoring the map's real size: the current 100\*100 map is a
       deliberate 1% dev size that was waiting on exactly this task (plus P1.8)
@@ -171,21 +171,30 @@ Goal: a playable single-player loop, no persistence yet.
       **Mothership seeds recenter** (data in `ServerState::new`): player 4\*4 at
       (498,498), enemy at (503,499) — same relative offset, center of the full
       map. Rust tests asserting (48,48)/(53,49) update to match. - **Asteroid
-      seeding: home-region density, not map-wide scatter.** Same tier
-      `seed_count`s as today, but `seed_asteroids` rejection-samples within a
-      ~150-tile radius of the player start. Map-wide scatter would either leave
-      the nearest asteroid a ~10-minute vessel flight away (same counts) or
-      spawn thousands of TileActors (area-scaled counts). The empty outer map is
-      intentional until P4.2's difficulty rings populate it; deposit/rate
-      balancing stays stubbed. - **The minimap widget itself:** ~120px square
-      HUD element, bottom-left of the map scene, drawn with an `ex.Canvas`
-      graphic — mothership dots (own = green, others = red), asteroid dots in
-      their class tints from `src/asteroid-catalog.ts`, in-flight vessel dots
-      (white), and a live viewport rectangle. Tap-to-jump pans the camera to the
+      seeding: uniform across the whole map.** Originally landed as a ~150-tile
+      home region around the player start (same counts as the dev map), but
+      Pouya's playtest called for resources spread evenly instead —
+      `seed_asteroids` now samples the full map with area-scaled `seed_count`s
+      (320/120/40, ~one asteroid per 45\*45-tile neighborhood, the same local
+      density the home region had). The actor cost that originally argued
+      against map-wide scatter is handled by a **map-scene zoom floor**
+      (`TiledScene.minZoomFloor`, 0.1): rendering all ~480 asteroid actors at
+      once ran at ~18 fps and showed nothing readable — the minimap is the
+      whole-map overview, so the camera now stops at a ~120\*260-tile window
+      (~56 fps). Deposit/rate balancing stays stubbed. - **The minimap widget
+      itself:** ~120px square HUD element, bottom-left of the map scene, drawn
+      with an `ex.Canvas` graphic — mothership dots (own = green, others = red),
+      asteroid dots in their class tints from `src/asteroid-catalog.ts`,
+      in-flight vessel dots (white), and a live viewport rectangle. The viewport
+      marker is inflated to a minimum 8px, drawn glowing with a slow pulse over
+      deliberately dimmed dots — at default zoom the true rect is sub-pixel and
+      was invisible (playtest feedback). Tap-to-jump pans the camera to the
       tapped world point. World→minimap projection math goes in a pure
-      `minimap-math.ts` with unit tests (the hud-layout pattern); dot updates
-      ride the existing `gameState.subscribe` path, the viewport rect refreshes
-      per frame.
+      `minimap-math.ts` with unit tests (the hud-layout pattern). As landed, the
+      canvas redraws every frame reading the live `gameState` tables directly
+      (the viewport rect needs per-frame refresh anyway, and the widget is too
+      small for the redraw to matter) instead of routing dot updates through a
+      `gameState.subscribe` dirty flag as originally sketched.
 
       Needs P1.6, P1.8.
 - [ ] **P1.10 — Crew Quarters + crew capacity.** Ship-wide crew capacity stat,

@@ -1,5 +1,6 @@
 import * as ex from "excalibur";
 
+import { TileGridGeometry } from "./grid-math.ts";
 import {
   anchorFractions,
   ButtonDef,
@@ -27,7 +28,9 @@ export interface TileActorOptions {
    * Falls back to the base tile graphic on arrival.
    */
   movingTile?: TileRef | TileRef[] | null;
-  tilemap: ex.TileMap;
+  /** The scene's grid geometry — only the tile size is read. An ex.TileMap
+   *  satisfies this structurally (TiledScene passes its `grid` either way). */
+  grid: TileGridGeometry;
   col?: number;
   row?: number;
   width?: number;
@@ -96,7 +99,7 @@ export class TileActor extends ex.Actor {
   private ownerLabel: { actor: ex.Actor; wx: number; wy: number } | null = null;
 
   constructor({
-    tilemap,
+    grid,
     tile,
     movingTile,
     col = 0,
@@ -116,27 +119,27 @@ export class TileActor extends ex.Actor {
     let h: number;
     if (tile != null) {
       graphic = resolveGraphicLayers(tile);
-      w = width ?? graphic.width / tilemap.tileWidth;
-      h = height ?? graphic.height / tilemap.tileHeight;
+      w = width ?? graphic.width / grid.tileWidth;
+      h = height ?? graphic.height / grid.tileHeight;
     } else {
       w = width ?? 1;
       h = height ?? 1;
       graphic = new ex.Rectangle({
-        width: w * tilemap.tileWidth,
-        height: h * tilemap.tileHeight,
+        width: w * grid.tileWidth,
+        height: h * grid.tileHeight,
         color: ex.Color.Transparent,
       });
     }
     super({
-      x: col * tilemap.tileWidth + (w * tilemap.tileWidth) / 2,
-      y: row * tilemap.tileHeight + (h * tilemap.tileHeight) / 2,
+      x: col * grid.tileWidth + (w * grid.tileWidth) / 2,
+      y: row * grid.tileHeight + (h * grid.tileHeight) / 2,
       width: graphic.width,
       height: graphic.height,
       anchor: ex.vec(0.5, 0.5),
       z: 2,
       scale: ex.vec(
-        (w * tilemap.tileWidth) / graphic.width,
-        (h * tilemap.tileHeight) / graphic.height,
+        (w * grid.tileWidth) / graphic.width,
+        (h * grid.tileHeight) / graphic.height,
       ),
     });
     this.col = col;
@@ -152,8 +155,8 @@ export class TileActor extends ex.Actor {
     this.selectionTile = selection === undefined ? "ui-selection:0" : selection;
     this.onPressed = onPressed;
     this.actionButtons = buttons;
-    this.tileWidth = tilemap.tileWidth;
-    this.tileHeight = tilemap.tileHeight;
+    this.tileWidth = grid.tileWidth;
+    this.tileHeight = grid.tileHeight;
     this.actorBadges = badges;
     this.edgeFallthrough = edgeFallthrough;
     this.graphics.use(graphic);
