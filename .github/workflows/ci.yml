@@ -21,8 +21,10 @@ jobs:
       - name: Format check
         run: deno fmt --check
 
+      # check:ts only — the full `deno task check` also runs cargo check, which
+      # the separate rust job covers (with the Tauri system deps it needs).
       - name: Type check
-        run: deno task check
+        run: deno task check:ts
 
       # test:ts only — the full `deno task test` also runs cargo test, which
       # the separate rust job covers (with the Tauri system deps it needs).
