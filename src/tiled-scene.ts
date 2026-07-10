@@ -11,6 +11,7 @@ import {
   LabelDef,
   spawnHudGroup,
 } from "./ui/index.ts";
+import { anchoredZoomPos } from "./camera-math.ts";
 import {
   gameState,
   NotificationData,
@@ -279,12 +280,39 @@ export abstract class TiledScene extends ex.Scene {
     this.camera.y = pos.y;
   }
 
+  /**
+   * Set the camera zoom (clamped) while keeping the world point
+   * `anchorWorld` fixed on screen, so wheel and pinch zoom anchor at the
+   * pointer instead of the screen center (ROADMAP P1.8). The anchor may be
+   * up to one frame stale (the camera transform behind screenToWorld /
+   * WheelEvent world coords only refreshes per frame), but the resulting
+   * camera error scales by 1 − oldZoom/newZoom — sub-pixel per event.
+   */
+  private zoomAtAnchor(anchorWorld: ex.Vector, newZoom: number): void {
+    const zoom = ex.clamp(newZoom, this.minZoom, TiledScene.MAX_ZOOM);
+    const pos = anchoredZoomPos(
+      anchorWorld,
+      this.camera.pos,
+      this.camera.zoom,
+      zoom,
+    );
+    this.camera.zoom = zoom;
+    this.camera.x = pos.x;
+    this.camera.y = pos.y;
+    this.clampCamera();
+  }
+
   private applyPinchZoom(a: ex.Vector, b: ex.Vector): void {
     if (this.pinchDistance === null) return;
     const newDist = a.distance(b);
-    this.camera.zoom *= newDist / this.pinchDistance;
+    const midpoint = this.engineRef.screen.screenToWorldCoordinates(
+      a.add(b).scale(0.5),
+    );
+    this.zoomAtAnchor(
+      midpoint,
+      this.camera.zoom * (newDist / this.pinchDistance),
+    );
     this.pinchDistance = newDist;
-    this.clampCamera();
   }
 
   private async setupScene(): Promise<void> {
@@ -463,13 +491,17 @@ export abstract class TiledScene extends ex.Scene {
     const onWheel = (evt: ex.WheelEvent) => {
       if ((evt.ev as WheelEvent).ctrlKey) {
         // Clamp the per-event factor: a fast wheel can send deltaY > 100,
-        // which would make the factor zero or negative.
-        this.camera.zoom *= ex.clamp(1 - evt.deltaY * 0.01, 0.5, 2);
+        // which would make the factor zero or negative. evt.x/y is the
+        // pointer's world position, the zoom anchor.
+        this.zoomAtAnchor(
+          ex.vec(evt.x, evt.y),
+          this.camera.zoom * ex.clamp(1 - evt.deltaY * 0.01, 0.5, 2),
+        );
       } else {
         this.camera.x += evt.deltaX / this.camera.zoom;
         this.camera.y += evt.deltaY / this.camera.zoom;
+        this.clampCamera();
       }
-      this.clampCamera();
     };
     engine.input.pointers.on("wheel", onWheel);
 

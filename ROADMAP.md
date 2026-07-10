@@ -142,9 +142,12 @@ Goal: a playable single-player loop, no persistence yet.
       course of a day and reset at a fixed point — the README's alternative to
       hard energy caps. Local implementation first; the server re-verifies it in
       phase 3. Needs P1.6 (mining is the first action worth damping).
-- [ ] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom should anchor at the
+- [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom should anchor at the
       pointer/pinch midpoint instead of the screen center. Pure `TiledScene`
-      input polish, independent of the rest of the phase.
+      input polish, independent of the rest of the phase. The anchor math is
+      the pure `anchoredZoomPos` (`src/camera-math.ts`, unit-tested); the
+      scene clamps the target zoom _before_ computing the compensating pan so
+      the camera never drifts while pinned at min/max zoom.
 - [ ] **P1.9 — Minimap.** Overview widget for the 100\*100 space map; becomes
       necessary once P1.6 spreads play across the map. Needs P1.6.
 - [ ] **P1.10 — Crew Quarters + crew capacity.** Ship-wide crew capacity stat,
