@@ -361,3 +361,6 @@ Use these for common tasks rather than doing them from scratch:
 - `/add-game-event` — multiplayer-ready event pattern
 - `/add-tileset` — register a PNG as a tileset
 - `/gen-art` — run or add an `art/gen_*.sh` pipeline script
+- `/verify` — launch the dev app and verify a change at runtime (window
+  screenshots, streamed client console, temporary TEMP-VERIFY drive hooks) — the
+  substitute for the missing runtime/scene test coverage
