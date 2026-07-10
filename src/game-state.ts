@@ -8,10 +8,10 @@
  *
  * The backend is authoritative for everything in here (ROADMAP P1.1): all
  * resource math — production accrual, build costs — happens in
- * src-tauri/src/lib.rs, because the client can be tampered with. This module
- * only mirrors what the backend last sent (via the loader-phase fetch, the
- * periodic sync poll in game-state-loader.ts, or a command response) and
- * notifies subscribers so scenes re-render.
+ * src-tauri/src/game_state.rs, because the client can be tampered with. This
+ * module only mirrors what the backend last sent (via the loader-phase fetch,
+ * the server-push channel subscribed in game-state-loader.ts, or a command
+ * response) and notifies subscribers so scenes re-render.
  *
  * Pure module — no Excalibur/Vite imports — so it stays unit-testable under
  * Deno (see tests/game_state_test.ts).
@@ -106,12 +106,26 @@ export interface VesselMoveEvent {
 }
 
 /**
- * Length of one backend production interval — the cadence at which the
- * client polls `load_game_state` so produced resources reach the resource
- * bar as they land. Mirrors PRODUCTION_TICK_MS in src-tauri/src/lib.rs —
- * keep the two in sync.
+ * One entry in the player's event feed (ROADMAP P1.5), created server-side
+ * when something the player should hear about happens — a build or level-up
+ * completing, a vessel arriving or returning. Rides the load_game_state
+ * snapshot (so the feed and its unread state survive a reload) and arrives
+ * live as a ServerPush. Mirrors the Rust `NotificationData` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
  */
-export const PRODUCTION_TICK_MS = 5_000;
+export interface NotificationData {
+  notificationId: string;
+  /** Category slug, e.g. "build-complete", "vessel-arrived" — display and
+   *  grouping only; new kinds need no client changes. */
+  kind: string;
+  /** Server-composed display text (the server owns the catalog names). */
+  message: string;
+  /** Server epoch ms when the notification was created. */
+  createdAt: number;
+  /** Cleared by the mark_notifications_read command; the Events HUD badge
+   *  shows the unread count. */
+  read: boolean;
+}
 
 /**
  * A build or level-up in progress on a module — the level it completes to
@@ -173,7 +187,32 @@ export interface GameStateData {
   /** Every module in the ship, built or under construction, including the
    *  Command Module — placement and level are server-owned. */
   modules: ModuleData[];
+  /** The player's event feed (ROADMAP P1.5), oldest first — restores the
+   *  Events badge unread count across reloads. */
+  notifications: NotificationData[];
 }
+
+/**
+ * Name of the Tauri event channel carrying ServerPush messages. Mirrors
+ * SERVER_PUSH_EVENT in src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export const SERVER_PUSH_EVENT = "server-push";
+
+/**
+ * A server-initiated state push — the in-process stand-in for the phase-3
+ * WebSocket event bus (SERVER.md § append + broadcast). The backend emits one
+ * whenever state changes server-side — a production tick landing, a build or
+ * level-up completing, a vessel docking, a new feed notification — and
+ * applyServerPush routes it into the same apply/sync entry points that
+ * command responses already use, so pushed and requested changes take one
+ * code path. Mirrors the Rust `ServerPush` enum in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export type ServerPush =
+  | { type: "resources"; data: ResourceCounts }
+  | { type: "module"; data: ModuleData }
+  | { type: "vesselRemoved"; data: { vesselId: string } }
+  | { type: "notification"; data: NotificationData };
 
 export type GameStateListener = () => void;
 
@@ -210,20 +249,21 @@ export class GameState {
   /**
    * Every mothership on the space map, keyed by mothershipId, as last
    * reported by the backend. Replaced wholesale by each load() snapshot —
-   * which is also how updates (a moved ship, a newly joined player) reach
-   * the client until a push channel lands. Empty until load() lands: the
-   * client hardcodes no placements. MapLevel reconciles its actors from
-   * this table whenever subscribers are notified.
+   * which is how placement updates (a moved ship, a newly joined player)
+   * will reach the client until a mothership push variant is needed. Empty
+   * until load() lands: the client hardcodes no placements. MapLevel
+   * reconciles its actors from this table whenever subscribers are notified.
    */
   motherships = new Map<string, MothershipData>();
 
   /**
    * Every vessel in flight or parked on the map, keyed by vesselId, holding
    * its latest backend-authorized move. Replaced wholesale by each load()
-   * snapshot and merged per-event by applyVesselEvent(). Held here rather
-   * than in the map scene so vessel state stays current (via the periodic
-   * sync poll) while other scenes are active — MapLevel reconciles its
-   * actors from this table whenever subscribers are notified.
+   * snapshot, merged per-event by applyVesselEvent(), and pruned by the
+   * vesselRemoved push when a return docks. Held here rather than in the map
+   * scene so vessel state stays current while other scenes are active —
+   * MapLevel reconciles its actors from this table whenever subscribers are
+   * notified.
    */
   vessels = new Map<string, VesselMoveEvent>();
 
@@ -236,6 +276,14 @@ export class GameState {
    * subscribers are notified.
    */
   modules = new Map<string, ModuleData>();
+
+  /**
+   * The player's event feed (ROADMAP P1.5), keyed by notificationId in
+   * server (chronological) order. Replaced wholesale by each load() snapshot
+   * and by syncNotifications(), merged per-entry by notification pushes. The
+   * Events HUD badge renders unreadNotificationCount() from it.
+   */
+  notifications = new Map<string, NotificationData>();
 
   private listeners = new Set<GameStateListener>();
 
@@ -303,6 +351,54 @@ export class GameState {
     });
   }
 
+  /** Number of unread event-feed entries — the Events HUD badge count. */
+  unreadNotificationCount(): number {
+    let count = 0;
+    for (const n of this.notifications.values()) if (!n.read) count++;
+    return count;
+  }
+
+  /**
+   * Replace the notification feed with an authoritative list — the
+   * mark_notifications_read response — notifying subscribers (which clears
+   * the Events badge in every scene).
+   */
+  syncNotifications(notifications: NotificationData[]): void {
+    this.update((s) => {
+      s.notifications = new Map(
+        notifications.map((n) => [n.notificationId, n]),
+      );
+    });
+  }
+
+  /**
+   * Route one server push into the matching apply/sync entry point — the
+   * client half of the push channel (see ServerPush). Exactly what a phase-3
+   * socket handler will do; only the transport delivering the push changes.
+   * Idempotent like everything it dispatches to: replaying a push (or
+   * receiving one already reflected in a snapshot) merges by id.
+   */
+  applyServerPush(push: ServerPush): void {
+    switch (push.type) {
+      case "resources":
+        this.syncResources(push.data);
+        break;
+      case "module":
+        this.applyModuleEvent(push.data);
+        break;
+      case "vesselRemoved":
+        this.update((s) => {
+          s.vessels.delete(push.data.vesselId);
+        });
+        break;
+      case "notification":
+        this.update((s) => {
+          s.notifications.set(push.data.notificationId, push.data);
+        });
+        break;
+    }
+  }
+
   /**
    * Replace this state with backend-loaded data, notifying subscribers.
    * Routed through update() so a re-sync at any time (the periodic poll, a
@@ -318,6 +414,9 @@ export class GameState {
       );
       s.vessels = new Map(data.vessels.map((e) => [e.vesselId, e]));
       s.modules = new Map(data.modules.map((m) => [m.moduleId, m]));
+      s.notifications = new Map(
+        data.notifications.map((n) => [n.notificationId, n]),
+      );
       s.loaded = true;
     });
   }

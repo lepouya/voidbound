@@ -282,16 +282,33 @@ with. The client renders what commands return and asks for actions:
 - `load_game_state` — identity + resource counts (production lazily accrued on
   read, summed per settled module level) + mothership placements + every module
   (`ModuleData`, Command Module included — level, and a `pending` build/upgrade
-  timer if one is running) + the active-vessel event list (the snapshot half of
-  SERVER.md's snapshot + replay). Fetched once during the loader phase, then
-  polled every production interval by `startGameStateSync`
-  (game-state-loader.ts), plus on demand by `ShipLevel.requestRefresh()` the
-  instant a module's build/upgrade timer elapses (closes the gap before the next
-  scheduled poll). The map/ship scenes hardcode no world content:
-  `MapLevel.syncMotherships()`/`syncVessels()` and `ShipLevel.syncModules()`
-  reconcile actors from the snapshot, so server-side changes (a moved
-  mothership, a new player, a module leveling up) reach the client through the
-  same path.
+  timer if one is running) + the active-vessel event list + the notification
+  feed (the snapshot half of SERVER.md's snapshot + replay). Fetched once during
+  the loader phase (`GameStateResource`); after that the client never polls —
+  server-side changes arrive over the push channel below. The map/ship scenes
+  hardcode no world content: `MapLevel.syncMotherships()`/`syncVessels()` and
+  `ShipLevel.syncModules()` reconcile actors from the snapshot, so server-side
+  changes (a moved mothership, a new player, a module leveling up) reach the
+  client through the same path.
+- **Push channel** (`server-push` Tauri event; ROADMAP P1.5) — the backend tells
+  the client when state changes, the in-process prototype of P3.1's WebSocket
+  bus: a scheduler thread (`run_scheduler` in game_state.rs) sleeps until the
+  next deadline — production tick, build `completesAt`, vessel `arrivalAt` —
+  settles state, and emits `ServerPush` messages (`resources`, `module`,
+  `vesselRemoved`, `notification`); a Condvar wakes it early when a command
+  creates a nearer deadline (e.g. a short vessel flight). Mutations queue pushes
+  into a `ServerState` outbox and the boundaries (scheduler wake, command return
+  via `finish_command`) drain + emit, so every settlement path broadcasts
+  identically. Client side, `startServerPushListener` (game-state-loader.ts)
+  routes each push into `gameState.applyServerPush()` — the same apply/sync
+  entry points command responses use. Notifications (build/level-up completions,
+  vessel arrivals/returns) are server state riding the snapshot, capped at 100
+  entries; the Events HUD badge (tiled-scene.ts `addCommonHud`) shows the live
+  unread count.
+- `mark_notifications_read` — marks the whole feed read and returns the updated
+  list (applied via `gameState.syncNotifications`), clearing the Events badge in
+  every scene. Pressing Events also dumps the feed to the console — a real feed
+  panel is later UI work.
 - `request_build_module(col, row, module_type)` — verifies the catalog type, its
   Command-Module-level unlock, placement (room grid), and level-1 cost, deducts
   resources, returns the new `ModuleData` (level 0, pending its first
@@ -307,13 +324,14 @@ with. The client renders what commands return and asks for actions:
   that finish a return onto a dock tile are pruned lazily, like production.
 
 Gameplay constants (production tick, the module catalog's per-type cost/build
-time/production, room grid, map geometry, vessel speed) live in game_state.rs
-with display-only TS mirrors — comments mark each pair; keep them in sync. The
-module catalog's cost/build-time/production all scale per level through one
-shared doubling-per-level stub (`scale_for_level`/`scaleForLevel`) — real
-balancing is a later pass. Mothership placement is data, not a constant: it is
-seeded in `ServerState::new` and reaches the client only via the snapshot. The
-game-rule logic is covered by the Rust tests (part of `deno task test`).
+time/production, room grid, map geometry, vessel speed) live in game_state.rs;
+the ones the UI renders have display-only TS mirrors — comments mark each pair;
+keep them in sync. The module catalog's cost/build-time/production all scale per
+level through one shared doubling-per-level stub
+(`scale_for_level`/`scaleForLevel`) — real balancing is a later pass. Mothership
+placement is data, not a constant: it is seeded in `ServerState::new` and
+reaches the client only via the snapshot. The game-rule logic is covered by the
+Rust tests (part of `deno task test`).
 
 Tauri commands return `Result<T, String>` — propagate errors as strings, don't
 `unwrap`/panic in command handlers.

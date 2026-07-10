@@ -5,6 +5,7 @@ import {
   gameState,
   ModuleData,
   MothershipData,
+  NotificationData,
   ResourceCounts,
   VesselMoveEvent,
 } from "../src/game-state.ts";
@@ -68,6 +69,20 @@ function sampleModule(
     row: 2,
     level: 1,
     pending: null,
+    ...overrides,
+  };
+}
+
+function sampleNotification(
+  id: string,
+  overrides: Partial<NotificationData> = {},
+): NotificationData {
+  return {
+    notificationId: id,
+    kind: "build-complete",
+    message: "Ore Refinery construction complete",
+    createdAt: 1_000,
+    read: false,
     ...overrides,
   };
 }
@@ -147,6 +162,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     motherships: [sampleMothership("player-42")],
     vessels: [sampleVessel("vessel-a")],
     modules: [sampleModule("module-command")],
+    notifications: [sampleNotification("notif-1")],
   });
 
   assertEquals(state.player, { id: "player-42", name: "Loaded Player" });
@@ -165,6 +181,10 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
   assertEquals(
     state.modules.get("module-command"),
     sampleModule("module-command"),
+  );
+  assertEquals(
+    state.notifications.get("notif-1"),
+    sampleNotification("notif-1"),
   );
   assert(state.loaded);
   assertEquals(notified, 1);
@@ -221,6 +241,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     motherships: [sampleMothership("player-1")],
     vessels: [],
     modules: [sampleModule("module-command")],
+    notifications: [sampleNotification("notif-old")],
   });
 
   state.load({
@@ -229,6 +250,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     motherships: [sampleMothership("player-9", { col: 10, row: 12 })],
     vessels: [sampleVessel("vessel-live")],
     modules: [sampleModule("module-command"), sampleModule("module-a")],
+    notifications: [],
   });
 
   // The docked vessel was pruned by the backend and player-1's ship left the
@@ -240,6 +262,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     [...state.modules.keys()].sort(),
     ["module-a", "module-command"],
   );
+  assertEquals(state.notifications.size, 0);
 });
 
 Deno.test("shared singleton starts unloaded with new-player defaults", () => {
@@ -249,6 +272,7 @@ Deno.test("shared singleton starts unloaded with new-player defaults", () => {
   assertEquals(gameState.motherships.size, 0);
   assertEquals(gameState.vessels.size, 0);
   assertEquals(gameState.modules.size, 0);
+  assertEquals(gameState.notifications.size, 0);
   assert(!gameState.loaded);
   assert(gameState instanceof GameState);
 });
@@ -274,4 +298,93 @@ Deno.test("syncResources replaces the counts with the snapshot, notifies", () =>
   assertEquals(state.resources.construction, 12);
   // syncResources alone doesn't mark the full state as loaded.
   assert(!state.loaded);
+});
+
+Deno.test("applyServerPush routes each variant to the right table", () => {
+  const state = new GameState();
+  let notified = 0;
+  state.subscribe(() => notified++);
+
+  state.applyServerPush({
+    type: "resources",
+    data: { construction: 7, highTech: 1, biological: 2, fuel: 3, credits: 4 },
+  });
+  assertEquals(state.resources.construction, 7);
+
+  state.applyServerPush({ type: "module", data: sampleModule("module-a") });
+  assertEquals(state.modules.get("module-a"), sampleModule("module-a"));
+
+  state.applyVesselEvent(sampleVessel("vessel-a"));
+  state.applyServerPush({
+    type: "vesselRemoved",
+    data: { vesselId: "vessel-a" },
+  });
+  assertEquals(state.vessels.size, 0);
+  // Removing an unknown vessel (already gone locally) is a harmless no-op.
+  state.applyServerPush({
+    type: "vesselRemoved",
+    data: { vesselId: "vessel-a" },
+  });
+
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-1"),
+  });
+  assertEquals(
+    state.notifications.get("notif-1"),
+    sampleNotification("notif-1"),
+  );
+
+  // One notify per push, plus one for the applyVesselEvent merge.
+  assertEquals(notified, 6);
+});
+
+Deno.test("unreadNotificationCount counts only unread entries", () => {
+  const state = new GameState();
+  assertEquals(state.unreadNotificationCount(), 0);
+
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-1"),
+  });
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-2", {
+      kind: "vessel-arrived",
+      message: "Vessel arrived at (50, 60)",
+    }),
+  });
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-3", { read: true }),
+  });
+  assertEquals(state.unreadNotificationCount(), 2);
+
+  // A re-pushed entry replaces by id — never a duplicate feed line.
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-1", { read: true }),
+  });
+  assertEquals(state.notifications.size, 3);
+  assertEquals(state.unreadNotificationCount(), 1);
+});
+
+Deno.test("syncNotifications replaces the feed wholesale and notifies", () => {
+  const state = new GameState();
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-1"),
+  });
+  let notified = 0;
+  state.subscribe(() => notified++);
+
+  // The mark_notifications_read response: everything read.
+  state.syncNotifications([
+    sampleNotification("notif-1", { read: true }),
+    sampleNotification("notif-2", { read: true }),
+  ]);
+
+  assertEquals(state.notifications.size, 2);
+  assertEquals(state.unreadNotificationCount(), 0);
+  assertEquals(notified, 1);
 });

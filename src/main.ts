@@ -1,6 +1,9 @@
 import * as ex from "excalibur";
 
-import { GameStateResource, startGameStateSync } from "./game-state-loader.ts";
+import {
+  GameStateResource,
+  startServerPushListener,
+} from "./game-state-loader.ts";
 import { MapLevel } from "./map-level.ts";
 import { loader } from "./resources.ts";
 import { ShipLevel } from "./ship-level.ts";
@@ -21,9 +24,10 @@ const game = new ex.Engine({
 // loads — see GameStateResource.
 loader.addResource(new GameStateResource());
 
-// Production (ROADMAP P1.1) accrues server-side; this poll pulls the
-// authoritative counts down every interval so the resource bar stays live.
-startGameStateSync();
+// Server-side changes — production ticks, build completions, vessel
+// arrivals, feed notifications — arrive over the backend push channel;
+// subscribe up front so nothing is missed while scenes initialize.
+startServerPushListener();
 
 game
   .start("ship", {

@@ -2,12 +2,7 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import {
-  gameState,
-  GameStateData,
-  ModuleData,
-  ResourceCounts,
-} from "./game-state.ts";
+import { gameState, ModuleData, ResourceCounts } from "./game-state.ts";
 import { moduleAnchorAt, roomOriginAt, SHIP_ROOM_GRID } from "./grid-math.ts";
 import { buildTileMap } from "./map-loader.ts";
 import {
@@ -400,20 +395,17 @@ export class ShipLevel extends TiledScene {
   }
 
   /**
-   * Drives the build/level-up timers: while pending, a module's label counts
-   * down once a second. The moment a timer reaches zero, requestRefresh()
-   * fetches the authoritative snapshot immediately instead of waiting for
-   * the next periodic poll (up to PRODUCTION_TICK_MS away) — completesAt
-   * remains the source of truth, this just closes the visual gap between the
-   * countdown hitting "0s" and the module actually flipping to its finished
-   * sprite/level/Level-Up button. Runs only while this scene is active — an
-   * overdue build completes on the first frame after the player returns to
-   * the ship view.
+   * Drives the build/level-up countdown labels: while pending, a module's
+   * label counts down once a second. Completion itself arrives as a server
+   * push — the backend scheduler settles the build the moment completesAt
+   * passes and pushes the updated ModuleData, which syncModules() applies —
+   * so the label only ever shows "0s" for however long that push takes to
+   * land. Runs only while this scene is active; a build that completed while
+   * the player was away is already settled in gameState when they return.
    */
   override onPostUpdate(): void {
     if (this.pendingModules.size === 0) return;
     const now = Date.now();
-    let anyDue = false;
     for (const [id, data] of this.pendingModules) {
       if (data.pending === null) continue;
       const module = this.modules.get(id);
@@ -424,30 +416,6 @@ export class ShipLevel extends TiledScene {
         buildCountdownLabel(displayName, data.pending.completesAt, now),
         module.ownerId,
       );
-      if (now >= data.pending.completesAt) anyDue = true;
     }
-    if (anyDue) this.requestRefresh();
-  }
-
-  /** True while a requestRefresh() fetch is in flight, so a timer landing on
-   *  several frames in a row (or several modules completing together)
-   *  triggers one shared request instead of one per frame. */
-  private refreshing = false;
-
-  /**
-   * Fetches the authoritative snapshot on demand — the same call
-   * startGameStateSync polls periodically, but triggered immediately when
-   * onPostUpdate notices a pending timer has elapsed, instead of waiting up
-   * to PRODUCTION_TICK_MS for the next scheduled poll.
-   */
-  private requestRefresh(): void {
-    if (this.refreshing) return;
-    this.refreshing = true;
-    invoke<GameStateData>("load_game_state")
-      .then((data) => gameState.load(data))
-      .catch((err) => console.warn("load_game_state refresh failed:", err))
-      .finally(() => {
-        this.refreshing = false;
-      });
   }
 }

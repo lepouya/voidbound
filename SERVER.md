@@ -43,7 +43,12 @@ event lands the entity at its correct in-progress position (see the lerp in
    subscribed client over the WebSocket event bus. The initiating client gets no
    special-cased response; it applies the broadcast like everyone else (its
    local optimistic apply, if any, must be idempotent with the broadcast — which
-   is why `apply*Event` handles the "entity already exists" case).
+   is why `apply*Event` handles the "entity already exists" case). Locally
+   today, the `server-push` Tauri event channel prototypes the bus: a backend
+   scheduler thread settles time-based state (production ticks, build
+   completions, vessel arrivals) as it comes due and emits `ServerPush` messages
+   that `gameState.applyServerPush()` routes into these same entry points — see
+   CLAUDE.md § IPC / Rust backend.
 5. **Clients apply** — `apply<Action>Event(event)` mutates scene state only. UI
    housekeeping (deselect, close menus) stays in the local action method, so
    server-pushed events never fight with local input state.

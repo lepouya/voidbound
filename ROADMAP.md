@@ -112,10 +112,19 @@ Goal: a playable single-player loop, no persistence yet.
       real balancing is a later pass. Real art is still pending: every module
       renders with the `module-base` sprite regardless of type until per-type
       art lands (`/gen-art` + `module-*` auto-register). Needs P1.1, P1.3.
-- [ ] **P1.5 — Local notifications.** Wire the Events HUD badge to real counts:
-      module build completions (P1.3), vessel arrivals. Replaces the hardcoded
-      "@" placeholder badge. (The Mail badge stays a placeholder until messaging
-      exists — see P3.5.) Needs P1.3.
+- [x] **P1.5 — Local notifications + server-push channel.** The Events HUD badge
+      shows the live unread count of a server-owned notification feed (module
+      build/level-up completions, vessel arrivals/returns), replacing the
+      hardcoded "@" placeholder; pressing Events marks the feed read
+      (`mark_notifications_read`) and dumps it to the console — a feed panel is
+      later UI work (pairs with P3.5's mail). Delivery got reworked from pull to
+      push while at it: a backend scheduler thread settles state at each
+      deadline (production ticks included) and emits `ServerPush` Tauri events
+      that `gameState.applyServerPush()` routes through the same entry points as
+      command responses — the in-process prototype of P3.1's event bus. The
+      `startGameStateSync` poll and `ShipLevel.requestRefresh()` are gone. (The
+      Mail badge stays a placeholder until messaging exists — see P3.5.) Needs
+      P1.3.
 - [ ] **P1.6 — Mining loop.** Asteroid resource nodes in the space-map
       `generate_map` arm; dispatch a vessel to a node, mine, return with cargo
       that deposits into P1.1 resources. Event-modeled (extend `VesselMoveEvent`

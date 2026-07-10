@@ -1,8 +1,9 @@
-use std::collections::HashMap;
-use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::{HashMap, HashSet};
+use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
+use tauri::{Emitter, Manager};
 
 #[derive(Serialize, serde::Deserialize)]
 pub struct PlayerIdentity {
@@ -192,6 +193,61 @@ pub struct ModuleActionResponse {
     pub resources: ResourceCounts,
 }
 
+/// Maximum event-feed entries retained; the oldest are dropped past this,
+/// keeping the snapshot bounded over a long session.
+const MAX_NOTIFICATIONS: usize = 100;
+
+/// One entry in the player's event feed (ROADMAP P1.5), created server-side
+/// when something the player should hear about happens — a build or level-up
+/// completing, a vessel arriving or returning. Rides the load_game_state
+/// snapshot (so the feed and its unread state survive a reload) and is also
+/// pushed live (`ServerPush::Notification`). Mirrors the TS
+/// `NotificationData` in `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationData {
+    pub notification_id: String,
+    /// Category slug: "build-complete", "levelup-complete", "vessel-arrived",
+    /// or "vessel-returned". Display/grouping only — new kinds need no client
+    /// changes.
+    pub kind: String,
+    /// Server-composed display text (the server owns the catalog names).
+    pub message: String,
+    /// Server epoch ms when the notification was created.
+    pub created_at: u64,
+    /// Cleared by the mark_notifications_read command; the Events HUD badge
+    /// shows the unread count.
+    pub read: bool,
+}
+
+/// The Tauri event channel carrying `ServerPush` messages to the webview.
+/// Mirrors SERVER_PUSH_EVENT in `src/game-state.ts` — keep the two in sync.
+pub const SERVER_PUSH_EVENT: &str = "server-push";
+
+/// A server-initiated state push — the in-process stand-in for the phase-3
+/// WebSocket event bus (SERVER.md § append + broadcast). Mutations queue
+/// pushes into the ServerState outbox; whichever boundary ran the mutation —
+/// the scheduler thread for time-based settlement, a command handler for
+/// request-triggered settlement — drains the outbox and emits each entry as a
+/// SERVER_PUSH_EVENT. The client routes every variant into the matching
+/// `gameState` apply/sync entry point (`applyServerPush` in
+/// `src/game-state.ts`) — the same entry points a phase-3 socket handler will
+/// call. Mirrors the TS `ServerPush` union in `src/game-state.ts` — keep the
+/// two in sync.
+#[derive(Serialize, Clone, Debug)]
+#[serde(tag = "type", content = "data", rename_all = "camelCase")]
+pub enum ServerPush {
+    /// Authoritative resource counts after production accrual or a spend.
+    Resources(ResourceCounts),
+    /// A module changed server-side (its build/level-up timer completed).
+    Module(ModuleData),
+    /// A vessel finished a return onto a dock tile and despawned.
+    #[serde(rename_all = "camelCase")]
+    VesselRemoved { vessel_id: String },
+    /// A new entry for the player's event feed.
+    Notification(NotificationData),
+}
+
 /// Game state pushed to the client. Mirrors the TS `GameStateData` in
 /// `src/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize)]
@@ -212,6 +268,9 @@ pub struct GameStateData {
     /// Command Module — placement and level are server-owned, so ShipLevel
     /// builds its actors from this list with no hardcoded layout.
     pub modules: Vec<ModuleData>,
+    /// The player's event feed (ROADMAP P1.5), oldest first — restores the
+    /// Events badge unread count across reloads.
+    pub notifications: Vec<NotificationData>,
 }
 
 // -- Server-authoritative game rules ----------------------------------------
@@ -221,8 +280,9 @@ pub struct GameStateData {
 // for actions — it never computes or mutates resource values on its own.
 // This is the phase-3 server model (SERVER.md) running in-process for now.
 
-/// Length of one production interval. The TS PRODUCTION_TICK_MS mirrors this
-/// as the client's poll cadence — keep the two in sync.
+/// Length of one production interval — also the cadence at which the
+/// scheduler thread pushes accrued resources to the client (the client never
+/// polls; see run_scheduler).
 const PRODUCTION_TICK_MS: u64 = 5_000;
 
 /// Ship-interior room layout — mirrors SHIP_ROOM_GRID in `src/grid-math.ts`
@@ -402,6 +462,25 @@ pub struct ServerState {
     vessels: HashMap<String, VesselMoveEventData>,
     /// Monotonic sequence mixed into vessel ids for uniqueness.
     next_vessel_seq: u64,
+    /// Vessels whose current move's arrival has already produced its feed
+    /// notification — parked vessels stay in the table, so without this every
+    /// settle pass would re-announce them. An id leaves the set when its
+    /// vessel despawns or is recalled (the redirect makes it in-flight again).
+    notified_arrivals: HashSet<String>,
+    /// The player's event feed (ROADMAP P1.5), oldest first, capped at
+    /// MAX_NOTIFICATIONS. Server-owned like everything else: it rides the
+    /// snapshot, so a reload restores the feed and its unread state.
+    notifications: Vec<NotificationData>,
+    /// Monotonic sequence mixed into notification ids for uniqueness.
+    next_notification_seq: u64,
+    /// Pushes queued by mutations since the last drain. Mutations queue,
+    /// boundaries (scheduler wake / command return) drain and emit — so every
+    /// settlement path broadcasts identically, whoever triggered it.
+    outbox: Vec<ServerPush>,
+    /// True when resource counts changed since the last drain; drain_pushes
+    /// appends one Resources push carrying the final counts, so several
+    /// accruals/spends inside one mutation collapse into a single push.
+    resources_dirty: bool,
 }
 
 impl ServerState {
@@ -469,6 +548,11 @@ impl ServerState {
             motherships,
             vessels: HashMap::new(),
             next_vessel_seq: 0,
+            notified_arrivals: HashSet::new(),
+            notifications: Vec::new(),
+            next_notification_seq: 0,
+            outbox: Vec::new(),
+            resources_dirty: false,
         }
     }
 
@@ -497,17 +581,55 @@ impl ServerState {
             .unwrap_or(0)
     }
 
+    /// Append a notification to the feed (dropping the oldest past the cap)
+    /// and queue its live push.
+    fn push_notification(&mut self, kind: &str, message: String, now_ms: u64) {
+        self.next_notification_seq += 1;
+        let notification = NotificationData {
+            notification_id: format!("notif-{}-{}", now_ms, self.next_notification_seq),
+            kind: kind.to_string(),
+            message,
+            created_at: now_ms,
+            read: false,
+        };
+        self.notifications.push(notification.clone());
+        if self.notifications.len() > MAX_NOTIFICATIONS {
+            let excess = self.notifications.len() - MAX_NOTIFICATIONS;
+            self.notifications.drain(..excess);
+        }
+        self.outbox.push(ServerPush::Notification(notification));
+    }
+
     /// Promote every module whose pending build/upgrade has finished — lazy
-    /// settlement on read/mutation, like production accrual and docked-vessel
-    /// pruning, so nothing needs a background timer.
+    /// settlement on read/mutation plus eager settlement from the scheduler
+    /// thread. Each promotion queues a Module push (so the client flips the
+    /// actor to its new level without asking) and a feed notification
+    /// (ROADMAP P1.5).
     fn settle_modules(&mut self, now_ms: u64) {
+        let mut settled = Vec::new();
         for module in self.modules.values_mut() {
             if let Some(pending) = &module.pending {
                 if now_ms >= pending.completes_at {
                     module.level = pending.level;
                     module.pending = None;
+                    settled.push(module.clone());
                 }
             }
+        }
+        for module in settled {
+            let name = catalog_entry(&module.module_type)
+                .map(|e| e.display_name)
+                .unwrap_or(&module.module_type);
+            let (kind, message) = if module.level == 1 {
+                ("build-complete", format!("{name} construction complete"))
+            } else {
+                (
+                    "levelup-complete",
+                    format!("{name} upgraded to level {}", module.level),
+                )
+            };
+            self.outbox.push(ServerPush::Module(module.clone()));
+            self.push_notification(kind, message, now_ms);
         }
     }
 
@@ -528,6 +650,7 @@ impl ServerState {
             self.settle_modules(now_ms);
             return;
         }
+        self.resources_dirty = true;
         // Settling (bumping `level`) happens only after this loop: a module
         // whose pending build/upgrade completes partway through this window
         // must be credited its OLD level for the whole ticks fully elapsed
@@ -609,6 +732,7 @@ impl ServerState {
         }
         let cost = scale_for_level(entry.base_cost_construction, 1);
         self.resources.spend_construction(cost)?;
+        self.resources_dirty = true;
         self.next_module_seq += 1;
         let player = player_identity();
         let module = ModuleData {
@@ -678,6 +802,7 @@ impl ServerState {
         }
         let cost = scale_for_level(entry.base_cost_construction, next_level);
         self.resources.spend_construction(cost)?;
+        self.resources_dirty = true;
         let completes_at = now_ms + scale_for_level(entry.base_build_time_ms, next_level);
         let module = self
             .modules
@@ -703,18 +828,49 @@ impl ServerState {
         modules
     }
 
-    /// Drop vessels that have finished a move onto a docking tile of their
-    /// own mothership — docking despawns the vessel (mirrors the arrival
-    /// handling in applyVesselMoveEvent, src/map-level.ts). Vessels parked at
-    /// any other destination persist until recalled.
-    fn prune_docked_vessels(&mut self, now_ms: u64) {
-        let motherships = &self.motherships;
-        self.vessels.retain(|_, v| {
-            now_ms < v.arrival_at
-                || !motherships
-                    .get(&v.mothership_id)
-                    .is_some_and(|ship| is_dock_tile(ship, v.dest_col, v.dest_row))
-        });
+    /// Settle every vessel whose current move has arrived: each un-notified
+    /// arrival queues a feed notification (ROADMAP P1.5), and a vessel that
+    /// finished a move onto a docking tile of its own mothership additionally
+    /// despawns (mirroring the arrival handling in applyVesselMoveEvent,
+    /// src/map-level.ts) with a VesselRemoved push so clients drop it from
+    /// their tables. Vessels parked at any other destination persist until
+    /// recalled. Runs lazily on read/mutation plus eagerly from the scheduler
+    /// thread, like production accrual.
+    fn settle_vessel_arrivals(&mut self, now_ms: u64) {
+        let arrived: Vec<VesselMoveEventData> = self
+            .vessels
+            .values()
+            .filter(|v| now_ms >= v.arrival_at && !self.notified_arrivals.contains(&v.vessel_id))
+            .cloned()
+            .collect();
+        for vessel in arrived {
+            let docked = self
+                .motherships
+                .get(&vessel.mothership_id)
+                .is_some_and(|ship| is_dock_tile(ship, vessel.dest_col, vessel.dest_row));
+            if docked {
+                self.vessels.remove(&vessel.vessel_id);
+                self.notified_arrivals.remove(&vessel.vessel_id);
+                self.push_notification(
+                    "vessel-returned",
+                    "Vessel returned to the mothership".to_string(),
+                    now_ms,
+                );
+                self.outbox.push(ServerPush::VesselRemoved {
+                    vessel_id: vessel.vessel_id,
+                });
+            } else {
+                self.notified_arrivals.insert(vessel.vessel_id.clone());
+                self.push_notification(
+                    "vessel-arrived",
+                    format!(
+                        "Vessel arrived at ({}, {})",
+                        vessel.dest_col, vessel.dest_row
+                    ),
+                    now_ms,
+                );
+            }
+        }
     }
 
     /// Verify and execute a vessel dispatch: the destination must be on the
@@ -728,7 +884,7 @@ impl ServerState {
         dest_row: i64,
         now_ms: u64,
     ) -> Result<VesselMoveEventData, String> {
-        self.prune_docked_vessels(now_ms);
+        self.settle_vessel_arrivals(now_ms);
         let ship = self.player_mothership()?;
         if !(0..MAP_COLS).contains(&dest_col) || !(0..MAP_ROWS).contains(&dest_row) {
             return Err(format!("({dest_col}, {dest_row}) is outside the map"));
@@ -774,7 +930,7 @@ impl ServerState {
         vessel_id: &str,
         now_ms: u64,
     ) -> Result<VesselMoveEventData, String> {
-        self.prune_docked_vessels(now_ms);
+        self.settle_vessel_arrivals(now_ms);
         let vessel = self
             .vessels
             .get(vessel_id)
@@ -806,6 +962,9 @@ impl ServerState {
                 ),
             ..vessel.clone()
         };
+        // The redirect puts the vessel back in flight: its next arrival is a
+        // fresh event for the notification bookkeeping.
+        self.notified_arrivals.remove(vessel_id);
         self.vessels.insert(vessel_id.to_string(), event.clone());
         Ok(event)
     }
@@ -821,32 +980,166 @@ impl ServerState {
     /// Every vessel currently in flight or parked, in dispatch order — the
     /// vessel slice of the load_game_state snapshot.
     fn active_vessels(&mut self, now_ms: u64) -> Vec<VesselMoveEventData> {
-        self.prune_docked_vessels(now_ms);
+        self.settle_vessel_arrivals(now_ms);
         let mut vessels: Vec<_> = self.vessels.values().cloned().collect();
         vessels
             .sort_by(|a, b| (a.dispatched_at, &a.vessel_id).cmp(&(b.dispatched_at, &b.vessel_id)));
         vessels
     }
+
+    /// Settle everything due at now_ms — production ticks, module build
+    /// completions, vessel arrivals — queueing the corresponding pushes. The
+    /// scheduler thread's whole job; commands settle the same way piecemeal
+    /// through their own entry points.
+    fn settle(&mut self, now_ms: u64) {
+        self.accrue_production(now_ms); // also settles modules
+        self.settle_vessel_arrivals(now_ms);
+    }
+
+    /// Epoch ms of the next moment something comes due: the next production
+    /// tick, the earliest pending build/upgrade completion, or the earliest
+    /// un-notified vessel arrival. The scheduler sleeps until this — never
+    /// more than one production tick — or until a command wakes it early
+    /// because it created a nearer deadline.
+    fn next_deadline(&self) -> u64 {
+        let mut deadline = self.last_production_at + PRODUCTION_TICK_MS;
+        for module in self.modules.values() {
+            if let Some(pending) = &module.pending {
+                deadline = deadline.min(pending.completes_at);
+            }
+        }
+        for vessel in self.vessels.values() {
+            if !self.notified_arrivals.contains(&vessel.vessel_id) {
+                deadline = deadline.min(vessel.arrival_at);
+            }
+        }
+        deadline
+    }
+
+    /// Hand off every queued push for emission, appending one Resources push
+    /// when counts changed since the last drain. Called at the boundaries —
+    /// scheduler wake and command return — so the mutations themselves stay
+    /// transport-free (and unit-testable).
+    fn drain_pushes(&mut self) -> Vec<ServerPush> {
+        let mut pushes = std::mem::take(&mut self.outbox);
+        if self.resources_dirty {
+            self.resources_dirty = false;
+            pushes.push(ServerPush::Resources(self.resources));
+        }
+        pushes
+    }
+
+    /// Mark the whole feed read (the player opened the Events feed) and
+    /// return the updated list.
+    fn mark_notifications_read(&mut self) -> Vec<NotificationData> {
+        for notification in &mut self.notifications {
+            notification.read = true;
+        }
+        self.notifications.clone()
+    }
 }
 
-/// Load the player's current game state, first accruing any production that
-/// has come due. The client calls this once during the loader phase and then
-/// polls it every production interval — that poll is how produced resources
-/// reach the client.
+/// The managed Tauri state: the authoritative ServerState behind a mutex,
+/// plus the condvar that wakes the scheduler thread early when a command
+/// creates a nearer deadline (a build started, a vessel dispatched or
+/// recalled) — without it, a short vessel flight's arrival push would wait
+/// out the scheduler's current sleep.
+pub struct GameServer {
+    state: Mutex<ServerState>,
+    wake: Condvar,
+}
+
+impl GameServer {
+    pub fn new(now_ms: u64) -> Self {
+        Self {
+            state: Mutex::new(ServerState::new(now_ms)),
+            wake: Condvar::new(),
+        }
+    }
+}
+
+/// Emit every drained push on the SERVER_PUSH_EVENT channel. Failures are
+/// logged and dropped — a push is advisory (the client could recover from a
+/// fresh snapshot), never something to crash over.
+fn emit_pushes(app: &tauri::AppHandle, pushes: Vec<ServerPush>) {
+    for push in pushes {
+        if let Err(err) = app.emit(SERVER_PUSH_EVENT, &push) {
+            eprintln!("failed to emit {SERVER_PUSH_EVENT}: {err}");
+        }
+    }
+}
+
+/// The push scheduler (spawned from lib.rs at app setup): sleeps until the
+/// next deadline — production tick, build completion, vessel arrival —
+/// settles whatever came due, and emits the queued pushes. This thread is
+/// what turns the lazily-settling ServerState into a server that *tells*
+/// clients when something happens instead of waiting to be asked — the
+/// in-process prototype of SERVER.md's broadcast loop (ROADMAP P3.1 moves it
+/// behind a WebSocket). A poisoned lock (a panicked command) is recovered,
+/// not propagated: state is plain data and pushes must keep flowing.
+pub fn run_scheduler(app: tauri::AppHandle) {
+    let server = app.state::<GameServer>();
+    let mut state = server.state.lock().unwrap_or_else(PoisonError::into_inner);
+    loop {
+        state.settle(now_ms());
+        let pushes = state.drain_pushes();
+        if !pushes.is_empty() {
+            // Emit without holding the lock, then re-settle: time passed and
+            // commands may have run while it was released.
+            drop(state);
+            emit_pushes(&app, pushes);
+            state = server.state.lock().unwrap_or_else(PoisonError::into_inner);
+            continue;
+        }
+        // settle() left every deadline in the future, so this is a real
+        // sleep (clamped defensively); spurious and early wakes just loop
+        // through a no-op settle and sleep again.
+        let wait = state.next_deadline().saturating_sub(now_ms()).max(10);
+        let (guard, _) = server
+            .wake
+            .wait_timeout(state, Duration::from_millis(wait))
+            .unwrap_or_else(PoisonError::into_inner);
+        state = guard;
+    }
+}
+
+/// Command epilogue: emit the pushes queued while this command held the
+/// lock, and wake the scheduler so it re-derives its next deadline (the
+/// command may have created a nearer one). Takes the guard to enforce that
+/// emission happens after the lock is released.
+fn finish_command(
+    app: &tauri::AppHandle,
+    server: &GameServer,
+    mut state: MutexGuard<'_, ServerState>,
+) {
+    let pushes = state.drain_pushes();
+    drop(state);
+    emit_pushes(app, pushes);
+    server.wake.notify_all();
+}
+
+/// Load the player's current game state, first settling anything that has
+/// come due. The client calls this once during the loader phase; after that,
+/// changes arrive over the SERVER_PUSH_EVENT channel — there is no polling.
 #[tauri::command]
 pub(crate) fn load_game_state(
-    state: tauri::State<'_, Mutex<ServerState>>,
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
 ) -> Result<GameStateData, String> {
-    let mut s = state.lock().map_err(|e| e.to_string())?;
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let now = now_ms();
     s.accrue_production(now);
-    Ok(GameStateData {
+    let data = GameStateData {
         player: player_identity(),
         resources: s.resources,
         motherships: s.motherships_snapshot(),
+        // Settles vessels/modules, so `notifications` must be read after.
         vessels: s.active_vessels(now),
         modules: s.modules_snapshot(now),
-    })
+        notifications: s.notifications.clone(),
+    };
+    finish_command(&app, server.inner(), s);
+    Ok(data)
 }
 
 /// Request dispatch of a vessel from the player's mothership to the given
@@ -855,23 +1148,29 @@ pub(crate) fn load_game_state(
 /// part of subsequent load_game_state snapshots.
 #[tauri::command]
 pub(crate) fn request_dispatch_vessel(
-    state: tauri::State<'_, Mutex<ServerState>>,
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
     dest_col: i64,
     dest_row: i64,
 ) -> Result<VesselMoveEventData, String> {
-    let mut s = state.lock().map_err(|e| e.to_string())?;
-    s.dispatch_vessel(dest_col, dest_row, now_ms())
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.dispatch_vessel(dest_col, dest_row, now_ms());
+    finish_command(&app, server.inner(), s);
+    result
 }
 
 /// Request recall of an in-flight or parked vessel back to the mothership.
 /// The return leg departs from the vessel's server-computed current position.
 #[tauri::command]
 pub(crate) fn request_recall_vessel(
-    state: tauri::State<'_, Mutex<ServerState>>,
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
     vessel_id: String,
 ) -> Result<VesselMoveEventData, String> {
-    let mut s = state.lock().map_err(|e| e.to_string())?;
-    s.recall_vessel(&vessel_id, now_ms())
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.recall_vessel(&vessel_id, now_ms());
+    finish_command(&app, server.inner(), s);
+    result
 }
 
 /// Request construction of a new module at the given anchor tile. Catalog
@@ -880,13 +1179,16 @@ pub(crate) fn request_recall_vessel(
 /// counts are authoritative.
 #[tauri::command]
 pub(crate) fn request_build_module(
-    state: tauri::State<'_, Mutex<ServerState>>,
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
     col: i64,
     row: i64,
     module_type: String,
 ) -> Result<ModuleActionResponse, String> {
-    let mut s = state.lock().map_err(|e| e.to_string())?;
-    s.build_module(col, row, module_type, now_ms())
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.build_module(col, row, module_type, now_ms());
+    finish_command(&app, server.inner(), s);
+    result
 }
 
 /// Request a level-up of an existing module. Ownership, pending state, and
@@ -895,11 +1197,28 @@ pub(crate) fn request_build_module(
 /// authoritative.
 #[tauri::command]
 pub(crate) fn request_levelup_module(
-    state: tauri::State<'_, Mutex<ServerState>>,
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
     module_id: String,
 ) -> Result<ModuleActionResponse, String> {
-    let mut s = state.lock().map_err(|e| e.to_string())?;
-    s.levelup_module(&module_id, now_ms())
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.levelup_module(&module_id, now_ms());
+    finish_command(&app, server.inner(), s);
+    result
+}
+
+/// Mark the whole event feed read (the player opened the Events feed) and
+/// return the updated list — the client replaces its table with it, which
+/// clears the Events badge in every scene.
+#[tauri::command]
+pub(crate) fn mark_notifications_read(
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
+) -> Result<Vec<NotificationData>, String> {
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let notifications = s.mark_notifications_read();
+    finish_command(&app, server.inner(), s);
+    Ok(notifications)
 }
 
 #[cfg(test)]
@@ -1255,6 +1574,151 @@ mod tests {
         let enemy = ships.iter().find(|m| m.owner_id == "player-2").unwrap();
         assert_eq!((enemy.col, enemy.row), (53, 49));
         assert!(enemy.damaged);
+    }
+
+    /// The kind of every feed entry, oldest first.
+    fn notification_kinds(s: &ServerState) -> Vec<&str> {
+        s.notifications.iter().map(|n| n.kind.as_str()).collect()
+    }
+
+    #[test]
+    fn production_tick_queues_one_resources_push() {
+        let mut s = ServerState::new(0);
+        s.accrue_production(TICK - 1);
+        assert!(s.drain_pushes().is_empty());
+        // Two ticks accrued in one call still collapse into a single push
+        // carrying the final counts.
+        s.accrue_production(2 * TICK);
+        let pushes = s.drain_pushes();
+        assert_eq!(pushes.len(), 1);
+        assert!(matches!(pushes[0], ServerPush::Resources(c) if c.construction == 2));
+        // Drained: nothing left until the next change.
+        assert!(s.drain_pushes().is_empty());
+    }
+
+    #[test]
+    fn build_completion_queues_module_push_and_notification() {
+        let mut s = funded_state(1, 0);
+        s.build_module(2, 2, "ore-refinery".to_string(), 0).unwrap();
+        s.drain_pushes(); // discard the build's own spend push
+        s.settle(ore_refinery_build_time());
+        let pushes = s.drain_pushes();
+        assert!(pushes
+            .iter()
+            .any(|p| matches!(p, ServerPush::Module(m) if m.level == 1 && m.pending.is_none())));
+        assert!(pushes.iter().any(|p| matches!(
+            p,
+            ServerPush::Notification(n)
+                if n.kind == "build-complete"
+                    && n.message.contains("Ore Refinery")
+                    && !n.read
+        )));
+        assert_eq!(notification_kinds(&s), vec!["build-complete"]);
+        // Settling again at the same time re-announces nothing.
+        s.settle(ore_refinery_build_time());
+        assert!(s.drain_pushes().is_empty());
+    }
+
+    #[test]
+    fn levelup_completion_notifies_with_the_new_level() {
+        let mut s = ServerState::new(0);
+        s.resources.construction = scale_for_level(
+            catalog_entry(COMMAND_MODULE_TYPE)
+                .unwrap()
+                .base_cost_construction,
+            2,
+        );
+        let response = s.levelup_module("module-command", 0).unwrap();
+        let done = response.module.pending.unwrap().completes_at;
+        s.drain_pushes();
+        s.settle(done);
+        assert!(s.drain_pushes().iter().any(|p| matches!(
+            p,
+            ServerPush::Notification(n)
+                if n.kind == "levelup-complete" && n.message.contains("level 2")
+        )));
+    }
+
+    #[test]
+    fn vessel_arrival_notifies_once_and_docking_prunes_with_push() {
+        let mut s = ServerState::new(0);
+        let out = s.dispatch_vessel(50, 60, 0).unwrap();
+        s.drain_pushes();
+        s.settle(out.arrival_at);
+        assert!(s.drain_pushes().iter().any(|p| matches!(
+            p,
+            ServerPush::Notification(n)
+                if n.kind == "vessel-arrived" && n.message.contains("(50, 60)")
+        )));
+        // Parked: later settles stay quiet about it.
+        s.settle(out.arrival_at + 5 * TICK);
+        assert!(!s
+            .drain_pushes()
+            .iter()
+            .any(|p| matches!(p, ServerPush::Notification(_))));
+        // The recall's docking arrival despawns the vessel: a "returned"
+        // notification plus the VesselRemoved push for the client's table.
+        let back = s
+            .recall_vessel(&out.vessel_id, out.arrival_at + 5 * TICK)
+            .unwrap();
+        s.drain_pushes();
+        s.settle(back.arrival_at);
+        let pushes = s.drain_pushes();
+        assert!(pushes
+            .iter()
+            .any(|p| matches!(p, ServerPush::Notification(n) if n.kind == "vessel-returned")));
+        assert!(pushes.iter().any(|p| matches!(
+            p,
+            ServerPush::VesselRemoved { vessel_id } if *vessel_id == out.vessel_id
+        )));
+        assert!(s.active_vessels(back.arrival_at).is_empty());
+        assert_eq!(
+            notification_kinds(&s),
+            vec!["vessel-arrived", "vessel-returned"]
+        );
+    }
+
+    #[test]
+    fn next_deadline_tracks_ticks_builds_and_arrivals() {
+        let mut s = funded_state(1, 0);
+        // Nothing pending: the next production tick is the only deadline.
+        assert_eq!(s.next_deadline(), TICK);
+        // A build completing between ticks beats the tick (15s build started
+        // at 1_000 completes at 16_000, between the 15_000 and 20_000 ticks).
+        s.build_module(2, 2, "ore-refinery".to_string(), 1_000)
+            .unwrap();
+        s.settle(3 * TICK);
+        assert_eq!(s.next_deadline(), 1_000 + ore_refinery_build_time());
+        // Once it settles, the cadence falls back to the tick.
+        s.settle(1_000 + ore_refinery_build_time());
+        assert_eq!(s.next_deadline(), 4 * TICK);
+        // A short vessel flight beats the tick; its settled arrival doesn't.
+        let out = s.dispatch_vessel(50, 51, 16_000).unwrap();
+        assert!(out.arrival_at < 4 * TICK);
+        assert_eq!(s.next_deadline(), out.arrival_at);
+        s.settle(out.arrival_at);
+        assert_eq!(s.next_deadline(), 4 * TICK);
+    }
+
+    #[test]
+    fn notifications_are_capped_at_the_oldest_end() {
+        let mut s = ServerState::new(0);
+        for i in 0..(MAX_NOTIFICATIONS + 5) {
+            s.push_notification("test", format!("n{i}"), i as u64);
+        }
+        assert_eq!(s.notifications.len(), MAX_NOTIFICATIONS);
+        assert_eq!(s.notifications[0].message, "n5");
+    }
+
+    #[test]
+    fn mark_notifications_read_clears_every_entry() {
+        let mut s = ServerState::new(0);
+        s.push_notification("test", "hello".to_string(), 0);
+        s.push_notification("test", "world".to_string(), 1);
+        assert!(s.notifications.iter().all(|n| !n.read));
+        let returned = s.mark_notifications_read();
+        assert!(returned.iter().all(|n| n.read));
+        assert!(s.notifications.iter().all(|n| n.read));
     }
 
     #[test]

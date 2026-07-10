@@ -1,6 +1,9 @@
 import * as ex from "excalibur";
 
+import { invoke } from "@tauri-apps/api/core";
+
 import {
+  BadgeDef,
   formatCompactCount,
   HudButtonDef,
   HudGroupDef,
@@ -8,7 +11,12 @@ import {
   LabelDef,
   spawnHudGroup,
 } from "./ui/index.ts";
-import { gameState, RESOURCE_KINDS, ResourceKind } from "./game-state.ts";
+import {
+  gameState,
+  NotificationData,
+  RESOURCE_KINDS,
+  ResourceKind,
+} from "./game-state.ts";
 import { TileActor } from "./tile-actor.ts";
 
 /**
@@ -578,12 +586,32 @@ export abstract class TiledScene extends ex.Scene {
           disabledTile: "ui-icon-events:2",
           width: 32,
           height: 32,
-          badge: { text: "@", bordered: false, color: ex.Color.Red },
           label: "Events",
-          onPressed: () => console.log("events"),
+          onPressed: () => void this.openEventsFeed(),
         },
       ],
     });
+    // Events badge (ROADMAP P1.5): the live unread notification count, or no
+    // badge at all when everything is read. Set once now (the snapshot may
+    // have loaded before this scene initialized) and kept live by the same
+    // always-on subscription pattern as the resource bar above — but only
+    // rebuilding the badge actor when the count actually changed, since most
+    // notifies (every production tick) don't touch it.
+    const EVENTS_INDEX = 1;
+    let shownUnread = -1;
+    const updateEventsBadge = () => {
+      const unread = gameState.unreadNotificationCount();
+      if (unread === shownUnread) return;
+      shownUnread = unread;
+      const badge: BadgeDef | undefined = unread === 0 ? undefined : {
+        text: formatCompactCount(unread),
+        bordered: false,
+        color: ex.Color.Red,
+      };
+      topRight.setBadge(EVENTS_INDEX, badge);
+    };
+    updateEventsBadge();
+    gameState.subscribe(updateEventsBadge);
     const bottomRight = this.addHudGroup({
       anchor: "bottom-right",
       gap: 8,
@@ -616,5 +644,26 @@ export abstract class TiledScene extends ex.Scene {
       ],
     });
     return { resourceBar, topRight, bottomRight };
+  }
+
+  /**
+   * Events button press (ROADMAP P1.5): dump the feed to the console — a
+   * real feed panel is later UI work; P1.5 only wires the badge — and ask
+   * the backend to mark everything read. Applying the returned list clears
+   * the badge in every scene via the shared-state notify.
+   */
+  private async openEventsFeed(): Promise<void> {
+    for (const n of gameState.notifications.values()) {
+      console.log(`[events]${n.read ? " " : " * "}${n.message}`);
+    }
+    if (gameState.unreadNotificationCount() === 0) return;
+    try {
+      const notifications = await invoke<NotificationData[]>(
+        "mark_notifications_read",
+      );
+      gameState.syncNotifications(notifications);
+    } catch (err) {
+      console.warn("mark_notifications_read rejected:", err);
+    }
   }
 }
