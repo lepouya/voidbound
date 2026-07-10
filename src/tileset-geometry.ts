@@ -51,6 +51,13 @@ export const TILESET_GEOMETRY: TilesetGeometry[] = [
   { name: "ss1-damaged", tileSize: 256, ...CANONICAL_ANIM },
   { name: "cs1-base", tileSize: 64, ...CANONICAL_ANIM },
   { name: "cs1-moving", tileSize: 64, ...CANONICAL_ANIM },
+  // Placeholder asteroid sprites (ROADMAP P1.6): grayscale single-sprite
+  // sheets tinted per resource kind at render time (art/gen_asteroids.sh,
+  // ASTEROID_TINTS in src/asteroid-catalog.ts). Map tiles are 32 px world
+  // with 2x sprite resolution, so span 1/2/3 is 64/128/192 px.
+  { name: "asteroid-small", cols: 1, rows: 1, tileSize: 64 },
+  { name: "asteroid-medium", cols: 1, rows: 1, tileSize: 128 },
+  { name: "asteroid-large", cols: 1, rows: 1, tileSize: 192 },
 ];
 
 export const AUTO_TILESET_RULES: AutoTilesetRule[] = [

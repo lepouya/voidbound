@@ -2,11 +2,18 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { gameState, MothershipData, VesselMoveEvent } from "./game-state.ts";
+import { ASTEROID_TINTS, asteroidDisplayName } from "./asteroid-catalog.ts";
+import {
+  AsteroidData,
+  gameState,
+  MothershipData,
+  VesselMoveEvent,
+} from "./game-state.ts";
 import { isDockTile } from "./grid-math.ts";
 import { buildTileMap } from "./map-loader.ts";
 import { TileActor } from "./tile-actor.ts";
 import { TiledScene } from "./tiled-scene.ts";
+import { formatCompactCount } from "./ui/index.ts";
 
 /** True when two snapshots describe an identical ship — placement, art, and
  *  ownership — so the reconciler can skip rebuilding its actor. */
@@ -19,6 +26,21 @@ function sameMothership(a: MothershipData, b: MothershipData): boolean {
     a.damaged === b.damaged &&
     a.ownerId === b.ownerId &&
     a.ownerName === b.ownerName
+  );
+}
+
+/** True when two snapshots describe an identical asteroid — placement, class,
+ *  deposit, and mining slot — so the reconciler can skip rebuilding its
+ *  actor. The mining slot matters: it toggles the Mine button. */
+function sameAsteroid(a: AsteroidData, b: AsteroidData): boolean {
+  return (
+    a.col === b.col &&
+    a.row === b.row &&
+    a.span === b.span &&
+    a.tier === b.tier &&
+    a.resource === b.resource &&
+    a.remaining === b.remaining &&
+    (a.mining?.vesselId ?? null) === (b.mining?.vesselId ?? null)
   );
 }
 
@@ -38,12 +60,13 @@ export class MapLevel extends TiledScene {
       onPressed: () => engine.goToScene("ship"),
     });
     // The backend state may load (or a future login complete) after this
-    // scene is built — reconcile mothership and vessel actors against the
-    // refreshed tables on every notify. Motherships first: vessels need the
-    // player's ship for dock math. No unsubscribe: scenes live for the
-    // whole app run.
+    // scene is built — reconcile mothership, asteroid, and vessel actors
+    // against the refreshed tables on every notify. Motherships first:
+    // vessels need the player's ship for dock math. No unsubscribe: scenes
+    // live for the whole app run.
     gameState.subscribe(() => {
       this.syncMotherships();
+      this.syncAsteroids();
       this.syncVessels();
     });
   }
@@ -76,6 +99,11 @@ export class MapLevel extends TiledScene {
   /** The last MothershipData applied per mothershipId, used by
    *  syncMotherships to skip rebuilding unchanged ships on every poll. */
   private appliedMotherships = new Map<string, MothershipData>();
+  /** Asteroid actors keyed by asteroidId. */
+  private asteroids = new Map<string, TileActor>();
+  /** The last AsteroidData applied per asteroidId, used by syncAsteroids to
+   *  skip rebuilding unchanged asteroids on every notify. */
+  private appliedAsteroids = new Map<string, AsteroidData>();
   /** Active vessels keyed by vesselId. */
   private vessels = new Map<string, TileActor>();
   /** The last VesselMoveEvent applied per vesselId, used by syncVessels to
@@ -91,11 +119,13 @@ export class MapLevel extends TiledScene {
   }
 
   protected override setupActors(): void {
-    // Nothing is placed here: mothership placement is server-owned, so all
-    // map actors are reconciled from the backend snapshot — which may have
-    // loaded before this scene finished its async map build (hence the
-    // explicit sync), or may land later (the gameState subscription).
+    // Nothing is placed here: mothership and asteroid placement is
+    // server-owned, so all map actors are reconciled from the backend
+    // snapshot — which may have loaded before this scene finished its async
+    // map build (hence the explicit sync), or may land later (the gameState
+    // subscription).
     this.syncMotherships();
+    this.syncAsteroids();
     this.syncVessels();
   }
 
@@ -200,6 +230,107 @@ export class MapLevel extends TiledScene {
           ),
         ],
     });
+  }
+
+  /**
+   * Reconcile asteroid actors against gameState.asteroids — the client
+   * mirror of the backend's asteroid table (ROADMAP P1.6), refreshed by
+   * every load_game_state snapshot and merged into by asteroid pushes.
+   * Changed asteroids (a reduced deposit, a claimed or freed mining slot)
+   * are rebuilt in place, and mined-out asteroids that left the table
+   * despawn — so harvests reach the map with no client math.
+   */
+  private syncAsteroids(): void {
+    // The subscription can fire before the async map load finishes;
+    // setupActors calls this again once the tilemap exists.
+    if (!this.tilemap) return;
+    for (const [id, actor] of this.asteroids) {
+      if (!gameState.asteroids.has(id)) {
+        actor.kill();
+        this.asteroids.delete(id);
+        this.appliedAsteroids.delete(id);
+      }
+    }
+    for (const data of gameState.asteroids.values()) {
+      const applied = this.appliedAsteroids.get(data.asteroidId);
+      if (applied !== undefined && sameAsteroid(applied, data)) continue;
+      this.asteroids.get(data.asteroidId)?.kill();
+      const actor = this.createAsteroidActor(data);
+      this.asteroids.set(data.asteroidId, actor);
+      this.appliedAsteroids.set(data.asteroidId, data);
+      this.add(actor);
+    }
+  }
+
+  /**
+   * Builds the map actor for one asteroid: the placeholder sprite tinted by
+   * yielded resource, a remaining-deposit badge, and the Mine action —
+   * disabled while a vessel holds the asteroid's single mining slot (the
+   * actor is rebuilt when the slot changes, so the button state stays
+   * current).
+   */
+  private createAsteroidActor(data: AsteroidData): TileActor {
+    return new TileActor({
+      tilemap: this.tilemap,
+      tile: {
+        tile: `asteroid-${data.tier}`,
+        tint: ex.Color.fromHex(ASTEROID_TINTS[data.resource]),
+      },
+      col: data.col,
+      row: data.row,
+      width: data.span,
+      height: data.span,
+      ownerName: asteroidDisplayName(data),
+      onPressed: this.handleTilePressed,
+      badges: [
+        { anchor: "top-right", badge: formatCompactCount(data.remaining) },
+      ],
+      buttons: [
+        {
+          frameTile: "ui-frame-round:0",
+          activeFrameTile: "ui-frame-round:1",
+          disabledFrameTile: "ui-frame-round:2",
+          tile: "ui-icon-details:0",
+          activeTile: "ui-icon-details:1",
+          disabledTile: "ui-icon-details:2",
+          label: "Details",
+          onPressed: () => console.log("Details asteroid", data),
+        },
+        {
+          frameTile: "ui-frame-round:0",
+          activeFrameTile: "ui-frame-round:1",
+          disabledFrameTile: "ui-frame-round:2",
+          tile: "ui-icon-mine:0",
+          activeTile: "ui-icon-mine:1",
+          disabledTile: "ui-icon-mine:2",
+          label: "Mine",
+          disabled: data.mining !== null,
+          onPressed: () => void this.mineAsteroid(data.asteroidId),
+        },
+      ],
+    });
+  }
+
+  /**
+   * Asks the backend to dispatch a vessel from the mothership to mine the
+   * given asteroid (ROADMAP P1.6). The backend verifies the free mining
+   * slot, reserves it, derives the destination tile and extraction window,
+   * and returns the authoritative VesselMoveEvent; the asteroid's own change
+   * (its claimed slot) arrives as a server push. Same phase-3 shape as
+   * dispatchVessel: send a request, apply the server's event.
+   */
+  private async mineAsteroid(asteroidId: string): Promise<void> {
+    this.deselectActor();
+    try {
+      const event = await invoke<VesselMoveEvent>("request_mine_asteroid", {
+        asteroidId,
+      });
+      gameState.applyVesselEvent(event);
+    } catch (err) {
+      // No rejection UI yet — the Mine button is disabled while the slot is
+      // taken, so this is a race (or a bug). Log it; state stays untouched.
+      console.warn("request_mine_asteroid rejected:", err);
+    }
   }
 
   /**

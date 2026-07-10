@@ -1,6 +1,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 
 import {
+  AsteroidData,
   GameState,
   gameState,
   ModuleData,
@@ -52,6 +53,26 @@ function sampleVessel(
     speed: 32,
     dispatchedAt: 1_000,
     arrivalAt: 11_000,
+    miningAsteroidId: null,
+    cargo: null,
+    ...overrides,
+  };
+}
+
+function sampleAsteroid(
+  id: string,
+  overrides: Partial<AsteroidData> = {},
+): AsteroidData {
+  return {
+    asteroidId: id,
+    tier: "small",
+    resource: "construction",
+    col: 40,
+    row: 60,
+    span: 1,
+    total: 240,
+    remaining: 240,
+    mining: null,
     ...overrides,
   };
 }
@@ -160,6 +181,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
       credits: 9,
     },
     motherships: [sampleMothership("player-42")],
+    asteroids: [sampleAsteroid("asteroid-1")],
     vessels: [sampleVessel("vessel-a")],
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-1")],
@@ -178,6 +200,10 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     sampleMothership("player-42"),
   );
   assertEquals(state.vessels.get("vessel-a"), sampleVessel("vessel-a"));
+  assertEquals(
+    state.asteroids.get("asteroid-1"),
+    sampleAsteroid("asteroid-1"),
+  );
   assertEquals(
     state.modules.get("module-command"),
     sampleModule("module-command"),
@@ -239,6 +265,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     player: { id: "player-1", name: "Player 1" },
     resources: ZERO_RESOURCES,
     motherships: [sampleMothership("player-1")],
+    asteroids: [sampleAsteroid("asteroid-old")],
     vessels: [],
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-old")],
@@ -248,6 +275,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     player: { id: "player-1", name: "Player 1" },
     resources: ZERO_RESOURCES,
     motherships: [sampleMothership("player-9", { col: 10, row: 12 })],
+    asteroids: [sampleAsteroid("asteroid-live")],
     vessels: [sampleVessel("vessel-live")],
     modules: [sampleModule("module-command"), sampleModule("module-a")],
     notifications: [],
@@ -256,6 +284,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
   // The docked vessel was pruned by the backend and player-1's ship left the
   // world; only the latest snapshot survives.
   assertEquals([...state.vessels.keys()], ["vessel-live"]);
+  assertEquals([...state.asteroids.keys()], ["asteroid-live"]);
   assertEquals([...state.motherships.keys()], ["player-9"]);
   assertEquals(state.motherships.get("player-9")?.col, 10);
   assertEquals(
@@ -271,6 +300,7 @@ Deno.test("shared singleton starts unloaded with new-player defaults", () => {
   // No hardcoded placements: the world is empty until a snapshot lands.
   assertEquals(gameState.motherships.size, 0);
   assertEquals(gameState.vessels.size, 0);
+  assertEquals(gameState.asteroids.size, 0);
   assertEquals(gameState.modules.size, 0);
   assertEquals(gameState.notifications.size, 0);
   assert(!gameState.loaded);
@@ -326,6 +356,29 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
     data: { vesselId: "vessel-a" },
   });
 
+  // A server-initiated vessel move (the mining auto-return) merges like a
+  // command response.
+  const returning = sampleVessel("vessel-b", {
+    cargo: { resource: "biological", amount: 120 },
+  });
+  state.applyServerPush({ type: "vessel", data: returning });
+  assertEquals(state.vessels.get("vessel-b"), returning);
+
+  state.applyServerPush({
+    type: "asteroid",
+    data: sampleAsteroid("asteroid-1", {
+      remaining: 120,
+      mining: { vesselId: "vessel-b", startedAt: 1_000, completesAt: 5_000 },
+    }),
+  });
+  assertEquals(state.asteroids.get("asteroid-1")?.remaining, 120);
+
+  state.applyServerPush({
+    type: "asteroidRemoved",
+    data: { asteroidId: "asteroid-1" },
+  });
+  assertEquals(state.asteroids.size, 0);
+
   state.applyServerPush({
     type: "notification",
     data: sampleNotification("notif-1"),
@@ -336,7 +389,24 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
   );
 
   // One notify per push, plus one for the applyVesselEvent merge.
-  assertEquals(notified, 6);
+  assertEquals(notified, 9);
+});
+
+Deno.test("applyAsteroidEvent merges by asteroidId and notifies", () => {
+  const state = new GameState();
+  let notified = 0;
+  state.subscribe(() => notified++);
+
+  state.applyAsteroidEvent(sampleAsteroid("asteroid-1"));
+  state.applyAsteroidEvent(sampleAsteroid("asteroid-2"));
+  // A harvest re-stamps the same asteroid with a reduced deposit: replace,
+  // not append.
+  const harvested = sampleAsteroid("asteroid-1", { remaining: 60 });
+  state.applyAsteroidEvent(harvested);
+
+  assertEquals(state.asteroids.size, 2);
+  assertEquals(state.asteroids.get("asteroid-1"), harvested);
+  assertEquals(notified, 3);
 });
 
 Deno.test("unreadNotificationCount counts only unread entries", () => {

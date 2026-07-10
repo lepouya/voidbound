@@ -1,0 +1,31 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="192"
+  height="192"
+  viewBox="0 0 192 192"
+>
+  <!-- Placeholder large asteroid (3*3 tiles): grayscale so the client can
+       tint per resource kind (ASTEROID_TINTS in src/asteroid-catalog.ts). -->
+  <g stroke="#4a4a4a" stroke-width="4" stroke-linejoin="round">
+    <path
+      d="M92 10 L130 18 L158 38 L176 68 L180 100 L168 134 L140 162
+         L104 178 L66 172 L34 150 L14 116 L12 78 L28 42 L58 18 Z"
+      fill="#9a9a9a"
+    />
+    <path
+      d="M92 10 L130 18 L158 38 L176 68 L180 100 L168 134 L140 162
+         L124 140 L140 104 L128 62 L104 34 L86 24 Z"
+      fill="#848484"
+      stroke="none"
+    />
+  </g>
+  <ellipse cx="66" cy="66" rx="22" ry="18" fill="#7a7a7a" />
+  <ellipse cx="63" cy="63" rx="16" ry="12" fill="#6e6e6e" />
+  <ellipse cx="124" cy="118" rx="17" ry="14" fill="#7a7a7a" />
+  <ellipse cx="121" cy="115" rx="12" ry="9" fill="#6e6e6e" />
+  <ellipse cx="58" cy="128" rx="11" ry="9" fill="#767676" />
+  <ellipse cx="56" cy="126" rx="7" ry="5.5" fill="#6a6a6a" />
+  <ellipse cx="134" cy="58" rx="9" ry="7" fill="#767676" />
+  <ellipse cx="96" cy="152" rx="7" ry="6" fill="#767676" />
+  <ellipse cx="150" cy="86" rx="5" ry="4" fill="#727272" />
+</svg>

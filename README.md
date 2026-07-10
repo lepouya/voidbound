@@ -87,6 +87,17 @@ game:
 - Resource nodes (asteroids, moons, planets) get higher level and more difficult
   toward the center of the map, pacing the game: alliances have to gain power
   together to push inward.
+- Asteroid mining: asteroids come in four classes matching the resource they
+  yield — rocky (construction), metallic (high-tech; the "rare" class), icy
+  (biological), and carbonaceous (fuel) — and three size tiers: small (1\*1
+  tiles, common, 15–60 min to mine out), medium (2\*2, uncommon, 1–4 h), and
+  large (3\*3, rare, 4–12 h). Mine-out time scales with the deposit at a shared
+  extraction rate. Each asteroid holds a single resource and hosts a single
+  mining vessel at a time — both rules may be revisited for large asteroids
+  (mixed deposits, multiple miners), so implementations should keep that door
+  open. A dispatched vessel mines until the deposit is exhausted and then
+  returns on its own; recalling it early harvests proportionally to the time
+  spent extracting. Mined-out asteroids disappear from the map.
 - New players arrive in a fresh system alongside players who started around the
   same time, so nobody faces an impossible catch-up. Seasons keep those worlds
   alive as activity declines: after a time or milestone, remaining players move

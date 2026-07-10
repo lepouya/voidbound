@@ -48,6 +48,14 @@ export const RESOURCE_KINDS: readonly ResourceKind[] = [
 export type ResourceCounts = Record<ResourceKind, number>;
 
 /**
+ * The four material resources a module can produce, a build can cost, or an
+ * asteroid can yield — everything except the trade-only currency. Matches
+ * the serialized form of the Rust `ResourceKind` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export type MaterialResourceKind = Exclude<ResourceKind, "credits">;
+
+/**
  * A mothership on the space map, as reported by the backend — the single
  * source of truth for placement. MapLevel builds its map actors from the
  * snapshot list rather than hardcoding positions, so moved ships or newly
@@ -103,6 +111,72 @@ export interface VesselMoveEvent {
    *  Lets late-joining clients lerp to the current position without
    *  re-computing travel time. */
   arrivalAt: number;
+  /** Asteroid this vessel is assigned to mine (ROADMAP P1.6) — set on the
+   *  outbound leg and while extracting; null on return legs and plain
+   *  moves. */
+  miningAsteroidId: string | null;
+  /** Harvested resources riding home on a return leg; the backend deposits
+   *  them into the counts when the vessel docks. */
+  cargo: VesselCargo | null;
+}
+
+/**
+ * Harvested resources riding home on a vessel's return leg (ROADMAP P1.6).
+ * Mirrors the Rust `VesselCargo` in src-tauri/src/game_state.rs — keep the
+ * two in sync.
+ */
+export interface VesselCargo {
+  resource: MaterialResourceKind;
+  amount: number;
+}
+
+/**
+ * An active mining job on an asteroid — which vessel, and the extraction
+ * window. At most one per asteroid today (single-slot rule); if large
+ * asteroids gain multiple miners later this becomes a list. Mirrors the Rust
+ * `AsteroidMining` in src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface AsteroidMining {
+  vesselId: string;
+  /** Epoch ms when extraction starts — the miner's outbound arrival. The
+   *  slot is reserved from dispatch, so this can be in the future. */
+  startedAt: number;
+  /** Epoch ms when the remaining deposit is fully mined out; the backend
+   *  auto-recalls the miner then. */
+  completesAt: number;
+}
+
+/**
+ * A minable asteroid on the space map (ROADMAP P1.6), as reported by the
+ * backend. Like motherships, placement is server-owned and MapLevel builds
+ * its actors from the snapshot — but asteroids are mutable: mining depletes
+ * `remaining` and a mined-out asteroid leaves the table (asteroidRemoved
+ * push). Like ModuleData, the struct doubles as its own event payload: an
+ * asteroid push carries the full current snapshot. Mirrors the Rust
+ * `AsteroidData` in src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface AsteroidData {
+  asteroidId: string;
+  /** Size tier, an ASTEROID_TIERS key (src/asteroid-catalog.ts):
+   *  "small" | "medium" | "large". */
+  tier: string;
+  /** The one resource this asteroid yields. Single-resource by design for
+   *  now; if large asteroids gain mixed deposits later this becomes a
+   *  list. */
+  resource: MaterialResourceKind;
+  /** Anchor (top-left) tile of the footprint. */
+  col: number;
+  row: number;
+  /** Footprint size in tiles (span*span). */
+  span: number;
+  /** Units originally seeded — for showing depletion progress. */
+  total: number;
+  /** Units still minable, settled at mining boundaries (mid-mine progress is
+   *  implicit in mining.startedAt + the mine rate). */
+  remaining: number;
+  /** The active mining job, if any — present from dispatch (the slot is
+   *  reserved so two vessels can't race for it) until recall/completion. */
+  mining: AsteroidMining | null;
 }
 
 /**
@@ -181,6 +255,9 @@ export interface GameStateData {
   /** Every mothership on the space map — placement is server-owned; the
    *  client builds its map actors from this list. */
   motherships: MothershipData[];
+  /** Every asteroid still holding resources (ROADMAP P1.6) — placement and
+   *  deposits are server-owned; depleted asteroids simply leave the list. */
+  asteroids: AsteroidData[];
   /** Every vessel currently in flight or parked on the map, in dispatch
    *  order — the snapshot half of SERVER.md's snapshot + replay. */
   vessels: VesselMoveEvent[];
@@ -212,6 +289,9 @@ export type ServerPush =
   | { type: "resources"; data: ResourceCounts }
   | { type: "module"; data: ModuleData }
   | { type: "vesselRemoved"; data: { vesselId: string } }
+  | { type: "vessel"; data: VesselMoveEvent }
+  | { type: "asteroid"; data: AsteroidData }
+  | { type: "asteroidRemoved"; data: { asteroidId: string } }
   | { type: "notification"; data: NotificationData };
 
 export type GameStateListener = () => void;
@@ -266,6 +346,15 @@ export class GameState {
    * notified.
    */
   vessels = new Map<string, VesselMoveEvent>();
+
+  /**
+   * Every asteroid still holding resources (ROADMAP P1.6), keyed by
+   * asteroidId, as last reported by the backend. Replaced wholesale by each
+   * load() snapshot, merged per-asteroid by asteroid pushes, and pruned by
+   * the asteroidRemoved push when a deposit is mined out. MapLevel
+   * reconciles its actors from this table whenever subscribers are notified.
+   */
+  asteroids = new Map<string, AsteroidData>();
 
   /**
    * Every module in the ship, built or under construction (Command Module
@@ -351,6 +440,20 @@ export class GameState {
     });
   }
 
+  /**
+   * Apply a single authorized asteroid event from a server push (mining
+   * started/stopped, deposit reduced), notifying subscribers — the
+   * `apply<Action>Event` entry point for asteroid changes, following the
+   * ModuleData pattern: the AsteroidData payload is the entity's full
+   * current snapshot, so merging by asteroidId is idempotent. The next
+   * load() snapshot supersedes it.
+   */
+  applyAsteroidEvent(asteroid: AsteroidData): void {
+    this.update((s) => {
+      s.asteroids.set(asteroid.asteroidId, asteroid);
+    });
+  }
+
   /** Number of unread event-feed entries — the Events HUD badge count. */
   unreadNotificationCount(): number {
     let count = 0;
@@ -391,6 +494,17 @@ export class GameState {
           s.vessels.delete(push.data.vesselId);
         });
         break;
+      case "vessel":
+        this.applyVesselEvent(push.data);
+        break;
+      case "asteroid":
+        this.applyAsteroidEvent(push.data);
+        break;
+      case "asteroidRemoved":
+        this.update((s) => {
+          s.asteroids.delete(push.data.asteroidId);
+        });
+        break;
       case "notification":
         this.update((s) => {
           s.notifications.set(push.data.notificationId, push.data);
@@ -413,6 +527,7 @@ export class GameState {
         data.motherships.map((m) => [m.mothershipId, m]),
       );
       s.vessels = new Map(data.vessels.map((e) => [e.vesselId, e]));
+      s.asteroids = new Map(data.asteroids.map((a) => [a.asteroidId, a]));
       s.modules = new Map(data.modules.map((m) => [m.moduleId, m]));
       s.notifications = new Map(
         data.notifications.map((n) => [n.notificationId, n]),

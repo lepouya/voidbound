@@ -125,10 +125,19 @@ Goal: a playable single-player loop, no persistence yet.
       `startGameStateSync` poll and `ShipLevel.requestRefresh()` are gone. (The
       Mail badge stays a placeholder until messaging exists — see P3.5.) Needs
       P1.3.
-- [ ] **P1.6 — Mining loop.** Asteroid resource nodes in the space-map
-      `generate_map` arm; dispatch a vessel to a node, mine, return with cargo
-      that deposits into P1.1 resources. Event-modeled (extend `VesselMoveEvent`
-      or add a `MineEvent`). Needs P1.1.
+- [x] **P1.6 — Mining loop.** Asteroid resource nodes on the space map: three
+      size tiers (`ASTEROID_TIERS`, README § Design principles) \* four resource
+      classes, seeded deterministically as server-owned mutable data rather than
+      baked into the `generate_map` tiles as originally sketched — depletion
+      needs the same snapshot/push reconcile path motherships and modules
+      already use (`MapLevel.syncAsteroids`). Dispatch via
+      `request_mine_asteroid` (extends `VesselMoveEvent` with a mining
+      assignment and cargo); the scheduler auto-recalls the miner at mine-out,
+      an early `request_recall_vessel` harvests proportionally to extraction
+      time, and docking deposits the cargo into P1.1 resources. Placeholder
+      tinted vector sprites (`art/gen_asteroids.sh`); balancing (deposit bands,
+      the shared `MINE_UNITS_PER_HOUR` rate) is stubbed like `scaleForLevel`.
+      Needs P1.1.
 - [ ] **P1.7 — Diminishing returns.** Repeated actions yield less over the
       course of a day and reset at a fixed point — the README's alternative to
       hard energy caps. Local implementation first; the server re-verifies it in

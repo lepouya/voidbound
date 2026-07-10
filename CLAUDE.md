@@ -280,22 +280,25 @@ timestamps) live Rust-side, never in TS, because the client can be tampered
 with. The client renders what commands return and asks for actions:
 
 - `load_game_state` — identity + resource counts (production lazily accrued on
-  read, summed per settled module level) + mothership placements + every module
-  (`ModuleData`, Command Module included — level, and a `pending` build/upgrade
-  timer if one is running) + the active-vessel event list + the notification
-  feed (the snapshot half of SERVER.md's snapshot + replay). Fetched once during
-  the loader phase (`GameStateResource`); after that the client never polls —
-  server-side changes arrive over the push channel below. The map/ship scenes
-  hardcode no world content: `MapLevel.syncMotherships()`/`syncVessels()` and
+  read, summed per settled module level) + mothership placements + the asteroid
+  field (`AsteroidData` — tier, resource class, remaining deposit, active mining
+  job; mined-out asteroids leave the list) + every module (`ModuleData`, Command
+  Module included — level, and a `pending` build/upgrade timer if one is
+  running) + the active-vessel event list + the notification feed (the snapshot
+  half of SERVER.md's snapshot + replay). Fetched once during the loader phase
+  (`GameStateResource`); after that the client never polls — server-side changes
+  arrive over the push channel below. The map/ship scenes hardcode no world
+  content: `MapLevel.syncMotherships()`/`syncAsteroids()`/`syncVessels()` and
   `ShipLevel.syncModules()` reconcile actors from the snapshot, so server-side
   changes (a moved mothership, a new player, a module leveling up) reach the
   client through the same path.
 - **Push channel** (`server-push` Tauri event; ROADMAP P1.5) — the backend tells
   the client when state changes, the in-process prototype of P3.1's WebSocket
   bus: a scheduler thread (`run_scheduler` in game_state.rs) sleeps until the
-  next deadline — production tick, build `completesAt`, vessel `arrivalAt` —
-  settles state, and emits `ServerPush` messages (`resources`, `module`,
-  `vesselRemoved`, `notification`); a Condvar wakes it early when a command
+  next deadline — production tick, build `completesAt`, vessel `arrivalAt`,
+  mining `completesAt` — settles state, and emits `ServerPush` messages
+  (`resources`, `module`, `vesselRemoved`, `vessel`, `asteroid`,
+  `asteroidRemoved`, `notification`); a Condvar wakes it early when a command
   creates a nearer deadline (e.g. a short vessel flight). Mutations queue pushes
   into a `ServerState` outbox and the boundaries (scheduler wake, command return
   via `finish_command`) drain + emit, so every settlement path broadcasts
@@ -321,17 +324,31 @@ with. The client renders what commands return and asks for actions:
   `request_recall_vessel(vessel_id)` — verify the move, derive dock, speed, and
   arrival time (recalls depart from the server-lerped current position), record
   it in the vessel table, and return the authorized `VesselMoveEvent`. Vessels
-  that finish a return onto a dock tile are pruned lazily, like production.
+  that finish a return onto a dock tile are pruned lazily, like production —
+  depositing any mining cargo they carry into the resource counts.
+- `request_mine_asteroid(asteroid_id)` — the mining loop (ROADMAP P1.6):
+  verifies the asteroid's single mining slot is free, reserves it at dispatch
+  (two vessels can't race for one deposit), sends a vessel to the footprint tile
+  nearest the dock, and derives the extraction window (remaining deposit /
+  `MINE_UNITS_PER_HOUR`, starting on arrival). At mine-out the scheduler
+  auto-recalls the miner with the full harvest as `cargo` on a pushed `vessel`
+  event; `request_recall_vessel` earlier harvests proportionally to extraction
+  time (mid-outbound recalls just free the slot). Asteroid changes reach the
+  client as `asteroid`/`asteroidRemoved` pushes into `gameState.asteroids`,
+  reconciled by `MapLevel.syncAsteroids()`.
 
 Gameplay constants (production tick, the module catalog's per-type cost/build
-time/production, room grid, map geometry, vessel speed) live in game_state.rs;
-the ones the UI renders have display-only TS mirrors — comments mark each pair;
-keep them in sync. The module catalog's cost/build-time/production all scale per
-level through one shared doubling-per-level stub
-(`scale_for_level`/`scaleForLevel`) — real balancing is a later pass. Mothership
-placement is data, not a constant: it is seeded in `ServerState::new` and
-reaches the client only via the snapshot. The game-rule logic is covered by the
-Rust tests (part of `deno task test`).
+time/production, the asteroid tier catalog + mine rate, room grid, map geometry,
+vessel speed) live in game_state.rs; the ones the UI renders have display-only
+TS mirrors — comments mark each pair; keep them in sync (the asteroid mirror is
+`src/asteroid-catalog.ts`: tier bands, class names, sprite tints, duration
+estimates). The module catalog's cost/build-time/production all scale per level
+through one shared doubling-per-level stub (`scale_for_level`/`scaleForLevel`) —
+real balancing is a later pass, as is the asteroid deposit/rate balance.
+Mothership placement is data, not a constant: it is seeded in `ServerState::new`
+and reaches the client only via the snapshot — the asteroid field seeds the same
+way (deterministic `seed_asteroids`). The game-rule logic is covered by the Rust
+tests (part of `deno task test`).
 
 Tauri commands return `Result<T, String>` — propagate errors as strings, don't
 `unwrap`/panic in command handlers.

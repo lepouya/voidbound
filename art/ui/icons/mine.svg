@@ -1,0 +1,27 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <g
+    stroke="#COLOR2"
+    stroke-width="3"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  >
+    <!-- Pickaxe head: an arc swinging over the handle -->
+    <path
+      d="M14 26 Q32 10 50 26 Q42 18 33 17 Q23 18 14 26 Z"
+      fill="#COLOR1"
+    />
+    <!-- Handle, diagonal under the head -->
+    <path
+      d="M31 19 L27 23 L44 50 L49 46 Z"
+      fill="#COLOR1"
+    />
+    <!-- Ore chips -->
+    <path d="M16 46 L20 42 L24 46 L20 50 Z" fill="#COLOR1" />
+    <path d="M26 52 L29 49 L32 52 L29 55 Z" fill="#COLOR1" />
+  </g>
+</svg>

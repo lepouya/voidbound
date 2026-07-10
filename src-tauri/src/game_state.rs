@@ -11,16 +11,28 @@ pub struct PlayerIdentity {
     pub name: String,
 }
 
-/// One of the four material resources a module can produce or a build can
-/// cost. Excludes `credits`, which is trade-only and never produced by a
-/// module. Mirrors the material subset of the TS `ResourceKind` in
-/// `src/game-state.ts` — keep the two in sync.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+/// One of the four material resources a module can produce, a build can
+/// cost, or an asteroid can yield. Excludes `credits`, which is trade-only
+/// and never produced by a module. Serializes to the TS `ResourceKind` key
+/// strings ("construction", "highTech", ...) in `src/game-state.ts` — keep
+/// the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
 pub enum ResourceKind {
     Construction,
     HighTech,
     Biological,
     Fuel,
+}
+
+/// Player-facing name of a resource for server-composed notification text.
+fn resource_display_name(kind: ResourceKind) -> &'static str {
+    match kind {
+        ResourceKind::Construction => "construction material",
+        ResourceKind::HighTech => "high-tech material",
+        ResourceKind::Biological => "biological material",
+        ResourceKind::Fuel => "fuel",
+    }
 }
 
 /// The player's stock of the four material resources plus the generic trade
@@ -244,6 +256,15 @@ pub enum ServerPush {
     /// A vessel finished a return onto a dock tile and despawned.
     #[serde(rename_all = "camelCase")]
     VesselRemoved { vessel_id: String },
+    /// A server-initiated vessel move — today the auto-return when mining
+    /// completes; phase 3 adds other players' moves.
+    Vessel(VesselMoveEventData),
+    /// An asteroid changed server-side (mining started/stopped, deposit
+    /// reduced by a harvest).
+    Asteroid(AsteroidData),
+    /// An asteroid was mined out and left the map.
+    #[serde(rename_all = "camelCase")]
+    AsteroidRemoved { asteroid_id: String },
     /// A new entry for the player's event feed.
     Notification(NotificationData),
 }
@@ -264,6 +285,10 @@ pub struct GameStateData {
     /// before it connected (or while it was in another scene) land at their
     /// correct in-progress position.
     pub vessels: Vec<VesselMoveEventData>,
+    /// Every asteroid still holding resources (ROADMAP P1.6) — placement and
+    /// deposits are server-owned; MapLevel builds its asteroid actors from
+    /// this list, and depleted asteroids simply leave it.
+    pub asteroids: Vec<AsteroidData>,
     /// Every module in the ship, built or under construction, including the
     /// Command Module — placement and level are server-owned, so ShipLevel
     /// builds its actors from this list with no hardcoded layout.
@@ -395,6 +420,229 @@ fn is_dock_tile(ship: &MothershipData, col: i64, row: i64) -> bool {
     on_axis(col, ship.col) && on_axis(row, ship.row)
 }
 
+// -- Asteroids (ROADMAP P1.6) ------------------------------------------------
+
+/// Mining extraction rate in resource units per hour, shared by every tier —
+/// tiers differ only in how much an asteroid holds, so a full mine-out takes
+/// amount / rate (small 15–60 min, medium 1–4 h, large 4–12 h). A stub like
+/// `scale_for_level` until real balancing lands. Mirrored display-only in
+/// `src/asteroid-catalog.ts` — keep the two in sync.
+const MINE_UNITS_PER_HOUR: u64 = 240;
+const HOUR_MS: u64 = 3_600_000;
+
+/// How long mining the given amount takes at MINE_UNITS_PER_HOUR.
+fn mine_duration_ms(amount: u64) -> u64 {
+    amount.saturating_mul(HOUR_MS) / MINE_UNITS_PER_HOUR
+}
+
+/// How much a miner extracts in the given time at MINE_UNITS_PER_HOUR.
+fn mined_amount(elapsed_ms: u64) -> u64 {
+    elapsed_ms.saturating_mul(MINE_UNITS_PER_HOUR) / HOUR_MS
+}
+
+/// One asteroid size tier (README § Design principles): footprint, how much
+/// resource it can hold, and how many the starter field seeds. Mirrors the
+/// TS `ASTEROID_TIERS` in `src/asteroid-catalog.ts` — keep the two in sync.
+pub struct AsteroidTierEntry {
+    /// Wire key — the `tier` string on `AsteroidData`.
+    pub tier: &'static str,
+    /// Footprint size in tiles (span*span).
+    pub span: i64,
+    /// Inclusive resource-amount band; with MINE_UNITS_PER_HOUR this bounds
+    /// the full-mine duration per tier.
+    pub min_amount: u64,
+    pub max_amount: u64,
+    /// How many of this tier ServerState::new seeds — the rarity knob
+    /// (small common, medium uncommon, large rare).
+    pub seed_count: usize,
+    /// Simultaneous mining slots. 1 everywhere today; the large tier may
+    /// allow more later (README revisit note), so verification reads this
+    /// instead of hardcoding the single-slot rule.
+    pub max_miners: usize,
+}
+
+pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
+    AsteroidTierEntry {
+        tier: "small",
+        span: 1,
+        min_amount: 60,
+        max_amount: 240,
+        seed_count: 24,
+        max_miners: 1,
+    },
+    AsteroidTierEntry {
+        tier: "medium",
+        span: 2,
+        min_amount: 240,
+        max_amount: 960,
+        seed_count: 9,
+        max_miners: 1,
+    },
+    AsteroidTierEntry {
+        tier: "large",
+        span: 3,
+        min_amount: 960,
+        max_amount: 2880,
+        seed_count: 3,
+        max_miners: 1,
+    },
+];
+
+fn asteroid_tier(tier: &str) -> Option<&'static AsteroidTierEntry> {
+    ASTEROID_TIERS.iter().find(|t| t.tier == tier)
+}
+
+/// An active mining job on an asteroid — which vessel, and the extraction
+/// window. At most one per asteroid today (single-slot rule); if large
+/// asteroids gain multiple miners later this becomes a list, with one window
+/// per miner. Mirrors the TS `AsteroidMining` in `src/game-state.ts` — keep
+/// the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AsteroidMining {
+    pub vessel_id: String,
+    /// Epoch ms when extraction starts — the miner's outbound arrival. The
+    /// slot is reserved from dispatch, so this can be in the future.
+    pub started_at: u64,
+    /// Epoch ms when the remaining deposit is fully mined out; the scheduler
+    /// auto-recalls the miner then.
+    pub completes_at: u64,
+}
+
+/// A minable asteroid on the space map (ROADMAP P1.6). Like motherships,
+/// placement is server-owned data seeded in ServerState::new and rendered
+/// from the snapshot — but asteroids are mutable: mining depletes
+/// `remaining`, and a mined-out asteroid leaves the table (AsteroidRemoved
+/// push). Following the ModuleData pattern, the struct doubles as its own
+/// event payload: an Asteroid push carries the full current snapshot.
+/// Mirrors the TS `AsteroidData` in `src/game-state.ts` — keep the two in
+/// sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AsteroidData {
+    pub asteroid_id: String,
+    /// Size tier, an ASTEROID_TIERS key: "small" | "medium" | "large".
+    pub tier: String,
+    /// The one resource this asteroid yields. Single-resource by design for
+    /// now; if large asteroids gain mixed deposits later this becomes a list.
+    pub resource: ResourceKind,
+    /// Anchor (top-left) tile of the footprint.
+    pub col: i64,
+    pub row: i64,
+    /// Footprint size in tiles (span*span).
+    pub span: i64,
+    /// Units originally seeded — lets the client show depletion progress.
+    pub total: u64,
+    /// Units still minable. Settled at mining boundaries (recall/completion),
+    /// not per-tick: mid-mine progress is implicit in `mining.started_at` +
+    /// MINE_UNITS_PER_HOUR, like vessel positions are implicit in event
+    /// timestamps.
+    pub remaining: u64,
+    /// The active mining job, if any — present from dispatch (the slot is
+    /// reserved so two vessels can't race for it) until recall/completion.
+    pub mining: Option<AsteroidMining>,
+}
+
+/// Tiny deterministic PRNG (xorshift64) for world seeding — the starter
+/// field must be reproducible run-to-run until persistence (P2) stores the
+/// world, and a rand dependency isn't worth it for this.
+struct SeedRng(u64);
+
+impl SeedRng {
+    fn next(&mut self) -> u64 {
+        let mut x = self.0;
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        self.0 = x;
+        x
+    }
+
+    /// Roughly uniform value in [lo, hi] (inclusive). Fine for seeding.
+    fn range(&mut self, lo: u64, hi: u64) -> u64 {
+        lo + self.next() % (hi - lo + 1)
+    }
+}
+
+/// True when the two footprints are separated by at least `gap` empty tiles
+/// on some axis.
+fn footprints_clear(
+    (a_col, a_row, a_span): (i64, i64, i64),
+    (b_col, b_row, b_span): (i64, i64, i64),
+    gap: i64,
+) -> bool {
+    a_col + a_span + gap <= b_col
+        || b_col + b_span + gap <= a_col
+        || a_row + a_span + gap <= b_row
+        || b_row + b_span + gap <= a_row
+}
+
+/// Scatter the starter asteroid field (ROADMAP P1.6): ASTEROID_TIERS
+/// seed_counts of each tier, rejection-sampled to keep clear of motherships
+/// and each other, with a deterministic RNG so every run gets the same field
+/// until persistence (P2) stores the world. Resource kinds are weighted so
+/// high-tech shows up least ("rare asteroids", README § Design principles).
+fn seed_asteroids(motherships: &HashMap<String, MothershipData>) -> HashMap<String, AsteroidData> {
+    /// Tiles kept empty around every mothership (deploy/dock space).
+    const MOTHERSHIP_CLEARANCE: i64 = 6;
+    /// Tiles kept empty between asteroids.
+    const ASTEROID_CLEARANCE: i64 = 2;
+    // Rocky (construction) commonest, metallic (high-tech) rarest — README's
+    // asteroid classes; display names live in src/asteroid-catalog.ts.
+    const RESOURCE_WEIGHTS: [ResourceKind; 8] = [
+        ResourceKind::Construction,
+        ResourceKind::Construction,
+        ResourceKind::Construction,
+        ResourceKind::Biological,
+        ResourceKind::Biological,
+        ResourceKind::Fuel,
+        ResourceKind::Fuel,
+        ResourceKind::HighTech,
+    ];
+    let mut rng = SeedRng(0x9E37_79B9_7F4A_7C15);
+    let mut asteroids: HashMap<String, AsteroidData> = HashMap::new();
+    let mut seq = 0;
+    for tier in ASTEROID_TIERS {
+        'placement: for _ in 0..tier.seed_count {
+            // Rejection-sample a clear spot; a crowded map just places fewer.
+            for _attempt in 0..200 {
+                let col = rng.range(0, (MAP_COLS - tier.span) as u64) as i64;
+                let row = rng.range(0, (MAP_ROWS - tier.span) as u64) as i64;
+                let spot = (col, row, tier.span);
+                let blocked = motherships
+                    .values()
+                    .any(|m| !footprints_clear(spot, (m.col, m.row, m.span), MOTHERSHIP_CLEARANCE))
+                    || asteroids.values().any(|a| {
+                        !footprints_clear(spot, (a.col, a.row, a.span), ASTEROID_CLEARANCE)
+                    });
+                if blocked {
+                    continue;
+                }
+                seq += 1;
+                // Snap to a friendly multiple of 10 within the tier band.
+                let amount = rng.range(tier.min_amount, tier.max_amount) / 10 * 10;
+                let amount = amount.max(tier.min_amount);
+                asteroids.insert(
+                    format!("asteroid-{seq}"),
+                    AsteroidData {
+                        asteroid_id: format!("asteroid-{seq}"),
+                        tier: tier.tier.to_string(),
+                        resource: RESOURCE_WEIGHTS[(rng.next() % 8) as usize],
+                        col,
+                        row,
+                        span: tier.span,
+                        total: amount,
+                        remaining: amount,
+                        mining: None,
+                    },
+                );
+                continue 'placement;
+            }
+        }
+    }
+    asteroids
+}
+
 /// Straight-line travel time between two tile positions at the given speed.
 fn travel_time_ms(
     src_col: f64,
@@ -405,6 +653,16 @@ fn travel_time_ms(
 ) -> u64 {
     let dist_px = ((dest_col - src_col) * MAP_TILE_PX).hypot((dest_row - src_row) * MAP_TILE_PX);
     (dist_px / speed_px_s * 1000.0).round() as u64
+}
+
+/// Harvested resources riding home on a vessel's return leg — deposited into
+/// the player's counts when the vessel docks. Mirrors the TS `VesselCargo`
+/// in `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct VesselCargo {
+    pub resource: ResourceKind,
+    pub amount: u64,
 }
 
 /// A vessel movement authorized by the backend — dispatches, recalls, and
@@ -427,6 +685,12 @@ pub struct VesselMoveEventData {
     pub speed: f64,
     pub dispatched_at: u64,
     pub arrival_at: u64,
+    /// Asteroid this vessel is assigned to mine (ROADMAP P1.6) — present on
+    /// the outbound leg and while extracting; cleared on the return leg.
+    pub mining_asteroid_id: Option<String>,
+    /// Harvested resources riding home on a return leg; deposited when the
+    /// vessel docks.
+    pub cargo: Option<VesselCargo>,
 }
 
 /// Progress of a vessel's move at `now_ms`, clamped to [0, 1].
@@ -462,6 +726,10 @@ pub struct ServerState {
     vessels: HashMap<String, VesselMoveEventData>,
     /// Monotonic sequence mixed into vessel ids for uniqueness.
     next_vessel_seq: u64,
+    /// Every asteroid still holding resources, keyed by asteroid id — the
+    /// single source of truth for the field (the client renders the
+    /// snapshot). Mined-out asteroids are removed outright.
+    asteroids: HashMap<String, AsteroidData>,
     /// Vessels whose current move's arrival has already produced its feed
     /// notification — parked vessels stay in the table, so without this every
     /// settle pass would re-announce them. An id leaves the set when its
@@ -534,6 +802,9 @@ impl ServerState {
                 },
             ),
         ]);
+        // Placeholder starter asteroid field, seeded around the motherships.
+        // Persistence (P2) / the real server (P3) will load this instead.
+        let asteroids = seed_asteroids(&motherships);
         Self {
             resources: ResourceCounts {
                 construction: 0,
@@ -548,6 +819,7 @@ impl ServerState {
             motherships,
             vessels: HashMap::new(),
             next_vessel_seq: 0,
+            asteroids,
             notified_arrivals: HashSet::new(),
             notifications: Vec::new(),
             next_notification_seq: 0,
@@ -833,9 +1105,11 @@ impl ServerState {
     /// finished a move onto a docking tile of its own mothership additionally
     /// despawns (mirroring the arrival handling in applyVesselMoveEvent,
     /// src/map-level.ts) with a VesselRemoved push so clients drop it from
-    /// their tables. Vessels parked at any other destination persist until
-    /// recalled. Runs lazily on read/mutation plus eagerly from the scheduler
-    /// thread, like production accrual.
+    /// their tables — depositing any cargo it carried into the resource
+    /// counts (ROADMAP P1.6: the mining loop's payoff). Vessels parked at any
+    /// other destination persist until recalled. Runs lazily on
+    /// read/mutation plus eagerly from the scheduler thread, like production
+    /// accrual.
     fn settle_vessel_arrivals(&mut self, now_ms: u64) {
         let arrived: Vec<VesselMoveEventData> = self
             .vessels
@@ -851,24 +1125,42 @@ impl ServerState {
             if docked {
                 self.vessels.remove(&vessel.vessel_id);
                 self.notified_arrivals.remove(&vessel.vessel_id);
-                self.push_notification(
-                    "vessel-returned",
-                    "Vessel returned to the mothership".to_string(),
-                    now_ms,
-                );
+                let message = match &vessel.cargo {
+                    Some(cargo) => {
+                        self.resources.add(cargo.resource, cargo.amount);
+                        self.resources_dirty = true;
+                        format!(
+                            "Vessel returned with {} {}",
+                            cargo.amount,
+                            resource_display_name(cargo.resource)
+                        )
+                    }
+                    None => "Vessel returned to the mothership".to_string(),
+                };
+                self.push_notification("vessel-returned", message, now_ms);
                 self.outbox.push(ServerPush::VesselRemoved {
                     vessel_id: vessel.vessel_id,
                 });
             } else {
                 self.notified_arrivals.insert(vessel.vessel_id.clone());
-                self.push_notification(
-                    "vessel-arrived",
-                    format!(
-                        "Vessel arrived at ({}, {})",
-                        vessel.dest_col, vessel.dest_row
-                    ),
-                    now_ms,
-                );
+                let (kind, message) = if vessel.mining_asteroid_id.is_some() {
+                    (
+                        "mining-started",
+                        format!(
+                            "Vessel started mining at ({}, {})",
+                            vessel.dest_col, vessel.dest_row
+                        ),
+                    )
+                } else {
+                    (
+                        "vessel-arrived",
+                        format!(
+                            "Vessel arrived at ({}, {})",
+                            vessel.dest_col, vessel.dest_row
+                        ),
+                    )
+                };
+                self.push_notification(kind, message, now_ms);
             }
         }
     }
@@ -916,43 +1208,218 @@ impl ServerState {
                     dest_row as f64,
                     VESSEL_SPEED_PX_S,
                 ),
+            mining_asteroid_id: None,
+            cargo: None,
         };
         self.vessels.insert(event.vessel_id.clone(), event.clone());
         Ok(event)
     }
 
-    /// Verify and execute a recall: the vessel must exist and belong to the
-    /// requesting player. The return leg departs from the vessel's current
-    /// (lerped, possibly fractional) position toward the closest docking
-    /// tile; arriving there despawns it (see prune_docked_vessels).
-    fn recall_vessel(
+    /// Verify and execute a mining dispatch (ROADMAP P1.6): the asteroid must
+    /// exist (a mined-out one has already left the table) and have a free
+    /// mining slot. The slot is reserved immediately — an in-transit miner
+    /// counts as occupying it, so two vessels can't race for one deposit —
+    /// and the extraction window is derived here: it starts on arrival and
+    /// ends when the remaining deposit is exhausted (the scheduler
+    /// auto-recalls the miner then; an early player recall harvests
+    /// proportionally instead). The asteroid change goes out as a push; the
+    /// returned vessel event is authoritative like any dispatch.
+    fn mine_asteroid(
         &mut self,
-        vessel_id: &str,
+        asteroid_id: &str,
         now_ms: u64,
     ) -> Result<VesselMoveEventData, String> {
+        self.settle_mining(now_ms);
         self.settle_vessel_arrivals(now_ms);
-        let vessel = self
-            .vessels
-            .get(vessel_id)
-            .ok_or_else(|| format!("unknown vessel: {vessel_id:?}"))?;
-        if vessel.owner_id != player_identity().id {
-            return Err(format!("vessel {vessel_id:?} belongs to another player"));
+        let ship = self.player_mothership()?.clone();
+        let asteroid = self
+            .asteroids
+            .get(asteroid_id)
+            .ok_or_else(|| format!("unknown asteroid: {asteroid_id:?}"))?;
+        // Single-slot rule: `mining` holds at most one job today, so any job
+        // means the tier's max_miners (1 everywhere) is reached. When large
+        // asteroids allow more, this becomes a count-vs-max_miners check.
+        let max_miners = asteroid_tier(&asteroid.tier).map_or(1, |t| t.max_miners);
+        if asteroid.mining.iter().count() >= max_miners {
+            return Err(format!(
+                "asteroid {asteroid_id:?} already has a vessel mining it"
+            ));
         }
-        let ship = self
-            .motherships
-            .get(&vessel.mothership_id)
-            .ok_or_else(|| format!("vessel {vessel_id:?} has no mothership to return to"))?;
-        let t = move_progress(vessel, now_ms);
+        // Fly to the footprint tile closest to the departure dock.
+        let center_col = asteroid.col as f64 + asteroid.span as f64 / 2.0;
+        let center_row = asteroid.row as f64 + asteroid.span as f64 / 2.0;
+        let (src_col, src_row) = closest_dock_tile(&ship, center_col, center_row);
+        let dest_col = (src_col).clamp(asteroid.col, asteroid.col + asteroid.span - 1);
+        let dest_row = (src_row).clamp(asteroid.row, asteroid.row + asteroid.span - 1);
+        self.next_vessel_seq += 1;
+        let player = player_identity();
+        let event = VesselMoveEventData {
+            vessel_id: format!("vessel-{}-{}", now_ms, self.next_vessel_seq),
+            owner_id: player.id,
+            owner_name: player.name,
+            mothership_id: ship.mothership_id.clone(),
+            vessel_type: VESSEL_TYPE.to_string(),
+            src_col: src_col as f64,
+            src_row: src_row as f64,
+            dest_col,
+            dest_row,
+            speed: VESSEL_SPEED_PX_S,
+            dispatched_at: now_ms,
+            arrival_at: now_ms
+                + travel_time_ms(
+                    src_col as f64,
+                    src_row as f64,
+                    dest_col as f64,
+                    dest_row as f64,
+                    VESSEL_SPEED_PX_S,
+                ),
+            mining_asteroid_id: Some(asteroid_id.to_string()),
+            cargo: None,
+        };
+        let remaining = asteroid.remaining;
+        let asteroid = self
+            .asteroids
+            .get_mut(asteroid_id)
+            .expect("existence checked above");
+        asteroid.mining = Some(AsteroidMining {
+            vessel_id: event.vessel_id.clone(),
+            started_at: event.arrival_at,
+            completes_at: event.arrival_at + mine_duration_ms(remaining),
+        });
+        self.outbox.push(ServerPush::Asteroid(asteroid.clone()));
+        self.vessels.insert(event.vessel_id.clone(), event.clone());
+        Ok(event)
+    }
+
+    /// End the given vessel's mining job on an asteroid and harvest what it
+    /// extracted so far — the full remainder when the window ran to
+    /// completion, a time-proportional share on an early recall, nothing if
+    /// the vessel never arrived. Depletes the asteroid (removing it outright
+    /// at zero, with the AsteroidRemoved push and feed entry) and returns the
+    /// cargo to stamp on the vessel's return leg. No-op when the asteroid is
+    /// gone or the job belongs to a different vessel.
+    fn stop_mining(
+        &mut self,
+        asteroid_id: &str,
+        vessel_id: &str,
+        now_ms: u64,
+    ) -> Option<VesselCargo> {
+        let asteroid = self.asteroids.get_mut(asteroid_id)?;
+        match &asteroid.mining {
+            Some(mining) if mining.vessel_id == vessel_id => {}
+            _ => return None,
+        }
+        let mining = asteroid.mining.take().expect("matched above");
+        // A window that ran to completion harvests the whole remainder
+        // outright: deriving it from elapsed time floors (mined_amount), and
+        // whenever amount * HOUR_MS isn't divisible by the rate that would
+        // strand a husk asteroid holding the rounding remainder. Partial
+        // recalls floor deliberately — the remainder stays minable.
+        let harvested = if now_ms >= mining.completes_at {
+            asteroid.remaining
+        } else {
+            let elapsed = now_ms.saturating_sub(mining.started_at);
+            mined_amount(elapsed).min(asteroid.remaining)
+        };
+        asteroid.remaining -= harvested;
+        let resource = asteroid.resource;
+        if asteroid.remaining == 0 {
+            self.asteroids.remove(asteroid_id);
+            self.push_notification(
+                "asteroid-depleted",
+                "Asteroid mined out".to_string(),
+                now_ms,
+            );
+            self.outbox.push(ServerPush::AsteroidRemoved {
+                asteroid_id: asteroid_id.to_string(),
+            });
+        } else {
+            self.outbox.push(ServerPush::Asteroid(asteroid.clone()));
+        }
+        (harvested > 0).then_some(VesselCargo {
+            resource,
+            amount: harvested,
+        })
+    }
+
+    /// Auto-recall every miner whose extraction window has run out
+    /// (ROADMAP P1.6): harvest the full remainder, put the vessel on a
+    /// return leg stamped with the cargo, and let stop_mining remove the
+    /// now-empty asteroid. The leg is timestamped at the completion moment,
+    /// not the settle time, so a client that was away sees the vessel where
+    /// it really is — the same aged-event lerp recalls rely on. Runs lazily
+    /// on read/mutation plus eagerly from the scheduler thread.
+    fn settle_mining(&mut self, now_ms: u64) {
+        let due: Vec<(String, AsteroidMining)> = self
+            .asteroids
+            .values()
+            .filter_map(|a| {
+                a.mining
+                    .clone()
+                    .filter(|m| now_ms >= m.completes_at)
+                    .map(|m| (a.asteroid_id.clone(), m))
+            })
+            .collect();
+        for (asteroid_id, mining) in due {
+            // Announce before stop_mining so the feed reads completion →
+            // depletion. A full window always harvests exactly the remainder
+            // (the window length was derived from it).
+            if let Some(asteroid) = self.asteroids.get(&asteroid_id) {
+                self.push_notification(
+                    "mining-complete",
+                    format!(
+                        "Mining complete — vessel returning with {} {}",
+                        asteroid.remaining,
+                        resource_display_name(asteroid.resource)
+                    ),
+                    mining.completes_at,
+                );
+            }
+            let cargo = self.stop_mining(&asteroid_id, &mining.vessel_id, mining.completes_at);
+            let Some(vessel) = self.vessels.get_mut(&mining.vessel_id) else {
+                continue;
+            };
+            vessel.mining_asteroid_id = None;
+            vessel.cargo = cargo;
+            let vessel = vessel.clone();
+            // Send it home; if the mothership is somehow gone the vessel just
+            // stays parked with its cargo until a later recall succeeds.
+            let event = match self.return_leg(&vessel, mining.completes_at) {
+                Ok(event) => event,
+                Err(_) => vessel,
+            };
+            self.notified_arrivals.remove(&event.vessel_id);
+            self.vessels.insert(event.vessel_id.clone(), event.clone());
+            self.outbox.push(ServerPush::Vessel(event));
+        }
+    }
+
+    /// The return-home leg for a vessel at `at_ms`, departing from its lerped
+    /// current position toward the closest docking tile — shared by player
+    /// recalls and the mining auto-return. Pure derivation: recording the
+    /// event and notification bookkeeping stay with the caller.
+    fn return_leg(
+        &self,
+        vessel: &VesselMoveEventData,
+        at_ms: u64,
+    ) -> Result<VesselMoveEventData, String> {
+        let ship = self.motherships.get(&vessel.mothership_id).ok_or_else(|| {
+            format!(
+                "vessel {:?} has no mothership to return to",
+                vessel.vessel_id
+            )
+        })?;
+        let t = move_progress(vessel, at_ms);
         let src_col = vessel.src_col + (vessel.dest_col as f64 - vessel.src_col) * t;
         let src_row = vessel.src_row + (vessel.dest_row as f64 - vessel.src_row) * t;
         let (dock_col, dock_row) = closest_dock_tile(ship, src_col, src_row);
-        let event = VesselMoveEventData {
+        Ok(VesselMoveEventData {
             src_col,
             src_row,
             dest_col: dock_col,
             dest_row: dock_row,
-            dispatched_at: now_ms,
-            arrival_at: now_ms
+            dispatched_at: at_ms,
+            arrival_at: at_ms
                 + travel_time_ms(
                     src_col,
                     src_row,
@@ -960,8 +1427,41 @@ impl ServerState {
                     dock_row as f64,
                     vessel.speed,
                 ),
+            mining_asteroid_id: None,
             ..vessel.clone()
-        };
+        })
+    }
+
+    /// Verify and execute a recall: the vessel must exist and belong to the
+    /// requesting player. The return leg departs from the vessel's current
+    /// (lerped, possibly fractional) position toward the closest docking
+    /// tile; arriving there despawns it (see settle_vessel_arrivals). A
+    /// vessel recalled off a mining job harvests proportionally to the time
+    /// it spent extracting (ROADMAP P1.6) — the partial cargo rides the
+    /// return leg; recalling before it ever reached the asteroid just frees
+    /// the slot.
+    fn recall_vessel(
+        &mut self,
+        vessel_id: &str,
+        now_ms: u64,
+    ) -> Result<VesselMoveEventData, String> {
+        // A job whose window already ran out is settled first — its full
+        // harvest and auto-return happened at completes_at; the recall then
+        // legally redirects the return leg (cargo intact).
+        self.settle_mining(now_ms);
+        self.settle_vessel_arrivals(now_ms);
+        let vessel = self
+            .vessels
+            .get(vessel_id)
+            .ok_or_else(|| format!("unknown vessel: {vessel_id:?}"))?
+            .clone();
+        if vessel.owner_id != player_identity().id {
+            return Err(format!("vessel {vessel_id:?} belongs to another player"));
+        }
+        let mut event = self.return_leg(&vessel, now_ms)?;
+        if let Some(asteroid_id) = &vessel.mining_asteroid_id {
+            event.cargo = self.stop_mining(asteroid_id, vessel_id, now_ms);
+        }
         // The redirect puts the vessel back in flight: its next arrival is a
         // fresh event for the notification bookkeeping.
         self.notified_arrivals.remove(vessel_id);
@@ -987,20 +1487,33 @@ impl ServerState {
         vessels
     }
 
+    /// Every asteroid still holding resources, in stable id order — the
+    /// asteroid slice of the load_game_state snapshot.
+    fn asteroids_snapshot(&mut self, now_ms: u64) -> Vec<AsteroidData> {
+        self.settle_mining(now_ms);
+        let mut asteroids: Vec<_> = self.asteroids.values().cloned().collect();
+        asteroids.sort_by(|a, b| a.asteroid_id.cmp(&b.asteroid_id));
+        asteroids
+    }
+
     /// Settle everything due at now_ms — production ticks, module build
-    /// completions, vessel arrivals — queueing the corresponding pushes. The
-    /// scheduler thread's whole job; commands settle the same way piecemeal
-    /// through their own entry points.
+    /// completions, mining completions, vessel arrivals — queueing the
+    /// corresponding pushes. The scheduler thread's whole job; commands
+    /// settle the same way piecemeal through their own entry points. Mining
+    /// settles before arrivals so an auto-return created long ago can dock
+    /// (and deposit its cargo) in the same pass.
     fn settle(&mut self, now_ms: u64) {
         self.accrue_production(now_ms); // also settles modules
+        self.settle_mining(now_ms);
         self.settle_vessel_arrivals(now_ms);
     }
 
     /// Epoch ms of the next moment something comes due: the next production
-    /// tick, the earliest pending build/upgrade completion, or the earliest
-    /// un-notified vessel arrival. The scheduler sleeps until this — never
-    /// more than one production tick — or until a command wakes it early
-    /// because it created a nearer deadline.
+    /// tick, the earliest pending build/upgrade completion, the earliest
+    /// mining completion, or the earliest un-notified vessel arrival. The
+    /// scheduler sleeps until this — never more than one production tick —
+    /// or until a command wakes it early because it created a nearer
+    /// deadline.
     fn next_deadline(&self) -> u64 {
         let mut deadline = self.last_production_at + PRODUCTION_TICK_MS;
         for module in self.modules.values() {
@@ -1011,6 +1524,11 @@ impl ServerState {
         for vessel in self.vessels.values() {
             if !self.notified_arrivals.contains(&vessel.vessel_id) {
                 deadline = deadline.min(vessel.arrival_at);
+            }
+        }
+        for asteroid in self.asteroids.values() {
+            if let Some(mining) = &asteroid.mining {
+                deadline = deadline.min(mining.completes_at);
             }
         }
         deadline
@@ -1133,6 +1651,9 @@ pub(crate) fn load_game_state(
         player: player_identity(),
         resources: s.resources,
         motherships: s.motherships_snapshot(),
+        // Settles mining, so it must precede `vessels` (an auto-return
+        // belongs in the vessel slice) and `notifications`.
+        asteroids: s.asteroids_snapshot(now),
         // Settles vessels/modules, so `notifications` must be read after.
         vessels: s.active_vessels(now),
         modules: s.modules_snapshot(now),
@@ -1159,8 +1680,26 @@ pub(crate) fn request_dispatch_vessel(
     result
 }
 
+/// Request dispatch of a vessel from the player's mothership to mine the
+/// given asteroid (ROADMAP P1.6). The mining slot, destination tile, and
+/// extraction window are verified/derived here; the asteroid change goes out
+/// as a push and the returned vessel event is authoritative.
+#[tauri::command]
+pub(crate) fn request_mine_asteroid(
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
+    asteroid_id: String,
+) -> Result<VesselMoveEventData, String> {
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.mine_asteroid(&asteroid_id, now_ms());
+    finish_command(&app, server.inner(), s);
+    result
+}
+
 /// Request recall of an in-flight or parked vessel back to the mothership.
 /// The return leg departs from the vessel's server-computed current position.
+/// Recalling a mining vessel harvests proportionally to its extraction time;
+/// the partial cargo rides home on the returned event.
 #[tauri::command]
 pub(crate) fn request_recall_vessel(
     app: tauri::AppHandle,
@@ -1719,6 +2258,254 @@ mod tests {
         let returned = s.mark_notifications_read();
         assert!(returned.iter().all(|n| n.read));
         assert!(s.notifications.iter().all(|n| n.read));
+    }
+
+    /// A state with production silenced (no modules) and the seeded asteroid
+    /// field replaced by one known asteroid at (49, 60) — 10 tiles / 10 s
+    /// from the (49, 50) dock — so mining math is deterministic.
+    fn mining_state(amount: u64) -> ServerState {
+        let mut s = ServerState::new(0);
+        s.modules.clear();
+        s.asteroids.clear();
+        s.asteroids.insert(
+            "asteroid-x".to_string(),
+            AsteroidData {
+                asteroid_id: "asteroid-x".to_string(),
+                tier: "small".to_string(),
+                resource: ResourceKind::Biological,
+                col: 49,
+                row: 60,
+                span: 1,
+                total: amount,
+                remaining: amount,
+                mining: None,
+            },
+        );
+        s
+    }
+
+    #[test]
+    fn seeded_asteroid_field_is_deterministic_and_valid() {
+        let a = ServerState::new(0);
+        let b = ServerState::new(0);
+        let key = |s: &ServerState| {
+            let mut rows: Vec<_> = s
+                .asteroids
+                .values()
+                .map(|a| (a.asteroid_id.clone(), a.col, a.row, a.span, a.total))
+                .collect();
+            rows.sort();
+            rows
+        };
+        assert_eq!(key(&a), key(&b));
+
+        let expected: usize = ASTEROID_TIERS.iter().map(|t| t.seed_count).sum();
+        assert_eq!(a.asteroids.len(), expected);
+        for asteroid in a.asteroids.values() {
+            let tier = asteroid_tier(&asteroid.tier).expect("known tier");
+            assert_eq!(asteroid.span, tier.span);
+            assert!(asteroid.total >= tier.min_amount && asteroid.total <= tier.max_amount);
+            assert_eq!(asteroid.remaining, asteroid.total);
+            assert!(asteroid.mining.is_none());
+            assert!(asteroid.col >= 0 && asteroid.col + asteroid.span <= MAP_COLS);
+            assert!(asteroid.row >= 0 && asteroid.row + asteroid.span <= MAP_ROWS);
+            // Clear of every mothership (and its deploy space)...
+            for ship in a.motherships.values() {
+                assert!(footprints_clear(
+                    (asteroid.col, asteroid.row, asteroid.span),
+                    (ship.col, ship.row, ship.span),
+                    6,
+                ));
+            }
+            // ...and of every other asteroid.
+            for other in a.asteroids.values() {
+                if other.asteroid_id != asteroid.asteroid_id {
+                    assert!(footprints_clear(
+                        (asteroid.col, asteroid.row, asteroid.span),
+                        (other.col, other.row, other.span),
+                        2,
+                    ));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mine_dispatch_reserves_the_slot_and_derives_the_window() {
+        let mut s = mining_state(240);
+        let event = s.mine_asteroid("asteroid-x", 1_000).unwrap();
+        assert_eq!(event.mining_asteroid_id.as_deref(), Some("asteroid-x"));
+        assert!(event.cargo.is_none());
+        assert_eq!((event.src_col, event.src_row), (49.0, 50.0));
+        assert_eq!((event.dest_col, event.dest_row), (49, 60));
+        assert_eq!(event.arrival_at, 11_000);
+
+        // Extraction runs from arrival until the deposit is exhausted:
+        // 240 units at MINE_UNITS_PER_HOUR (240) is one hour.
+        let mining = s.asteroids["asteroid-x"].mining.clone().unwrap();
+        assert_eq!(mining.vessel_id, event.vessel_id);
+        assert_eq!(mining.started_at, 11_000);
+        assert_eq!(mining.completes_at, 11_000 + HOUR_MS);
+
+        // The slot is taken from dispatch, before arrival — a second miner
+        // can't race for it.
+        let err = s.mine_asteroid("asteroid-x", 2_000).unwrap_err();
+        assert!(err.contains("already has a vessel"), "{err}");
+        let err = s.mine_asteroid("asteroid-gone", 2_000).unwrap_err();
+        assert!(err.contains("unknown asteroid"), "{err}");
+    }
+
+    #[test]
+    fn completed_mining_auto_returns_the_full_harvest_and_deposits_on_dock() {
+        let mut s = mining_state(240);
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        s.drain_pushes();
+        // Arrival announces the start of extraction (in a long lazy jump
+        // straight past completes_at this stale news would be skipped).
+        s.settle(10_000);
+        let done = 10_000 + HOUR_MS;
+        s.settle(done);
+
+        // Mined out: the asteroid left the table with its removal push.
+        assert!(!s.asteroids.contains_key("asteroid-x"));
+        let pushes = s.drain_pushes();
+        assert!(pushes.iter().any(|p| matches!(
+            p,
+            ServerPush::AsteroidRemoved { asteroid_id } if asteroid_id == "asteroid-x"
+        )));
+        // The server put the vessel on a return leg (a push, not a command
+        // response) carrying the whole deposit, stamped at the completion
+        // moment rather than the settle time.
+        assert!(pushes
+            .iter()
+            .any(|p| matches!(p, ServerPush::Vessel(v) if v.vessel_id == out.vessel_id)));
+        let back = s.vessels[&out.vessel_id].clone();
+        assert_eq!(back.mining_asteroid_id, None);
+        assert_eq!(back.dispatched_at, done);
+        assert_eq!((back.src_col, back.src_row), (49.0, 60.0));
+        assert_eq!((back.dest_col, back.dest_row), (49, 50));
+        let cargo = back.cargo.clone().unwrap();
+        assert_eq!(cargo.resource, ResourceKind::Biological);
+        assert_eq!(cargo.amount, 240);
+
+        // Docking deposits the cargo into the resource counts.
+        s.settle(back.arrival_at);
+        assert_eq!(s.resources.biological, 240);
+        assert!(s.vessels.is_empty());
+        assert_eq!(
+            notification_kinds(&s),
+            vec![
+                "mining-started",
+                "mining-complete",
+                "asteroid-depleted",
+                "vessel-returned",
+            ]
+        );
+        assert!(s.notifications.last().unwrap().message.contains("240"));
+    }
+
+    #[test]
+    fn early_recall_harvests_proportionally_and_frees_the_slot() {
+        let mut s = mining_state(240);
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        // Recall halfway through the one-hour window (arrival was 10_000).
+        let back = s
+            .recall_vessel(&out.vessel_id, 10_000 + HOUR_MS / 2)
+            .unwrap();
+        let cargo = back.cargo.clone().unwrap();
+        assert_eq!(cargo.amount, 120);
+        assert_eq!(back.mining_asteroid_id, None);
+
+        // The un-mined half stays on the asteroid, slot free for the next
+        // vessel — whose window covers only what's left (half an hour).
+        let asteroid = &s.asteroids["asteroid-x"];
+        assert_eq!(asteroid.remaining, 120);
+        assert_eq!(asteroid.total, 240);
+        assert!(asteroid.mining.is_none());
+        let again = s.mine_asteroid("asteroid-x", 10_000 + HOUR_MS / 2).unwrap();
+        let mining = s.asteroids["asteroid-x"].mining.clone().unwrap();
+        assert_eq!(mining.vessel_id, again.vessel_id);
+        assert_eq!(mining.completes_at - mining.started_at, HOUR_MS / 2);
+    }
+
+    #[test]
+    fn recall_before_arrival_abandons_the_job_with_no_cargo() {
+        let mut s = mining_state(240);
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        // Turn back mid-outbound: nothing was extracted.
+        let back = s.recall_vessel(&out.vessel_id, 5_000).unwrap();
+        assert!(back.cargo.is_none());
+        assert_eq!(back.mining_asteroid_id, None);
+        let asteroid = &s.asteroids["asteroid-x"];
+        assert_eq!(asteroid.remaining, 240);
+        assert!(asteroid.mining.is_none());
+    }
+
+    #[test]
+    fn completion_harvests_the_whole_remainder_despite_rate_rounding() {
+        // Hand-shorten the window so mined_amount(window) floors below the
+        // remainder — as happens whenever amount * HOUR_MS isn't divisible
+        // by the rate. Completion must still take everything: otherwise a
+        // 1-unit husk asteroid survives every full mine-out.
+        let mut s = mining_state(470);
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        let asteroid = s.asteroids.get_mut("asteroid-x").unwrap();
+        let mining = asteroid.mining.as_mut().unwrap();
+        mining.completes_at -= 7;
+        let done = mining.completes_at;
+        assert!(mined_amount(done - mining.started_at) < 470);
+        s.settle(done);
+        assert!(!s.asteroids.contains_key("asteroid-x"));
+        assert_eq!(s.vessels[&out.vessel_id].cargo.clone().unwrap().amount, 470);
+    }
+
+    #[test]
+    fn recall_after_the_window_redirects_the_auto_return_with_cargo_intact() {
+        let mut s = mining_state(240);
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        // Recall long after mining finished: the auto-return already departed
+        // at completes_at (and by now already docked), so the recall finds no
+        // vessel left to redirect.
+        let done = 10_000 + HOUR_MS;
+        let err = s.recall_vessel(&out.vessel_id, done + 60_000).unwrap_err();
+        assert!(err.contains("unknown vessel"), "{err}");
+        // The full harvest still deposited through the settle chain.
+        assert_eq!(s.resources.biological, 240);
+
+        // A recall *during* the return leg is a legal redirect keeping the
+        // cargo: re-run with a recall one second after completion.
+        let mut s = mining_state(240);
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        let back = s.recall_vessel(&out.vessel_id, done + 1_000).unwrap();
+        assert_eq!(back.cargo.clone().unwrap().amount, 240);
+        assert_eq!(back.dispatched_at, done + 1_000);
+    }
+
+    #[test]
+    fn next_deadline_includes_mining_completion() {
+        // Anchor production at 10_000 (next tick 15_000) and hand-place a
+        // mining job completing sooner.
+        let mut s = ServerState::new(10_000);
+        s.asteroids.clear();
+        s.asteroids.insert(
+            "asteroid-x".to_string(),
+            AsteroidData {
+                asteroid_id: "asteroid-x".to_string(),
+                tier: "small".to_string(),
+                resource: ResourceKind::Fuel,
+                col: 49,
+                row: 60,
+                span: 1,
+                total: 60,
+                remaining: 60,
+                mining: Some(AsteroidMining {
+                    vessel_id: "vessel-m".to_string(),
+                    started_at: 11_000,
+                    completes_at: 12_000,
+                }),
+            },
+        );
+        assert_eq!(s.next_deadline(), 12_000);
     }
 
     #[test]
