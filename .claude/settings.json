@@ -5,6 +5,7 @@
       "WebSearch",
       "Skill(claude-api)",
       "Skill(claude-api:*)",
+      "Read(//private/tmp/**)",
       "Edit(/.claude/**)",
       "Edit(/.claude/skills/**)",
       "Bash(deno task:*)",
@@ -48,10 +49,10 @@
       "Bash(pkill:*)",
       "Bash(screencapture:*)",
       "Bash(swift:*)",
-      "Bash(python3 tools/*)",
       "Bash(art/gen_*.sh)",
       "Bash(./art/gen_*.sh)",
-      "Read(//private/tmp/**)"
+      "Bash(python3 tools/*)",
+      "Bash(tools/*)"
     ]
   }
 }
