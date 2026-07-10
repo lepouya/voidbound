@@ -141,15 +141,53 @@ Goal: a playable single-player loop, no persistence yet.
 - [ ] **P1.7 — Diminishing returns.** Repeated actions yield less over the
       course of a day and reset at a fixed point — the README's alternative to
       hard energy caps. Local implementation first; the server re-verifies it in
-      phase 3. Needs P1.6 (mining is the first action worth damping).
+      phase 3. Needs P1.6 (mining is the first action worth damping). **Deferred
+      (July 2026):** a daily damping curve can't be experienced or tuned while
+      every restart wipes state, and it would sit on top of numbers that are
+      still stubs (`scaleForLevel`, `MINE_UNITS_PER_HOUR`) — so this also needs
+      P2.1, and most naturally lands alongside the real balancing pass.
 - [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom should anchor at the
       pointer/pinch midpoint instead of the screen center. Pure `TiledScene`
-      input polish, independent of the rest of the phase. The anchor math is
-      the pure `anchoredZoomPos` (`src/camera-math.ts`, unit-tested); the
-      scene clamps the target zoom _before_ computing the compensating pan so
-      the camera never drifts while pinned at min/max zoom.
-- [ ] **P1.9 — Minimap.** Overview widget for the 100\*100 space map; becomes
-      necessary once P1.6 spreads play across the map. Needs P1.6.
+      input polish, independent of the rest of the phase. The anchor math is the
+      pure `anchoredZoomPos` (`src/camera-math.ts`, unit-tested); the scene
+      clamps the target zoom _before_ computing the compensating pan so the
+      camera never drifts while pinned at min/max zoom.
+- [ ] **P1.9 — Minimap + full-size space map.** Overview widget for the space
+      map; becomes necessary once P1.6 spreads play across the map. Lands
+      together with restoring the map's real size: the current 100\*100 map is a
+      deliberate 1% dev size that was waiting on exactly this task (plus P1.8)
+      to be navigable at the target **1000\*1000** — resize as part of this task
+      and verify both features at full size. Design (reviewed July 2026): -
+      **The space map stops being an `ex.TileMap`.** At 1000\*1000 the current
+      pipeline ships a million-string `tiles` vector over IPC and pre-allocates
+      a million Excalibur `Tile` objects. Instead `generate_map("map")` returns
+      geometry only (cols/rows/tile size, empty `tiles` — the `TileMapData` IPC
+      shape is unchanged), `TiledScene` is refactored so a scene provides grid
+      geometry with an _optional_ `ex.TileMap` (camera clamp/empty-tap/bounds
+      math reads the geometry, not the tilemap), and the space scene renders a
+      plain space-dark background. The placeholder test-tileset rects go away —
+      asteroids and motherships are the landmarks; a real starfield is later
+      `/gen-art` work. The ship scene keeps its real TileMap unchanged. -
+      **Mothership seeds recenter** (data in `ServerState::new`): player 4\*4 at
+      (498,498), enemy at (503,499) — same relative offset, center of the full
+      map. Rust tests asserting (48,48)/(53,49) update to match. - **Asteroid
+      seeding: home-region density, not map-wide scatter.** Same tier
+      `seed_count`s as today, but `seed_asteroids` rejection-samples within a
+      ~150-tile radius of the player start. Map-wide scatter would either leave
+      the nearest asteroid a ~10-minute vessel flight away (same counts) or
+      spawn thousands of TileActors (area-scaled counts). The empty outer map is
+      intentional until P4.2's difficulty rings populate it; deposit/rate
+      balancing stays stubbed. - **The minimap widget itself:** ~120px square
+      HUD element, bottom-left of the map scene, drawn with an `ex.Canvas`
+      graphic — mothership dots (own = green, others = red), asteroid dots in
+      their class tints from `src/asteroid-catalog.ts`, in-flight vessel dots
+      (white), and a live viewport rectangle. Tap-to-jump pans the camera to the
+      tapped world point. World→minimap projection math goes in a pure
+      `minimap-math.ts` with unit tests (the hud-layout pattern); dot updates
+      ride the existing `gameState.subscribe` path, the viewport rect refreshes
+      per frame.
+
+      Needs P1.6, P1.8.
 - [ ] **P1.10 — Crew Quarters + crew capacity.** Ship-wide crew capacity stat,
       scaled by module level; production and functional penalties apply when
       crew is short relative to ship size and active modules. Needs P1.4.
