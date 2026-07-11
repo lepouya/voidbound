@@ -94,6 +94,35 @@ progress, not fast-forwarded frame by frame.
   save file is a snapshot, and the versioned format maps forward to the
   server-side snapshot schema.
 
+## Interest management (AOI)
+
+A client never holds the whole world. The server keeps an **interest-area
+window** per connection — today one in-process client, the `MapWindow` in
+`ServerState::aoi` (`src-tauri/src/game_state.rs`), a 100\*100-tile square — and
+filters both snapshot slices and entity pushes to it (ROADMAP P1.13):
+
+- **Snapshots are windowed.** `load_game_state` (window re-centered on the
+  player's mothership) and the `request_map_window` response return only
+  in-window asteroids and foreign ships/vessels. Everything the player **owns is
+  always sent** regardless of window — a mining vessel must keep existing beyond
+  the edge; alliance entities join the exemption in P4.
+- **Re-centering is client-driven, with hysteresis.** The client re-requests
+  once its camera drifts more than a few tiles from the window center (never per
+  frame) and replaces its world tables wholesale with the response, unloading
+  everything that left the window. The response is authoritative for everything
+  inside it — stale mining slots and deposits resolve on window re-entry, and no
+  push is owed for out-of-window history.
+- **Pushes are filtered at the drain boundary.** Entity pushes are tagged with a
+  world footprint at queue time and dropped at outbox drain when they don't
+  intersect the subscriber's window; own-entity and global pushes (resources,
+  modules, notifications) carry no footprint and always go out. This is exactly
+  the shape P3.1's per-connection subscriptions need: the drain loop gains a
+  per-socket window instead of a single field.
+- **The visible view stays strictly smaller than the window.** The client caps
+  its zoom so the view never spans more tiles than the window minus the
+  hysteresis margin — unloaded space can never scroll into sight. P4.3's fog of
+  war is this same window shrunk to a radar radius.
+
 ## What this implies for new event interfaces
 
 When writing a new `*Event` via `/add-game-event`, assume:

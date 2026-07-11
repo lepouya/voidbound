@@ -246,12 +246,44 @@ export interface ModuleData {
 }
 
 /**
+ * The client's interest-area window (ROADMAP P1.13): the span*span-tile
+ * region, centered on (centerCol, centerRow), inside which the backend
+ * streams world entities. Snapshots and entity pushes are filtered to it
+ * server-side (everything the player owns is exempt); MapLevel re-centers it
+ * via request_map_window as the camera pans. Mirrors the Rust `MapWindow` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface MapWindow {
+  centerCol: number;
+  centerRow: number;
+  /** Window edge length in tiles (the server's AOI_SPAN). */
+  span: number;
+}
+
+/**
+ * Wire shape of the `request_map_window` Tauri command response (ROADMAP
+ * P1.13): the re-centered window plus every world entity the client should
+ * now hold — applyMapWindow replaces the mothership/asteroid/vessel tables
+ * wholesale with these slices. Mirrors the Rust `MapWindowData` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface MapWindowData {
+  window: MapWindow;
+  motherships: MothershipData[];
+  asteroids: AsteroidData[];
+  vessels: VesselMoveEvent[];
+}
+
+/**
  * Wire shape of the `load_game_state` Tauri command. Mirrors the Rust
  * `GameStateData` in src-tauri/src/lib.rs — keep the two in sync.
  */
 export interface GameStateData {
   player: PlayerIdentity;
   resources: ResourceCounts;
+  /** The interest-area window the world slices below were filtered to
+   *  (ROADMAP P1.13) — centered on the player's mothership at load. */
+  mapWindow: MapWindow;
   /** Every mothership on the space map — placement is server-owned; the
    *  client builds its map actors from this list. */
   motherships: MothershipData[];
@@ -374,6 +406,14 @@ export class GameState {
    */
   notifications = new Map<string, NotificationData>();
 
+  /**
+   * The interest-area window the world tables above are filtered to, as last
+   * reported by the backend (ROADMAP P1.13) — null until the first snapshot
+   * lands. MapLevel's hysteresis check reads it to decide when the camera
+   * has drifted far enough to re-center via request_map_window.
+   */
+  mapWindow: MapWindow | null = null;
+
   private listeners = new Set<GameStateListener>();
 
   /**
@@ -451,6 +491,25 @@ export class GameState {
   applyAsteroidEvent(asteroid: AsteroidData): void {
     this.update((s) => {
       s.asteroids.set(asteroid.asteroidId, asteroid);
+    });
+  }
+
+  /**
+   * Replace the world tables with a re-centered interest-area response
+   * (ROADMAP P1.13), notifying subscribers. Wholesale replacement is the
+   * point: entities that left the window unload (the scene reconcilers
+   * despawn their actors), everything inside it is authoritative — stale
+   * mining slots and deposits resolve on window re-entry. Modules,
+   * resources, and notifications are untouched: they stay global.
+   */
+  applyMapWindow(data: MapWindowData): void {
+    this.update((s) => {
+      s.mapWindow = data.window;
+      s.motherships = new Map(
+        data.motherships.map((m) => [m.mothershipId, m]),
+      );
+      s.asteroids = new Map(data.asteroids.map((a) => [a.asteroidId, a]));
+      s.vessels = new Map(data.vessels.map((e) => [e.vesselId, e]));
     });
   }
 
@@ -532,6 +591,7 @@ export class GameState {
       s.notifications = new Map(
         data.notifications.map((n) => [n.notificationId, n]),
       );
+      s.mapWindow = data.mapWindow;
       s.loaded = true;
     });
   }

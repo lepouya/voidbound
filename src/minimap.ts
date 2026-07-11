@@ -14,10 +14,13 @@ import { HUD_BASE_Z, HudPointerTarget } from "./ui/index.ts";
 
 /**
  * The space-map overview widget (ROADMAP P1.9): a square screen-fixed canvas
- * in the bottom-left showing every mothership (own = green, others = red),
- * asteroid (its class tint), and in-flight vessel (white) as dots, plus the
- * camera's visible-world rectangle. Tapping it pans the camera to the tapped
- * world point.
+ * in the bottom-left showing every loaded mothership (own = green, others =
+ * red), asteroid (its class tint), and in-flight vessel (white) as dots,
+ * plus the camera's visible-world rectangle. "Loaded" is the interest-area
+ * window plus the player's own entities (ROADMAP P1.13) — the gameState
+ * tables are the filter. Tapping pans the camera to the tapped world point;
+ * jumping into an unloaded region is legal and triggers the window
+ * re-request via the scene's hysteresis check.
  *
  * The canvas redraws every frame (cache: false): the viewport rectangle
  * moves with every pan/zoom frame anyway, dots read the live gameState
@@ -43,10 +46,11 @@ const VIEWPORT = "#ffffff";
 const VIEWPORT_MIN_PX = 8;
 /** Viewport-marker pulse period — a slow breathe, glow + alpha together. */
 const VIEWPORT_PULSE_MS = 1600;
-/** Dots render dimmed so the full-strength, glowing viewport marker stays
- *  the most obvious thing on a minimap dense with asteroid dots (same
- *  playtest feedback). */
-const DOT_ALPHA = 0.55;
+/** Asteroid dots render at half strength under full-strength ship dots
+ *  (ROADMAP P1.13 minimap hierarchy): seeing players matters more than
+ *  seeing resource nodes, and the glowing viewport marker stays the most
+ *  obvious thing of all. */
+const ASTEROID_DOT_ALPHA = 0.5;
 
 /** Half-size of a dot in minimap px (dots are squares, pixel-art style). */
 const MOTHERSHIP_DOT = 2;
@@ -129,8 +133,13 @@ export function spawnMinimap(
       ctx.fillRect(0, 0, SIZE, SIZE);
 
       const now = Date.now();
+      // Half-strength asteroid dots first, full-strength ship dots over
+      // them (ROADMAP P1.13 hierarchy). The tables are already
+      // interest-area filtered: beyond the window the minimap shows only
+      // the background and the player's own (later alliance) ships — the
+      // global resource picture disappears by design.
       ctx.save();
-      ctx.globalAlpha = DOT_ALPHA;
+      ctx.globalAlpha = ASTEROID_DOT_ALPHA;
       for (const a of gameState.asteroids.values()) {
         drawDot(
           ctx,
@@ -141,6 +150,7 @@ export function spawnMinimap(
           ASTEROID_DOT,
         );
       }
+      ctx.restore();
       for (const m of gameState.motherships.values()) {
         drawDot(
           ctx,
@@ -155,7 +165,6 @@ export function spawnMinimap(
         const pos = vesselWorldPos(v, grid, now);
         drawDot(ctx, pos.x, pos.y, projection, VESSEL, VESSEL_DOT);
       }
-      ctx.restore();
 
       const view = viewportRect(
         camera.pos,

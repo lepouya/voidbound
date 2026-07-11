@@ -205,6 +205,18 @@ pub struct ModuleActionResponse {
     pub resources: ResourceCounts,
 }
 
+/// Response to request_map_window (ROADMAP P1.13): the re-centered interest
+/// area plus every world entity the client should now hold — it replaces its
+/// mothership/asteroid/vessel tables wholesale with these slices. Mirrors
+/// the TS `MapWindowData` in `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, Debug)]
+pub struct MapWindowData {
+    pub window: MapWindow,
+    pub motherships: Vec<MothershipData>,
+    pub asteroids: Vec<AsteroidData>,
+    pub vessels: Vec<VesselMoveEventData>,
+}
+
 /// Maximum event-feed entries retained; the oldest are dropped past this,
 /// keeping the snapshot bounded over a long session.
 const MAX_NOTIFICATIONS: usize = 100;
@@ -272,9 +284,14 @@ pub enum ServerPush {
 /// Game state pushed to the client. Mirrors the TS `GameStateData` in
 /// `src/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GameStateData {
     pub player: PlayerIdentity,
     pub resources: ResourceCounts,
+    /// The interest-area window the world slices below were filtered to
+    /// (ROADMAP P1.13) — re-centered on the player's mothership at load; the
+    /// client re-centers it via request_map_window as the camera pans.
+    pub map_window: MapWindow,
     /// Every mothership on the space map — placement is server-owned, so the
     /// client builds its map actors from this list (and picks up moved ships
     /// or newly joined players from later snapshots the same way).
@@ -327,6 +344,13 @@ pub(crate) const MAP_ROWS: i64 = 1000;
 /// Map-scene tile size in world px — also served by
 /// `map.rs::generate_space_map`.
 pub(crate) const MAP_TILE_PX: f64 = 32.0;
+/// Interest-area window edge length in tiles (ROADMAP P1.13): the client
+/// only ever holds world entities inside this window centered on its camera.
+/// Must stay strictly larger than the client's visible-view tile cap plus
+/// its re-request hysteresis (MAP_VIEW_TILES_CAP / AOI_REQUERY_TILES in
+/// src/map-level.ts — keep the invariant documented there in sync) so
+/// unloaded space can never scroll into sight.
+pub(crate) const AOI_SPAN: i64 = 100;
 /// Vessel travel speed in world px/s. Server-verified: clients render the
 /// speed the event carries, they never choose it. Update on upgrade (P4).
 const VESSEL_SPEED_PX_S: f64 = 32.0;
@@ -421,6 +445,62 @@ fn is_dock_tile(ship: &MothershipData, col: i64, row: i64) -> bool {
     on_axis(col, ship.col) && on_axis(row, ship.row)
 }
 
+// -- Interest area (ROADMAP P1.13) --------------------------------------------
+
+/// A client's interest-area window: the AOI_SPAN*AOI_SPAN-tile region,
+/// centered on (center_col, center_row), inside which world entities are
+/// streamed to that client. Snapshot slices and entity pushes are filtered
+/// against it; everything the player owns is exempt (a mining vessel must
+/// keep existing beyond the edge — alliance entities join the exemption in
+/// P4). Per-client state: single-client today (`ServerState::aoi`), but
+/// shaped exactly like the per-connection subscriptions P3.1's socket bus
+/// needs (SERVER.md § Interest management). Mirrors the TS `MapWindow` in
+/// `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Copy, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MapWindow {
+    pub center_col: i64,
+    pub center_row: i64,
+    /// Window edge length in tiles (always AOI_SPAN; carried on the wire so
+    /// the client never hardcodes it).
+    pub span: i64,
+}
+
+impl MapWindow {
+    fn centered_at(center_col: i64, center_row: i64) -> Self {
+        Self {
+            center_col,
+            center_row,
+            span: AOI_SPAN,
+        }
+    }
+
+    /// Top-left tile of the window. May extend past the map edges — the
+    /// intersection math doesn't care.
+    fn origin(&self) -> (i64, i64) {
+        (
+            self.center_col - self.span / 2,
+            self.center_row - self.span / 2,
+        )
+    }
+
+    /// True when the given span*span footprint overlaps this window.
+    fn intersects(&self, col: i64, row: i64, span: i64) -> bool {
+        let (left, top) = self.origin();
+        col + span > left && col < left + self.span && row + span > top && row < top + self.span
+    }
+
+    /// True when the given fractional tile position (a lerped vessel) lies
+    /// inside this window.
+    fn contains_point(&self, col: f64, row: f64) -> bool {
+        let (left, top) = self.origin();
+        col >= left as f64
+            && col < (left + self.span) as f64
+            && row >= top as f64
+            && row < (top + self.span) as f64
+    }
+}
+
 // -- Asteroids (ROADMAP P1.6) ------------------------------------------------
 
 /// Mining extraction rate in resource units per hour, shared by every tier —
@@ -455,9 +535,11 @@ pub struct AsteroidTierEntry {
     pub max_amount: u64,
     /// How many of this tier ServerState::new seeds — the rarity knob
     /// (small common, medium uncommon, large rare). Sized for the full
-    /// 1000*1000 map: ~480 asteroids total is one per ~45*45-tile
-    /// neighborhood, the same local density the original home-region field
-    /// had.
+    /// 1000*1000 map: ~1920 asteroids total is one per ~23*23-tile
+    /// neighborhood — 4* the P1.9 density, affordable now that the interest
+    /// area (ROADMAP P1.13) unloads everything outside a 100*100 window
+    /// (~19 in-window asteroids instead of ~5, which felt sparse under the
+    /// tighter zoom cap). Still a stub pending real balancing.
     pub seed_count: usize,
     /// Simultaneous mining slots. 1 everywhere today; the large tier may
     /// allow more later (README revisit note), so verification reads this
@@ -471,7 +553,7 @@ pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
         span: 1,
         min_amount: 60,
         max_amount: 240,
-        seed_count: 320,
+        seed_count: 1280,
         max_miners: 1,
     },
     AsteroidTierEntry {
@@ -479,7 +561,7 @@ pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
         span: 2,
         min_amount: 240,
         max_amount: 960,
-        seed_count: 120,
+        seed_count: 480,
         max_miners: 1,
     },
     AsteroidTierEntry {
@@ -487,7 +569,7 @@ pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
         span: 3,
         min_amount: 960,
         max_amount: 2880,
-        seed_count: 40,
+        seed_count: 160,
         max_miners: 1,
     },
 ];
@@ -709,6 +791,26 @@ fn move_progress(v: &VesselMoveEventData, now_ms: u64) -> f64 {
     now_ms.saturating_sub(v.dispatched_at) as f64 / duration as f64
 }
 
+/// A vessel's current fractional tile position at `now_ms`, lerped from its
+/// move timestamps — the same math the client's applyVesselMoveEvent uses.
+fn vessel_position(v: &VesselMoveEventData, now_ms: u64) -> (f64, f64) {
+    let t = move_progress(v, now_ms);
+    (
+        v.src_col + (v.dest_col as f64 - v.src_col) * t,
+        v.src_row + (v.dest_row as f64 - v.src_row) * t,
+    )
+}
+
+/// One queued push plus the world footprint it concerns, if any. The drain
+/// boundary filters entity pushes against the client's interest area
+/// (ROADMAP P1.13); footprint-less pushes — global state (resources,
+/// notifications) and the player's own entities (modules, own vessels) —
+/// always go out.
+struct OutboxEntry {
+    footprint: Option<(i64, i64, i64)>,
+    push: ServerPush,
+}
+
 /// Authoritative per-player state, held in memory for the app's lifetime.
 /// Phase 2 serializes it to a save file; the phase-3 server owns it remotely.
 pub struct ServerState {
@@ -748,10 +850,14 @@ pub struct ServerState {
     notifications: Vec<NotificationData>,
     /// Monotonic sequence mixed into notification ids for uniqueness.
     next_notification_seq: u64,
+    /// The client's interest-area window (ROADMAP P1.13) — snapshot slices
+    /// and entity pushes are filtered against it, own entities exempt.
+    /// Single-client today; the phase-3 server keeps one per connection.
+    aoi: MapWindow,
     /// Pushes queued by mutations since the last drain. Mutations queue,
     /// boundaries (scheduler wake / command return) drain and emit — so every
     /// settlement path broadcasts identically, whoever triggered it.
-    outbox: Vec<ServerPush>,
+    outbox: Vec<OutboxEntry>,
     /// True when resource counts changed since the last drain; drain_pushes
     /// appends one Resources push carrying the final counts, so several
     /// accruals/spends inside one mutation collapse into a single push.
@@ -813,7 +919,7 @@ impl ServerState {
         // Placeholder starter asteroid field, spread across the map.
         // Persistence (P2) / the real server (P3) will load this instead.
         let asteroids = seed_asteroids(&motherships);
-        Self {
+        let mut state = Self {
             resources: ResourceCounts {
                 construction: 0,
                 high_tech: 0,
@@ -831,8 +937,23 @@ impl ServerState {
             notified_arrivals: HashSet::new(),
             notifications: Vec::new(),
             next_notification_seq: 0,
+            aoi: MapWindow::centered_at(MAP_COLS / 2, MAP_ROWS / 2),
             outbox: Vec::new(),
             resources_dirty: false,
+        };
+        // The interest area starts centered on the player's mothership —
+        // matching the camera's home position (ROADMAP P1.13).
+        state.recenter_aoi_on_player();
+        state
+    }
+
+    /// Center the interest area on the player's mothership — the camera's
+    /// home position after a (re)load. No-op if the ship somehow doesn't
+    /// exist; the window just stays where it was.
+    fn recenter_aoi_on_player(&mut self) {
+        if let Ok(ship) = self.player_mothership() {
+            let (center_col, center_row) = (ship.col + ship.span / 2, ship.row + ship.span / 2);
+            self.aoi = MapWindow::centered_at(center_col, center_row);
         }
     }
 
@@ -861,6 +982,26 @@ impl ServerState {
             .unwrap_or(0)
     }
 
+    /// Queue a push that always reaches the client — global state (resources,
+    /// notifications) or the player's own entities (modules, own vessels),
+    /// which are exempt from interest-area filtering (ROADMAP P1.13).
+    fn queue_push(&mut self, push: ServerPush) {
+        self.outbox.push(OutboxEntry {
+            footprint: None,
+            push,
+        });
+    }
+
+    /// Queue a push about a world entity at the given (col, row, span)
+    /// footprint — dropped at drain time when the footprint lies outside the
+    /// client's interest area (ROADMAP P1.13).
+    fn queue_entity_push(&mut self, footprint: (i64, i64, i64), push: ServerPush) {
+        self.outbox.push(OutboxEntry {
+            footprint: Some(footprint),
+            push,
+        });
+    }
+
     /// Append a notification to the feed (dropping the oldest past the cap)
     /// and queue its live push.
     fn push_notification(&mut self, kind: &str, message: String, now_ms: u64) {
@@ -877,7 +1018,8 @@ impl ServerState {
             let excess = self.notifications.len() - MAX_NOTIFICATIONS;
             self.notifications.drain(..excess);
         }
-        self.outbox.push(ServerPush::Notification(notification));
+        // Notifications are global — never interest-area filtered.
+        self.queue_push(ServerPush::Notification(notification));
     }
 
     /// Promote every module whose pending build/upgrade has finished — lazy
@@ -908,7 +1050,9 @@ impl ServerState {
                     format!("{name} upgraded to level {}", module.level),
                 )
             };
-            self.outbox.push(ServerPush::Module(module.clone()));
+            // Modules are the player's own ship interior — always exempt
+            // from interest-area filtering.
+            self.queue_push(ServerPush::Module(module.clone()));
             self.push_notification(kind, message, now_ms);
         }
     }
@@ -1146,7 +1290,9 @@ impl ServerState {
                     None => "Vessel returned to the mothership".to_string(),
                 };
                 self.push_notification("vessel-returned", message, now_ms);
-                self.outbox.push(ServerPush::VesselRemoved {
+                // Own vessel (the only kind until P3) — exempt from
+                // interest-area filtering.
+                self.queue_push(ServerPush::VesselRemoved {
                     vessel_id: vessel.vessel_id,
                 });
             } else {
@@ -1294,7 +1440,11 @@ impl ServerState {
             started_at: event.arrival_at,
             completes_at: event.arrival_at + mine_duration_ms(remaining),
         });
-        self.outbox.push(ServerPush::Asteroid(asteroid.clone()));
+        let snapshot = asteroid.clone();
+        self.queue_entity_push(
+            (snapshot.col, snapshot.row, snapshot.span),
+            ServerPush::Asteroid(snapshot),
+        );
         self.vessels.insert(event.vessel_id.clone(), event.clone());
         Ok(event)
     }
@@ -1331,18 +1481,25 @@ impl ServerState {
         };
         asteroid.remaining -= harvested;
         let resource = asteroid.resource;
-        if asteroid.remaining == 0 {
+        // Footprint captured before a depleted asteroid leaves the table —
+        // its removal push is interest-area filtered like any entity push.
+        let footprint = (asteroid.col, asteroid.row, asteroid.span);
+        let snapshot = asteroid.clone();
+        if snapshot.remaining == 0 {
             self.asteroids.remove(asteroid_id);
             self.push_notification(
                 "asteroid-depleted",
                 "Asteroid mined out".to_string(),
                 now_ms,
             );
-            self.outbox.push(ServerPush::AsteroidRemoved {
-                asteroid_id: asteroid_id.to_string(),
-            });
+            self.queue_entity_push(
+                footprint,
+                ServerPush::AsteroidRemoved {
+                    asteroid_id: asteroid_id.to_string(),
+                },
+            );
         } else {
-            self.outbox.push(ServerPush::Asteroid(asteroid.clone()));
+            self.queue_entity_push(footprint, ServerPush::Asteroid(snapshot));
         }
         (harvested > 0).then_some(VesselCargo {
             resource,
@@ -1398,7 +1555,9 @@ impl ServerState {
             };
             self.notified_arrivals.remove(&event.vessel_id);
             self.vessels.insert(event.vessel_id.clone(), event.clone());
-            self.outbox.push(ServerPush::Vessel(event));
+            // Own vessel (the only kind until P3) — exempt from
+            // interest-area filtering.
+            self.queue_push(ServerPush::Vessel(event));
         }
     }
 
@@ -1417,9 +1576,7 @@ impl ServerState {
                 vessel.vessel_id
             )
         })?;
-        let t = move_progress(vessel, at_ms);
-        let src_col = vessel.src_col + (vessel.dest_col as f64 - vessel.src_col) * t;
-        let src_row = vessel.src_row + (vessel.dest_row as f64 - vessel.src_row) * t;
+        let (src_col, src_row) = vessel_position(vessel, at_ms);
         let (dock_col, dock_row) = closest_dock_tile(ship, src_col, src_row);
         Ok(VesselMoveEventData {
             src_col,
@@ -1477,31 +1634,88 @@ impl ServerState {
         Ok(event)
     }
 
-    /// Every mothership on the map, in stable id order — the placement slice
-    /// of the load_game_state snapshot.
+    /// Every mothership the client should hold (ROADMAP P1.13): the player's
+    /// own anywhere, everyone else's only inside the interest area. Stable
+    /// id order — the placement slice of snapshots and window responses.
     fn motherships_snapshot(&self) -> Vec<MothershipData> {
-        let mut ships: Vec<_> = self.motherships.values().cloned().collect();
+        let player_id = player_identity().id;
+        let mut ships: Vec<_> = self
+            .motherships
+            .values()
+            .filter(|m| m.owner_id == player_id || self.aoi.intersects(m.col, m.row, m.span))
+            .cloned()
+            .collect();
         ships.sort_by(|a, b| a.mothership_id.cmp(&b.mothership_id));
         ships
     }
 
-    /// Every vessel currently in flight or parked, in dispatch order — the
-    /// vessel slice of the load_game_state snapshot.
+    /// Every vessel the client should hold, in dispatch order: the player's
+    /// own anywhere (a mining vessel must keep existing beyond the window
+    /// edge), foreign ones only while their current lerped position is
+    /// inside the interest area — the vessel slice of snapshots and window
+    /// responses.
     fn active_vessels(&mut self, now_ms: u64) -> Vec<VesselMoveEventData> {
         self.settle_vessel_arrivals(now_ms);
-        let mut vessels: Vec<_> = self.vessels.values().cloned().collect();
+        let player_id = player_identity().id;
+        let mut vessels: Vec<_> = self
+            .vessels
+            .values()
+            .filter(|v| {
+                if v.owner_id == player_id {
+                    return true;
+                }
+                let (col, row) = vessel_position(v, now_ms);
+                self.aoi.contains_point(col, row)
+            })
+            .cloned()
+            .collect();
         vessels
             .sort_by(|a, b| (a.dispatched_at, &a.vessel_id).cmp(&(b.dispatched_at, &b.vessel_id)));
         vessels
     }
 
-    /// Every asteroid still holding resources, in stable id order — the
-    /// asteroid slice of the load_game_state snapshot.
+    /// Every asteroid inside the interest area that still holds resources,
+    /// in stable id order — the asteroid slice of snapshots and window
+    /// responses (ROADMAP P1.13: the rest of the field stays server-side
+    /// until the window moves over it).
     fn asteroids_snapshot(&mut self, now_ms: u64) -> Vec<AsteroidData> {
         self.settle_mining(now_ms);
-        let mut asteroids: Vec<_> = self.asteroids.values().cloned().collect();
+        let mut asteroids: Vec<_> = self
+            .asteroids
+            .values()
+            .filter(|a| self.aoi.intersects(a.col, a.row, a.span))
+            .cloned()
+            .collect();
         asteroids.sort_by(|a, b| a.asteroid_id.cmp(&b.asteroid_id));
         asteroids
+    }
+
+    /// Re-center the client's interest area (ROADMAP P1.13) and return the
+    /// world entities inside the new window. The client replaces its
+    /// mothership/asteroid/vessel tables wholesale with these slices, so
+    /// everything that left the window unloads, and the response is
+    /// authoritative for everything inside it — stale mining slots and
+    /// deposits resolve on window re-entry.
+    fn map_window(
+        &mut self,
+        center_col: i64,
+        center_row: i64,
+        now_ms: u64,
+    ) -> Result<MapWindowData, String> {
+        if !(0..MAP_COLS).contains(&center_col) || !(0..MAP_ROWS).contains(&center_row) {
+            return Err(format!("({center_col}, {center_row}) is outside the map"));
+        }
+        self.aoi = MapWindow::centered_at(center_col, center_row);
+        // Asteroids settle mining first so an auto-returning miner lands in
+        // the vessel slice of this same response.
+        let asteroids = self.asteroids_snapshot(now_ms);
+        let vessels = self.active_vessels(now_ms);
+        Ok(MapWindowData {
+            window: self.aoi,
+            motherships: self.motherships_snapshot(),
+            asteroids,
+            vessels,
+        })
     }
 
     /// Settle everything due at now_ms — production ticks, module build
@@ -1542,12 +1756,23 @@ impl ServerState {
         deadline
     }
 
-    /// Hand off every queued push for emission, appending one Resources push
-    /// when counts changed since the last drain. Called at the boundaries —
-    /// scheduler wake and command return — so the mutations themselves stay
-    /// transport-free (and unit-testable).
+    /// Hand off every queued push for emission — dropping entity pushes
+    /// whose footprint lies outside the client's interest area (ROADMAP
+    /// P1.13; own-entity and global pushes carry no footprint and always go
+    /// out) — appending one Resources push when counts changed since the
+    /// last drain. Called at the boundaries — scheduler wake and command
+    /// return — so the mutations themselves stay transport-free (and
+    /// unit-testable).
     fn drain_pushes(&mut self) -> Vec<ServerPush> {
-        let mut pushes = std::mem::take(&mut self.outbox);
+        let aoi = self.aoi;
+        let mut pushes: Vec<ServerPush> = std::mem::take(&mut self.outbox)
+            .into_iter()
+            .filter(|e| {
+                e.footprint
+                    .map_or(true, |(col, row, span)| aoi.intersects(col, row, span))
+            })
+            .map(|e| e.push)
+            .collect();
         if self.resources_dirty {
             self.resources_dirty = false;
             pushes.push(ServerPush::Resources(self.resources));
@@ -1655,9 +1880,14 @@ pub(crate) fn load_game_state(
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let now = now_ms();
     s.accrue_production(now);
+    // The camera homes on the player's mothership after a (re)load, so the
+    // interest area does too (ROADMAP P1.13) — the world slices below are
+    // filtered to it.
+    s.recenter_aoi_on_player();
     let data = GameStateData {
         player: player_identity(),
         resources: s.resources,
+        map_window: s.aoi,
         motherships: s.motherships_snapshot(),
         // Settles mining, so it must precede `vessels` (an auto-return
         // belongs in the vessel slice) and `notifications`.
@@ -1669,6 +1899,24 @@ pub(crate) fn load_game_state(
     };
     finish_command(&app, server.inner(), s);
     Ok(data)
+}
+
+/// Re-center the client's interest-area window on the given tile as the
+/// camera pans (ROADMAP P1.13) and return the entities inside it — the
+/// client replaces its world tables wholesale, unloading everything that
+/// left the window. Called with hysteresis client-side (a drift threshold,
+/// never per frame).
+#[tauri::command]
+pub(crate) fn request_map_window(
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
+    center_col: i64,
+    center_row: i64,
+) -> Result<MapWindowData, String> {
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.map_window(center_col, center_row, now_ms());
+    finish_command(&app, server.inner(), s);
+    result
 }
 
 /// Request dispatch of a vessel from the player's mothership to the given
@@ -2127,6 +2375,136 @@ mod tests {
     /// The kind of every feed entry, oldest first.
     fn notification_kinds(s: &ServerState) -> Vec<&str> {
         s.notifications.iter().map(|n| n.kind.as_str()).collect()
+    }
+
+    #[test]
+    fn window_intersection_covers_edges_and_multi_tile_footprints() {
+        // Centered at (500, 500) with span 100 the window covers [450, 550).
+        let w = MapWindow::centered_at(500, 500);
+        assert_eq!(w.span, AOI_SPAN);
+        assert!(w.intersects(450, 450, 1));
+        assert!(w.intersects(549, 549, 1));
+        assert!(!w.intersects(449, 500, 1));
+        assert!(!w.intersects(550, 500, 1));
+        // A 3*3 footprint anchored outside still overlaps the window edge.
+        assert!(w.intersects(448, 500, 3));
+        assert!(w.intersects(500, 548, 3));
+        assert!(!w.intersects(446, 500, 3));
+        // Fractional vessel positions use half-open bounds too.
+        assert!(w.contains_point(450.0, 549.9));
+        assert!(!w.contains_point(449.9, 500.0));
+        assert!(!w.contains_point(500.0, 550.0));
+    }
+
+    #[test]
+    fn snapshots_are_windowed_to_the_interest_area() {
+        let mut s = ServerState::new(0);
+        // The AOI starts centered on the player's mothership (498+2, 498+2).
+        let aoi = s.aoi;
+        assert_eq!(
+            (aoi.center_col, aoi.center_row, aoi.span),
+            (500, 500, AOI_SPAN)
+        );
+        // Both seeded ships sit inside the home window.
+        assert_eq!(s.motherships_snapshot().len(), 2);
+        // A far-away foreign ship drops from the slice...
+        let enemy = s.motherships.get_mut("player-2").unwrap();
+        enemy.col = 10;
+        enemy.row = 10;
+        assert_eq!(s.motherships_snapshot().len(), 1);
+        // ...but the player's own ship is exempt wherever it is.
+        let own = s.motherships.get_mut("player-1").unwrap();
+        own.col = 900;
+        own.row = 900;
+        assert!(s
+            .motherships_snapshot()
+            .iter()
+            .any(|m| m.owner_id == "player-1"));
+        // The asteroid slice holds only in-window footprints — far fewer
+        // than the whole seeded field.
+        let mut s = ServerState::new(0);
+        let windowed = s.asteroids_snapshot(0);
+        assert!(!windowed.is_empty());
+        assert!(windowed.len() < s.asteroids.len());
+        for asteroid in &windowed {
+            assert!(s.aoi.intersects(asteroid.col, asteroid.row, asteroid.span));
+        }
+        // Own vessels ride every snapshot regardless of position: dispatched
+        // far beyond the window edge, the vessel stays in the slice even
+        // long after arrival.
+        let out = s.dispatch_vessel(900, 900, 0).unwrap();
+        assert!(s
+            .active_vessels(out.arrival_at + 60_000)
+            .iter()
+            .any(|v| v.vessel_id == out.vessel_id));
+    }
+
+    #[test]
+    fn map_window_recenters_and_returns_the_windowed_world() {
+        let mut s = ServerState::new(0);
+        let far = s.map_window(100, 100, 0).unwrap();
+        assert_eq!(
+            (
+                far.window.center_col,
+                far.window.center_row,
+                far.window.span
+            ),
+            (100, 100, AOI_SPAN)
+        );
+        // The player's own mothership rides along even though it sits far
+        // outside the new window; the enemy's doesn't.
+        assert!(far.motherships.iter().any(|m| m.owner_id == "player-1"));
+        assert!(!far.motherships.iter().any(|m| m.owner_id == "player-2"));
+        assert!(!far.asteroids.is_empty());
+        for asteroid in &far.asteroids {
+            assert!(far
+                .window
+                .intersects(asteroid.col, asteroid.row, asteroid.span));
+        }
+        // Off-map centers are rejected without moving the window.
+        assert!(s
+            .map_window(-1, 100, 0)
+            .unwrap_err()
+            .contains("outside the map"));
+        assert!(s
+            .map_window(100, 1000, 0)
+            .unwrap_err()
+            .contains("outside the map"));
+        assert_eq!((s.aoi.center_col, s.aoi.center_row), (100, 100));
+    }
+
+    #[test]
+    fn entity_pushes_outside_the_interest_area_are_dropped() {
+        let mut s = mining_state(240);
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        s.drain_pushes();
+        // Pan the window far away from the asteroid at (499, 510), then let
+        // the mining window run out: the asteroid's removal push is filtered,
+        // while the own vessel's auto-return push and the (global)
+        // notifications still arrive.
+        s.map_window(100, 100, 0).unwrap();
+        s.settle(10_000 + HOUR_MS);
+        let pushes = s.drain_pushes();
+        assert!(!pushes.iter().any(|p| matches!(
+            p,
+            ServerPush::Asteroid(_) | ServerPush::AsteroidRemoved { .. }
+        )));
+        assert!(pushes
+            .iter()
+            .any(|p| matches!(p, ServerPush::Vessel(v) if v.vessel_id == out.vessel_id)));
+        assert!(pushes
+            .iter()
+            .any(|p| matches!(p, ServerPush::Notification(_))));
+
+        // With the window over the asteroid, the same mining pushes flow: a
+        // fresh state's mine dispatch queues an in-window Asteroid push that
+        // survives the drain.
+        let mut s = mining_state(240);
+        s.mine_asteroid("asteroid-x", 0).unwrap();
+        assert!(s
+            .drain_pushes()
+            .iter()
+            .any(|p| matches!(p, ServerPush::Asteroid(_))));
     }
 
     #[test]

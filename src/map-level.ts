@@ -3,9 +3,11 @@ import * as ex from "excalibur";
 import { invoke } from "@tauri-apps/api/core";
 
 import { ASTEROID_TINTS, asteroidDisplayName } from "./asteroid-catalog.ts";
+import { tileViewCapZoom } from "./camera-math.ts";
 import {
   AsteroidData,
   gameState,
+  MapWindowData,
   MothershipData,
   VesselMoveEvent,
 } from "./game-state.ts";
@@ -15,6 +17,19 @@ import { spawnMinimap } from "./minimap.ts";
 import { TileActor } from "./tile-actor.ts";
 import { SceneMap, TiledScene } from "./tiled-scene.ts";
 import { formatCompactCount } from "./ui/index.ts";
+
+/**
+ * Interest-area client tuning (ROADMAP P1.13). The map camera never shows
+ * more than MAP_VIEW_TILES_CAP tiles on its longer axis, and the window is
+ * re-centered once the camera drifts more than AOI_REQUERY_TILES tiles
+ * (Chebyshev) from the window center. Together they must keep the visible
+ * view strictly inside the backend's AOI_SPAN (100, game_state.rs) window:
+ * MAP_VIEW_TILES_CAP / 2 + AOI_REQUERY_TILES < AOI_SPAN / 2 (40 + 8 < 50),
+ * so unloaded space can't scroll into sight even while a re-request is in
+ * flight for a few frames.
+ */
+const MAP_VIEW_TILES_CAP = 80;
+const AOI_REQUERY_TILES = 8;
 
 /** True when two snapshots describe an identical ship — placement, art, and
  *  ownership — so the reconciler can skip rebuilding its actor. */
@@ -126,13 +141,92 @@ export class MapLevel extends TiledScene {
   }
 
   /**
-   * Don't let the camera zoom out past ~a 120*260-tile window: rendering
-   * the full 1000*1000 map draws every asteroid actor at sub-pixel size for
-   * single-digit fps and no readable content — the minimap is the
-   * whole-map overview.
+   * Cap the visible view at MAP_VIEW_TILES_CAP tiles on the longer axis
+   * (ROADMAP P1.13) — strictly inside the interest-area window, so space the
+   * backend hasn't streamed can never scroll into sight. Supersedes P1.9's
+   * fixed 0.1 floor (whose fps motivation this also covers: fewer visible
+   * tiles is fewer sub-pixel actors); the minimap remains the whole-map
+   * overview.
    */
   protected override minZoomFloor(): number {
-    return 0.1;
+    if (!this.grid) return 0;
+    return tileViewCapZoom(
+      this.engine.screen.resolution.width,
+      this.engine.screen.resolution.height,
+      this.grid.tileWidth,
+      MAP_VIEW_TILES_CAP,
+    );
+  }
+
+  /** Center of the last interest-area request sent (in tiles), resolved or
+   *  not — the hysteresis reference, so panning doesn't re-fire while a
+   *  request is in flight, and a failed backend is retried only after
+   *  further panning rather than every frame. Null until the first check
+   *  adopts the snapshot's window center. */
+  private lastWindowRequest: { col: number; row: number } | null = null;
+  /** True while a request_map_window call is awaiting its response. */
+  private windowRequestInFlight = false;
+
+  /**
+   * Interest-area hysteresis (ROADMAP P1.13): once the camera center drifts
+   * more than AOI_REQUERY_TILES (Chebyshev) from the last window center, ask
+   * the backend to re-center the window — never per frame, never while a
+   * request is in flight. Lives in the update loop because panning happens
+   * everywhere (drag, wheel, minimap jump, actor-tap camera moves); the
+   * check itself is a few comparisons.
+   */
+  override onPreUpdate(): void {
+    if (!this.grid || !gameState.loaded || this.windowRequestInFlight) return;
+    const reference = this.lastWindowRequest ??
+      (gameState.mapWindow && {
+        col: gameState.mapWindow.centerCol,
+        row: gameState.mapWindow.centerRow,
+      });
+    if (!reference) return;
+    const col = ex.clamp(
+      Math.round(this.camera.pos.x / this.grid.tileWidth),
+      0,
+      this.grid.columns - 1,
+    );
+    const row = ex.clamp(
+      Math.round(this.camera.pos.y / this.grid.tileHeight),
+      0,
+      this.grid.rows - 1,
+    );
+    const drift = Math.max(
+      Math.abs(col - reference.col),
+      Math.abs(row - reference.row),
+    );
+    if (drift <= AOI_REQUERY_TILES) return;
+    void this.requestMapWindow(col, row);
+  }
+
+  /**
+   * Asks the backend to re-center the interest-area window on the given tile
+   * and replaces the world tables with the response (ROADMAP P1.13) — the
+   * reconcilers then despawn everything that left the window and spawn what
+   * entered it. Until the response lands the view may be briefly empty in
+   * freshly scrolled-in space (tap-to-jump into an unloaded region is
+   * legal by design); the wholesale table replacement is authoritative for
+   * everything inside the window.
+   */
+  private async requestMapWindow(col: number, row: number): Promise<void> {
+    this.lastWindowRequest = { col, row };
+    this.windowRequestInFlight = true;
+    try {
+      const data = await invoke<MapWindowData>("request_map_window", {
+        centerCol: col,
+        centerRow: row,
+      });
+      gameState.applyMapWindow(data);
+    } catch (err) {
+      // Leave lastWindowRequest standing: the failed center stays the
+      // hysteresis reference, so a dead backend is retried on further
+      // panning, not every frame.
+      console.warn("request_map_window rejected:", err);
+    } finally {
+      this.windowRequestInFlight = false;
+    }
   }
 
   protected override setupActors(): void {

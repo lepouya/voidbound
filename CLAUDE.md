@@ -315,7 +315,21 @@ with. The client renders what commands return and asks for actions:
   content: `MapLevel.syncMotherships()`/`syncAsteroids()`/`syncVessels()` and
   `ShipLevel.syncModules()` reconcile actors from the snapshot, so server-side
   changes (a moved mothership, a new player, a module leveling up) reach the
-  client through the same path.
+  client through the same path. **World slices are interest-area windowed**
+  (ROADMAP P1.13, SERVER.md § Interest management): only asteroids and foreign
+  ships/vessels inside a 100\*100-tile `MapWindow` (`ServerState::aoi`,
+  re-centered on the player's mothership at load) are sent; everything the
+  player owns is always sent regardless of window.
+- `request_map_window(center_col, center_row)` — re-centers the interest area as
+  the map camera pans and returns the window's entities; `MapLevel.onPreUpdate`
+  calls it with hysteresis (camera drift > 8 tiles from the window center, never
+  per frame) and `gameState.applyMapWindow` replaces the
+  mothership/asteroid/vessel tables wholesale, so the reconcilers despawn
+  everything that left the window. Entity pushes are footprint-filtered against
+  the same window at outbox drain (own-entity and global pushes are exempt). The
+  map scene's zoom floor (`tileViewCapZoom`, src/camera-math.ts) caps the
+  visible view at 80 tiles on the longer axis — strictly inside the window, so
+  unloaded space never scrolls into sight.
 - **Push channel** (`server-push` Tauri event; ROADMAP P1.5) — the backend tells
   the client when state changes, the in-process prototype of P3.1's WebSocket
   bus: a scheduler thread (`run_scheduler` in game_state.rs) sleeps until the

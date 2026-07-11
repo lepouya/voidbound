@@ -4,6 +4,7 @@ import {
   AsteroidData,
   GameState,
   gameState,
+  MapWindow,
   ModuleData,
   MothershipData,
   NotificationData,
@@ -18,6 +19,10 @@ const ZERO_RESOURCES: ResourceCounts = {
   fuel: 0,
   credits: 0,
 };
+
+function sampleWindow(overrides: Partial<MapWindow> = {}): MapWindow {
+  return { centerCol: 50, centerRow: 50, span: 100, ...overrides };
+}
 
 function sampleMothership(
   id: string,
@@ -180,6 +185,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
       fuel: 8,
       credits: 9,
     },
+    mapWindow: sampleWindow(),
     motherships: [sampleMothership("player-42")],
     asteroids: [sampleAsteroid("asteroid-1")],
     vessels: [sampleVessel("vessel-a")],
@@ -212,7 +218,52 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     state.notifications.get("notif-1"),
     sampleNotification("notif-1"),
   );
+  assertEquals(state.mapWindow, sampleWindow());
   assert(state.loaded);
+  assertEquals(notified, 1);
+});
+
+Deno.test("applyMapWindow replaces the world tables and window, notifies", () => {
+  const state = new GameState();
+  state.load({
+    player: { id: "player-1", name: "Player 1" },
+    resources: { ...ZERO_RESOURCES, construction: 7 },
+    mapWindow: sampleWindow(),
+    motherships: [sampleMothership("player-1")],
+    asteroids: [sampleAsteroid("asteroid-old")],
+    vessels: [sampleVessel("vessel-own")],
+    modules: [sampleModule("module-command")],
+    notifications: [sampleNotification("notif-1")],
+  });
+  let notified = 0;
+  state.subscribe(() => notified++);
+
+  // The camera panned: a re-centered window response replaces the world
+  // tables wholesale — entities that left the window unload.
+  state.applyMapWindow({
+    window: sampleWindow({ centerCol: 500, centerRow: 500 }),
+    motherships: [
+      sampleMothership("player-1"),
+      sampleMothership("player-2", { col: 503, row: 499 }),
+    ],
+    asteroids: [sampleAsteroid("asteroid-new", { col: 480, row: 520 })],
+    vessels: [sampleVessel("vessel-own")],
+  });
+
+  assertEquals(
+    state.mapWindow,
+    sampleWindow({ centerCol: 500, centerRow: 500 }),
+  );
+  assertEquals(
+    [...state.motherships.keys()].sort(),
+    ["player-1", "player-2"],
+  );
+  assertEquals([...state.asteroids.keys()], ["asteroid-new"]);
+  assertEquals([...state.vessels.keys()], ["vessel-own"]);
+  // Global state is untouched: modules, resources, and the feed stay put.
+  assertEquals([...state.modules.keys()], ["module-command"]);
+  assertEquals(state.resources.construction, 7);
+  assertEquals(state.notifications.size, 1);
   assertEquals(notified, 1);
 });
 
@@ -264,6 +315,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
   state.load({
     player: { id: "player-1", name: "Player 1" },
     resources: ZERO_RESOURCES,
+    mapWindow: sampleWindow(),
     motherships: [sampleMothership("player-1")],
     asteroids: [sampleAsteroid("asteroid-old")],
     vessels: [],
@@ -274,6 +326,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
   state.load({
     player: { id: "player-1", name: "Player 1" },
     resources: ZERO_RESOURCES,
+    mapWindow: sampleWindow({ centerCol: 12, centerRow: 14 }),
     motherships: [sampleMothership("player-9", { col: 10, row: 12 })],
     asteroids: [sampleAsteroid("asteroid-live")],
     vessels: [sampleVessel("vessel-live")],
@@ -303,6 +356,7 @@ Deno.test("shared singleton starts unloaded with new-player defaults", () => {
   assertEquals(gameState.asteroids.size, 0);
   assertEquals(gameState.modules.size, 0);
   assertEquals(gameState.notifications.size, 0);
+  assertEquals(gameState.mapWindow, null);
   assert(!gameState.loaded);
   assert(gameState instanceof GameState);
 });

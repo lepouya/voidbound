@@ -207,7 +207,7 @@ Goal: a playable single-player loop, no persistence yet.
       a markup/markdown, independent of the Phase 4 alliance economy — the
       README's answer for players who need resources between mining runs. Needs
       P1.1.
-- [ ] **P1.13 — Map interest area: windowed world streaming + minimap
+- [x] **P1.13 — Map interest area: windowed world streaming + minimap
       declutter.** Follow-up from the July 2026 full-size-map playtests: with
       ~480 nodes the minimap is cluttered, and shipping the entire world to the
       client scales badly in bandwidth and actors once other players' data rides
@@ -244,8 +244,19 @@ Goal: a playable single-player loop, no persistence yet.
       density becomes a free balancing knob — global count no longer costs
       actors or bandwidth — and wants revisiting: at P1.9 density a 100\*100
       window holds only ~5 asteroids, which will feel sparse under the tighter
-      zoom cap. Needs P1.9; feeds P3.1 (per-connection subscriptions) and P4.3
-      (fog of war is this AOI shrunk to a radar radius).
+      zoom cap. As landed: `AOI_SPAN` 100 (`MapWindow` in game_state.rs,
+      per-client in `ServerState::aoi`); view cap 80 tiles on the longer axis
+      (`tileViewCapZoom`, src/camera-math.ts) + 8-tile Chebyshev hysteresis
+      checked in `MapLevel.onPreUpdate` — 40 + 8 < 50, so the margin holds while
+      a re-request is in flight. `request_map_window` responses and
+      `load_game_state` snapshots share the same windowed slices;
+      `gameState.applyMapWindow` replaces the world tables wholesale. Push
+      filtering tags outbox entries with a world footprint at queue time and
+      drops out-of-window ones at drain. Asteroid seeding took the free density
+      knob: seed counts 4\*'d to 1280/480/160 (~1920 total, ~19 per window, one
+      per ~23\*23 tiles) — deposit/rate balance still stubbed. Needs P1.9; feeds
+      P3.1 (per-connection subscriptions) and P4.3 (fog of war is this AOI
+      shrunk to a radar radius).
 
 ## Phase 2 — Persistence
 

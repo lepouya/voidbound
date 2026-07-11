@@ -31,3 +31,21 @@ export function anchoredZoomPos(
     y: anchor.y - (anchor.y - camera.y) * scale,
   };
 }
+
+/**
+ * The camera zoom below which a view of the given zoom-1 draw dimensions
+ * would show more than `maxTiles` tiles along its longer axis — i.e. the
+ * zoom floor that caps the visible tile count (ROADMAP P1.13). The space map
+ * uses it to keep the visible view strictly inside the interest-area window
+ * so unloaded space can never scroll into sight (superseding P1.9's fixed
+ * 0.1 floor; capping visible tiles also caps how many sub-pixel actors a
+ * frame draws, the floor's original fps motivation). Assumes square tiles.
+ */
+export function tileViewCapZoom(
+  drawW: number,
+  drawH: number,
+  tilePx: number,
+  maxTiles: number,
+): number {
+  return Math.max(drawW, drawH) / (maxTiles * tilePx);
+}
