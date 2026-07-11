@@ -109,12 +109,14 @@ Goal: a playable single-player loop, no persistence yet.
       Still open: cap numbers are stubs (→ P2.5); the README's "boosts
       production" perk was skipped; safe warehousing becomes meaningful with
       P5.5 combat. (The Armory's weapon-storage half moved to P5.4.)
-- [ ] **P1.12 — Trading Post + NPC shop.** Buy/sell the 4 resources with NPCs at
-      a markup/markdown, independent of the Phase 4 alliance economy — the
-      README's answer for players who need resources between mining runs.
-      Introduces the generic trade currency (working name "credits", README §
-      Design principles) as a non-produced fifth count; its wider role is
-      designed in P4.6. Needs P1.1.
+- [ ] **P1.12 — Trading Post + NPC shop.** Deal-slot NPC shop (full design:
+      `TRADING_POST.md`): server-generated daily deals exchanging the 5
+      trade-eligible types (4 resources + credits, give ≠ get) with rarity
+      tiers, a once-daily freebie, and doubling-cost refreshes — the README's
+      answer for players who need resources between mining runs, independent of
+      the Phase 4 alliance economy. Introduces the generic trade currency
+      (working name "credits", README § Design principles) as a non-produced
+      fifth count; its wider role is designed in P4.6. Needs P1.1, P1.14.
 - [x] **P1.13 — Map interest area: windowed world streaming + minimap
       declutter.** The client only holds world entities inside a 100\*100-tile
       AOI window, re-centered as the camera pans; pushes are footprint-filtered,
@@ -122,6 +124,12 @@ Goal: a playable single-player loop, no persistence yet.
       Full model: SERVER.md § Interest management. Feeds P3.1 (per-connection
       windows) and P4.3 (fog of war = this window shrunk to a radar radius).
       Still open: asteroid deposit/rate balance (→ P2.5).
+- [ ] **P1.14 — Modal dialog/overlay system.** Generic screen-space modal layer
+      (design: `TRADING_POST.md` § 2): scrim + panel + input capture above the
+      HUD z-space, composed from the existing `ui/` primitives, with pure
+      unit-tested layout math and a disabled-button state. One modal at a time;
+      scrolling deferred to P6.3. First consumer is the P1.12 shop; later panels
+      (P6.3 feed, P3.5 mail, P5.1 research) reuse it.
 
 ## Phase 2 — Persistence and balancing
 
