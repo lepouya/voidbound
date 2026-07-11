@@ -116,7 +116,12 @@ Goal: a playable single-player loop, no persistence yet.
       answer for players who need resources between mining runs, independent of
       the Phase 4 alliance economy. Introduces the generic trade currency
       (working name "credits", README § Design principles) as a non-produced
-      fifth count; its wider role is designed in P4.6. Needs P1.1, P1.14.
+      fifth count; its wider role is designed in P4.6. Also the first consumer
+      of the P1.14 dialog API — evaluate it from the consumer's seat while
+      building, and if the state-bound subscribe-and-rerender scaffolding looks
+      repeatable for the later panels (P6.3 feed, P3.5 mail, P5.1 research),
+      extract a `ui/` code helper — a helper, not a skill (decided July 2026).
+      Needs P1.1, P1.14.
 - [x] **P1.13 — Map interest area: windowed world streaming + minimap
       declutter.** The client only holds world entities inside a 100\*100-tile
       AOI window, re-centered as the camera pans; pushes are footprint-filtered,

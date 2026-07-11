@@ -1,3 +1,51 @@
+// ---------------------------------------------------------------------------
+// Modal dialog layer (ROADMAP P1.14)
+// ---------------------------------------------------------------------------
+//
+// Scenes open dialogs through TiledScene.openDialog() — never spawnDialog
+// directly — from onInitialize (or later), after super.onInitialize(engine).
+// One dialog is open at a time; opening another closes the first. While one
+// is open the scene captures all pointer input: dialog buttons fire on the
+// same confirmed-tap logic as HUD buttons, and everything else — camera
+// pan/zoom, world taps, HUD taps, scrim taps — is swallowed. The close
+// button (or a scene switch) is the only way out unless a cell button closes
+// it programmatically.
+//
+// Content is rows of cells composed from the existing ui/ primitives:
+//
+//   const handle = this.openDialog({
+//     title: "Trading Post",
+//     rows: [
+//       {
+//         cells: [
+//           { tile: "ui-icon-fuel:0", label: "60" }, // icon + amount
+//           { label: "→" }, // centered text
+//           { tile: "ui-icon-credits:0", label: "45" },
+//           {
+//             button: { // interactive (a HudButtonDef)
+//               frameTile: "ui-frame-square:0",
+//               disabledFrameTile: "ui-frame-square:2",
+//               tile: "ui-icon-buy:0",
+//               disabledTile: "ui-icon-buy:2",
+//               width: 40,
+//               height: 40,
+//               label: "Accept",
+//               onPressed: () => this.acceptDeal(dealId),
+//             },
+//           },
+//         ],
+//       },
+//     ],
+//     onClose: () => this.shopHandle = null,
+//   });
+//
+// Server-driven content re-renders wholesale with handle.setRows(newRows) —
+// the panel re-centers to the new row count — and per-button state (e.g.
+// affordability) flips with handle.setButtonDisabled(row, cell, disabled).
+// Frame constants (margins, title band, padding) override per-dialog via
+// DialogDef.layout (DialogLayoutOpts). There is no scrolling yet (ROADMAP
+// P6.3): dialogs must fit the portrait 390*844 design target.
+
 import * as ex from "excalibur";
 
 import { makeBadgeActor } from "./badge.ts";
