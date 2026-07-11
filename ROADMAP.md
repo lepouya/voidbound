@@ -9,264 +9,160 @@ engine/tooling scaffolding all of that already sits on.
 
 **How to use this file:** tasks have stable IDs (`P<phase>.<n>`) so sessions and
 commits can reference them — check off a task when it's committed and
-`deno task format` + `deno task check` + `deno task test` pass. Within a phase,
-tasks are listed in rough dependency order, but anything without an explicit
-"needs" note can be picked up independently.
+`deno task format` + `deno task check` + `deno task test` pass. IDs never
+change, even when a task moves phases (e.g. P1.7 now lands in Phase 2). Within a
+phase, tasks are listed in rough dependency order, but anything without an
+explicit "needs" note can be picked up independently. Done items keep only a
+one-line summary plus any notes that still matter for future work (marked "Still
+open"); implementation detail lives in `CLAUDE.md`, `SERVER.md`, and the commit
+history.
 
 ## Phase 0 — Engine and tooling scaffolding
 
-Goal: the technical foundation everything else is built on. Most of this is
-already done — captured retroactively from the current code and git history
-rather than from when it was actually planned, so task order here doesn't imply
-build order. A later pass will try to associate each of these with the earlier
-phase(s) it actually satisfies.
+Goal: the technical foundation everything else is built on. All done — captured
+retroactively from the code and git history, so task order doesn't imply build
+order. Current details live in CLAUDE.md §§ 2–4.
 
-- [x] **P0.1 — Excalibur engine bootstrap + scene registration.** `main.ts`
-      creates the single `ex.Engine` (390\*844 portrait, `FitScreenAndFill`,
-      `pixelArt: true`), registers the `map`/`ship` scenes, and starts on `ship`
-      with a shared `loader` and fade transition.
-- [x] **P0.2 — `TiledScene` base class.** Camera drag-pan/pinch-zoom/clamp,
-      tap-vs-drag disambiguation, actor/HUD/empty-tile tap dispatch priority,
-      selection with animated camera recenter, HUD group wiring
-      (`addHudGroup`/`addCommonHud`), resize and scene-load-failure handling —
-      the shared foundation every scene extends.
-- [x] **P0.3 — `TileActor` base entity.** Tile/movingTile rendering via
-      `resolveGraphicLayers`, arc-arranged selection action buttons, corner
-      badges, owner labels, `moveTo`/auto-facing with a path-line, upright
-      (non-rotating) children, edge-fallthrough for multi-tile actors, and the
-      empty-tile-actor (null tile) pattern.
-- [x] **P0.4 — TileRef / tileset system.** String/object `TileRef` parsing
-      (`tile-ref-parse.ts`), graphic resolution and multi-layer compositing
-      (`tile-ref.ts`), the `TilesetRegistry` + pure-data geometry catalog
-      (`tileset-geometry.ts`), and the prefix-based `autoRegister()` pattern so
-      new `ui-button-*`/`module-*` PNGs need no registry code.
-- [x] **P0.5 — UI component library (`src/ui/`).** `anchor`, `badge`, `button`,
-      `hud`/`hud-layout`, `label`, `path-line` modules — shared primitives for
-      both world-space TileActor UI and screen-space HUD.
-- [x] **P0.6 — Map loading + IPC.** `buildTileMap()` invoking the Tauri
-      `generate_map` command; the Rust side dispatches to a procedural 100\*100
-      space map (`"map"`) or an `include_str!`-embedded pre-baked ship map
-      (`"ship"`).
-- [x] **P0.7 — MapLevel + ShipLevel scenes.** The two scenes playable today:
-      space map with a mothership, an "enemy" ship, and empty-tile Move/Deploy;
-      ship interior with a single Command Module. Action buttons beyond vessel
-      dispatch are still `console.log` stubs.
-- [x] **P0.8 — Vessel-move event pattern reference implementation.**
-      `VesselMoveEvent`/`applyVesselMoveEvent`/`dispatchVessel`/`returnVessel`
-      in `map-level.ts` — the one concrete instance of the multiplayer-ready
-      event pattern that `/add-game-event` and `SERVER.md` generalize from.
-- [x] **P0.9 — Art pipeline tooling.** Python Pillow CLIs (`sprite_extract`,
-      `sprite_merge`, `sprite_transition`, `tmj_to_tilemap`) and the
-      `art/gen_*.sh` orchestrators that turn source art and Tiled maps into the
-      PNGs/JSON under `src/assets/`.
-- [x] **P0.10 — Testing + CI infrastructure.** The deno pure-logic test suite
-      (anchor, grid-math, hud-layout, tile-ref-parse, tileset-geometry cross
-      check), the Python `tmj_to_tilemap` unittest suite, and the GitHub Actions
-      CI workflow (frontend + rust jobs).
-- [x] **P0.11 — Tooling/build setup.** Deno as task runner (`format`/`check`
-      tasks, each split into `:ts`/`:rs` halves), Vite config
-      (`assetsInlineLimit: 0` for Excalibur, dev-server/HMR quirks), Tauri
-      config wired to the Deno tasks, strict `tsconfig.json`.
-- [x] **P0.12 — Shared cross-scene game-state module.** `MapLevel` and
-      `ShipLevel` are separate scene instances with no mechanism to share data
-      today — each only holds scene-local fields (e.g. `MapLevel`'s `vessels`
-      map). P1.1's resource counts need to be readable/writable from both (mined
-      in `MapLevel`, spent in `ShipLevel`), so this has to land first: a plain
-      module (`src/game-state.ts` — `resources.ts` is already taken by the
-      tileset registry) that both scenes import: the `gameState` singleton with
-      a subscribe/update change-notification mechanism, synced from the backend
-      `load_game_state` Tauri command during the loader/splash phase
-      (`GameStateResource` in `game-state-loader.ts`). Scenes stay resilient to
-      slow/failed loads (new player, future login flow): state starts on
-      new-player defaults and subscribers re-stamp when a load lands — e.g.
-      `MapLevel` re-stamps the mothership's owner identity. Blocks P1.1.
+- [x] **P0.1 — Excalibur engine bootstrap + scene registration.** `main.ts`:
+      portrait 390\*844 engine, shared loader, map/ship scenes, starts on ship.
+- [x] **P0.2 — `TiledScene` base class.** Camera pan/zoom/clamp, tap-vs-drag
+      input dispatch, selection, HUD group wiring.
+- [x] **P0.3 — `TileActor` base entity.** Layered tile rendering, selection
+      action buttons, badges, owner labels, `moveTo` with auto-facing + path
+      line, empty-tile pattern.
+- [x] **P0.4 — TileRef / tileset system.** String/object parsing, multi-layer
+      compositing, `TilesetRegistry` + pure-data geometry catalog with
+      prefix-based auto-registration.
+- [x] **P0.5 — UI component library (`src/ui/`).** Shared primitives for
+      world-space and HUD UI behind one barrel.
+- [x] **P0.6 — Map loading + IPC.** `buildTileMap()` over the Tauri
+      `generate_map` command.
+- [x] **P0.7 — MapLevel + ShipLevel scenes.** The two playable scenes: space map
+      and mothership interior.
+- [x] **P0.8 — Vessel-move event pattern reference implementation.** The
+      concrete instance of the multiplayer-ready event pattern that
+      `/add-game-event` and `SERVER.md` generalize from.
+- [x] **P0.9 — Art pipeline tooling.** Python Pillow CLIs + `art/gen_*.sh`
+      orchestrators producing everything under `src/assets/`.
+- [x] **P0.10 — Testing + CI infrastructure.** Deno pure-logic suite, Rust
+      game-rule tests, Python pipeline tests, GitHub Actions workflow.
+- [x] **P0.11 — Tooling/build setup.** Deno task runner, Vite config, Tauri
+      config, strict `tsconfig.json`.
+- [x] **P0.12 — Shared cross-scene game-state module.** The `gameState`
+      singleton (subscribe/notify) both scenes import, synced from
+      `load_game_state` during the loader phase; scenes tolerate slow/failed
+      loads (CLAUDE.md § Startup / loader phase).
 
 ## Phase 1 — Core gameplay loop
 
 Goal: a playable single-player loop, no persistence yet.
 
-- [x] **P1.1 — Resource state + production tick.** The 4 resources
-      (construction, high-tech, biological, fuel) as game state with a periodic
-      production tick. Baseline production comes from the Command Module so the
-      player can never get stuck. Needs P0.12.
-- [x] **P1.2 — Resource bar HUD group.** Screen-top display of the resource
-      counts — first real use of runtime HUD text updates
-      (`HudGroupHandle.setLabel`, added for this since counts read better as
-      labels under the icons than as corner badges), updated from the P1.1 tick.
-      Needs P1.1.
-- [x] **P1.3 — Module placement + build timers.** `BuildModuleEvent` via
-      `/add-game-event` (its `completesAt` field gives build timers for free),
-      plus the placement UI: `createEmptyTileActor` in the ship view with a
-      Build button, mirroring the map view's Move/Deploy pattern.
-- [x] **P1.4 — Module catalog.** Types, levels, and resource costs from the
-      README ship design — Command Module and the four producers (Ore Refinery,
-      Electronics Fabricator, Hydroponics Bay, Fusion Reactor), all formalized
-      as one `MODULE_CATALOG` (`src-tauri/src/game_state.rs`, mirrored
-      display-only in `src/module-catalog.ts`). Every module — Command Module
-      included — is now server-owned `ModuleData` (id, type, level, pending
-      build) reconciled onto the ship the same way motherships /vessels are;
-      ShipLevel hardcodes no layout. Level 0 = first build still running;
-      level-ups reuse the build-timer machinery (`request_levelup_module`) and
-      are capped at the Command Module's own level. Cost, build time, and
-      production all scale via one doubling-per- level stub (`scaleForLevel`) —
-      real balancing is a later pass. Real art is still pending: every module
-      renders with the `module-base` sprite regardless of type until per-type
-      art lands (`/gen-art` + `module-*` auto-register). Needs P1.1, P1.3.
-- [x] **P1.5 — Local notifications + server-push channel.** The Events HUD badge
-      shows the live unread count of a server-owned notification feed (module
-      build/level-up completions, vessel arrivals/returns), replacing the
-      hardcoded "@" placeholder; pressing Events marks the feed read
-      (`mark_notifications_read`) and dumps it to the console — a feed panel is
-      later UI work (pairs with P3.5's mail). Delivery got reworked from pull to
-      push while at it: a backend scheduler thread settles state at each
-      deadline (production ticks included) and emits `ServerPush` Tauri events
-      that `gameState.applyServerPush()` routes through the same entry points as
-      command responses — the in-process prototype of P3.1's event bus. The
-      `startGameStateSync` poll and `ShipLevel.requestRefresh()` are gone. (The
-      Mail badge stays a placeholder until messaging exists — see P3.5.) Needs
-      P1.3.
-- [x] **P1.6 — Mining loop.** Asteroid resource nodes on the space map: three
-      size tiers (`ASTEROID_TIERS`, README § Design principles) \* four resource
-      classes, seeded deterministically as server-owned mutable data rather than
-      baked into the `generate_map` tiles as originally sketched — depletion
-      needs the same snapshot/push reconcile path motherships and modules
-      already use (`MapLevel.syncAsteroids`). Dispatch via
-      `request_mine_asteroid` (extends `VesselMoveEvent` with a mining
-      assignment and cargo); the scheduler auto-recalls the miner at mine-out,
-      an early `request_recall_vessel` harvests proportionally to extraction
-      time, and docking deposits the cargo into P1.1 resources. Placeholder
-      tinted vector sprites (`art/gen_asteroids.sh`); balancing (deposit bands,
-      the shared `MINE_UNITS_PER_HOUR` rate) is stubbed like `scaleForLevel`.
-      Needs P1.1.
-- [ ] **P1.7 — Diminishing returns.** Repeated actions yield less over the
-      course of a day and reset at a fixed point — the README's alternative to
-      hard energy caps. Local implementation first; the server re-verifies it in
-      phase 3. Needs P1.6 (mining is the first action worth damping). **Deferred
-      (July 2026):** a daily damping curve can't be experienced or tuned while
-      every restart wipes state, and it would sit on top of numbers that are
-      still stubs (`scaleForLevel`, `MINE_UNITS_PER_HOUR`) — so this also needs
-      P2.1, and most naturally lands alongside the real balancing pass.
-- [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom should anchor at the
-      pointer/pinch midpoint instead of the screen center. Pure `TiledScene`
-      input polish, independent of the rest of the phase. The anchor math is the
-      pure `anchoredZoomPos` (`src/camera-math.ts`, unit-tested); the scene
-      clamps the target zoom _before_ computing the compensating pan so the
-      camera never drifts while pinned at min/max zoom.
-- [x] **P1.9 — Minimap + full-size space map.** Overview widget for the space
-      map; becomes necessary once P1.6 spreads play across the map. Lands
-      together with restoring the map's real size: the current 100\*100 map is a
-      deliberate 1% dev size that was waiting on exactly this task (plus P1.8)
-      to be navigable at the target **1000\*1000** — resize as part of this task
-      and verify both features at full size. Design (reviewed July 2026): -
-      **The space map stops being an `ex.TileMap`.** At 1000\*1000 the current
-      pipeline ships a million-string `tiles` vector over IPC and pre-allocates
-      a million Excalibur `Tile` objects. Instead `generate_map("map")` returns
-      geometry only (cols/rows/tile size, empty `tiles` — the `TileMapData` IPC
-      shape is unchanged), `TiledScene` is refactored so a scene provides grid
-      geometry with an _optional_ `ex.TileMap` (camera clamp/empty-tap/bounds
-      math reads the geometry, not the tilemap), and the space scene renders a
-      plain space-dark background. The placeholder test-tileset rects go away —
-      asteroids and motherships are the landmarks; a real starfield is later
-      `/gen-art` work. The ship scene keeps its real TileMap unchanged. -
-      **Mothership seeds recenter** (data in `ServerState::new`): player 4\*4 at
-      (498,498), enemy at (503,499) — same relative offset, center of the full
-      map. Rust tests asserting (48,48)/(53,49) update to match. - **Asteroid
-      seeding: uniform across the whole map.** Originally landed as a ~150-tile
-      home region around the player start (same counts as the dev map), but
-      Pouya's playtest called for resources spread evenly instead —
-      `seed_asteroids` now samples the full map with area-scaled `seed_count`s
-      (320/120/40, ~one asteroid per 45\*45-tile neighborhood, the same local
-      density the home region had). The actor cost that originally argued
-      against map-wide scatter is handled by a **map-scene zoom floor**
-      (`TiledScene.minZoomFloor`, 0.1): rendering all ~480 asteroid actors at
-      once ran at ~18 fps and showed nothing readable — the minimap is the
-      whole-map overview, so the camera now stops at a ~120\*260-tile window
-      (~56 fps). Deposit/rate balancing stays stubbed. - **The minimap widget
-      itself:** ~120px square HUD element, bottom-left of the map scene, drawn
-      with an `ex.Canvas` graphic — mothership dots (own = green, others = red),
-      asteroid dots in their class tints from `src/asteroid-catalog.ts`,
-      in-flight vessel dots (white), and a live viewport rectangle. The viewport
-      marker is inflated to a minimum 8px, drawn glowing with a slow pulse over
-      deliberately dimmed dots — at default zoom the true rect is sub-pixel and
-      was invisible (playtest feedback). Tap-to-jump pans the camera to the
-      tapped world point. World→minimap projection math goes in a pure
-      `minimap-math.ts` with unit tests (the hud-layout pattern). As landed, the
-      canvas redraws every frame reading the live `gameState` tables directly
-      (the viewport rect needs per-frame refresh anyway, and the widget is too
-      small for the redraw to matter) instead of routing dot updates through a
-      `gameState.subscribe` dirty flag as originally sketched.
-
-      Needs P1.6, P1.8.
+- [x] **P1.1 — Resource state + production tick.** The 4 resources as game state
+      with periodic production; baseline production from the Command Module so
+      the player can never get stuck.
+- [x] **P1.2 — Resource bar HUD group.** Screen-top resource counts with live
+      label updates.
+- [x] **P1.3 — Module placement + build timers.** `BuildModuleEvent` (its
+      `completesAt` gives build timers for free) + the empty-tile Build
+      placement UI in the ship view.
+- [x] **P1.4 — Module catalog.** Command Module + the four producers as one
+      Rust-authoritative `MODULE_CATALOG` (display-only TS mirror); every module
+      is server-owned `ModuleData` reconciled by `syncModules`; level-ups reuse
+      the build-timer machinery, capped at the Command Module's level. Still
+      open: per-level cost/time/production scaling is the doubling stub
+      `scaleForLevel` (real balancing → P2.5), and every module renders the
+      `module-base` sprite until per-type art lands (→ P6.1).
+- [x] **P1.5 — Local notifications + server-push channel.** Server-owned
+      notification feed drives the Events HUD badge; delivery is push — a
+      backend scheduler thread settles state at deadlines and emits `ServerPush`
+      events routed through `gameState.applyServerPush()` — the in-process
+      prototype of P3.1's event bus. Still open: pressing Events dumps the feed
+      to the console — the real feed panel is P6.3; the Mail badge stays a
+      placeholder until P3.5.
+- [x] **P1.6 — Mining loop.** Server-seeded asteroids (3 tiers \* 4 classes,
+      README § Design principles) on the same snapshot/push reconcile path as
+      motherships and modules; `request_mine_asteroid` reserves the single
+      mining slot, the scheduler auto-recalls at mine-out, early recalls harvest
+      proportionally, docking deposits the cargo. Still open: deposit bands and
+      `MINE_UNITS_PER_HOUR` are balancing stubs (→ P2.5); asteroid sprites are
+      placeholder tinted vectors (→ P6.2); the README leaves the door open to
+      mixed deposits / multiple miners on large asteroids (revisit in P2.5).
+- **P1.7 — Diminishing returns.** Moved to Phase 2 (July 2026): a daily damping
+  curve can't be experienced or tuned while every restart wipes state, and it
+  would sit on top of numbers that are still stubs — see Phase 2.
+- [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom anchored at the pointer/pinch
+      midpoint (`anchoredZoomPos` in `src/camera-math.ts`; clamp-before-pan so
+      the camera never drifts at min/max zoom).
+- [x] **P1.9 — Minimap + full-size space map.** The space map is geometry-only
+      at its target 1000\*1000 (no `ex.TileMap`, plain space-dark background —
+      asteroids and motherships are the landmarks) and the minimap
+      (`src/minimap.ts` + pure `minimap-math.ts`) covers navigation: entity
+      dots, a pulsing viewport rect, tap-to-jump. Still open: a real starfield
+      background is later art (→ P6.2). Its 0.1 zoom floor was superseded by
+      P1.13's tile-view cap.
 - [ ] **P1.10 — Crew Quarters + crew capacity.** Ship-wide crew capacity stat,
       scaled by module level; production and functional penalties apply when
       crew is short relative to ship size and active modules. Needs P1.4.
-- [ ] **P1.11 — Storage Bay + Armory capacity caps.** Storage limits on the 4
-      resources (Storage Bay) and on produced weapons (Armory, needs P5.4);
-      upgrades raise caps and may boost production. Needs P1.4.
+- [ ] **P1.11 — Storage Bay capacity caps.** Storage limits on the 4 resources;
+      upgrades raise caps and may boost production. The README's "safe
+      warehousing" (protecting stored material from theft) becomes meaningful
+      with P5.5 combat — leave the door open. (The Armory's weapon-storage half
+      of the original task moved to Phase 5, where weapons exist: see P5.4.)
+      Needs P1.4.
 - [ ] **P1.12 — Trading Post + NPC shop.** Buy/sell the 4 resources with NPCs at
       a markup/markdown, independent of the Phase 4 alliance economy — the
-      README's answer for players who need resources between mining runs. Needs
-      P1.1.
+      README's answer for players who need resources between mining runs.
+      Introduces the generic trade currency (working name "credits", README §
+      Design principles) as a non-produced fifth count; its wider role is
+      designed in P4.6. Needs P1.1.
 - [x] **P1.13 — Map interest area: windowed world streaming + minimap
-      declutter.** Follow-up from the July 2026 full-size-map playtests: with
-      ~480 nodes the minimap is cluttered, and shipping the entire world to the
-      client scales badly in bandwidth and actors once other players' data rides
-      the snapshot (P3+). Plan (reviewed July 2026): - **Minimap hierarchy:**
-      asteroid dots drop to 50% opacity while ships render at full strength and
-      are drawn after (over) the resource dots — seeing players matters more
-      than seeing nodes. - **Interest area (AOI):** the client only ever holds
-      world entities inside a **100\*100-tile window** centered on the camera.
-      `load_game_state` returns only in-window asteroids and foreign
-      ships/vessels; everything the player owns is always sent regardless of
-      window (a mining vessel must keep existing beyond the edge; alliance ships
-      join the exemption in P4). A new `request_map_window(center)` command
-      re-centers the AOI as the camera pans — with hysteresis (re-request when
-      the camera drifts more than ~N tiles from the last window center, never
-      per frame) — and returns the window's entities; the existing reconcilers
-      (`syncAsteroids` / `syncMotherships` / `syncVessels`) despawn everything
-      that left the window, so out-of-window entities unload from `gameState`
-      and the scene. The windowed response is authoritative for everything
-      inside it (stale mining slots etc. resolve on window re-entry). - **Push
-      filtering:** the scheduler/outbox only emits entity pushes that intersect
-      the subscriber's AOI, with own-entity pushes always exempt — per-client
-      AOI state in `ServerState`, single-client today but shaped exactly like
-      P3.1's per-connection subscriptions (SERVER.md gains an
-      interest-management section). - **Zoom cap:** the map camera never shows
-      more than 100 tiles on its longer axis (supersedes P1.9's 0.1 floor). Keep
-      the visible view strictly smaller than the AOI window (cap below 100, or
-      make the window view-size + hysteresis margin) so unloaded space can never
-      scroll into sight at the window border. - **Minimap beyond the window:**
-      background plus own (later alliance) ships only — the global resource
-      picture intentionally disappears. Tap-to-jump into an unloaded region
-      stays legal: it pans and fires the window request, tolerating a brief
-      empty view until the data lands. - **Notes:** notifications and resource
-      counts stay global (unaffected). With unload in place, local asteroid
-      density becomes a free balancing knob — global count no longer costs
-      actors or bandwidth — and wants revisiting: at P1.9 density a 100\*100
-      window holds only ~5 asteroids, which will feel sparse under the tighter
-      zoom cap. As landed: `AOI_SPAN` 100 (`MapWindow` in game_state.rs,
-      per-client in `ServerState::aoi`); view cap 80 tiles on the longer axis
-      (`tileViewCapZoom`, src/camera-math.ts) + 8-tile Chebyshev hysteresis
-      checked in `MapLevel.onPreUpdate` — 40 + 8 < 50, so the margin holds while
-      a re-request is in flight. `request_map_window` responses and
-      `load_game_state` snapshots share the same windowed slices;
-      `gameState.applyMapWindow` replaces the world tables wholesale. Push
-      filtering tags outbox entries with a world footprint at queue time and
-      drops out-of-window ones at drain. Asteroid seeding took the free density
-      knob: seed counts 4\*'d to 1280/480/160 (~1920 total, ~19 per window, one
-      per ~23\*23 tiles) — deposit/rate balance still stubbed. Needs P1.9; feeds
-      P3.1 (per-connection subscriptions) and P4.3 (fog of war is this AOI
-      shrunk to a radar radius).
+      declutter.** The client only holds world entities inside a 100\*100-tile
+      AOI window (`MapWindow` in `ServerState::aoi`, re-centered on the player's
+      mothership at load); `request_map_window` re-centers it as the camera pans
+      (8-tile hysteresis) and replaces the world tables wholesale; entity pushes
+      are footprint-filtered at outbox drain (own-entity and global pushes
+      exempt); the map view is capped at 80 tiles on the longer axis
+      (`tileViewCapZoom`) so unloaded space never scrolls into sight; the
+      minimap dims asteroid dots under ship dots and shows only own ships beyond
+      the window. Full model: SERVER.md § Interest management. Feeds P3.1
+      (per-connection subscriptions) and P4.3 (fog of war = this window shrunk
+      to a radar radius). Asteroid seeding took the freed density knob (~1920
+      total, ~19 per window) — deposit/rate balance still stubbed (→ P2.5).
 
-## Phase 2 — Persistence
+## Phase 2 — Persistence and balancing
 
-Goal: game state survives a restart.
+Goal: game state survives a restart, and the stubbed numbers become real.
+Balancing lives in this phase because progression tuning is only meaningful once
+progress persists — the reason P1.7 moved here.
 
-- [ ] **P2.1 — Save/load via a Tauri command.** Serialize the phase-1 game state
-      to a local file; load on startup. No server involved.
+- [ ] **P2.1 — Save/load via a Tauri command.** Serialize `ServerState` to a
+      local file; load on startup in place of the seeded new-player state
+      (falling back to the seeds when no save exists). Loading rides the
+      existing loader phase and its resilience rules — a missing or corrupt save
+      must never block game start. No server involved; SERVER.md frames the save
+      file as a local prototype of the phase-3 snapshot.
 - [ ] **P2.2 — Versioned save format.** Version field + migration path so later
       phases (and the phase-3 server snapshot format) can evolve without wiping
       saves. Needs P2.1.
+- [ ] **P2.3 — Autosave.** Persist without user action: save at scheduler settle
+      boundaries and on exit, with atomic write-temp-then-rename so a crash
+      never corrupts the save. Needs P2.1.
+- [ ] **P2.4 — Offline catch-up.** On load, settle everything that came due
+      while the app was closed through the same settlement paths the scheduler
+      uses live: production accrual is already lazy, but build completions,
+      vessel arrivals/returns, and mine-outs must settle in timestamp order and
+      emit their notifications. Needs P2.1.
+- [ ] **P2.5 — Balancing pass.** Replace the stubs with real curves: the
+      `scale_for_level`/`scaleForLevel` doubling, `MINE_UNITS_PER_HOUR`,
+      asteroid deposit bands and per-window density. README targets: small
+      asteroids mine out in 15–60 min, medium 1–4 h, large 4–12 h. Also revisit
+      the single-deposit / single-miner rules for large asteroids (README leaves
+      that door open). Needs P2.1 — tuning requires persistent progress.
+- [ ] **P1.7 — Diminishing returns** _(moved from Phase 1, July 2026)_. Repeated
+      actions yield less over the course of a day and reset at a fixed point —
+      the README's alternative to hard energy caps. Local implementation first;
+      the server re-verifies it in phase 3. Mining is the first action worth
+      damping. Needs P2.1; lands naturally alongside P2.5.
 
 ## Phase 3 — Server-authoritative events
 
@@ -275,7 +171,9 @@ Goal: the event pattern goes live over the network, per `SERVER.md`.
 - [ ] **P3.1 — WebSocket event bus.** Server verifies, timestamps, and
       broadcasts events; clients feed them into the existing `apply*Event` entry
       points. Local action methods switch from "build + apply" to "send request,
-      apply the broadcast".
+      apply the broadcast". Includes the rate limits SERVER.md's verification
+      step sketches, and generalizes P1.13's single-client AOI into
+      per-connection windows at the outbox drain loop.
 - [ ] **P3.2 — Server-time-offset handshake.** Clients never trust `Date.now()`
       — pairs with the `arrivalAt` precomputation already in `VesselMoveEvent`.
       Needs P3.1.
@@ -288,34 +186,49 @@ Goal: the event pattern goes live over the network, per `SERVER.md`.
       platform (update the CLAUDE.md Platform line when done).
 - [ ] **P3.5 — Player-to-player mail.** First messaging feature; wires the Mail
       HUD badge to a real unread count (completes the notification work started
-      in P1.5). Needs P3.1.
+      in P1.5). The P6.3 feed panel is the natural UI surface to reuse. Needs
+      P3.1.
 - [ ] **P3.6 — Production hardening.** Set a real CSP in `tauri.conf.json`
       (currently `null`); drop the unused `withGlobalTauri: true`. Do before the
       first public/networked build.
+- [ ] **P3.7 — Login / player identity.** Accounts and authentication: the
+      client learns who it is from the server instead of the local seed. Rides
+      the loader phase — the resilience rules in CLAUDE.md § Startup already
+      reserve room for a login flow, and identity still never changes
+      mid-session. Pairs with P3.1: the socket needs an authenticated player
+      behind it.
 
 ## Phase 4 — Alliances, seasons, worlds
 
 Goal: the MMO layer.
 
 - [ ] **P4.1 — Alliance Embassy gameplay.** Joining, contribution, and alliance
-      boosts — the first alliance mechanics.
+      boosts — the first alliance mechanics. Alliance entities join the P1.13
+      always-sent AOI exemption here.
 - [ ] **P4.2 — Map difficulty scaling toward the center.** Higher-level
       nodes/territories closer to the center gate progress — alliances must gain
-      power together to push inward. Needs P4.1.
-- [ ] **P4.3 — Fog of war / radar.** Visibility radius on the space map tied to
-      the Operations Center module level; matters once other players' fleets
-      share the map. Needs P3.1.
+      power together to push inward. The README lists moons and planets
+      alongside asteroids as resource nodes; they'd first appear here as the
+      higher-tier center content. Needs P4.1.
+- [ ] **P4.3 — Operations Center: fog of war / radar.** The Operations Center
+      module (README § Ship design): visibility radius on the space map tied to
+      its level — P1.13's AOI window shrunk to a radar radius — plus its
+      vessel-speed boost. Matters once other players' fleets share the map.
+      Needs P3.1.
 - [ ] **P4.4 — Cohort worlds.** New players arrive in a fresh star system
       populated by players who started around the same time, so nobody is
       unrecoverably behind.
 - [ ] **P4.5 — Seasons.** After a time or milestone, remaining players move on
       to a new system — the answer to server activity dying off. Enables world
       merging and ascension bonuses for players carrying over. Needs P4.4.
+- [ ] **P4.6 — Credits economy / player trade.** Flesh out the credits currency
+      beyond the P1.12 NPC shop: player-to-player and alliance-level trade.
+      Design is open — the README calls the currency's exact role "not fleshed
+      out yet" — so settle the design before building. Needs P1.12, P4.1.
 
 ## Phase 5 — Technologies, combat, and defence
 
-Goal: the README's Technologies, Combat, and Defence module categories, none of
-which have a task yet.
+Goal: the README's Technologies, Combat, and Defence module categories.
 
 - [ ] **P5.1 — Research Lab + tech tree.** Spend resources to unlock module
       blueprints, vessel stat upgrades, and efficiency bonuses; gates which
@@ -326,9 +239,10 @@ which have a task yet.
 - [ ] **P5.3 — Vessel Shipyard + vessel stats.** Durability, damage, cargo
       capacity, and weapons capacity as per-vessel upgradeable stats, replacing
       the flat `vesselSpeed` constant with a real stat block. Needs P1.6.
-- [ ] **P5.4 — Weapons Factory, Drone Factory, Plasma Factory.** Three
+- [ ] **P5.4 — Weapons Factory, Drone Factory, Plasma Factory + Armory.** Three
       weapon-type production lines (kinetic, drone, plasma) feeding the vessel
-      weapons capacity from P5.3. Event-modeled via `/add-game-event`. Needs
+      weapons capacity from P5.3, plus the Armory's weapon-storage caps (moved
+      out of P1.11's original scope). Event-modeled via `/add-game-event`. Needs
       P5.3.
 - [ ] **P5.5 — PvP combat resolution.** Attacking another player's mothership or
       vessels: damage exchange using P5.4 weapons and P5.3 stats, resolved
@@ -341,3 +255,24 @@ which have a task yet.
 - [ ] **P5.8 — Shield Generator.** Protective shielding that absorbs damage in
       P5.5 combat; when breached, forces the mothership to warp and relocate.
       Needs P5.5.
+
+## Phase 6 — Presentation and platforms
+
+Goal: real art, real panels, more platforms. Client-side work that is largely
+independent of the server phases — pull any of these earlier when placeholder
+art or missing panels start hurting playtests.
+
+- [ ] **P6.1 — Per-type module art.** Replace the shared `module-base` sprite
+      with per-type module sprites (`/gen-art`; the `module-*` auto-register
+      prefix already expects them). Needs P1.4.
+- [ ] **P6.2 — Space map art.** Real starfield background for the geometry-only
+      map scene, and real asteroid sprites (per class, per tier) replacing the
+      tinted placeholder vectors. Needs P1.9.
+- [ ] **P6.3 — Notification feed panel.** A real Events panel replacing the P1.5
+      console dump — likely the game's first scrollable list UI, so build it as
+      a reusable panel; P3.5's mail UI is the second consumer. Needs P1.5.
+- [ ] **P6.4 — Mobile builds (Android/iOS).** Bring up
+      `deno task tauri android|ios` (README § Other platforms). The game is
+      mobile-first by design — portrait layout and touch input already hold — so
+      this is mostly build wiring, performance, and on-device verification.
+      Worth pulling early once the core loop stabilizes.
