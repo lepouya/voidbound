@@ -78,16 +78,25 @@ impl ResourceCounts {
         accepted
     }
 
-    /// Every module cost is stubbed as construction-only for now (ROADMAP
-    /// P1.4) — fine-tuned to a real per-resource mix later.
-    fn spend_construction(&mut self, amount: u64) -> Result<(), String> {
-        if self.construction < amount {
+    /// Deduct `amount` of a material resource, failing (untouched) when the
+    /// stock doesn't cover it. Every module cost is stubbed as
+    /// construction-only for now (ROADMAP P1.4) — fine-tuned to a real
+    /// per-resource mix later; crew hiring spends biological (ROADMAP P1.10).
+    fn spend(&mut self, kind: ResourceKind, amount: u64) -> Result<(), String> {
+        let have = self.get(kind);
+        if have < amount {
             return Err(format!(
-                "not enough construction material: need {amount}, have {}",
-                self.construction
+                "not enough {}: need {amount}, have {have}",
+                resource_display_name(kind)
             ));
         }
-        self.construction -= amount;
+        let slot = match kind {
+            ResourceKind::Construction => &mut self.construction,
+            ResourceKind::HighTech => &mut self.high_tech,
+            ResourceKind::Biological => &mut self.biological,
+            ResourceKind::Fuel => &mut self.fuel,
+        };
+        *slot -= amount;
         Ok(())
     }
 }
@@ -107,6 +116,17 @@ pub struct ModuleCatalogEntry {
     /// Storage capacity contributed per resource at level 1 (ROADMAP P1.11);
     /// doubles per level. Income past a resource's total cap is lost.
     pub stores: &'static [(ResourceKind, u64)],
+    /// Crew berths contributed per settled level (ROADMAP P1.10) — summed
+    /// **linearly** (level * this), not scale_for_level: capacity is a head
+    /// count, not a production curve. Crew Quarters is the real source; the
+    /// Command Module contributes a baseline like it does for production and
+    /// storage.
+    pub crew_capacity_per_level: u32,
+    /// Crew wanted per settled level to run at full output (ROADMAP P1.10),
+    /// summed linearly ship-wide. Modules with 0 are never damped; the
+    /// Command Module's baseline production stays 0 so the player can never
+    /// get stuck (README § Ship design).
+    pub crew_required_per_level: u32,
     /// Construction-material cost to build (or level up to) level 1; doubles
     /// per level thereafter.
     pub base_cost_construction: u64,
@@ -142,6 +162,10 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
             (ResourceKind::Biological, 1_000),
             (ResourceKind::Fuel, 1_000),
         ],
+        // Baseline berths too — hiring works before the first Crew Quarters
+        // exists (ROADMAP P1.10).
+        crew_capacity_per_level: 2,
+        crew_required_per_level: 0,
         base_cost_construction: 20,
         base_build_time_ms: 30_000,
         unlock_command_level: 0,
@@ -151,6 +175,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         display_name: "Ore Refinery",
         produces: &[(ResourceKind::Construction, 2)],
         stores: &[],
+        crew_capacity_per_level: 0,
+        crew_required_per_level: 1,
         base_cost_construction: 10,
         base_build_time_ms: 15_000,
         unlock_command_level: 1,
@@ -160,6 +186,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         display_name: "Electronics Fabricator",
         produces: &[(ResourceKind::HighTech, 2)],
         stores: &[],
+        crew_capacity_per_level: 0,
+        crew_required_per_level: 1,
         base_cost_construction: 10,
         base_build_time_ms: 15_000,
         unlock_command_level: 1,
@@ -169,6 +197,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         display_name: "Hydroponics Bay",
         produces: &[(ResourceKind::Biological, 2)],
         stores: &[],
+        crew_capacity_per_level: 0,
+        crew_required_per_level: 1,
         base_cost_construction: 10,
         base_build_time_ms: 15_000,
         unlock_command_level: 1,
@@ -178,6 +208,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         display_name: "Fusion Reactor",
         produces: &[(ResourceKind::Fuel, 2)],
         stores: &[],
+        crew_capacity_per_level: 0,
+        crew_required_per_level: 1,
         base_cost_construction: 10,
         base_build_time_ms: 15_000,
         unlock_command_level: 1,
@@ -192,6 +224,19 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
             (ResourceKind::Biological, 2_000),
             (ResourceKind::Fuel, 2_000),
         ],
+        crew_capacity_per_level: 0,
+        crew_required_per_level: 0,
+        base_cost_construction: 15,
+        base_build_time_ms: 20_000,
+        unlock_command_level: 1,
+    },
+    ModuleCatalogEntry {
+        module_type: "crew-quarters",
+        display_name: "Crew Quarters",
+        produces: &[],
+        stores: &[],
+        crew_capacity_per_level: 1,
+        crew_required_per_level: 0,
         base_cost_construction: 15,
         base_build_time_ms: 20_000,
         unlock_command_level: 1,
@@ -210,6 +255,22 @@ fn scale_for_level(base: u64, level: u32) -> u64 {
         return 0;
     }
     base.saturating_mul(2u64.saturating_pow(level - 1))
+}
+
+/// Damp a production amount by the pooled crew staffing ratio (ROADMAP
+/// P1.10): output * (0.5 + 0.5 * staffed/required), as exact integer math —
+/// `amount * (required + staffed) / (2 * required)`. Fully staffed passes
+/// through unchanged; a ship with no crew still runs at half speed (the 50%
+/// floor — understaffing punishes, it never kills). `required == 0` means
+/// nothing wants crew: no damping. The floor value is a balancing stub →
+/// P2.5. Mirrored display-only as crewScaledAmount in
+/// `src/module-catalog.ts` — keep the two in sync.
+fn crew_scaled(amount: u64, staffed: u32, required: u32) -> u64 {
+    if required == 0 {
+        return amount;
+    }
+    let (staffed, required) = (staffed as u64, required as u64);
+    amount.saturating_mul(required + staffed) / (2 * required)
 }
 
 /// A module placed in the ship, with its catalog type and current level.
@@ -252,6 +313,37 @@ pub struct ModulePendingBuild {
 #[derive(Serialize, Debug)]
 pub struct ModuleActionResponse {
     pub module: ModuleData,
+    pub resources: ResourceCounts,
+}
+
+/// A crew recruitment in flight (ROADMAP P1.10) — one at a time, same timer
+/// shape as a module's pending build. Mirrors the TS `PendingHire` in
+/// `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingHire {
+    pub dispatched_at: u64,
+    pub completes_at: u64,
+}
+
+/// The ship's crew state (ROADMAP P1.10): head count plus any recruitment in
+/// flight. Like ModuleData, the struct doubles as its own event payload — a
+/// crew push carries the full current snapshot. Capacity is not on the wire:
+/// it derives from the module snapshot (crew_capacity / the TS
+/// crewCapacityForModules mirror). Mirrors the TS `CrewData` in
+/// `src/game-state.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CrewData {
+    pub crew: u32,
+    pub pending_hire: Option<PendingHire>,
+}
+
+/// Result of a verified hire request: the crew state with the recruitment
+/// pending, plus the resource counts after the cost was deducted.
+#[derive(Serialize, Debug)]
+pub struct CrewActionResponse {
+    pub crew: CrewData,
     pub resources: ResourceCounts,
 }
 
@@ -329,6 +421,8 @@ pub enum ServerPush {
     AsteroidRemoved { asteroid_id: String },
     /// A new entry for the player's event feed.
     Notification(NotificationData),
+    /// The crew state changed server-side (a recruitment completed).
+    Crew(CrewData),
 }
 
 /// Game state pushed to the client. Mirrors the TS `GameStateData` in
@@ -363,6 +457,9 @@ pub struct GameStateData {
     /// The player's event feed (ROADMAP P1.5), oldest first — restores the
     /// Events badge unread count across reloads.
     pub notifications: Vec<NotificationData>,
+    /// The ship's crew state (ROADMAP P1.10) — head count plus any
+    /// recruitment in flight; capacity derives from the module list.
+    pub crew: CrewData,
 }
 
 // -- Server-authoritative game rules ----------------------------------------
@@ -401,6 +498,21 @@ pub(crate) const MAP_TILE_PX: f64 = 32.0;
 /// src/map-level.ts — keep the invariant documented there in sync) so
 /// unloaded space can never scroll into sight.
 pub(crate) const AOI_SPAN: i64 = 100;
+/// Biological-material cost of one crew hire, multiplied by the new head
+/// count — linear, not the doubling stub: hiring is a repeat purchase
+/// (ROADMAP P1.10). Balancing stub → P2.5. Mirrored display-only as
+/// HIRE_COST_BIOLOGICAL in `src/module-catalog.ts` — keep the two in sync.
+const HIRE_COST_BIOLOGICAL: u64 = 20;
+/// Recruitment time per hire. Balancing stub → P2.5. Mirrored display-only
+/// as HIRE_TIME_MS in `src/module-catalog.ts` — keep the two in sync.
+const HIRE_TIME_MS: u64 = 30_000;
+/// A new player starts with no crew (ROADMAP P1.10) and hires from scratch —
+/// the first recruitment is a natural early goal (and a future tutorial
+/// step). The Command Module's baseline berths make it possible before any
+/// Crew Quarters exists, and its baseline production is crew-independent, so
+/// an empty ship still runs.
+const STARTING_CREW: u32 = 0;
+
 /// Vessel travel speed in world px/s. Server-verified: clients render the
 /// speed the event carries, they never choose it. Update on upgrade (P4).
 const VESSEL_SPEED_PX_S: f64 = 32.0;
@@ -894,6 +1006,13 @@ pub struct ServerState {
     /// settle pass would re-announce them. An id leaves the set when its
     /// vessel despawns or is recalled (the redirect makes it in-flight again).
     notified_arrivals: HashSet<String>,
+    /// Ship's crew head count (ROADMAP P1.10). Capacity derives from the
+    /// module table (crew_capacity); the pooled staffing ratio against
+    /// crew_required damps producer output in accrue_production.
+    crew: u32,
+    /// The one crew recruitment in flight, if any — same timer shape as a
+    /// module's pending build, settled by settle_hire.
+    pending_hire: Option<PendingHire>,
     /// The player's event feed (ROADMAP P1.5), oldest first, capped at
     /// MAX_NOTIFICATIONS. Server-owned like everything else: it rides the
     /// snapshot, so a reload restores the feed and its unread state.
@@ -985,6 +1104,8 @@ impl ServerState {
             next_vessel_seq: 0,
             asteroids,
             notified_arrivals: HashSet::new(),
+            crew: STARTING_CREW,
+            pending_hire: None,
             notifications: Vec::new(),
             next_notification_seq: 0,
             aoi: MapWindow::centered_at(MAP_COLS / 2, MAP_ROWS / 2),
@@ -1054,6 +1175,94 @@ impl ServerState {
             }
         }
         caps
+    }
+
+    /// Total crew berths (ROADMAP P1.10): every module's catalog
+    /// `crew_capacity_per_level` times its settled level, summed linearly —
+    /// a build/upgrade adds berths only once it settles, like storage caps.
+    fn crew_capacity(&self) -> u32 {
+        self.modules
+            .values()
+            .filter_map(|m| {
+                catalog_entry(&m.module_type)
+                    .map(|e| e.crew_capacity_per_level.saturating_mul(m.level))
+            })
+            .sum()
+    }
+
+    /// Ship-wide crew demand (ROADMAP P1.10): every module's catalog
+    /// `crew_required_per_level` times its settled level, summed linearly.
+    /// The pooled staffing ratio against this damps producer output.
+    fn crew_required(&self) -> u32 {
+        self.modules
+            .values()
+            .filter_map(|m| {
+                catalog_entry(&m.module_type)
+                    .map(|e| e.crew_required_per_level.saturating_mul(m.level))
+            })
+            .sum()
+    }
+
+    fn crew_data(&self) -> CrewData {
+        CrewData {
+            crew: self.crew,
+            pending_hire: self.pending_hire.clone(),
+        }
+    }
+
+    /// Verify and execute a hire request (ROADMAP P1.10): one recruitment at
+    /// a time, the new head must fit the berths (a pending hire counts
+    /// against them), and the biological cost — linear in the new head count
+    /// — must be affordable. Deducts the cost and returns the crew state
+    /// with the recruitment pending.
+    fn hire_crew(&mut self, now_ms: u64) -> Result<CrewActionResponse, String> {
+        self.accrue_production(now_ms);
+        self.settle_hire(now_ms);
+        if self.pending_hire.is_some() {
+            return Err("a crew member is already being recruited".to_string());
+        }
+        let capacity = self.crew_capacity();
+        if self.crew + 1 > capacity {
+            return Err(format!(
+                "no berths free: crew {} of {capacity} — build or upgrade Crew Quarters",
+                self.crew
+            ));
+        }
+        let cost = HIRE_COST_BIOLOGICAL.saturating_mul(self.crew as u64 + 1);
+        self.resources.spend(ResourceKind::Biological, cost)?;
+        self.resources_dirty = true;
+        self.pending_hire = Some(PendingHire {
+            dispatched_at: now_ms,
+            completes_at: now_ms + HIRE_TIME_MS,
+        });
+        Ok(CrewActionResponse {
+            crew: self.crew_data(),
+            resources: self.resources,
+        })
+    }
+
+    /// Complete a recruitment whose timer has run out (ROADMAP P1.10):
+    /// production must already be settled to the completion moment (see
+    /// settle() / hire_crew ordering) so the staffing-ratio change is never
+    /// credited retroactively. Queues the Crew push and a feed notification.
+    fn settle_hire(&mut self, now_ms: u64) {
+        let Some(pending) = &self.pending_hire else {
+            return;
+        };
+        if now_ms < pending.completes_at {
+            return;
+        }
+        let completed_at = pending.completes_at;
+        self.crew += 1;
+        self.pending_hire = None;
+        // Crew is the player's own ship state — never interest-area
+        // filtered.
+        self.queue_push(ServerPush::Crew(self.crew_data()));
+        self.push_notification(
+            "crew-hired",
+            format!("A new crew member came aboard ({} total)", self.crew),
+            completed_at,
+        );
     }
 
     /// Queue a push that always reaches the client — global state (resources,
@@ -1156,6 +1365,14 @@ impl ServerState {
         // raises the cap from the next accrual on — stub precision, fine at
         // a 5 s tick.
         let caps = self.storage_caps();
+        // The crew staffing ratio (ROADMAP P1.10) reads the same window-start
+        // state — head count and demand as of the last settle. A hire or
+        // level-up completing mid-window shifts the ratio only from the next
+        // accrual on (settle_hire runs after this, and the scheduler wakes at
+        // those deadlines anyway, so straddling windows stay tiny) — the same
+        // stub precision as the caps above.
+        let required = self.crew_required();
+        let staffed = self.crew.min(required);
         // Settling (bumping `level`) happens only after this loop: a module
         // whose pending build/upgrade completes partway through this window
         // must be credited its OLD level for the whole ticks fully elapsed
@@ -1184,15 +1401,22 @@ impl ServerState {
             let Some(entry) = catalog_entry(&module.module_type) else {
                 continue;
             };
+            // Only modules that want crew are damped by the staffing ratio
+            // (ROADMAP P1.10) — the Command Module's baseline production
+            // (crew_required_per_level 0) always runs at full output.
+            let damped = entry.crew_required_per_level > 0;
+            let (damp_staffed, damp_required) = if damped { (staffed, required) } else { (0, 0) };
             if old_level > 0 && old_ticks > 0 {
                 for &(kind, base) in entry.produces {
                     let amount = scale_for_level(base, old_level) * old_ticks;
+                    let amount = crew_scaled(amount, damp_staffed, damp_required);
                     self.resources.add_capped(kind, amount, caps.get(kind));
                 }
             }
             if new_level > 0 && new_ticks > 0 {
                 for &(kind, base) in entry.produces {
                     let amount = scale_for_level(base, new_level) * new_ticks;
+                    let amount = crew_scaled(amount, damp_staffed, damp_required);
                     self.resources.add_capped(kind, amount, caps.get(kind));
                 }
             }
@@ -1236,7 +1460,7 @@ impl ServerState {
             return Err(format!("room at {room:?} already has a module"));
         }
         let cost = scale_for_level(entry.base_cost_construction, 1);
-        self.resources.spend_construction(cost)?;
+        self.resources.spend(ResourceKind::Construction, cost)?;
         self.resources_dirty = true;
         self.next_module_seq += 1;
         let player = player_identity();
@@ -1306,7 +1530,7 @@ impl ServerState {
             ));
         }
         let cost = scale_for_level(entry.base_cost_construction, next_level);
-        self.resources.spend_construction(cost)?;
+        self.resources.spend(ResourceKind::Construction, cost)?;
         self.resources_dirty = true;
         let completes_at = now_ms + scale_for_level(entry.base_build_time_ms, next_level);
         let module = self
@@ -1817,18 +2041,26 @@ impl ServerState {
     /// (and deposit its cargo) in the same pass.
     fn settle(&mut self, now_ms: u64) {
         self.accrue_production(now_ms); // also settles modules
+                                        // After production: the staffing-ratio bump must never be credited
+                                        // retroactively for ticks that elapsed before the recruitment
+                                        // finished (ROADMAP P1.10).
+        self.settle_hire(now_ms);
         self.settle_mining(now_ms);
         self.settle_vessel_arrivals(now_ms);
     }
 
     /// Epoch ms of the next moment something comes due: the next production
-    /// tick, the earliest pending build/upgrade completion, the earliest
-    /// mining completion, or the earliest un-notified vessel arrival. The
+    /// tick, a pending crew recruitment, the earliest pending build/upgrade
+    /// completion, the earliest mining completion, or the earliest
+    /// un-notified vessel arrival. The
     /// scheduler sleeps until this — never more than one production tick —
     /// or until a command wakes it early because it created a nearer
     /// deadline.
     fn next_deadline(&self) -> u64 {
         let mut deadline = self.last_production_at + PRODUCTION_TICK_MS;
+        if let Some(pending) = &self.pending_hire {
+            deadline = deadline.min(pending.completes_at);
+        }
         for module in self.modules.values() {
             if let Some(pending) = &module.pending {
                 deadline = deadline.min(pending.completes_at);
@@ -1971,6 +2203,7 @@ pub(crate) fn load_game_state(
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let now = now_ms();
     s.accrue_production(now);
+    s.settle_hire(now);
     // The camera homes on the player's mothership after a (re)load, so the
     // interest area does too (ROADMAP P1.13) — the world slices below are
     // filtered to it.
@@ -1987,6 +2220,7 @@ pub(crate) fn load_game_state(
         vessels: s.active_vessels(now),
         modules: s.modules_snapshot(now),
         notifications: s.notifications.clone(),
+        crew: s.crew_data(),
     };
     finish_command(&app, server.inner(), s);
     Ok(data)
@@ -2093,6 +2327,22 @@ pub(crate) fn request_levelup_module(
     result
 }
 
+/// Request recruitment of one crew member (ROADMAP P1.10). Berth room, the
+/// single-recruitment rule, and the biological cost are all verified here —
+/// on success the cost is already deducted and the returned crew state +
+/// resource counts are authoritative; the completion later arrives as a
+/// Crew push.
+#[tauri::command]
+pub(crate) fn request_hire_crew(
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
+) -> Result<CrewActionResponse, String> {
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.hire_crew(now_ms());
+    finish_command(&app, server.inner(), s);
+    result
+}
+
 /// Mark the whole event feed read (the player opened the Events feed) and
 /// return the updated list — the client replaces its table with it, which
 /// clears the Events badge in every scene.
@@ -2129,6 +2379,25 @@ mod tests {
         let mut s = ServerState::new(at);
         s.resources.construction = builds * ore_refinery_cost();
         s
+    }
+
+    /// Insert an already-settled module directly, bypassing the build timer
+    /// and cost — for tests that isolate level-derived state (production
+    /// scaling, crew sums) from the build pipeline.
+    fn insert_settled(s: &mut ServerState, id: &str, module_type: &str, level: u32) {
+        s.modules.insert(
+            id.to_string(),
+            ModuleData {
+                module_id: id.to_string(),
+                owner_id: player_identity().id,
+                owner_name: player_identity().name,
+                module_type: module_type.to_string(),
+                col: 2,
+                row: 2,
+                level,
+                pending: None,
+            },
+        );
     }
 
     #[test]
@@ -2379,6 +2648,8 @@ mod tests {
         // the specific mid-window-completion split covered by
         // production_is_not_retroactively_credited_before_a_build_completes.
         let mut s = ServerState::new(0);
+        // Fully staffed throughout — the crew damping has its own tests.
+        s.crew = 4;
         s.modules.insert(
             "module-refinery".to_string(),
             ModuleData {
@@ -2688,6 +2959,114 @@ mod tests {
             ServerPush::Notification(n)
                 if n.kind == "levelup-complete" && n.message.contains("level 2")
         )));
+    }
+
+    #[test]
+    fn crew_capacity_and_requirement_sum_linearly() {
+        let mut s = ServerState::new(0);
+        // Command Module level 1: the 2-berth baseline, no demand.
+        assert_eq!(s.crew_capacity(), 2);
+        assert_eq!(s.crew_required(), 0);
+        // Linear per level — deliberately not the scale_for_level doubling.
+        insert_settled(&mut s, "module-quarters", "crew-quarters", 2);
+        insert_settled(&mut s, "module-refinery", "ore-refinery", 3);
+        assert_eq!(s.crew_capacity(), 2 + 2);
+        assert_eq!(s.crew_required(), 3);
+    }
+
+    #[test]
+    fn hire_verifies_berths_cost_and_single_recruitment() {
+        let mut s = ServerState::new(0);
+        // A full ship (head count at the berth total) can't recruit.
+        s.crew = s.crew_capacity();
+        let err = s.hire_crew(0).unwrap_err();
+        assert!(err.contains("no berths"), "{err}");
+        insert_settled(&mut s, "module-quarters", "crew-quarters", 1);
+        let err = s.hire_crew(0).unwrap_err();
+        assert!(err.contains("not enough biological"), "{err}");
+        // Linear cost: the third head costs 3 * the base.
+        s.resources.biological = HIRE_COST_BIOLOGICAL * 3;
+        let response = s.hire_crew(0).unwrap();
+        assert_eq!(response.crew.crew, 2);
+        assert_eq!(
+            response.crew.pending_hire.unwrap().completes_at,
+            HIRE_TIME_MS
+        );
+        assert_eq!(response.resources.biological, 0);
+        let err = s.hire_crew(1).unwrap_err();
+        assert!(err.contains("already being recruited"), "{err}");
+    }
+
+    #[test]
+    fn next_deadline_includes_hire_completion() {
+        let mut s = ServerState::new(0);
+        assert_eq!(s.next_deadline(), TICK);
+        s.pending_hire = Some(PendingHire {
+            dispatched_at: 0,
+            completes_at: 3,
+        });
+        assert_eq!(s.next_deadline(), 3);
+    }
+
+    #[test]
+    fn hire_completion_queues_crew_push_and_notification() {
+        let mut s = ServerState::new(0);
+        // A new player's very first recruitment: no crew, baseline berths.
+        s.resources.biological = HIRE_COST_BIOLOGICAL;
+        s.hire_crew(0).unwrap();
+        s.drain_pushes(); // discard the hire's own spend push
+        s.settle(HIRE_TIME_MS);
+        let pushes = s.drain_pushes();
+        assert!(pushes.iter().any(|p| matches!(
+            p,
+            ServerPush::Crew(c) if c.crew == 1 && c.pending_hire.is_none()
+        )));
+        assert!(pushes.iter().any(|p| matches!(
+            p,
+            ServerPush::Notification(n) if n.kind == "crew-hired" && !n.read
+        )));
+        assert_eq!(s.crew, 1);
+        // Settling again at the same time re-announces nothing.
+        s.settle(HIRE_TIME_MS);
+        assert!(s.drain_pushes().is_empty());
+    }
+
+    #[test]
+    fn understaffed_production_is_damped_with_a_half_floor() {
+        let mut s = ServerState::new(0);
+        // A level-4 refinery wants 4 crew and makes 16 construction/tick at
+        // full staff; the Command Module's baseline (+1) is never damped.
+        insert_settled(&mut s, "module-refinery", "ore-refinery", 4);
+        s.crew = 4;
+        s.accrue_production(TICK);
+        assert_eq!(s.resources.construction, 16 + 1);
+        // Half staffed: 16 * (4 + 2) / (2 * 4) = 12.
+        s.crew = 2;
+        s.accrue_production(2 * TICK);
+        assert_eq!(s.resources.construction, 17 + 12 + 1);
+        // No crew at all still runs at the 50% floor: 16 / 2 = 8.
+        s.crew = 0;
+        s.accrue_production(3 * TICK);
+        assert_eq!(s.resources.construction, 17 + 13 + 8 + 1);
+    }
+
+    #[test]
+    fn hire_settles_after_production_so_the_ratio_is_not_retroactive() {
+        let mut s = ServerState::new(0);
+        // A level-4 refinery with no crew at all: the floor rate, 8/tick.
+        insert_settled(&mut s, "module-refinery", "ore-refinery", 4);
+        s.crew = 0;
+        s.resources.biological = HIRE_COST_BIOLOGICAL;
+        s.hire_crew(0).unwrap();
+        // Settling exactly at the completion accrues every elapsed tick at
+        // the *old* staffing first; only then does the new head land.
+        s.settle(HIRE_TIME_MS);
+        let ticks = HIRE_TIME_MS / TICK;
+        assert_eq!(s.resources.construction, ticks * (8 + 1));
+        assert_eq!(s.crew, 1);
+        // The next tick runs at the improved ratio: 16 * (4 + 1) / 8 = 10.
+        s.accrue_production(HIRE_TIME_MS + TICK);
+        assert_eq!(s.resources.construction, ticks * 9 + 10 + 1);
     }
 
     #[test]

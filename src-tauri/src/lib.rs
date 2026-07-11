@@ -24,6 +24,7 @@ pub fn run() {
             game_state::request_dispatch_vessel,
             game_state::request_recall_vessel,
             game_state::request_mine_asteroid,
+            game_state::request_hire_crew,
             game_state::mark_notifications_read
         ])
         .run(tauri::generate_context!())

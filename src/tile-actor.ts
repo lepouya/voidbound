@@ -97,6 +97,13 @@ export class TileActor extends ex.Actor {
   // Current owner-label child's uprightChildren entry, so setOwner() can
   // remove and rebuild it.
   private ownerLabel: { actor: ex.Actor; wx: number; wy: number } | null = null;
+  // Per-button label slots (keyed by the index into the constructor's
+  // `buttons` array), so setButtonLabel() can rebuild a single label — label
+  // graphics are baked at creation time, like the owner label.
+  private readonly buttonLabels = new Map<
+    number,
+    { btnActor: ex.Actor; labelActor: ex.Actor | null; text: string }
+  >();
 
   constructor({
     grid,
@@ -503,12 +510,45 @@ export class TileActor extends ex.Actor {
       }
 
       // Label below the button, top-center aligned on the button center x.
+      const labelDef = resolveButtonLabel(btn.label);
       const labelActor = makeLabelActor(
-        resolveButtonLabel(btn.label),
+        labelDef,
         ex.vec(0, tileH / 2 + LABEL_PAD),
         { visible: false },
       );
       if (labelActor) btnActor.addChild(labelActor);
+      this.buttonLabels.set(this.actionButtons.indexOf(btn), {
+        btnActor,
+        labelActor: labelActor ?? null,
+        text: labelDef?.text ?? "",
+      });
     }
+  }
+
+  /**
+   * Replace one action button's label text after construction — e.g. a
+   * countdown ticking on a timed action's button. `index` addresses the
+   * constructor's `buttons` array. Rebuilds just that label child (graphics
+   * are baked at creation, like the owner label), preserving the current
+   * selection visibility. No-ops until the text actually changes, so calling
+   * every frame is fine.
+   */
+  setButtonLabel(index: number, text: string): void {
+    const slot = this.buttonLabels.get(index);
+    if (!slot || slot.text === text) return;
+    slot.text = text;
+    const visible = slot.labelActor?.graphics.isVisible ??
+      slot.btnActor.graphics.isVisible;
+    if (slot.labelActor) {
+      slot.btnActor.removeChild(slot.labelActor);
+      slot.labelActor.kill();
+    }
+    const labelActor = makeLabelActor(
+      resolveButtonLabel(text),
+      ex.vec(0, this.tileHeight / 2 + LABEL_PAD),
+      { visible },
+    );
+    if (labelActor) slot.btnActor.addChild(labelActor);
+    slot.labelActor = labelActor ?? null;
   }
 }

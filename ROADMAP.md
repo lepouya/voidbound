@@ -65,57 +65,50 @@ Goal: a playable single-player loop, no persistence yet.
 - [x] **P1.3 — Module placement + build timers.** `BuildModuleEvent` (its
       `completesAt` gives build timers for free) + the empty-tile Build
       placement UI in the ship view.
-- [x] **P1.4 — Module catalog.** Command Module + the four producers as one
-      Rust-authoritative `MODULE_CATALOG` (display-only TS mirror); every module
-      is server-owned `ModuleData` reconciled by `syncModules`; level-ups reuse
-      the build-timer machinery, capped at the Command Module's level. Still
-      open: per-level cost/time/production scaling is the doubling stub
-      `scaleForLevel` (real balancing → P2.5), and every module renders the
-      `module-base` sprite until per-type art lands (→ P6.1).
+- [x] **P1.4 — Module catalog.** Rust-authoritative `MODULE_CATALOG` with a
+      display-only TS mirror; level-ups reuse the build-timer machinery, capped
+      at the Command Module's level. Still open: per-level scaling is the
+      doubling stub (→ P2.5); per-type module art (→ P6.1).
 - [x] **P1.5 — Local notifications + server-push channel.** Server-owned
-      notification feed drives the Events HUD badge; delivery is push — a
-      backend scheduler thread settles state at deadlines and emits `ServerPush`
-      events routed through `gameState.applyServerPush()` — the in-process
-      prototype of P3.1's event bus. Still open: pressing Events dumps the feed
-      to the console — the real feed panel is P6.3; the Mail badge stays a
-      placeholder until P3.5.
-- [x] **P1.6 — Mining loop.** Server-seeded asteroids (3 tiers \* 4 classes,
-      README § Design principles) on the same snapshot/push reconcile path as
-      motherships and modules; `request_mine_asteroid` reserves the single
-      mining slot, the scheduler auto-recalls at mine-out, early recalls harvest
-      proportionally, docking deposits the cargo. Still open: deposit bands and
-      `MINE_UNITS_PER_HOUR` are balancing stubs (→ P2.5); asteroid sprites are
-      placeholder tinted vectors (→ P6.2); the README leaves the door open to
-      mixed deposits / multiple miners on large asteroids (revisit in P2.5).
+      notification feed + the scheduler push channel — the in-process prototype
+      of P3.1's event bus. Still open: pressing Events dumps the feed to the
+      console until the P6.3 feed panel; the Mail badge stays a placeholder
+      until P3.5.
+- [x] **P1.6 — Mining loop.** Server-seeded asteroids with single-slot mining
+      jobs, scheduler auto-recall at mine-out, proportional early harvests, dock
+      deposits. Still open: deposit bands and `MINE_UNITS_PER_HOUR` are
+      balancing stubs, and mixed deposits / multiple miners on large asteroids
+      stay open doors (→ P2.5); asteroid sprites are placeholder vectors (→
+      P6.2).
 - **P1.7 — Diminishing returns.** Moved to Phase 2 (July 2026): a daily damping
   curve can't be experienced or tuned while every restart wipes state, and it
   would sit on top of numbers that are still stubs — see Phase 2.
 - [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom anchored at the pointer/pinch
       midpoint (`anchoredZoomPos` in `src/camera-math.ts`; clamp-before-pan so
       the camera never drifts at min/max zoom).
-- [x] **P1.9 — Minimap + full-size space map.** The space map is geometry-only
-      at its target 1000\*1000 (no `ex.TileMap`, plain space-dark background —
-      asteroids and motherships are the landmarks) and the minimap
-      (`src/minimap.ts` + pure `minimap-math.ts`) covers navigation: entity
-      dots, a pulsing viewport rect, tap-to-jump. Still open: a real starfield
-      background is later art (→ P6.2). Its 0.1 zoom floor was superseded by
-      P1.13's tile-view cap.
-- [ ] **P1.10 — Crew Quarters + crew capacity.** Ship-wide crew capacity stat,
-      scaled by module level; production and functional penalties apply when
-      crew is short relative to ship size and active modules. Needs P1.4.
-- [x] **P1.11 — Storage Bay capacity caps.** Per-resource storage caps as a
-      catalog `stores` field summed over settled module levels (Command Module
-      contributes a baseline cap, mirroring its baseline production; the new
-      Storage Bay type adds the real capacity): production accrual and mining
-      cargo deposits clamp server-side at the cap — overflow is lost, and a
-      truncated deposit says so in its vessel-returned notification. The
-      resource bar renders "count/cap" (caps display-derived from the module
-      snapshot via `storageCapsForModules`; credits stay uncapped). Still open:
-      cap numbers are `scaleForLevel` stubs (→ P2.5); the README's "possibly
-      boosts production" perk was deliberately skipped; safe warehousing
-      (protecting stored material from theft) becomes meaningful with P5.5
-      combat — door left open. (The Armory's weapon-storage half of the
-      original task moved to Phase 5, where weapons exist: see P5.4.)
+- [x] **P1.9 — Minimap + full-size space map.** Geometry-only 1000\*1000 space
+      map with minimap navigation (entity dots, viewport rect, tap-to-jump).
+      Still open: real starfield background (→ P6.2).
+- [x] **P1.10 — Crew Quarters + crew capacity.** Crew as the third catalog stat:
+      berths sum linearly over settled levels (Crew Quarters + a Command Module
+      baseline), producers want 1 crew per level, and producer output scales by
+      the pooled ship-wide staffing ratio with a 50% floor — the Command
+      Module's baseline production is never damped (the anti-stuck guarantee).
+      Timed `request_hire_crew` recruitment (linear biological cost per head,
+      one at a time); crew/berths in the resource bar, the Hire Crew button on
+      the Command Module + settled Crew Quarters, understaffed producers wear an
+      output-percent badge, and players start at 0 crew (the first hire is a
+      natural tutorial step later). Still open: hire cost/time, the 50% floor,
+      and the berth-vs-demand ratio are balancing stubs, as is optional per-crew
+      biological upkeep (→ P2.5); penalties beyond production, vessel crews (→
+      P5.3), combat casualties (→ P5.5), and specialization / manual crew
+      stationing (no task yet) were deliberately deferred.
+- [x] **P1.11 — Storage Bay capacity caps.** Per-resource caps as a catalog
+      `stores` field; production and mining deposits clamp server-side (overflow
+      is lost and the notification says so); the resource bar shows count/cap.
+      Still open: cap numbers are stubs (→ P2.5); the README's "boosts
+      production" perk was skipped; safe warehousing becomes meaningful with
+      P5.5 combat. (The Armory's weapon-storage half moved to P5.4.)
 - [ ] **P1.12 — Trading Post + NPC shop.** Buy/sell the 4 resources with NPCs at
       a markup/markdown, independent of the Phase 4 alliance economy — the
       README's answer for players who need resources between mining runs.
@@ -124,17 +117,11 @@ Goal: a playable single-player loop, no persistence yet.
       designed in P4.6. Needs P1.1.
 - [x] **P1.13 — Map interest area: windowed world streaming + minimap
       declutter.** The client only holds world entities inside a 100\*100-tile
-      AOI window (`MapWindow` in `ServerState::aoi`, re-centered on the player's
-      mothership at load); `request_map_window` re-centers it as the camera pans
-      (8-tile hysteresis) and replaces the world tables wholesale; entity pushes
-      are footprint-filtered at outbox drain (own-entity and global pushes
-      exempt); the map view is capped at 80 tiles on the longer axis
-      (`tileViewCapZoom`) so unloaded space never scrolls into sight; the
-      minimap dims asteroid dots under ship dots and shows only own ships beyond
-      the window. Full model: SERVER.md § Interest management. Feeds P3.1
-      (per-connection subscriptions) and P4.3 (fog of war = this window shrunk
-      to a radar radius). Asteroid seeding took the freed density knob (~1920
-      total, ~19 per window) — deposit/rate balance still stubbed (→ P2.5).
+      AOI window, re-centered as the camera pans; pushes are footprint-filtered,
+      and the map view is capped so unloaded space never scrolls into sight.
+      Full model: SERVER.md § Interest management. Feeds P3.1 (per-connection
+      windows) and P4.3 (fog of war = this window shrunk to a radar radius).
+      Still open: asteroid deposit/rate balance (→ P2.5).
 
 ## Phase 2 — Persistence and balancing
 
@@ -161,10 +148,13 @@ progress persists — the reason P1.7 moved here.
       emit their notifications. Needs P2.1.
 - [ ] **P2.5 — Balancing pass.** Replace the stubs with real curves: the
       `scale_for_level`/`scaleForLevel` doubling, `MINE_UNITS_PER_HOUR`,
-      asteroid deposit bands and per-window density. README targets: small
-      asteroids mine out in 15–60 min, medium 1–4 h, large 4–12 h. Also revisit
-      the single-deposit / single-miner rules for large asteroids (README leaves
-      that door open). Needs P2.1 — tuning requires persistent progress.
+      asteroid deposit bands and per-window density, and the P1.10 crew numbers
+      (hire cost/time, the 50% output floor, the berth-vs-demand ratio, and
+      whether crew consume biological upkeep — a good sink, but mind the death
+      spiral). README targets: small asteroids mine out in 15–60 min, medium 1–4
+      h, large 4–12 h. Also revisit the single-deposit / single-miner rules for
+      large asteroids (README leaves that door open). Needs P2.1 — tuning
+      requires persistent progress.
 - [ ] **P1.7 — Diminishing returns** _(moved from Phase 1, July 2026)_. Repeated
       actions yield less over the course of a day and reset at a fixed point —
       the README's alternative to hard energy caps. Local implementation first;
@@ -245,7 +235,9 @@ Goal: the README's Technologies, Combat, and Defence module categories.
       production (P5.4), and research (P5.1). Needs P5.1.
 - [ ] **P5.3 — Vessel Shipyard + vessel stats.** Durability, damage, cargo
       capacity, and weapons capacity as per-vessel upgradeable stats, replacing
-      the flat `vesselSpeed` constant with a real stat block. Needs P1.6.
+      the flat `vesselSpeed` constant with a real stat block. P1.10's open door
+      lands here too: vessel crews — dispatching/mining requiring crew aboard,
+      tying fleet size to the crew pool. Needs P1.6.
 - [ ] **P5.4 — Weapons Factory, Drone Factory, Plasma Factory + Armory.** Three
       weapon-type production lines (kinetic, drone, plasma) feeding the vessel
       weapons capacity from P5.3, plus the Armory's weapon-storage caps (moved
@@ -253,7 +245,8 @@ Goal: the README's Technologies, Combat, and Defence module categories.
       P5.3.
 - [ ] **P5.5 — PvP combat resolution.** Attacking another player's mothership or
       vessels: damage exchange using P5.4 weapons and P5.3 stats, resolved
-      server-side so neither side can lie about the outcome. Needs P3.1, P5.4.
+      server-side so neither side can lie about the outcome. Crew casualties
+      (P1.10's open door) belong to this resolution. Needs P3.1, P5.4.
 - [ ] **P5.6 — Repair Shop.** Repairs weapon/vessel damage from P5.5 combat
       using resources and time, mirroring the P1.3 build-timer pattern. Needs
       P5.5.

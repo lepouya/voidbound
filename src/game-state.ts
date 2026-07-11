@@ -202,6 +202,32 @@ export interface NotificationData {
 }
 
 /**
+ * A crew recruitment in flight (ROADMAP P1.10) — one at a time, same timer
+ * shape as a module's pending build. Mirrors the Rust `PendingHire` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface PendingHire {
+  /** Server epoch ms when the hire was authorized. */
+  dispatchedAt: number;
+  /** Pre-computed completion time — lets late-joining clients show the
+   *  correct remaining time without redoing the clock math locally. */
+  completesAt: number;
+}
+
+/**
+ * The ship's crew state (ROADMAP P1.10): head count plus any recruitment in
+ * flight. Like ModuleData, the struct doubles as its own event payload — a
+ * crew push carries the full current snapshot. Capacity is not on the wire:
+ * it derives from the module snapshot (crewCapacityForModules in
+ * src/module-catalog.ts). Mirrors the Rust `CrewData` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface CrewData {
+  crew: number;
+  pendingHire: PendingHire | null;
+}
+
+/**
  * A build or level-up in progress on a module — the level it completes to
  * and when. Mirrors the Rust `ModulePendingBuild` in
  * src-tauri/src/game_state.rs — keep the two in sync.
@@ -299,6 +325,9 @@ export interface GameStateData {
   /** The player's event feed (ROADMAP P1.5), oldest first — restores the
    *  Events badge unread count across reloads. */
   notifications: NotificationData[];
+  /** The ship's crew state (ROADMAP P1.10) — head count plus any recruitment
+   *  in flight; capacity derives from the module list. */
+  crew: CrewData;
 }
 
 /**
@@ -324,7 +353,8 @@ export type ServerPush =
   | { type: "vessel"; data: VesselMoveEvent }
   | { type: "asteroid"; data: AsteroidData }
   | { type: "asteroidRemoved"; data: { asteroidId: string } }
-  | { type: "notification"; data: NotificationData };
+  | { type: "notification"; data: NotificationData }
+  | { type: "crew"; data: CrewData };
 
 export type GameStateListener = () => void;
 
@@ -405,6 +435,20 @@ export class GameState {
    * Events HUD badge renders unreadNotificationCount() from it.
    */
   notifications = new Map<string, NotificationData>();
+
+  /**
+   * The ship's crew head count (ROADMAP P1.10), as last reported by the
+   * backend. New-player default (0) until load() lands — capacity derives
+   * from the module table, which is also empty until then, so the HUD
+   * renders 0/0 consistently.
+   */
+  crew = 0;
+
+  /**
+   * The one crew recruitment in flight, if any (ROADMAP P1.10) — drives the
+   * Hire button's "Recruiting…" state; completion arrives as a crew push.
+   */
+  pendingHire: PendingHire | null = null;
 
   /**
    * The interest-area window the world tables above are filtered to, as last
@@ -495,6 +539,20 @@ export class GameState {
   }
 
   /**
+   * Apply an authoritative crew state from a hire command response or a
+   * server push (a recruitment completing), notifying subscribers — the
+   * `apply<Action>Event` entry point for crew changes, following the
+   * ModuleData pattern: the CrewData payload is the full current snapshot,
+   * so re-applying is idempotent. The next load() snapshot supersedes it.
+   */
+  applyCrewEvent(data: CrewData): void {
+    this.update((s) => {
+      s.crew = data.crew;
+      s.pendingHire = data.pendingHire;
+    });
+  }
+
+  /**
    * Replace the world tables with a re-centered interest-area response
    * (ROADMAP P1.13), notifying subscribers. Wholesale replacement is the
    * point: entities that left the window unload (the scene reconcilers
@@ -569,6 +627,9 @@ export class GameState {
           s.notifications.set(push.data.notificationId, push.data);
         });
         break;
+      case "crew":
+        this.applyCrewEvent(push.data);
+        break;
     }
   }
 
@@ -591,6 +652,8 @@ export class GameState {
       s.notifications = new Map(
         data.notifications.map((n) => [n.notificationId, n]),
       );
+      s.crew = data.crew.crew;
+      s.pendingHire = data.crew.pendingHire;
       s.mapWindow = data.mapWindow;
       s.loaded = true;
     });

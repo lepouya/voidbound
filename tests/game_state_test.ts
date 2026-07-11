@@ -191,6 +191,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     vessels: [sampleVessel("vessel-a")],
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-1")],
+    crew: { crew: 3, pendingHire: { dispatchedAt: 500, completesAt: 30_500 } },
   });
 
   assertEquals(state.player, { id: "player-42", name: "Loaded Player" });
@@ -219,6 +220,11 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     sampleNotification("notif-1"),
   );
   assertEquals(state.mapWindow, sampleWindow());
+  assertEquals(state.crew, 3);
+  assertEquals(state.pendingHire, {
+    dispatchedAt: 500,
+    completesAt: 30_500,
+  });
   assert(state.loaded);
   assertEquals(notified, 1);
 });
@@ -234,6 +240,7 @@ Deno.test("applyMapWindow replaces the world tables and window, notifies", () =>
     vessels: [sampleVessel("vessel-own")],
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-1")],
+    crew: { crew: 2, pendingHire: null },
   });
   let notified = 0;
   state.subscribe(() => notified++);
@@ -321,6 +328,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     vessels: [],
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-old")],
+    crew: { crew: 2, pendingHire: null },
   });
 
   state.load({
@@ -332,6 +340,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     vessels: [sampleVessel("vessel-live")],
     modules: [sampleModule("module-command"), sampleModule("module-a")],
     notifications: [],
+    crew: { crew: 2, pendingHire: null },
   });
 
   // The docked vessel was pruned by the backend and player-1's ship left the
@@ -356,6 +365,8 @@ Deno.test("shared singleton starts unloaded with new-player defaults", () => {
   assertEquals(gameState.asteroids.size, 0);
   assertEquals(gameState.modules.size, 0);
   assertEquals(gameState.notifications.size, 0);
+  assertEquals(gameState.crew, 0);
+  assertEquals(gameState.pendingHire, null);
   assertEquals(gameState.mapWindow, null);
   assert(!gameState.loaded);
   assert(gameState instanceof GameState);
@@ -442,8 +453,39 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
     sampleNotification("notif-1"),
   );
 
+  // A recruitment completing lands crew state like a command response.
+  state.applyServerPush({
+    type: "crew",
+    data: { crew: 3, pendingHire: null },
+  });
+  assertEquals(state.crew, 3);
+  assertEquals(state.pendingHire, null);
+
   // One notify per push, plus one for the applyVesselEvent merge.
-  assertEquals(notified, 9);
+  assertEquals(notified, 10);
+});
+
+Deno.test("applyCrewEvent replaces the crew state and notifies", () => {
+  const state = new GameState();
+  let notified = 0;
+  state.subscribe(() => notified++);
+
+  // A hire response: the head count is unchanged, a recruitment pends.
+  state.applyCrewEvent({
+    crew: 2,
+    pendingHire: { dispatchedAt: 1_000, completesAt: 31_000 },
+  });
+  assertEquals(state.crew, 2);
+  assertEquals(state.pendingHire?.completesAt, 31_000);
+
+  // The completion push: one more head, nothing pending — re-applying the
+  // full-snapshot payload is idempotent.
+  const completed = { crew: 3, pendingHire: null };
+  state.applyCrewEvent(completed);
+  state.applyCrewEvent(completed);
+  assertEquals(state.crew, 3);
+  assertEquals(state.pendingHire, null);
+  assertEquals(notified, 3);
 });
 
 Deno.test("applyAsteroidEvent merges by asteroidId and notifies", () => {

@@ -2,12 +2,22 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { gameState, ModuleData, ResourceCounts } from "./game-state.ts";
+import {
+  CrewData,
+  gameState,
+  ModuleData,
+  ResourceCounts,
+} from "./game-state.ts";
 import { moduleAnchorAt, roomOriginAt, SHIP_ROOM_GRID } from "./grid-math.ts";
 import { buildTileMap } from "./map-loader.ts";
 import {
   COMMAND_MODULE_TYPE,
   costAtLevel,
+  CREW_QUARTERS_MODULE_TYPE,
+  crewCapacityForModules,
+  crewRequiredForModules,
+  crewScaledAmount,
+  hireCostAt,
   MODULE_CATALOG,
   moduleCatalogEntry,
 } from "./module-catalog.ts";
@@ -39,6 +49,21 @@ interface ModuleActionResponse {
  *  level) is kept distinct from "unaffordable" so the UI can say which one
  *  it is. */
 type LevelUpStatus = "unavailable" | "capped" | "unaffordable" | "ready";
+
+/** Wire shape of the `request_hire_crew` Tauri command's result. Mirrors the
+ *  Rust `CrewActionResponse` in src-tauri/src/game_state.rs — keep in
+ *  sync. */
+interface CrewActionResponse {
+  crew: CrewData;
+  /** Authoritative counts after the cost was deducted. */
+  resources: ResourceCounts;
+}
+
+/** Result of hireStatus(): whether/why the Command Module's Hire Crew button
+ *  would currently be enabled (ROADMAP P1.10). "full" (no berths free — the
+ *  fix is Crew Quarters, not resources) is kept distinct from "unaffordable"
+ *  so the UI can say which one it is. */
+type HireStatus = "recruiting" | "full" | "unaffordable" | "ready";
 
 /** Finished module sprite. */
 function moduleTile(): TileRef {
@@ -76,6 +101,17 @@ function buildCountdownLabel(
   return `${displayName} (${remaining}s)`;
 }
 
+/** Hire button label while a recruitment timer runs (ROADMAP P1.10). */
+function recruitingLabel(completesAt: number, nowMs: number): string {
+  const remaining = Math.max(0, Math.ceil((completesAt - nowMs) / 1000));
+  return `Recruiting (${remaining}s)`;
+}
+
+/** The Hire Crew button's index in its host actor's `buttons` array — always
+ *  pushed first (see createModuleActor), so the onPostUpdate countdown can
+ *  address it via setButtonLabel. */
+const HIRE_BUTTON_INDEX = 0;
+
 export class ShipLevel extends TiledScene {
   /** Module actors keyed by moduleId. */
   private modules = new Map<string, TileActor>();
@@ -88,6 +124,19 @@ export class ShipLevel extends TiledScene {
    *  triggers a rebuild; otherwise the button would freeze at whatever it
    *  showed the last time this module's own data changed. */
   private appliedLevelUpStatus = new Map<string, LevelUpStatus>();
+  /** The last hireStatus() applied per hire-hosting actor (ROADMAP P1.10) —
+   *  same rebuild-diff role as appliedLevelUpStatus: a crew, berth, or
+   *  biological change must flip the Hire Crew button even when the module
+   *  itself didn't change. Null for modules that don't host the button. */
+  private appliedHireStatus = new Map<string, HireStatus | null>();
+  /** The last staffing percentage applied per moduleId (ROADMAP P1.10) —
+   *  producers show an understaffed badge, so a crew or demand change must
+   *  rebuild them even when the module itself didn't change. */
+  private appliedStaffPct = new Map<string, number>();
+  /** Actors currently hosting the Hire Crew button (Command Module + settled
+   *  Crew Quarters), keyed by moduleId — drives the once-a-frame recruiting
+   *  countdown in onPostUpdate via setButtonLabel. */
+  private hireHosts = new Map<string, TileActor>();
   /** Modules with a build/level-up in progress, keyed by moduleId — drives
    *  the once-a-frame countdown label tick in onPostUpdate. */
   private pendingModules = new Map<string, ModuleData>();
@@ -150,17 +199,42 @@ export class ShipLevel extends TiledScene {
         this.modules.delete(id);
         this.appliedModules.delete(id);
         this.appliedLevelUpStatus.delete(id);
+        this.appliedHireStatus.delete(id);
+        this.appliedStaffPct.delete(id);
+        this.hireHosts.delete(id);
         this.pendingModules.delete(id);
       }
     }
     const commandLevel = this.commandModuleLevel();
+    const hire = this.hireStatus();
+    // The pooled staffing ratio (ROADMAP P1.10) is ship-wide: every producer
+    // shows the same output percentage when crew is short.
+    const staffPct = crewScaledAmount(
+      100,
+      gameState.crew,
+      crewRequiredForModules(gameState.modules.values()),
+    );
     for (const data of gameState.modules.values()) {
+      const entry = moduleCatalogEntry(data.moduleType);
       const status = this.levelUpStatus(data, commandLevel);
+      // The Command Module and settled Crew Quarters host the Hire Crew
+      // button (ROADMAP P1.10) — their actors rebuild when the status flips.
+      const hostsHire = data.moduleType === COMMAND_MODULE_TYPE ||
+        (data.moduleType === CREW_QUARTERS_MODULE_TYPE && data.level >= 1);
+      const hireForModule = hostsHire ? hire : null;
+      // Only settled producers wear the understaffed badge.
+      const staffPctForModule =
+        (entry?.crewRequiredPerLevel ?? 0) > 0 && data.level >= 1
+          ? staffPct
+          : 100;
       const applied = this.appliedModules.get(data.moduleId);
       const appliedStatus = this.appliedLevelUpStatus.get(data.moduleId);
+      const appliedHire = this.appliedHireStatus.get(data.moduleId);
+      const appliedPct = this.appliedStaffPct.get(data.moduleId);
       if (
         applied !== undefined && sameModule(applied, data) &&
-        appliedStatus === status
+        appliedStatus === status && appliedHire === hireForModule &&
+        appliedPct === staffPctForModule
       ) continue;
       const existing = this.modules.get(data.moduleId);
       // A rebuild (e.g. a poll landing a build/level-up completion) replaces
@@ -168,10 +242,22 @@ export class ShipLevel extends TiledScene {
       // this module's panel open doesn't see it silently vanish.
       const wasSelected = existing !== undefined && this.isSelected(existing);
       existing?.kill();
-      const actor = this.createModuleActor(data, status);
+      const actor = this.createModuleActor(
+        data,
+        status,
+        hireForModule,
+        staffPctForModule,
+      );
       this.modules.set(data.moduleId, actor);
       this.appliedModules.set(data.moduleId, data);
       this.appliedLevelUpStatus.set(data.moduleId, status);
+      this.appliedHireStatus.set(data.moduleId, hireForModule);
+      this.appliedStaffPct.set(data.moduleId, staffPctForModule);
+      if (hireForModule !== null) {
+        this.hireHosts.set(data.moduleId, actor);
+      } else {
+        this.hireHosts.delete(data.moduleId);
+      }
       this.add(actor);
       if (wasSelected) this.reselectActor(actor);
       if (data.pending !== null) {
@@ -208,6 +294,24 @@ export class ShipLevel extends TiledScene {
       : "unaffordable";
   }
 
+  /**
+   * Whether/why the Hire Crew button (on the Command Module and settled Crew
+   * Quarters) would currently be enabled (ROADMAP P1.10) — ship-wide state,
+   * not per-module: one recruitment at a time, the new head must fit the
+   * berths (display-derived via crewCapacityForModules, like the
+   * resource-bar readout), and the linear biological cost must be
+   * affordable. The backend re-verifies all three on request; this is just
+   * UX, mirroring levelUpStatus.
+   */
+  private hireStatus(): HireStatus {
+    if (gameState.pendingHire !== null) return "recruiting";
+    const capacity = crewCapacityForModules(gameState.modules.values());
+    if (gameState.crew + 1 > capacity) return "full";
+    return gameState.resources.biological >= hireCostAt(gameState.crew)
+      ? "ready"
+      : "unaffordable";
+  }
+
   /** The Command Module's current level, or 0 before the snapshot loads —
    *  gates which types can be built and every module's level cap. */
   private commandModuleLevel(): number {
@@ -227,13 +331,18 @@ export class ShipLevel extends TiledScene {
   }
 
   /** Builds the map actor for one module: the base placeholder sprite (or a
-   *  ghost while its first build is pending), a level badge, and — once idle
-   *  at a real level — a Level Up button. `status` is the levelUpStatus()
-   *  result the caller already computed for the rebuild diff, reused here so
-   *  the two never drift. */
+   *  ghost while its first build is pending), a level badge — plus an
+   *  understaffed badge on producers running below full output — and, once
+   *  idle at a real level, a Level Up button; the Command Module and settled
+   *  Crew Quarters additionally carry the Hire Crew button (ROADMAP P1.10).
+   *  `status`, `hireStatus`, and `staffPct` are the results the caller
+   *  already computed for the rebuild diff, reused here so they never drift
+   *  (`hireStatus` is null for modules that don't host the button). */
   private createModuleActor(
     data: ModuleData,
     status: LevelUpStatus,
+    hireStatus: HireStatus | null,
+    staffPct: number,
   ): TileActor {
     const now = Date.now();
     const entry = moduleCatalogEntry(data.moduleType);
@@ -241,6 +350,32 @@ export class ShipLevel extends TiledScene {
     const firstBuildPending = data.pending !== null && data.level === 0;
 
     const buttons: ButtonDef[] = [];
+    // Hire Crew (ROADMAP P1.10) — pushed first, so HIRE_BUTTON_INDEX holds
+    // for the onPostUpdate countdown. Independent of the module's own build
+    // pipeline: a pending level-up doesn't block recruiting, so it sits
+    // outside the pending gate below.
+    if (hireStatus !== null) {
+      // "full" (no berths — the fix is Crew Quarters) reads very
+      // differently from a cost badge that looks unmet — say so.
+      buttons.push({
+        frameTile: "ui-frame-round:0",
+        activeFrameTile: "ui-frame-round:1",
+        disabledFrameTile: "ui-frame-round:2",
+        tile: "ui-icon-crew:0",
+        activeTile: "ui-icon-crew:1",
+        disabledTile: "ui-icon-crew:2",
+        label: hireStatus === "recruiting"
+          ? recruitingLabel(gameState.pendingHire?.completesAt ?? now, now)
+          : hireStatus === "full"
+          ? "Quarters Full"
+          : "Hire Crew",
+        badge: hireStatus === "ready" || hireStatus === "unaffordable"
+          ? `${hireCostAt(gameState.crew)}`
+          : undefined,
+        disabled: hireStatus !== "ready",
+        onPressed: () => void this.hireCrew(),
+      });
+    }
     if (data.pending === null && entry) {
       const nextLevel = data.level + 1;
       const cost = costAtLevel(entry, nextLevel);
@@ -286,6 +421,21 @@ export class ShipLevel extends TiledScene {
             backgroundColor: ex.Color.ExcaliburBlue,
           },
         },
+        // Understaffed producer (ROADMAP P1.10): show how far below full
+        // output the pooled crew shortage puts it. Hiring (or leveling Crew
+        // Quarters) is the fix, so the badge clears itself via the rebuild
+        // diff as crew lands.
+        ...(staffPct < 100
+          ? [
+            {
+              anchor: "top-right" as const,
+              badge: {
+                text: `${staffPct}%`,
+                backgroundColor: ex.Color.Orange,
+              },
+            },
+          ]
+          : []),
       ],
     });
   }
@@ -396,6 +546,28 @@ export class ShipLevel extends TiledScene {
   }
 
   /**
+   * Asks the backend to recruit one crew member (ROADMAP P1.10). The backend
+   * verifies the single-recruitment rule, berth room, and the biological
+   * cost, deducts it, and returns the authoritative crew state (recruitment
+   * pending) plus updated resource counts; the completion arrives later as a
+   * crew push. Same event-pattern shape as buildModule/levelUpModule.
+   */
+  private async hireCrew(): Promise<void> {
+    // Like levelUpModule: the button lives on the already-selected Command
+    // Module actor — leave the selection alone; syncModules rebuilds it
+    // (carrying the selection over) when the response flips the status.
+    try {
+      const { crew, resources } = await invoke<CrewActionResponse>(
+        "request_hire_crew",
+      );
+      gameState.syncResources(resources);
+      gameState.applyCrewEvent(crew);
+    } catch (err) {
+      console.warn("request_hire_crew rejected:", err);
+    }
+  }
+
+  /**
    * Drives the build/level-up countdown labels: while pending, a module's
    * label counts down once a second. Completion itself arrives as a server
    * push — the backend scheduler settles the build the moment completesAt
@@ -405,7 +577,6 @@ export class ShipLevel extends TiledScene {
    * the player was away is already settled in gameState when they return.
    */
   override onPostUpdate(): void {
-    if (this.pendingModules.size === 0) return;
     const now = Date.now();
     for (const [id, data] of this.pendingModules) {
       if (data.pending === null) continue;
@@ -417,6 +588,16 @@ export class ShipLevel extends TiledScene {
         buildCountdownLabel(displayName, data.pending.completesAt, now),
         module.ownerId,
       );
+    }
+    // Recruiting countdown (ROADMAP P1.10) on every hire-hosting actor's
+    // button; setButtonLabel no-ops until the rounded seconds change.
+    // Completion arrives as a crew push, whose rebuild resets the label.
+    const pendingHire = gameState.pendingHire;
+    if (pendingHire !== null) {
+      const label = recruitingLabel(pendingHire.completesAt, now);
+      for (const actor of this.hireHosts.values()) {
+        actor.setButtonLabel(HIRE_BUTTON_INDEX, label);
+      }
     }
   }
 }

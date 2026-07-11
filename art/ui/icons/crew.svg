@@ -1,0 +1,19 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <!-- Two crew members: a filled figure in front, an outlined one behind. -->
+  <g
+    stroke="#COLOR2"
+    stroke-width="2"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  >
+    <circle cx="42" cy="19" r="7" fill="none" />
+    <path d="M33,52 C33,38 37,30 42,30 C48,30 53,38 53,52 Z" fill="none" />
+    <circle cx="23" cy="17" r="8" fill="#COLOR1" />
+    <path d="M10,54 C10,38 16,29 23,29 C30,29 37,38 37,54 Z" fill="#COLOR1" />
+  </g>
+</svg>

@@ -49,6 +49,16 @@ Revert every `TEMP-VERIFY` hook (the `/verify` checklist enforces this).
 ## 6. Check off and commit
 
 - Tick the task's checkbox in `ROADMAP.md` in the same commit as the change.
+- **Compact the entry when checking it off**: a one-line summary of what landed,
+  plus a "Still open" note listing only what a future task needs to know — each
+  item pointed at its target task (`→ P2.5`). Everything else (implementation
+  detail, superseded decisions, historical rationale) belongs in `CLAUDE.md`,
+  `SERVER.md`, and the commit message, not the roadmap. When a door has no
+  target task yet, say "no task yet" rather than inventing one.
+- Any per-task design doc written during step 2 is scaffolding, not a
+  deliverable: don't commit it — roll its unfinished/deferred items into the
+  roadmap (the target tasks' entries or the "Still open" note) and delete the
+  file.
 - Commit title: `Short description (P<phase>.<n>)` — matching history, e.g.
   `Asteroid mining loop (P1.6)`.
 - If step 2's review pause applied, get the user's go-ahead before committing.

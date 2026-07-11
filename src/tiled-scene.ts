@@ -20,7 +20,10 @@ import {
   RESOURCE_KINDS,
   ResourceKind,
 } from "./game-state.ts";
-import { storageCapsForModules } from "./module-catalog.ts";
+import {
+  crewCapacityForModules,
+  storageCapsForModules,
+} from "./module-catalog.ts";
 import { TileActor } from "./tile-actor.ts";
 
 /**
@@ -643,24 +646,44 @@ export abstract class TiledScene extends ex.Scene {
         labelOffset: ex.vec(0, 0),
       };
     };
+    // Crew rides the bar as a sixth readout (ROADMAP P1.10): head count over
+    // total berths, the berths display-derived from the module snapshot like
+    // the storage caps — the backend does the actual hire verification.
+    const crewLabel = (): LabelDef => ({
+      text: `${gameState.crew}/${
+        crewCapacityForModules(gameState.modules.values())
+      }`,
+      labelOffset: ex.vec(0, 0),
+    });
+    const CREW_INDEX = RESOURCE_KINDS.length;
     const initialCaps = resourceCaps();
     const resourceBar = this.addHudGroup({
       anchor: "top-left",
       direction: "right",
       gap: 16,
-      buttons: RESOURCE_KINDS.map((kind) => ({
-        tile: `${RESOURCE_ICON_TILESET[kind]}:0`,
-        width: 22,
-        height: 22,
-        label: resourceLabel(kind, initialCaps[kind]),
-        onPressed: () => console.log(`resource ${kind}`),
-      })),
+      buttons: [
+        ...RESOURCE_KINDS.map((kind) => ({
+          tile: `${RESOURCE_ICON_TILESET[kind]}:0`,
+          width: 22,
+          height: 22,
+          label: resourceLabel(kind, initialCaps[kind]),
+          onPressed: () => console.log(`resource ${kind}`),
+        })),
+        {
+          tile: "ui-icon-crew:0",
+          width: 22,
+          height: 22,
+          label: crewLabel(),
+          onPressed: () => console.log("crew"),
+        },
+      ],
     });
     gameState.subscribe(() => {
       const caps = resourceCaps();
       RESOURCE_KINDS.forEach((kind, i) =>
         resourceBar.setLabel(i, resourceLabel(kind, caps[kind]))
       );
+      resourceBar.setLabel(CREW_INDEX, crewLabel());
     });
 
     const topRight = this.addHudGroup({

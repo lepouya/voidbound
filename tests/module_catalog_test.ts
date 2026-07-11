@@ -4,6 +4,11 @@ import {
   buildTimeAtLevel,
   COMMAND_MODULE_TYPE,
   costAtLevel,
+  crewCapacityForModules,
+  crewRequiredForModules,
+  crewScaledAmount,
+  HIRE_COST_BIOLOGICAL,
+  hireCostAt,
   MODULE_CATALOG,
   moduleCatalogEntry,
   productionAtLevel,
@@ -87,6 +92,45 @@ Deno.test("storageCapsForModules sums stores by settled level, credits uncapped"
     { moduleType: "not-in-catalog", level: 5 },
   ]);
   assertEquals(pending.construction, 0);
+});
+
+Deno.test("crew capacity and requirement sum linearly by settled level", () => {
+  // No modules: nothing to berth, nothing to staff.
+  assertEquals(crewCapacityForModules([]), 0);
+  assertEquals(crewRequiredForModules([]), 0);
+  const modules = [
+    // Command baseline: 2 berths per level, no demand.
+    { moduleType: COMMAND_MODULE_TYPE, level: 1 },
+    // Linear, not scaleForLevel: level 2 = 2 berths, not 2 doubled.
+    { moduleType: "crew-quarters", level: 2 },
+    // Producers want 1 crew per level.
+    { moduleType: "ore-refinery", level: 3 },
+    { moduleType: "fusion-reactor", level: 1 },
+    // Level 0 (first build pending) and unknown types contribute nothing.
+    { moduleType: "crew-quarters", level: 0 },
+    { moduleType: "not-in-catalog", level: 5 },
+  ];
+  assertEquals(crewCapacityForModules(modules), 2 + 2);
+  assertEquals(crewRequiredForModules(modules), 3 + 1);
+});
+
+Deno.test("crewScaledAmount damps by the pooled ratio with a 50% floor", () => {
+  // Nothing wants crew: pass-through.
+  assertEquals(crewScaledAmount(16, 0, 0), 16);
+  // Fully staffed (or overstaffed): full output.
+  assertEquals(crewScaledAmount(16, 4, 4), 16);
+  assertEquals(crewScaledAmount(16, 9, 4), 16);
+  // Half staffed: 16 * (4 + 2) / 8 = 12.
+  assertEquals(crewScaledAmount(16, 2, 4), 12);
+  // No crew: the 50% floor.
+  assertEquals(crewScaledAmount(16, 0, 4), 8);
+  // Integer-floored, matching the Rust u64 math.
+  assertEquals(crewScaledAmount(1, 0, 4), 0);
+});
+
+Deno.test("hireCostAt is linear in the new head count", () => {
+  assertEquals(hireCostAt(0), HIRE_COST_BIOLOGICAL);
+  assertEquals(hireCostAt(2), HIRE_COST_BIOLOGICAL * 3);
 });
 
 Deno.test("the Command Module is always unlocked and every producer needs it at level 1", () => {

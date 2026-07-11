@@ -21,6 +21,13 @@ export interface ModuleCatalogEntry {
    *  doubles per level thereafter. Income past a resource's total cap is
    *  lost — the backend clamps; this mirror only drives the cap display. */
   stores: Partial<Record<ResourceKind, number>>;
+  /** Crew berths contributed per settled level (ROADMAP P1.10) — summed
+   *  linearly (level * this), not scaleForLevel: capacity is a head count,
+   *  not a production curve. */
+  crewCapacityPerLevel: number;
+  /** Crew wanted per settled level to run at full output (ROADMAP P1.10),
+   *  summed linearly ship-wide; 0 means never damped. */
+  crewRequiredPerLevel: number;
   /** Construction-material cost to build (or level up to) level 1; doubles
    *  per level thereafter. Every module cost is stubbed as construction-only
    *  for now — fine-tuned to a real per-resource mix later. */
@@ -37,6 +44,10 @@ export interface ModuleCatalogEntry {
  *  level cap (README § Ship design). */
 export const COMMAND_MODULE_TYPE = "command";
 
+/** Catalog key of the Crew Quarters (ROADMAP P1.10) — hosts the Hire Crew
+ *  button alongside the Command Module. */
+export const CREW_QUARTERS_MODULE_TYPE = "crew-quarters";
+
 export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
   {
     moduleType: COMMAND_MODULE_TYPE,
@@ -50,6 +61,8 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
       biological: 1_000,
       fuel: 1_000,
     },
+    crewCapacityPerLevel: 2,
+    crewRequiredPerLevel: 0,
     baseCostConstruction: 20,
     baseBuildTimeMs: 30_000,
     unlockCommandLevel: 0,
@@ -59,6 +72,8 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     displayName: "Ore Refinery",
     produces: { construction: 2 },
     stores: {},
+    crewCapacityPerLevel: 0,
+    crewRequiredPerLevel: 1,
     baseCostConstruction: 10,
     baseBuildTimeMs: 15_000,
     unlockCommandLevel: 1,
@@ -68,6 +83,8 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     displayName: "Electronics Fabricator",
     produces: { highTech: 2 },
     stores: {},
+    crewCapacityPerLevel: 0,
+    crewRequiredPerLevel: 1,
     baseCostConstruction: 10,
     baseBuildTimeMs: 15_000,
     unlockCommandLevel: 1,
@@ -77,6 +94,8 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     displayName: "Hydroponics Bay",
     produces: { biological: 2 },
     stores: {},
+    crewCapacityPerLevel: 0,
+    crewRequiredPerLevel: 1,
     baseCostConstruction: 10,
     baseBuildTimeMs: 15_000,
     unlockCommandLevel: 1,
@@ -86,6 +105,8 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     displayName: "Fusion Reactor",
     produces: { fuel: 2 },
     stores: {},
+    crewCapacityPerLevel: 0,
+    crewRequiredPerLevel: 1,
     baseCostConstruction: 10,
     baseBuildTimeMs: 15_000,
     unlockCommandLevel: 1,
@@ -100,11 +121,44 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
       biological: 2_000,
       fuel: 2_000,
     },
+    crewCapacityPerLevel: 0,
+    crewRequiredPerLevel: 0,
+    baseCostConstruction: 15,
+    baseBuildTimeMs: 20_000,
+    unlockCommandLevel: 1,
+  },
+  {
+    moduleType: CREW_QUARTERS_MODULE_TYPE,
+    displayName: "Crew Quarters",
+    produces: {},
+    stores: {},
+    crewCapacityPerLevel: 1,
+    crewRequiredPerLevel: 0,
     baseCostConstruction: 15,
     baseBuildTimeMs: 20_000,
     unlockCommandLevel: 1,
   },
 ];
+
+/**
+ * Biological-material cost of one crew hire, multiplied by the new head
+ * count (linear — hiring is a repeat purchase). Display mirror of the Rust
+ * HIRE_COST_BIOLOGICAL in src-tauri/src/game_state.rs — keep the two in
+ * sync; the backend does the actual verification. Balancing stub → P2.5.
+ */
+export const HIRE_COST_BIOLOGICAL = 20;
+
+/**
+ * Recruitment time per hire, ms. Display mirror of the Rust HIRE_TIME_MS in
+ * src-tauri/src/game_state.rs — keep the two in sync. Balancing stub → P2.5.
+ */
+export const HIRE_TIME_MS = 30_000;
+
+/** Biological cost of hiring one more crew member on top of `crew` heads —
+ *  the linear rule the backend charges (HIRE_COST_BIOLOGICAL * new count). */
+export function hireCostAt(crew: number): number {
+  return HIRE_COST_BIOLOGICAL * (crew + 1);
+}
 
 export function moduleCatalogEntry(
   moduleType: string,
@@ -168,4 +222,57 @@ export function storageCapsForModules(
     }
   }
   return caps;
+}
+
+/**
+ * Total crew berths (ROADMAP P1.10): every module's crewCapacityPerLevel
+ * times its settled level, summed linearly — the display mirror of the Rust
+ * `ServerState::crew_capacity`, which is what actually verifies hires. A
+ * pending build/upgrade doesn't count until it settles.
+ */
+export function crewCapacityForModules(
+  modules: Iterable<Pick<ModuleData, "moduleType" | "level">>,
+): number {
+  let capacity = 0;
+  for (const module of modules) {
+    const entry = moduleCatalogEntry(module.moduleType);
+    if (!entry) continue;
+    capacity += entry.crewCapacityPerLevel * module.level;
+  }
+  return capacity;
+}
+
+/**
+ * Ship-wide crew demand (ROADMAP P1.10): every module's crewRequiredPerLevel
+ * times its settled level, summed linearly — the display mirror of the Rust
+ * `ServerState::crew_required`.
+ */
+export function crewRequiredForModules(
+  modules: Iterable<Pick<ModuleData, "moduleType" | "level">>,
+): number {
+  let required = 0;
+  for (const module of modules) {
+    const entry = moduleCatalogEntry(module.moduleType);
+    if (!entry) continue;
+    required += entry.crewRequiredPerLevel * module.level;
+  }
+  return required;
+}
+
+/**
+ * Damp a production amount by the pooled crew staffing ratio (ROADMAP
+ * P1.10): amount * (required + staffed) / (2 * required), integer-floored —
+ * exactly 0.5 + 0.5 * ratio with a 50% floor. Display mirror of the Rust
+ * `crew_scaled` in src-tauri/src/game_state.rs — keep the two in sync; the
+ * backend does the actual damping. `required <= 0` means nothing wants crew:
+ * no damping.
+ */
+export function crewScaledAmount(
+  amount: number,
+  crew: number,
+  required: number,
+): number {
+  if (required <= 0) return amount;
+  const staffed = Math.min(crew, required);
+  return Math.floor((amount * (required + staffed)) / (2 * required));
 }
