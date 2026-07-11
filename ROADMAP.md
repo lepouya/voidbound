@@ -124,12 +124,13 @@ Goal: a playable single-player loop, no persistence yet.
       Full model: SERVER.md § Interest management. Feeds P3.1 (per-connection
       windows) and P4.3 (fog of war = this window shrunk to a radar radius).
       Still open: asteroid deposit/rate balance (→ P2.5).
-- [ ] **P1.14 — Modal dialog/overlay system.** Generic screen-space modal layer
-      (design: `TRADING_POST.md` § 2): scrim + panel + input capture above the
-      HUD z-space, composed from the existing `ui/` primitives, with pure
-      unit-tested layout math and a disabled-button state. One modal at a time;
-      scrolling deferred to P6.3. First consumer is the P1.12 shop; later panels
-      (P6.3 feed, P3.5 mail, P5.1 research) reuse it.
+- [x] **P1.14 — Modal dialog/overlay system.** Screen-space modal layer
+      (`src/ui/dialog.ts` + pure `dialog-layout.ts`, `MODAL_BASE_Z` above the
+      HUD): scrim + framed panel + title/close + row/cell content composed from
+      the existing `ui/` primitives, opened via `TiledScene.openDialog()`, which
+      captures all pointer input while open. One modal at a time. Still open: no
+      scrolling — the content region is a distinct sub-rect a scrollable list
+      can drop into (→ P6.3); first consumer is the P1.12 shop.
 
 ## Phase 2 — Persistence and balancing
 

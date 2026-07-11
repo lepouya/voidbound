@@ -4,12 +4,15 @@ import { invoke } from "@tauri-apps/api/core";
 
 import {
   BadgeDef,
+  DialogDef,
+  DialogHandle,
   formatCompactCount,
   HudButtonDef,
   HudGroupDef,
   HudGroupHandle,
   HudPointerTarget,
   LabelDef,
+  spawnDialog,
   spawnHudGroup,
 } from "./ui/index.ts";
 import { anchoredZoomPos } from "./camera-math.ts";
@@ -79,6 +82,11 @@ export abstract class TiledScene extends ex.Scene {
   /** All HUD pointer targets (button groups and custom widgets like the
    *  minimap), used to dispatch pointer-up events and resize relayouts. */
   private hudHandles: HudPointerTarget[] = [];
+  /** The modal slot (ROADMAP P1.14): while a dialog is open it captures all
+   *  pointer input — no camera pan/zoom, no world or HUD taps underneath.
+   *  One dialog at a time; openDialog replaces any open one. */
+  private modalDialog: { handle: DialogHandle; onClose?: () => void } | null =
+    null;
 
   /** The map's grid geometry, set once buildMap() resolves; accessible to
    *  setupActors() via this. Undefined before that (guard early
@@ -195,6 +203,7 @@ export abstract class TiledScene extends ex.Scene {
   override onDeactivate(): void {
     this.isActive = false;
     this.unregisterInputHandlers();
+    this.closeDialog();
     this.deselectActor();
     this.resetPointerState();
   }
@@ -294,6 +303,7 @@ export abstract class TiledScene extends ex.Scene {
   /** Re-derive everything that depends on the screen size. */
   private handleResize(): void {
     for (const handle of this.hudHandles) handle.relayout(this.engineRef);
+    this.modalDialog?.handle.relayout(this.engineRef);
     if (!this.mapReady) return;
     this.recomputeViewBounds();
     this.clampCamera();
@@ -341,7 +351,7 @@ export abstract class TiledScene extends ex.Scene {
   }
 
   private applyPinchZoom(a: ex.Vector, b: ex.Vector): void {
-    if (this.pinchDistance === null) return;
+    if (this.pinchDistance === null || this.modalDialog) return;
     const newDist = a.distance(b);
     const midpoint = this.engineRef.screen.screenToWorldCoordinates(
       a.add(b).scale(0.5),
@@ -376,13 +386,19 @@ export abstract class TiledScene extends ex.Scene {
 
   /**
    * Dispatches a confirmed tap (no drag) to the appropriate handler, in
-   * priority order: the `suppressNextPointerUp` escape hatch, world-space
-   * action buttons (recorded on pointer-down, fired here on confirmation),
-   * HUD buttons, then actor-tap or empty-tile-tap.
+   * priority order: the `suppressNextPointerUp` escape hatch, the modal
+   * dialog (which swallows the tap entirely — dialog buttons fire, anything
+   * else is absorbed by the scrim), world-space action buttons (recorded on
+   * pointer-down, fired here on confirmation), HUD buttons, then actor-tap
+   * or empty-tile-tap.
    * `suppressNextPointerUp` is cleared by the subsequent resetPointerState().
    */
   private handleTap(screenPos: ex.Vector): void {
     if (this.suppressNextPointerUp) return;
+    if (this.modalDialog) {
+      this.modalDialog.handle.tryPointerUp(screenPos);
+      return;
+    }
     // A world-button press consumes the whole tap, so handlers never need to
     // suppress the pointer-up themselves.
     const pendingButton = this.selectedActor?.takePendingButton();
@@ -485,6 +501,12 @@ export abstract class TiledScene extends ex.Scene {
         return;
       }
       this.hasDragged = true;
+      // Modal input capture: keep tracking the drag (so a press that slides
+      // off a dialog button still cancels the tap) but never pan the camera.
+      if (this.modalDialog) {
+        this.lastScreenPos = evt.screenPos.clone();
+        return;
+      }
       const delta = this.lastScreenPos.sub(evt.screenPos);
       this.camera.x += delta.x / this.camera.zoom;
       this.camera.y += delta.y / this.camera.zoom;
@@ -529,6 +551,7 @@ export abstract class TiledScene extends ex.Scene {
 
     // Trackpad scroll pans; trackpad pinch arrives as wheel + ctrlKey and zooms
     const onWheel = (evt: ex.WheelEvent) => {
+      if (this.modalDialog) return;
       if ((evt.ev as WheelEvent).ctrlKey) {
         // Clamp the per-event factor: a fast wheel can send deltaY > 100,
         // which would make the factor zero or negative. evt.x/y is the
@@ -607,6 +630,38 @@ export abstract class TiledScene extends ex.Scene {
     };
     this.hudHandles.push(wrapped);
     return wrapped;
+  }
+
+  /**
+   * Open a modal dialog over this scene (ROADMAP P1.14). One dialog at a
+   * time: any open dialog is closed first. While open, all pointer input is
+   * captured — dialog buttons run the same confirmed-tap logic HUD buttons
+   * use, everything else is swallowed by the scrim, and camera pan/zoom is
+   * blocked. Switching scenes closes it. Returns the handle for runtime
+   * control (setRows, setButtonDisabled).
+   *
+   * Must be called after super.onInitialize(engine) so that this.engineRef
+   * is available.
+   */
+  protected openDialog(def: DialogDef): DialogHandle {
+    this.closeDialog();
+    const { root, handle } = spawnDialog(
+      this.engineRef,
+      def,
+      () => this.closeDialog(),
+    );
+    this.add(root);
+    this.modalDialog = { handle, onClose: def.onClose };
+    return handle;
+  }
+
+  /** Close the open modal dialog, if any (fires its onClose). */
+  protected closeDialog(): void {
+    if (!this.modalDialog) return;
+    const { handle, onClose } = this.modalDialog;
+    this.modalDialog = null;
+    handle.remove();
+    onClose?.();
   }
 
   /**

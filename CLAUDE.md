@@ -36,10 +36,10 @@ task list that tracks what's built vs. planned.
   Logic that should be unit-tested lives in pure modules with no runtime
   Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
   `src/game-state.ts`, `src/camera-math.ts`, `src/minimap-math.ts`,
-  `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`, `src/ui/format.ts`) —
-  Excalibur cannot load under Deno, so keep new testable logic in that shape.
-  There is no runtime/scene coverage — the running app is still the safety net
-  there.
+  `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`, `src/ui/dialog-layout.ts`,
+  `src/ui/format.ts`) — Excalibur cannot load under Deno, so keep new testable
+  logic in that shape. There is no runtime/scene coverage — the running app is
+  still the safety net there.
 
 ## 2. Project Layout
 
@@ -144,8 +144,10 @@ server-time offsets) is sketched in `SERVER.md`.
 
 HUD elements render above the world at `HUD_BASE_Z = 10_000` (see
 [src/ui/hud.ts](src/ui/hud.ts)). HUD groups can pass `zOffset` to stack relative
-to that base. World-space actors use Excalibur defaults; don't set `z` unless
-you have a specific layering need.
+to that base. Modal dialogs render above the HUD at `MODAL_BASE_Z = 20_000` (see
+[src/ui/dialog.ts](src/ui/dialog.ts)) — the scrim sits at the base and the panel
+content rides above it as its children. World-space actors use Excalibur
+defaults; don't set `z` unless you have a specific layering need.
 
 ### Asset pipeline
 
@@ -187,10 +189,14 @@ Useful protected members: `grid`, `tilemap` (null in geometry-only scenes),
 `handleTilePressed`, `pendingActor`, `suppressNextPointerUp`, `deselectActor()`,
 `panCameraTo(x, y)`, `registerHudTarget(target)` — enrolls a custom screen-space
 widget (e.g. the minimap) into HUD tap dispatch and resize relayout —
-`addHudGroup(def)`, and `addCommonHud(switchButton)` — spawns the standard
+`addHudGroup(def)`, `addCommonHud(switchButton)` — spawns the standard
 Shop/Events + Mail/Items HUD around the given scene-switch button; prefer it
-over redefining those groups per scene. Call both HUD helpers from
-`onInitialize` **after** `super.onInitialize(engine)`.
+over redefining those groups per scene — and `openDialog(def)` / `closeDialog()`
+— the modal layer (ROADMAP P1.14): one dialog at a time, all pointer input
+captured while open (dialog buttons run the confirmed-tap logic; camera pan/zoom
+and everything underneath is blocked), closed automatically on scene switch.
+Call the HUD helpers and `openDialog` from `onInitialize` (or later) **after**
+`super.onInitialize(engine)`.
 
 **Adding a new scene:** use the `/add-scene` skill — it handles Rust map-arm
 wiring, `main.ts` registration, and HUD setup.
@@ -228,6 +234,14 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   `TiledScene.addHudGroup()`)
 - `hud-layout.ts` — pure HUD layout math (`layoutButtonCenters`; no runtime
   imports; unit-tested). Not in the barrel — hud.ts consumes it
+- `dialog.ts` — `DialogDef`, `DialogHandle`, `spawnDialog`, `MODAL_BASE_Z`
+  (ROADMAP P1.14). Modal scrim + framed panel + title/close + row/cell content
+  composed from the other primitives; row cells hold a button, a tile + label,
+  or centered text. Don't call `spawnDialog` from scenes — use
+  `TiledScene.openDialog()`, which owns the modal slot and input capture
+- `dialog-layout.ts` — pure dialog frame/row/cell math (`layoutDialogFrame`,
+  `layoutCellRects`; no runtime imports; unit-tested). Not in the barrel —
+  dialog.ts consumes it and re-exports its types
 
 Pure grid math shared by scenes (dock tiles) lives outside `ui/` in
 [src/grid-math.ts](src/grid-math.ts).

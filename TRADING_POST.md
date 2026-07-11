@@ -1,8 +1,8 @@
 # Trading Post (P1.12) — Design Doc
 
-**Status: design settled (July 2026) — not yet implemented.** This doc records
-the design for ROADMAP P1.12 and its UI prerequisite (P1.14) so it persists
-across sessions; § 8 logs the decisions.
+**Status: design settled (July 2026). P1.14 (§ 2) is implemented; P1.12 is
+not.** This doc records the design for ROADMAP P1.12 and its UI prerequisite
+(P1.14) so it persists across sessions; § 8 logs the decisions.
 
 **This file is temporary working state, not permanent documentation.** It only
 exists to carry the design across work sessions. Once P1.14 and P1.12 are both
