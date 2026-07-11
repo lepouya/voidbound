@@ -3,14 +3,20 @@
 
 /**
  * Formats a count for tight HUD spots (e.g. the resource bar): whole numbers
- * up to 9999 as-is, then k/M/B with one decimal while it fits in ~4 glyphs
- * ("12.3k", "999k", "1.2M"). Values are floored, never rounded up — a HUD
- * should not show resources the player doesn't have yet.
+ * below `compactFrom` as-is, then k/M/B with one decimal while it fits in ~4
+ * glyphs ("12.3k", "999k", "1.2M"). Values are floored, never rounded up — a
+ * HUD should not show resources the player doesn't have yet. `compactFrom`
+ * defaults to 10000 (four digits stay readable alone) and clamps to a
+ * minimum of 1000 (the smallest unit suffix); pass a lower value for spots
+ * that pack two numbers into one label, like the bar's "count/cap".
  */
-export function formatCompactCount(value: number): string {
+export function formatCompactCount(
+  value: number,
+  compactFrom = 10_000,
+): string {
   const floored = Math.floor(value);
   const abs = Math.abs(floored);
-  if (abs < 10_000) return String(floored);
+  if (abs < Math.max(compactFrom, 1_000)) return String(floored);
 
   const units: Array<{ scale: number; suffix: string }> = [
     { scale: 1e9, suffix: "B" },

@@ -36,3 +36,12 @@ Deno.test("negative values keep the sign", () => {
   assertEquals(formatCompactCount(-5), "-5");
   assertEquals(formatCompactCount(-12_345), "-12.3k");
 });
+
+Deno.test("a lower compactFrom compacts small thousands (bar count/cap)", () => {
+  assertEquals(formatCompactCount(985, 1_000), "985");
+  assertEquals(formatCompactCount(1_000, 1_000), "1k");
+  assertEquals(formatCompactCount(3_000, 1_000), "3k");
+  assertEquals(formatCompactCount(2_950, 1_000), "2.9k");
+  // The threshold clamps at 1000, the smallest unit suffix.
+  assertEquals(formatCompactCount(500, 0), "500");
+});

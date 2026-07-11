@@ -20,6 +20,7 @@ import {
   RESOURCE_KINDS,
   ResourceKind,
 } from "./game-state.ts";
+import { storageCapsForModules } from "./module-catalog.ts";
 import { TileActor } from "./tile-actor.ts";
 
 /**
@@ -625,10 +626,24 @@ export abstract class TiledScene extends ex.Scene {
     // (see GameState.subscribe). The zero labelOffset cancels the default
     // upward button-label nudge, which would overlap the count onto these
     // small frameless icons.
-    const resourceLabel = (kind: ResourceKind): LabelDef => ({
-      text: formatCompactCount(gameState.resources[kind]),
-      labelOffset: ex.vec(0, 0),
-    });
+    // Each count renders as "count/cap" (ROADMAP P1.11) with the cap
+    // display-derived from the module snapshot (storageCapsForModules) —
+    // the backend does the actual clamping. Credits are uncapped (Infinity)
+    // and show the bare count.
+    const resourceCaps = () =>
+      storageCapsForModules(gameState.modules.values());
+    // Both halves compact from 1000 up ("985/1k", "3k/3k") — the full
+    // "3000/3000" overflows the bar's per-icon spacing.
+    const resourceLabel = (kind: ResourceKind, cap: number): LabelDef => {
+      const count = formatCompactCount(gameState.resources[kind], 1_000);
+      return {
+        text: cap === Infinity
+          ? count
+          : `${count}/${formatCompactCount(cap, 1_000)}`,
+        labelOffset: ex.vec(0, 0),
+      };
+    };
+    const initialCaps = resourceCaps();
     const resourceBar = this.addHudGroup({
       anchor: "top-left",
       direction: "right",
@@ -637,13 +652,14 @@ export abstract class TiledScene extends ex.Scene {
         tile: `${RESOURCE_ICON_TILESET[kind]}:0`,
         width: 22,
         height: 22,
-        label: resourceLabel(kind),
+        label: resourceLabel(kind, initialCaps[kind]),
         onPressed: () => console.log(`resource ${kind}`),
       })),
     });
     gameState.subscribe(() => {
+      const caps = resourceCaps();
       RESOURCE_KINDS.forEach((kind, i) =>
-        resourceBar.setLabel(i, resourceLabel(kind))
+        resourceBar.setLabel(i, resourceLabel(kind, caps[kind]))
       );
     });
 

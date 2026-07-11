@@ -103,12 +103,19 @@ Goal: a playable single-player loop, no persistence yet.
 - [ ] **P1.10 — Crew Quarters + crew capacity.** Ship-wide crew capacity stat,
       scaled by module level; production and functional penalties apply when
       crew is short relative to ship size and active modules. Needs P1.4.
-- [ ] **P1.11 — Storage Bay capacity caps.** Storage limits on the 4 resources;
-      upgrades raise caps and may boost production. The README's "safe
-      warehousing" (protecting stored material from theft) becomes meaningful
-      with P5.5 combat — leave the door open. (The Armory's weapon-storage half
-      of the original task moved to Phase 5, where weapons exist: see P5.4.)
-      Needs P1.4.
+- [x] **P1.11 — Storage Bay capacity caps.** Per-resource storage caps as a
+      catalog `stores` field summed over settled module levels (Command Module
+      contributes a baseline cap, mirroring its baseline production; the new
+      Storage Bay type adds the real capacity): production accrual and mining
+      cargo deposits clamp server-side at the cap — overflow is lost, and a
+      truncated deposit says so in its vessel-returned notification. The
+      resource bar renders "count/cap" (caps display-derived from the module
+      snapshot via `storageCapsForModules`; credits stay uncapped). Still open:
+      cap numbers are `scaleForLevel` stubs (→ P2.5); the README's "possibly
+      boosts production" perk was deliberately skipped; safe warehousing
+      (protecting stored material from theft) becomes meaningful with P5.5
+      combat — door left open. (The Armory's weapon-storage half of the
+      original task moved to Phase 5, where weapons exist: see P5.4.)
 - [ ] **P1.12 — Trading Post + NPC shop.** Buy/sell the 4 resources with NPCs at
       a markup/markdown, independent of the Phase 4 alliance economy — the
       README's answer for players who need resources between mining runs.

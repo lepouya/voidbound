@@ -1,4 +1,4 @@
-import { ResourceKind } from "./game-state.ts";
+import { ModuleData, ResourceKind } from "./game-state.ts";
 
 /**
  * Module type catalog (ROADMAP P1.4) — display/UX mirror of the Rust
@@ -17,6 +17,10 @@ export interface ModuleCatalogEntry {
   /** Resources produced per production tick at level 1; doubles per level
    *  thereafter (see scaleForLevel). */
   produces: Partial<Record<ResourceKind, number>>;
+  /** Storage capacity contributed per resource at level 1 (ROADMAP P1.11);
+   *  doubles per level thereafter. Income past a resource's total cap is
+   *  lost — the backend clamps; this mirror only drives the cap display. */
+  stores: Partial<Record<ResourceKind, number>>;
   /** Construction-material cost to build (or level up to) level 1; doubles
    *  per level thereafter. Every module cost is stubbed as construction-only
    *  for now — fine-tuned to a real per-resource mix later. */
@@ -38,6 +42,14 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     moduleType: COMMAND_MODULE_TYPE,
     displayName: "Command Module",
     produces: { construction: 1, highTech: 1, biological: 1, fuel: 1 },
+    // Baseline storage, mirroring the baseline production: the player
+    // always has some cap even with no Storage Bay built.
+    stores: {
+      construction: 1_000,
+      highTech: 1_000,
+      biological: 1_000,
+      fuel: 1_000,
+    },
     baseCostConstruction: 20,
     baseBuildTimeMs: 30_000,
     unlockCommandLevel: 0,
@@ -46,6 +58,7 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     moduleType: "ore-refinery",
     displayName: "Ore Refinery",
     produces: { construction: 2 },
+    stores: {},
     baseCostConstruction: 10,
     baseBuildTimeMs: 15_000,
     unlockCommandLevel: 1,
@@ -54,6 +67,7 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     moduleType: "electronics-fabricator",
     displayName: "Electronics Fabricator",
     produces: { highTech: 2 },
+    stores: {},
     baseCostConstruction: 10,
     baseBuildTimeMs: 15_000,
     unlockCommandLevel: 1,
@@ -62,6 +76,7 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     moduleType: "hydroponics-bay",
     displayName: "Hydroponics Bay",
     produces: { biological: 2 },
+    stores: {},
     baseCostConstruction: 10,
     baseBuildTimeMs: 15_000,
     unlockCommandLevel: 1,
@@ -70,8 +85,23 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     moduleType: "fusion-reactor",
     displayName: "Fusion Reactor",
     produces: { fuel: 2 },
+    stores: {},
     baseCostConstruction: 10,
     baseBuildTimeMs: 15_000,
+    unlockCommandLevel: 1,
+  },
+  {
+    moduleType: "storage-bay",
+    displayName: "Storage Bay",
+    produces: {},
+    stores: {
+      construction: 2_000,
+      highTech: 2_000,
+      biological: 2_000,
+      fuel: 2_000,
+    },
+    baseCostConstruction: 15,
+    baseBuildTimeMs: 20_000,
     unlockCommandLevel: 1,
   },
 ];
@@ -111,4 +141,31 @@ export function productionAtLevel(
     out[kind as ResourceKind] = scaleForLevel(amount, level);
   }
   return out;
+}
+
+/**
+ * Total storage cap per resource (ROADMAP P1.11): the sum of every module's
+ * catalog `stores` contribution scaled by its settled level — the display
+ * mirror of the Rust `ServerState::storage_caps`, which is what actually
+ * clamps income. A pending build/upgrade doesn't count until it settles.
+ * Credits are trade-only and uncapped (Infinity).
+ */
+export function storageCapsForModules(
+  modules: Iterable<Pick<ModuleData, "moduleType" | "level">>,
+): Record<ResourceKind, number> {
+  const caps: Record<ResourceKind, number> = {
+    construction: 0,
+    highTech: 0,
+    biological: 0,
+    fuel: 0,
+    credits: Infinity,
+  };
+  for (const module of modules) {
+    const entry = moduleCatalogEntry(module.moduleType);
+    if (!entry) continue;
+    for (const [kind, base] of Object.entries(entry.stores)) {
+      caps[kind as ResourceKind] += scaleForLevel(base, module.level);
+    }
+  }
+  return caps;
 }

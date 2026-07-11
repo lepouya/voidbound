@@ -50,13 +50,32 @@ pub struct ResourceCounts {
 }
 
 impl ResourceCounts {
-    fn add(&mut self, kind: ResourceKind, amount: u64) {
+    fn get(&self, kind: ResourceKind) -> u64 {
         match kind {
-            ResourceKind::Construction => self.construction += amount,
-            ResourceKind::HighTech => self.high_tech += amount,
-            ResourceKind::Biological => self.biological += amount,
-            ResourceKind::Fuel => self.fuel += amount,
+            ResourceKind::Construction => self.construction,
+            ResourceKind::HighTech => self.high_tech,
+            ResourceKind::Biological => self.biological,
+            ResourceKind::Fuel => self.fuel,
         }
+    }
+
+    fn add(&mut self, kind: ResourceKind, amount: u64) {
+        let slot = match kind {
+            ResourceKind::Construction => &mut self.construction,
+            ResourceKind::HighTech => &mut self.high_tech,
+            ResourceKind::Biological => &mut self.biological,
+            ResourceKind::Fuel => &mut self.fuel,
+        };
+        *slot = slot.saturating_add(amount);
+    }
+
+    /// Add at most what fits under `cap`, returning the amount actually
+    /// stored — income past the storage cap is lost (ROADMAP P1.11). Stock
+    /// already above the cap is never confiscated; it just leaves no room.
+    fn add_capped(&mut self, kind: ResourceKind, amount: u64, cap: u64) -> u64 {
+        let accepted = amount.min(cap.saturating_sub(self.get(kind)));
+        self.add(kind, accepted);
+        accepted
     }
 
     /// Every module cost is stubbed as construction-only for now (ROADMAP
@@ -73,17 +92,21 @@ impl ResourceCounts {
     }
 }
 
-/// One entry in the module catalog (ROADMAP P1.4): production, cost, build
-/// time, and unlock prerequisite for a module type. Cost/time/production all
-/// scale by `scale_for_level` — a deliberate doubling-per-level stub until
-/// real balancing lands. Mirrors the TS `MODULE_CATALOG` in
-/// `src/module-catalog.ts` — keep the two in sync.
+/// One entry in the module catalog (ROADMAP P1.4): production, storage,
+/// cost, build time, and unlock prerequisite for a module type.
+/// Cost/time/production/storage all scale by `scale_for_level` — a
+/// deliberate doubling-per-level stub until real balancing lands. Mirrors
+/// the TS `MODULE_CATALOG` in `src/module-catalog.ts` — keep the two in
+/// sync.
 pub struct ModuleCatalogEntry {
     /// Wire key — the `module_type` string on `ModuleData` and build requests.
     pub module_type: &'static str,
     pub display_name: &'static str,
     /// Resources produced per production tick at level 1; doubles per level.
     pub produces: &'static [(ResourceKind, u64)],
+    /// Storage capacity contributed per resource at level 1 (ROADMAP P1.11);
+    /// doubles per level. Income past a resource's total cap is lost.
+    pub stores: &'static [(ResourceKind, u64)],
     /// Construction-material cost to build (or level up to) level 1; doubles
     /// per level thereafter.
     pub base_cost_construction: u64,
@@ -110,6 +133,15 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
             (ResourceKind::Biological, 1),
             (ResourceKind::Fuel, 1),
         ],
+        // Baseline storage, mirroring the baseline production: the player
+        // always has some cap even with no Storage Bay built — sized to hold
+        // a max small-tier asteroid harvest (ASTEROID_TIERS) with room over.
+        stores: &[
+            (ResourceKind::Construction, 1_000),
+            (ResourceKind::HighTech, 1_000),
+            (ResourceKind::Biological, 1_000),
+            (ResourceKind::Fuel, 1_000),
+        ],
         base_cost_construction: 20,
         base_build_time_ms: 30_000,
         unlock_command_level: 0,
@@ -118,6 +150,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         module_type: "ore-refinery",
         display_name: "Ore Refinery",
         produces: &[(ResourceKind::Construction, 2)],
+        stores: &[],
         base_cost_construction: 10,
         base_build_time_ms: 15_000,
         unlock_command_level: 1,
@@ -126,6 +159,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         module_type: "electronics-fabricator",
         display_name: "Electronics Fabricator",
         produces: &[(ResourceKind::HighTech, 2)],
+        stores: &[],
         base_cost_construction: 10,
         base_build_time_ms: 15_000,
         unlock_command_level: 1,
@@ -134,6 +168,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         module_type: "hydroponics-bay",
         display_name: "Hydroponics Bay",
         produces: &[(ResourceKind::Biological, 2)],
+        stores: &[],
         base_cost_construction: 10,
         base_build_time_ms: 15_000,
         unlock_command_level: 1,
@@ -142,8 +177,23 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         module_type: "fusion-reactor",
         display_name: "Fusion Reactor",
         produces: &[(ResourceKind::Fuel, 2)],
+        stores: &[],
         base_cost_construction: 10,
         base_build_time_ms: 15_000,
+        unlock_command_level: 1,
+    },
+    ModuleCatalogEntry {
+        module_type: "storage-bay",
+        display_name: "Storage Bay",
+        produces: &[],
+        stores: &[
+            (ResourceKind::Construction, 2_000),
+            (ResourceKind::HighTech, 2_000),
+            (ResourceKind::Biological, 2_000),
+            (ResourceKind::Fuel, 2_000),
+        ],
+        base_cost_construction: 15,
+        base_build_time_ms: 20_000,
         unlock_command_level: 1,
     },
 ];
@@ -982,6 +1032,30 @@ impl ServerState {
             .unwrap_or(0)
     }
 
+    /// Total storage cap per resource (ROADMAP P1.11): the sum of every
+    /// module's catalog `stores` contribution scaled by its settled level —
+    /// a build/upgrade raises the cap only once it settles, like production.
+    /// Credits are trade-only and uncapped (their economy is P1.12/P4.6
+    /// design), expressed here as a u64::MAX cap.
+    fn storage_caps(&self) -> ResourceCounts {
+        let mut caps = ResourceCounts {
+            construction: 0,
+            high_tech: 0,
+            biological: 0,
+            fuel: 0,
+            credits: u64::MAX,
+        };
+        for module in self.modules.values() {
+            let Some(entry) = catalog_entry(&module.module_type) else {
+                continue;
+            };
+            for &(kind, base) in entry.stores {
+                caps.add(kind, scale_for_level(base, module.level));
+            }
+        }
+        caps
+    }
+
     /// Queue a push that always reaches the client — global state (resources,
     /// notifications) or the player's own entities (modules, own vessels),
     /// which are exempt from interest-area filtering (ROADMAP P1.13).
@@ -1059,9 +1133,11 @@ impl ServerState {
 
     /// Accrue production for every whole interval elapsed since the last
     /// applied tick, summed across every settled (level >= 1) module's
-    /// catalog `produces` entry, scaled by its current level. A clock that
-    /// went backwards re-anchors instead of freezing production. Credits are
-    /// earned through trade (P1.12), never produced.
+    /// catalog `produces` entry, scaled by its current level. Each resource
+    /// accrues only up to its storage cap (ROADMAP P1.11) — production past
+    /// the cap is lost. A clock that went backwards re-anchors instead of
+    /// freezing production. Credits are earned through trade (P1.12), never
+    /// produced.
     fn accrue_production(&mut self, now_ms: u64) {
         if now_ms < self.last_production_at {
             self.last_production_at = now_ms;
@@ -1075,6 +1151,11 @@ impl ServerState {
             return;
         }
         self.resources_dirty = true;
+        // Storage caps (ROADMAP P1.11) read the levels as of the window
+        // start: a Storage Bay that settles partway through this window only
+        // raises the cap from the next accrual on — stub precision, fine at
+        // a 5 s tick.
+        let caps = self.storage_caps();
         // Settling (bumping `level`) happens only after this loop: a module
         // whose pending build/upgrade completes partway through this window
         // must be credited its OLD level for the whole ticks fully elapsed
@@ -1105,14 +1186,14 @@ impl ServerState {
             };
             if old_level > 0 && old_ticks > 0 {
                 for &(kind, base) in entry.produces {
-                    self.resources
-                        .add(kind, scale_for_level(base, old_level) * old_ticks);
+                    let amount = scale_for_level(base, old_level) * old_ticks;
+                    self.resources.add_capped(kind, amount, caps.get(kind));
                 }
             }
             if new_level > 0 && new_ticks > 0 {
                 for &(kind, base) in entry.produces {
-                    self.resources
-                        .add(kind, scale_for_level(base, new_level) * new_ticks);
+                    let amount = scale_for_level(base, new_level) * new_ticks;
+                    self.resources.add_capped(kind, amount, caps.get(kind));
                 }
             }
         }
@@ -1279,13 +1360,23 @@ impl ServerState {
                 self.notified_arrivals.remove(&vessel.vessel_id);
                 let message = match &vessel.cargo {
                     Some(cargo) => {
-                        self.resources.add(cargo.resource, cargo.amount);
-                        self.resources_dirty = true;
-                        format!(
-                            "Vessel returned with {} {}",
-                            cargo.amount,
-                            resource_display_name(cargo.resource)
-                        )
+                        // Deposit clamps at the storage cap (ROADMAP P1.11);
+                        // whatever doesn't fit is lost, and the notification
+                        // says so.
+                        let cap = self.storage_caps().get(cargo.resource);
+                        let accepted = self.resources.add_capped(cargo.resource, cargo.amount, cap);
+                        if accepted > 0 {
+                            self.resources_dirty = true;
+                        }
+                        let name = resource_display_name(cargo.resource);
+                        let lost = cargo.amount - accepted;
+                        if lost > 0 {
+                            format!(
+                                "Vessel returned with {accepted} {name} — storage full, {lost} lost"
+                            )
+                        } else {
+                            format!("Vessel returned with {accepted} {name}")
+                        }
                     }
                     None => "Vessel returned to the mothership".to_string(),
                 };
@@ -2100,6 +2191,40 @@ mod tests {
     }
 
     #[test]
+    fn production_stops_at_the_storage_cap() {
+        let mut s = ServerState::new(0);
+        // Command Module baseline (level 1): 1000 per material resource.
+        let cap = s.storage_caps().construction;
+        assert_eq!(cap, 1_000);
+        // Far more ticks than the cap holds: every resource clamps at it.
+        s.accrue_production((cap + 500) * TICK);
+        assert_eq!(s.resources.construction, cap);
+        assert_eq!(s.resources.fuel, cap);
+        // Stock already above the cap is never confiscated — accrual just
+        // has no room.
+        s.resources.construction = cap + 123;
+        s.accrue_production((cap + 600) * TICK);
+        assert_eq!(s.resources.construction, cap + 123);
+        assert_eq!(s.resources.fuel, cap);
+    }
+
+    #[test]
+    fn storage_bay_raises_the_cap_once_settled() {
+        let mut s = ServerState::new(0);
+        let entry = catalog_entry("storage-bay").unwrap();
+        s.resources.construction = entry.base_cost_construction;
+        let response = s.build_module(2, 2, "storage-bay".to_string(), 0).unwrap();
+        let completes_at = response.module.pending.unwrap().completes_at;
+        // Pending builds don't count: still the Command Module baseline.
+        assert_eq!(s.storage_caps().construction, 1_000);
+        s.settle_modules(completes_at);
+        assert_eq!(s.storage_caps().construction, 3_000);
+        assert_eq!(s.storage_caps().biological, 3_000);
+        // Credits are trade-only and uncapped.
+        assert_eq!(s.storage_caps().credits, u64::MAX);
+    }
+
+    #[test]
     fn build_deducts_cost_and_returns_a_pending_level_one_module() {
         let mut s = funded_state(1, 0);
         let response = s
@@ -2647,12 +2772,29 @@ mod tests {
         assert!(s.notifications.iter().all(|n| n.read));
     }
 
-    /// A state with production silenced (no modules) and the seeded asteroid
-    /// field replaced by one known asteroid at (499, 510) — 10 tiles / 10 s
-    /// from the (499, 500) dock — so mining math is deterministic.
+    /// A state with production silenced (the only module is a settled
+    /// Storage Bay, which produces nothing but keeps a 2000-per-resource
+    /// storage cap so deposits aren't clamped — ROADMAP P1.11) and the
+    /// seeded asteroid field replaced by one known asteroid at (499, 510) —
+    /// 10 tiles / 10 s from the (499, 500) dock — so mining math is
+    /// deterministic.
     fn mining_state(amount: u64) -> ServerState {
         let mut s = ServerState::new(0);
         s.modules.clear();
+        let player = player_identity();
+        s.modules.insert(
+            "module-storage".to_string(),
+            ModuleData {
+                module_id: "module-storage".to_string(),
+                owner_id: player.id,
+                owner_name: player.name,
+                module_type: "storage-bay".to_string(),
+                col: 2,
+                row: 2,
+                level: 1,
+                pending: None,
+            },
+        );
         s.asteroids.clear();
         s.asteroids.insert(
             "asteroid-x".to_string(),
@@ -2797,6 +2939,23 @@ mod tests {
             ]
         );
         assert!(s.notifications.last().unwrap().message.contains("240"));
+    }
+
+    #[test]
+    fn cargo_deposit_clamps_at_the_cap_and_reports_the_loss() {
+        // mining_state's Storage Bay caps biological at 2000; leave only 100
+        // of room before the 240-unit harvest docks.
+        let mut s = mining_state(240);
+        s.resources.biological = 1_900;
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        s.settle(10_000 + HOUR_MS);
+        let back = s.vessels[&out.vessel_id].clone();
+        s.settle(back.arrival_at);
+        assert_eq!(s.resources.biological, 2_000);
+        let last = s.notifications.last().unwrap();
+        assert_eq!(last.kind, "vessel-returned");
+        assert!(last.message.contains("storage full"), "{}", last.message);
+        assert!(last.message.contains("140 lost"), "{}", last.message);
     }
 
     #[test]
