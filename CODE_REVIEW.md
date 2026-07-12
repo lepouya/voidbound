@@ -213,8 +213,8 @@ here with a pointer to the task ID.
       got a documented `deno-lint-ignore prefer-const` for a `let` that's
       structurally forward-referenced in a closure; and Rust's
       `room_origin_at`/`drain_pushes` picked up clippy's suggested
-      `Range::contains`/`is_none_or` forms, while `outbound_leg` (CR4.4) had
-      its 8 positional args (over clippy's 7-arg threshold) collapsed into
+      `Range::contains`/`is_none_or` forms, while `outbound_leg` (CR4.4) had its
+      8 positional args (over clippy's 7-arg threshold) collapsed into
       `src`/`dest` tuples. CLAUDE.md's steering line and toolchain/testing
       sections updated to mention `lint`. Verified with
       `deno task format && deno task check && deno task lint && deno task test`
@@ -280,10 +280,15 @@ once the roadmap entry exists.
 
 ## 7. Skills and steering improvements
 
-- [ ] **CR7.1 [idea] New skill: `/add-server-panel`.** The dialog +
+- [x] **CR7.1 [idea] New skill: `/add-server-panel`.** The dialog +
       `bindDialogRows` + status-enum UX pattern (distinct-blocker labels like
       `levelUpStatus`/`hireStatus`) that the P1.12 shop established — P6.3 feed,
-      P3.5 mail, and P5.1 research will each re-derive it otherwise.
+      P3.5 mail, and P5.1 research will each re-derive it otherwise. Done: added
+      `.claude/skills/add-server-panel/SKILL.md`, distilling the shop's six-step
+      shape (wire types → status enum → `build<Panel>Rows` →
+      `open<Panel>Dialog` + `bindDialogRows` → server-verified action methods →
+      wiring a HUD/entity button) with a checklist and pointers into
+      `ship-level.ts`/`dialog.ts`; registered it in CLAUDE.md § Skills.
 - [ ] **CR7.2 [idea] Catalog-mirror checklist in `/add-game-event`.** The
       Rust-constant ↔ TS display mirror ↔ "keep in sync" comment ↔ cross-check
       test ritual has three instances (module/asteroid/trade catalogs) and a

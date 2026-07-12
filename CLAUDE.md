@@ -440,6 +440,8 @@ Use these for common tasks rather than doing them from scratch:
 
 - `/add-scene` — new `TiledScene` subclass (Rust arm + main.ts + HUD wiring)
 - `/add-game-event` — multiplayer-ready event pattern
+- `/add-server-panel` — server-driven dialog panel (state list + status-enum
+  buttons), the Trading Post shop's pattern
 - `/add-tileset` — register a PNG as a tileset
 - `/gen-art` — run or add an `art/gen_*.sh` pipeline script
 - `/verify` — launch the dev app and verify a change at runtime (window
