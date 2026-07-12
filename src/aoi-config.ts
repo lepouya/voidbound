@@ -10,7 +10,7 @@
  *
  * Pure module — no Excalibur/Vite imports — so tests/aoi_config_test.ts can
  * assert that inequality under plain `deno test` instead of leaving it
- * comment-enforced only (CODE_REVIEW.md CR2.2).
+ * comment-enforced only (review finding CR2.2).
  */
 export const MAP_VIEW_TILES_CAP = 80;
 export const AOI_REQUERY_TILES = 8;

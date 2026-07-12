@@ -57,8 +57,8 @@ One row per entity, built by a per-row helper (`build<Entity>Row(data)`):
 - Static cells (`tile`/`label`) for read-only info (icon + amount, an arrow, a
   rarity tag).
 - A `button` cell (built with `roundButton`/`squareButton` from
-  `src/ui/button.ts` — see CR4.1) whose `label`/`disabled`/`badge` are derived
-  from the status enum, e.g.
+  `src/ui/button.ts`) whose `label`/`disabled`/`badge` are derived from the
+  status enum, e.g.
   `label: accepted ? "Accepted" : fits ? "Accept" :
   "No Room"`. Precompute
   affordability/fit checks as UX-only pre-checks — the backend re-verifies and
@@ -96,16 +96,17 @@ standard server-verified action shape (`/add-game-event` step 3): `invoke` the
 Tauri command, apply the returned resources via `gameState.syncResources`, and
 apply the returned self-snapshot event via its `apply<Entity>Event`/
 `gameState.apply<Entity>Event`. Reject explicitly rather than clamping —
-`console.warn` on `catch`, matching every other action (see CR6.1 for the open
-item to replace this with real UI feedback). Reference:
+`console.warn` on `catch`, matching every other action (ROADMAP P1.15 is the
+toast task that replaces this with real UI feedback). Reference:
 `acceptDeal`/`refreshDeals` in src/ship-level.ts.
 
 ## 6. Open the panel from somewhere
 
 Wire a HUD button (`addHudGroup`/`addCommonHud`) or an entity's action button
 (`TileActor` `buttons`) to call `open<Panel>Dialog()`. If the panel is a
-top-level destination (like Shop), it likely already has a placeholder button
-per CR6.2 — check there before adding a new one.
+top-level destination, it likely already has a placeholder button with a ROADMAP
+task attached (HUD Shop → P4.8, Items → P6.5, feed → P6.3, mail → P3.5) — check
+ROADMAP before adding a new one.
 
 ## Checklist before declaring done
 

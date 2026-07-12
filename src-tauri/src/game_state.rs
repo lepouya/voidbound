@@ -618,7 +618,7 @@ const STARTING_CREW: u32 = 0;
 const VESSEL_SPEED_PX_S: f64 = 32.0;
 /// Sprite/capability type of the only vessel class so far.
 const VESSEL_TYPE: &str = "cs1";
-/// Cheap stopgap fleet cap (CODE_REVIEW.md CR1.5): dispatch is otherwise free
+/// Cheap stopgap fleet cap (review finding CR1.5): dispatch is otherwise free
 /// and uncapped today, so nothing stops an unbounded vessel table. Superseded
 /// by P5.3's crew-bound vessel counts; until then this just prevents runaway
 /// growth.

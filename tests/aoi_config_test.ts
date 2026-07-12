@@ -1,5 +1,5 @@
-// Asserts the AOI safety invariant documented in src/aoi-config.ts and
-// CODE_REVIEW.md CR2.2: the client's visible-view cap plus its re-query
+// Asserts the AOI safety invariant documented in src/aoi-config.ts (review
+// finding CR2.2): the client's visible-view cap plus its re-query
 // hysteresis must stay strictly inside the backend's AOI_SPAN window, so
 // unloaded space can never scroll into sight even mid re-request. Without
 // this test the inequality was comment-enforced only across the

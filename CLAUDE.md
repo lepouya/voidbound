@@ -467,3 +467,6 @@ Use these for common tasks rather than doing them from scratch:
 - `/roadmap-task` — work a `ROADMAP.md` task end to end (design review for
   server-model changes, skill chaining, gates, `/verify`, checkbox + commit
   titled with the task ID)
+- `/phase-review` — full-project review at the close of a ROADMAP phase (read
+  everything, cross-check docs/mirrors, findings tracked in a temporary
+  CODE_REVIEW.md that is rolled up and deleted when done)

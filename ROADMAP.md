@@ -59,7 +59,10 @@ Goal: a playable single-player loop, no persistence yet. Core loop done (P1.7
 moved to Phase 2 as P2.7): the loop runs end to end — build and level modules,
 hire crew, mine asteroids, trade at the NPC shop — all server-verified, streamed
 over the push channel, and windowed by interest area. Implementation detail:
-CLAUDE.md §4 and SERVER.md. P1.15 is a post-review polish addition (CR6.1).
+CLAUDE.md §4 and SERVER.md. P1.15 is a post-review polish addition (CR6.1). A
+full `/phase-review` followed the phase close (July 2026): 30 findings
+(CR1.1–CR9.7), all landed over commits `f18db73..e394ed1` — the full review
+document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
 
 - [x] **P1.1 — Resource state + production tick.** The 4 resources as
       server-side state with periodic production; Command Module baseline output
@@ -134,7 +137,7 @@ CLAUDE.md §4 and SERVER.md. P1.15 is a post-review polish addition (CR6.1).
       for rejected server requests (five
       `console.warn("No rejection UI
       yet")` call sites today), but general
-      enough for other future transient messages. (CODE_REVIEW CR6.1)
+      enough for other future transient messages. (CR6.1)
 - [ ] **P1.16 — Entity details panel.** Wire the four
       `console.log("Details
       ...")` stubs (own mothership, enemy
@@ -150,7 +153,7 @@ CLAUDE.md §4 and SERVER.md. P1.15 is a post-review polish addition (CR6.1).
       that tile — "Move" duplicated it with no distinct behavior); rename the
       own-mothership "Move" button's label to "Warp" to stop it colliding
       terminology-wise with vessel Move/Deploy (implementation lands with P4.7).
-      (CODE_REVIEW CR6.2)
+      (CR6.2)
 
 ## Phase 2 — Persistence and balancing
 
@@ -175,7 +178,7 @@ progress persists — the reason P1.7 moved here.
       from a lookup table (structure only — no additional languages shipped yet,
       just unblocked for later). Must land before P2.3 freezes the save format
       and before P3.1 freezes the socket protocol, since `message` is currently
-      baked into both. (CODE_REVIEW CR6.4)
+      baked into both. (CR6.4)
 - [ ] **P2.3 — Versioned save format.** Version field + migration path so later
       phases (and the phase-3 server snapshot format) can evolve without wiping
       saves. Needs P2.1, P2.2.
@@ -280,7 +283,7 @@ Goal: the MMO layer.
       button, currently unwired) distinct from the per-module P1.12 Trading Post
       — spends credits on general goods rather than the Trading Post's give/get
       resource deals. Needs P1.12, and design follows P4.6's credits economy
-      work. (CODE_REVIEW CR6.2)
+      work. (CR6.2)
 
 ## Phase 5 — Technologies, combat, and defence
 
@@ -320,7 +323,7 @@ Goal: the README's Technologies, Combat, and Defence module categories.
       Open idea, not yet committed design: a further +1 via a premium
       (real-money) shop purchase — track as a design question here, don't build
       until the monetization model is actually settled. Needs P5.1, P5.4, P5.7.
-      (CODE_REVIEW CR6.5)
+      (CR6.5)
 
 ## Phase 6 — Presentation and platforms
 
@@ -335,7 +338,7 @@ art or missing panels start hurting playtests.
       map scene, and real asteroid sprites (per class, per tier) replacing the
       tinted placeholder vectors. **Requirement:** asteroid class must be
       distinguishable by shape, not tint alone — today's placeholder vectors are
-      colorblind-inaccessible (CODE_REVIEW CR6.8). Needs P1.9.
+      colorblind-inaccessible (CR6.8). Needs P1.9.
 - [ ] **P6.3 — Notification feed panel.** A real Events panel replacing the P1.5
       console dump — likely the game's first scrollable list UI, so build it as
       a reusable panel; P3.5's mail UI is the second consumer. Needs P1.5.
@@ -347,15 +350,15 @@ art or missing panels start hurting playtests.
 - [ ] **P6.5 — Items/inventory panel.** A real panel behind the HUD "Items"
       button (currently unwired), covering item types beyond the 4 core
       resources — starting with P4.7's "warp core", the first item type
-      introduced. Needs P4.7. (CODE_REVIEW CR6.2)
+      introduced. Needs P4.7. (CR6.2)
 - [ ] **P6.6 — Onboarding/tutorial sequence.** A full scripted first-run
       tutorial walking a new player through the core loop's natural early goals
       — `STARTING_CREW = 0` (`game_state.rs`) already frames the first crew hire
       as one such step; the first module build and first mining trip are others.
-      Needs P1.3, P1.6, P1.10. (CODE_REVIEW CR6.6)
+      Needs P1.3, P1.6, P1.10. (CR6.6)
 - [ ] **P6.7 — Audio.** Ambient/music plus SFX (button presses, build/level-up
       and hire completions, vessel arrivals, mining) — no sound exists in the
-      game today. (CODE_REVIEW CR6.7)
+      game today. (CR6.7)
 
 # Unsorted TODO items
 
