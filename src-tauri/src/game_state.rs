@@ -619,6 +619,11 @@ const STARTING_CREW: u32 = 0;
 const VESSEL_SPEED_PX_S: f64 = 32.0;
 /// Sprite/capability type of the only vessel class so far.
 const VESSEL_TYPE: &str = "cs1";
+/// Cheap stopgap fleet cap (CODE_REVIEW.md CR1.5): dispatch is otherwise free
+/// and uncapped today, so nothing stops an unbounded vessel table. Superseded
+/// by P5.3's crew-bound vessel counts; until then this just prevents runaway
+/// growth.
+const MAX_VESSELS: usize = 20;
 
 /// The local player. Hardcoded until a login flow exists (phase 3).
 fn player_identity() -> PlayerIdentity {
@@ -1418,6 +1423,16 @@ impl ServerState {
             .ok_or_else(|| "player has no mothership".to_string())
     }
 
+    /// How many vessels the requesting player currently has in the table
+    /// (in flight, parked, or mining) — the fleet-cap check's input.
+    fn player_vessel_count(&self) -> usize {
+        let player_id = player_identity().id;
+        self.vessels
+            .values()
+            .filter(|v| v.owner_id == player_id)
+            .count()
+    }
+
     /// The module already occupying the given room, if any — a build target
     /// must land on a free room.
     fn room_occupant(&self, room: (i64, i64)) -> Option<&ModuleData> {
@@ -1973,6 +1988,9 @@ impl ServerState {
         if is_dock_tile(ship, dest_col, dest_row) {
             return Err(format!("({dest_col}, {dest_row}) is a docking tile"));
         }
+        if self.player_vessel_count() >= MAX_VESSELS {
+            return Err(format!("fleet limit reached ({MAX_VESSELS} vessels)"));
+        }
         let (src_col, src_row) = closest_dock_tile(ship, dest_col as f64, dest_row as f64);
         let mothership_id = ship.mothership_id.clone();
         self.next_vessel_seq += 1;
@@ -2033,6 +2051,9 @@ impl ServerState {
             return Err(format!(
                 "asteroid {asteroid_id:?} already has a vessel mining it"
             ));
+        }
+        if self.player_vessel_count() >= MAX_VESSELS {
+            return Err(format!("fleet limit reached ({MAX_VESSELS} vessels)"));
         }
         // Fly to the footprint tile closest to the departure dock.
         let center_col = asteroid.col as f64 + asteroid.span as f64 / 2.0;
@@ -3282,6 +3303,24 @@ mod tests {
         let err = s.dispatch_vessel(499, 500, 0).unwrap_err();
         assert!(err.contains("docking tile"), "{err}");
         assert!(s.active_vessels(0).is_empty());
+    }
+
+    #[test]
+    fn dispatch_rejects_beyond_the_fleet_cap() {
+        let mut s = ServerState::new(0);
+        for i in 0..MAX_VESSELS {
+            s.dispatch_vessel(500, 510 + i as i64, 0).unwrap();
+        }
+        assert_eq!(s.active_vessels(0).len(), MAX_VESSELS);
+        let err = s.dispatch_vessel(500, 600, 0).unwrap_err();
+        assert!(err.contains("fleet limit"), "{err}");
+        // Recalling one mid-flight frees a slot only once its return leg
+        // actually docks — the recalled vessel stays in the table meanwhile.
+        let vessel_id = s.active_vessels(0)[0].vessel_id.clone();
+        let back = s.recall_vessel(&vessel_id, 2_000).unwrap();
+        let err = s.dispatch_vessel(500, 600, 2_000).unwrap_err();
+        assert!(err.contains("fleet limit"), "{err}");
+        s.dispatch_vessel(500, 600, back.arrival_at).unwrap();
     }
 
     #[test]

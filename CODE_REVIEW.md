@@ -72,10 +72,13 @@ here with a pointer to the task ID.
       (ships never move) — fix before any relocation feature lands, e.g. carry a
       `returning` flag on the event instead of re-deriving from geometry at
       arrival.
-- [ ] **CR1.5 [hardening] Vessels are free and unlimited.** `dispatch_vessel`
+- [x] **CR1.5 [hardening] Vessels are free and unlimited.** `dispatch_vessel`
       has no cost, cooldown, or fleet cap; parked vessels persist forever in the
       table and snapshot. P5.3's vessel crews bound this properly — until then
-      consider a cheap `MAX_VESSELS` guard (fold into P2.5).
+      consider a cheap `MAX_VESSELS` guard (fold into P2.5). Done: added
+      `MAX_VESSELS` (20) and `ServerState::player_vessel_count()`; both
+      `dispatch_vessel` and `mine_asteroid` reject once the player's fleet is at
+      the cap. Dispatch cost/cooldown remain open, tracked separately at CR6.5.
 - [ ] **CR1.6 [idea] "Asteroid mined out" notification names nothing** — no
       class/tier/location, unlike the other feed messages. Compose it like the
       mining-complete message does.
