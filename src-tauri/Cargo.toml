@@ -1,8 +1,9 @@
 [package]
 name = "voidbound"
 version = "0.1.0"
-description = ""
-authors = ["you"]
+description = "A mobile-first MMORTS where players colonize a star system, build and upgrade a mothership, gather resources, and form alliances."
+authors = ["Pouya Larjani <pouya.larjani@gmail.com>"]
+license = "UNLICENSED"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

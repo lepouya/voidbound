@@ -310,9 +310,9 @@ once the roadmap entry exists.
 
 ## 8. Housekeeping
 
-- [ ] **CR8.1** Add a LICENSE; fill `Cargo.toml` `authors`/`description` (pairs
+- [x] **CR8.1** Add a LICENSE; fill `Cargo.toml` `authors`/`description` (pairs
       with P3.6 before anything goes public).
-- [ ] **CR8.2** Note in ROADMAP P2.1: `ServerState`'s data structs already
+- [x] **CR8.2** Note in ROADMAP P2.1: `ServerState`'s data structs already
       derive `Deserialize` (good prep), but `outbox`, `notified_arrivals`,
       `resources_dirty`, and `aoi` need `#[serde(skip)]`-style handling when
       save/load lands.

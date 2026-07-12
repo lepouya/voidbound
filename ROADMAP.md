@@ -140,7 +140,12 @@ progress persists — the reason P1.7 moved here.
       (falling back to the seeds when no save exists). Loading rides the
       existing loader phase and its resilience rules — a missing or corrupt save
       must never block game start. No server involved; SERVER.md frames the save
-      file as a local prototype of the phase-3 snapshot.
+      file as a local prototype of the phase-3 snapshot. `ServerState`'s data
+      structs already derive `Deserialize` (good prep), but `outbox`,
+      `notified_arrivals`, `resources_dirty`, and `aoi` are runtime/session
+      state, not persisted progress — they need `#[serde(skip)]` (or an
+      equivalent reconstruct-on-load default) so a save doesn't serialize stale
+      in-flight pushes or window state.
 - [ ] **P2.2 — Versioned save format.** Version field + migration path so later
       phases (and the phase-3 server snapshot format) can evolve without wiping
       saves. Needs P2.1.
@@ -291,7 +296,13 @@ Feedback after playtesting phase 1
 - dev testing speedup
 - resource bar improvement
 - minimap sucks
-- clicking on modules, dialogs
+- clicking on modules, dialogs, details
+- shop should be a row of 3 buttons with borders showing rarity
 - only one of each type of building
 - resource harvesting progress
-- mail vs events
+- mail (+ notifications tab) vs events (game events to participate in)
+- enter and upgrade buttons on ship in map view
+- mothership teleport/move
+- python 3.14 default
+- verify skill should just use the sonnet/default model instead of current
+- frontend CI in github is failing
