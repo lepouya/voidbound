@@ -143,6 +143,23 @@ sketched in `SERVER.md`.
   mothership where you want to deploy vessels "next to" it by tapping around its
   edges.
 
+### UX principles (state must be visible)
+
+Established during P1.10 review and confirmed since; apply these four checks
+when designing a feature's UI half (see `/roadmap-task` step 2) — don't wait for
+review to add them:
+
+- **Timed actions show a live countdown**, never a static "in progress" label
+  (e.g. "Recruiting (12s)"). `TileActor.setButtonLabel()` exists for per-second
+  label ticks without rebuilding the actor.
+- **Degraded/penalized states get a visible indicator** on the affected entity
+  (e.g. an understaffed producer wears an output-percent badge).
+- **Action buttons go on every entity where a player would look for them**, not
+  just one canonical host (Hire Crew lives on Crew Quarters as well as the
+  Command Module).
+- **Starting states are empty-and-earned**, not seeded, where that makes a good
+  early goal or future tutorial step (crew starts at 0).
+
 ### Z-ordering
 
 HUD elements render above the world at `HUD_BASE_Z = 10_000` (see

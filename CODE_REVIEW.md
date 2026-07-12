@@ -299,11 +299,14 @@ once the roadmap entry exists.
       cross-language check exists) — with `MODULE_CATALOG`/`ASTEROID_TIERS`/
       `DEAL_REFRESH_COSTS_CREDITS` cited as the three existing instances to
       pattern-match against.
-- [ ] **CR7.3 [idea] Promote the UX principles into CLAUDE.md.** "Countdowns on
+- [x] **CR7.3 [idea] Promote the UX principles into CLAUDE.md.** "Countdowns on
       timers, badges on degraded state, buttons everywhere the player would
       look, zero-and-earned starting states" currently lives only in session
       memory; it demonstrably shaped P1.10–P1.14 and belongs in CLAUDE.md §
-      Conventions where any session or contributor sees it.
+      Conventions where any session or contributor sees it. Done: added a "UX
+      principles (state must be visible)" subsection to CLAUDE.md § 3
+      Conventions (between Input model and Z-ordering) with the four checks and
+      a pointer at `/roadmap-task` step 2.
 
 ## 8. Housekeeping
 
