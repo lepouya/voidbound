@@ -79,9 +79,13 @@ here with a pointer to the task ID.
       `MAX_VESSELS` (20) and `ServerState::player_vessel_count()`; both
       `dispatch_vessel` and `mine_asteroid` reject once the player's fleet is at
       the cap. Dispatch cost/cooldown remain open, tracked separately at CR6.5.
-- [ ] **CR1.6 [idea] "Asteroid mined out" notification names nothing** — no
+- [x] **CR1.6 [idea] "Asteroid mined out" notification names nothing** — no
       class/tier/location, unlike the other feed messages. Compose it like the
-      mining-complete message does.
+      mining-complete message does. Done: the message now reads "Asteroid
+      mined out — {tier} {resource} deposit at ({col}, {row})", reusing
+      `resource_display_name` and the same `(col, row)` location format
+      `vessel-arrived` already uses. Regression test asserts the exact string
+      on the seeded mining-completion asteroid.
 
 ## 2. TypeScript client — bugs and corner cases
 
@@ -95,10 +99,10 @@ here with a pointer to the task ID.
       language boundary (map-level.ts ↔ game_state.rs) with no test. Move the
       client constants into a pure module (with a TS mirror of `AOI_SPAN`) and
       add a test asserting the inequality — the same drift-catcher class as the
-      tileset-geometry test. Done: constants moved to `src/aoi-config.ts`
-      (with an `AOI_SPAN` mirror), `map-level.ts` imports from it, and
-      `tests/aoi_config_test.ts` asserts the inequality; the Rust doc comment
-      on `AOI_SPAN` now points at the new module and test.
+      tileset-geometry test. Done: constants moved to `src/aoi-config.ts` (with
+      an `AOI_SPAN` mirror), `map-level.ts` imports from it, and
+      `tests/aoi_config_test.ts` asserts the inequality; the Rust doc comment on
+      `AOI_SPAN` now points at the new module and test.
 - [x] **CR2.3 [fix] `src/event-id.ts` is dead code.** `newEventId()` has zero
       consumers since every action became server-verified. Either delete it (and
       the "purely local actions" branch in `/add-game-event`) or keep it as a

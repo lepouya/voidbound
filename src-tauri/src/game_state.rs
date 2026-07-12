@@ -2146,7 +2146,13 @@ impl ServerState {
             self.asteroids.remove(asteroid_id);
             self.push_notification(
                 "asteroid-depleted",
-                "Asteroid mined out".to_string(),
+                format!(
+                    "Asteroid mined out — {} {} deposit at ({}, {})",
+                    snapshot.tier,
+                    resource_display_name(resource),
+                    footprint.0,
+                    footprint.1
+                ),
                 now_ms,
             );
             self.queue_entity_push(
@@ -3934,6 +3940,17 @@ mod tests {
             ]
         );
         assert!(s.notifications.last().unwrap().message.contains("240"));
+        // CR1.6: the depletion message names the deposit, not just "mined
+        // out" — tier, resource, and location, matching the seeded asteroid.
+        let depleted = s
+            .notifications
+            .iter()
+            .find(|n| n.kind == "asteroid-depleted")
+            .unwrap();
+        assert_eq!(
+            depleted.message,
+            "Asteroid mined out — small biological material deposit at (499, 510)"
+        );
     }
 
     #[test]
