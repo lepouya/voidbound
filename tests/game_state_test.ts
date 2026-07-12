@@ -2,6 +2,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 
 import {
   AsteroidData,
+  DealsData,
   GameState,
   gameState,
   MapWindow,
@@ -99,6 +100,32 @@ function sampleModule(
   };
 }
 
+function sampleDeals(overrides: Partial<DealsData> = {}): DealsData {
+  return {
+    dayIndex: 20_600,
+    refreshesUsed: 1,
+    deals: [
+      {
+        dealId: "deal-20600-0-0",
+        slot: 0,
+        rarity: "common",
+        give: null,
+        get: { kind: "credits", amount: 15 },
+        accepted: false,
+      },
+      {
+        dealId: "deal-20600-1-0",
+        slot: 1,
+        rarity: "rare",
+        give: { kind: "fuel", amount: 40 },
+        get: { kind: "construction", amount: 80 },
+        accepted: true,
+      },
+    ],
+    ...overrides,
+  };
+}
+
 function sampleNotification(
   id: string,
   overrides: Partial<NotificationData> = {},
@@ -192,6 +219,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-1")],
     crew: { crew: 3, pendingHire: { dispatchedAt: 500, completesAt: 30_500 } },
+    deals: sampleDeals(),
   });
 
   assertEquals(state.player, { id: "player-42", name: "Loaded Player" });
@@ -225,6 +253,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     dispatchedAt: 500,
     completesAt: 30_500,
   });
+  assertEquals(state.deals, sampleDeals());
   assert(state.loaded);
   assertEquals(notified, 1);
 });
@@ -241,6 +270,7 @@ Deno.test("applyMapWindow replaces the world tables and window, notifies", () =>
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-1")],
     crew: { crew: 2, pendingHire: null },
+    deals: sampleDeals(),
   });
   let notified = 0;
   state.subscribe(() => notified++);
@@ -329,6 +359,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-old")],
     crew: { crew: 2, pendingHire: null },
+    deals: sampleDeals(),
   });
 
   state.load({
@@ -341,6 +372,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     modules: [sampleModule("module-command"), sampleModule("module-a")],
     notifications: [],
     crew: { crew: 2, pendingHire: null },
+    deals: sampleDeals({ refreshesUsed: 0 }),
   });
 
   // The docked vessel was pruned by the backend and player-1's ship left the
@@ -461,8 +493,29 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
   assertEquals(state.crew, 3);
   assertEquals(state.pendingHire, null);
 
+  // The daily deal reset replaces the shop wholesale (ROADMAP P1.12).
+  state.applyServerPush({ type: "deals", data: sampleDeals() });
+  assertEquals(state.deals, sampleDeals());
+
   // One notify per push, plus one for the applyVesselEvent merge.
-  assertEquals(notified, 10);
+  assertEquals(notified, 11);
+});
+
+Deno.test("applyDealsEvent replaces the shop state and notifies", () => {
+  const state = new GameState();
+  let notified = 0;
+  state.subscribe(() => notified++);
+
+  // An accept response: the same batch with one deal flipped to accepted.
+  state.applyDealsEvent(sampleDeals());
+  const accepted = sampleDeals();
+  accepted.deals[0].accepted = true;
+  state.applyDealsEvent(accepted);
+
+  assertEquals(state.deals.deals[0].accepted, true);
+  assertEquals(state.deals.deals[1].accepted, true);
+  assertEquals(state.deals.refreshesUsed, 1);
+  assertEquals(notified, 2);
 });
 
 Deno.test("applyCrewEvent replaces the crew state and notifies", () => {

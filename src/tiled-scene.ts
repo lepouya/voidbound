@@ -30,12 +30,12 @@ import {
 import { TileActor } from "./tile-actor.ts";
 
 /**
- * Tileset (ui-icon-* PNG) for each resource's bar icon. Icon art is generated
- * from art/ui/icons/*.svg by art/gen_ui.sh; the "credits" icon keeps its
- * working name even after the currency's display name settles (see
- * game-state.ts).
+ * Tileset (ui-icon-* PNG) for each resource's icon — the bar readouts here
+ * plus the deal-shop rows (ship-level.ts). Icon art is generated from
+ * art/ui/icons/*.svg by art/gen_ui.sh; the "credits" icon keeps its working
+ * name even after the currency's display name settles (see game-state.ts).
  */
-const RESOURCE_ICON_TILESET: Record<ResourceKind, string> = {
+export const RESOURCE_ICON_TILESET: Record<ResourceKind, string> = {
   construction: "ui-icon-construction",
   highTech: "ui-icon-hightech",
   biological: "ui-icon-biological",

@@ -28,7 +28,13 @@ game:
   and functional penalty.
 - Operations Center: Boosts radar detection, vessels speed
 - Alliance Embassy: Joining and boosting for the alliance
-- Trading Post: Shopping and trading with NPCs
+- Trading Post: Shopping and trading with NPCs. A deal-slot shop rather than an
+  open price list: a small set of randomized exchange deals over the 4 resources
+  plus credits (give and get types always differ), refreshed on a fixed daily
+  cycle, with rarity tiers making some deals notably player-favorable, one small
+  free deal per day, and paid re-rolls at a doubling credits cost. More slots at
+  higher module levels. Anything with a real counterparty player is the alliance
+  economy's job, not the Trading Post's.
 
 ### Resources
 
@@ -80,8 +86,10 @@ game:
   — like hydrogen or methane. (Open question: whether uranium fits here or is
   one resource too many.) Alongside the materials there is a generic trade
   currency — working name "credits", final name settled in the display layer —
-  earned through trade rather than production or mining; its exact role isn't
-  fleshed out yet.
+  earned through trade rather than production or mining. It enters the economy
+  at the Trading Post (credits-get deals are selling, credits-give deals are
+  buying; paid deal refreshes are the sink); its wider role — player-to-player
+  and alliance trade — isn't fleshed out yet.
 - No hard daily energy caps. Repeating actions over the course of a day yields
   diminishing returns instead, resetting at a fixed point.
 - Resource nodes (asteroids, moons, planets) get higher level and more difficult

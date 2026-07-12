@@ -228,6 +228,61 @@ export interface CrewData {
 }
 
 /**
+ * How player-favorable a Trading Post deal is (ROADMAP P1.12) — the rarity's
+ * bonus multiplied the get side when the server rolled the deal; the client
+ * only styles it (see src/trade-catalog.ts). Mirrors the serialized form of
+ * the Rust `DealRarity` in src-tauri/src/game_state.rs — keep the two in
+ * sync.
+ */
+export type DealRarity = "common" | "uncommon" | "rare";
+
+/**
+ * One side of a Trading Post deal: a trade-eligible type — any ResourceKind,
+ * credits included — and its amount. Mirrors the Rust `DealSide` in
+ * src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface DealSide {
+  kind: ResourceKind;
+  amount: number;
+}
+
+/**
+ * One deal slot in the Trading Post shop (ROADMAP P1.12), as rolled by the
+ * backend — generation, acceptance, refreshes, and the daily cycle are all
+ * server-side; the client only renders and asks. Give and get types always
+ * differ (server-enforced); `give: null` is the once-daily freebie. Mirrors
+ * the Rust `DealData` in src-tauri/src/game_state.rs — keep the two in sync.
+ */
+export interface DealData {
+  /** Stable id: "deal-<day>-<slot>-<generation>". */
+  dealId: string;
+  /** 0..slots-1, stable within a batch. */
+  slot: number;
+  rarity: DealRarity;
+  /** What the player pays; null = the daily freebie. */
+  give: DealSide | null;
+  get: DealSide;
+  /** Greyed out once true; a refresh replaces the whole batch. */
+  accepted: boolean;
+}
+
+/**
+ * The whole Trading Post shop state (ROADMAP P1.12) — day, refreshes used,
+ * and every current deal slot. Following the ModuleData pattern, the struct
+ * doubles as its own event payload: a deals push/response carries the full
+ * current list. Mirrors the Rust `DealsData` in src-tauri/src/game_state.rs
+ * — keep the two in sync.
+ */
+export interface DealsData {
+  /** UTC day index the current batch belongs to. */
+  dayIndex: number;
+  /** Refreshes used since the daily reset — indexes the doubling cost table
+   *  (src/trade-catalog.ts) for the Refresh button's price tag. */
+  refreshesUsed: number;
+  deals: DealData[];
+}
+
+/**
  * A build or level-up in progress on a module — the level it completes to
  * and when. Mirrors the Rust `ModulePendingBuild` in
  * src-tauri/src/game_state.rs — keep the two in sync.
@@ -328,6 +383,10 @@ export interface GameStateData {
   /** The ship's crew state (ROADMAP P1.10) — head count plus any recruitment
    *  in flight; capacity derives from the module list. */
   crew: CrewData;
+  /** The Trading Post deal shop (ROADMAP P1.12) — the current day's deal
+   *  slots and refresh state; server-generated, so acceptance state and the
+   *  daily cycle survive scene switches and reloads. */
+  deals: DealsData;
 }
 
 /**
@@ -354,7 +413,8 @@ export type ServerPush =
   | { type: "asteroid"; data: AsteroidData }
   | { type: "asteroidRemoved"; data: { asteroidId: string } }
   | { type: "notification"; data: NotificationData }
-  | { type: "crew"; data: CrewData };
+  | { type: "crew"; data: CrewData }
+  | { type: "deals"; data: DealsData };
 
 export type GameStateListener = () => void;
 
@@ -449,6 +509,15 @@ export class GameState {
    * Hire button's "Recruiting…" state; completion arrives as a crew push.
    */
   pendingHire: PendingHire | null = null;
+
+  /**
+   * The Trading Post deal shop (ROADMAP P1.12), as last reported by the
+   * backend. New-player default (no deals) until load() lands — the shop
+   * dialog renders an empty list gracefully; the real batch arrives with
+   * the snapshot, replaced wholesale by accept/refresh responses and the
+   * daily-reset push.
+   */
+  deals: DealsData = { dayIndex: 0, refreshesUsed: 0, deals: [] };
 
   /**
    * The interest-area window the world tables above are filtered to, as last
@@ -553,6 +622,20 @@ export class GameState {
   }
 
   /**
+   * Apply an authoritative deal-shop state from an accept/refresh command
+   * response or a server push (the daily reset), notifying subscribers — the
+   * `apply<Action>Event` entry point for deal changes, following the
+   * ModuleData pattern: the DealsData payload is the shop's full current
+   * snapshot, so re-applying is idempotent. The next load() snapshot
+   * supersedes it.
+   */
+  applyDealsEvent(data: DealsData): void {
+    this.update((s) => {
+      s.deals = data;
+    });
+  }
+
+  /**
    * Replace the world tables with a re-centered interest-area response
    * (ROADMAP P1.13), notifying subscribers. Wholesale replacement is the
    * point: entities that left the window unload (the scene reconcilers
@@ -630,6 +713,9 @@ export class GameState {
       case "crew":
         this.applyCrewEvent(push.data);
         break;
+      case "deals":
+        this.applyDealsEvent(push.data);
+        break;
     }
   }
 
@@ -654,6 +740,7 @@ export class GameState {
       );
       s.crew = data.crew.crew;
       s.pendingHire = data.crew.pendingHire;
+      s.deals = data.deals;
       s.mapWindow = data.mapWindow;
       s.loaded = true;
     });

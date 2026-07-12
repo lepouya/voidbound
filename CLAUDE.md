@@ -238,7 +238,11 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   (ROADMAP P1.14). Modal scrim + framed panel + title/close + row/cell content
   composed from the other primitives; row cells hold a button, a tile + label,
   or centered text. Don't call `spawnDialog` from scenes — use
-  `TiledScene.openDialog()`, which owns the modal slot and input capture
+  `TiledScene.openDialog()`, which owns the modal slot and input capture. Also
+  `bindDialogRows(handle, subscribe, buildRows)` — rebuild a dialog's rows on
+  every state-store notify (store-agnostic; unsubscribe from `onClose`). The
+  scaffold for every server-driven panel: P1.12's shop is the reference
+  consumer, the P6.3 feed / P3.5 mail / P5.1 research panels are next
 - `dialog-layout.ts` — pure dialog frame/row/cell math (`layoutDialogFrame`,
   `layoutCellRects`; no runtime imports; unit-tested). Not in the barrel —
   dialog.ts consumes it and re-exports its types
@@ -348,18 +352,18 @@ with. The client renders what commands return and asks for actions:
   the client when state changes, the in-process prototype of P3.1's WebSocket
   bus: a scheduler thread (`run_scheduler` in game_state.rs) sleeps until the
   next deadline — production tick, build `completesAt`, vessel `arrivalAt`,
-  mining `completesAt` — settles state, and emits `ServerPush` messages
-  (`resources`, `module`, `vesselRemoved`, `vessel`, `asteroid`,
-  `asteroidRemoved`, `notification`); a Condvar wakes it early when a command
-  creates a nearer deadline (e.g. a short vessel flight). Mutations queue pushes
-  into a `ServerState` outbox and the boundaries (scheduler wake, command return
-  via `finish_command`) drain + emit, so every settlement path broadcasts
-  identically. Client side, `startServerPushListener` (game-state-loader.ts)
-  routes each push into `gameState.applyServerPush()` — the same apply/sync
-  entry points command responses use. Notifications (build/level-up completions,
-  vessel arrivals/returns) are server state riding the snapshot, capped at 100
-  entries; the Events HUD badge (tiled-scene.ts `addCommonHud`) shows the live
-  unread count.
+  mining `completesAt`, the 00:00 UTC deal reset — settles state, and emits
+  `ServerPush` messages (`resources`, `module`, `vesselRemoved`, `vessel`,
+  `asteroid`, `asteroidRemoved`, `notification`, `crew`, `deals`); a Condvar
+  wakes it early when a command creates a nearer deadline (e.g. a short vessel
+  flight). Mutations queue pushes into a `ServerState` outbox and the boundaries
+  (scheduler wake, command return via `finish_command`) drain + emit, so every
+  settlement path broadcasts identically. Client side, `startServerPushListener`
+  (game-state-loader.ts) routes each push into `gameState.applyServerPush()` —
+  the same apply/sync entry points command responses use. Notifications
+  (build/level-up completions, vessel arrivals/returns) are server state riding
+  the snapshot, capped at 100 entries; the Events HUD badge (tiled-scene.ts
+  `addCommonHud`) shows the live unread count.
 - `mark_notifications_read` — marks the whole feed read and returns the updated
   list (applied via `gameState.syncNotifications`), clearing the Events badge in
   every scene. Pressing Events also dumps the feed to the console — a real feed
@@ -388,18 +392,39 @@ with. The client renders what commands return and asks for actions:
   time (mid-outbound recalls just free the slot). Asteroid changes reach the
   client as `asteroid`/`asteroidRemoved` pushes into `gameState.asteroids`,
   reconciled by `MapLevel.syncAsteroids()`.
+- `request_accept_deal(deal_id)` / `request_refresh_deals()` — the Trading Post
+  NPC deal shop (ROADMAP P1.12). Deals are server-generated, deterministic per
+  (player, UTC day, slot, generation) like `seed_asteroids`, and ride the
+  snapshot as `DealsData` (day index, refreshes used, slots) — the whole shop is
+  one ModuleData-style self-snapshot payload, applied by
+  `gameState.applyDealsEvent()` from command responses and the daily-reset
+  `deals` push alike (`settle_deals`: fresh batch with the freebie in slot 0,
+  refresh counter reset). Give ≠ get is enforced at generation _and_ acceptance;
+  accept additionally verifies a settled Trading Post, the give-side cost, and
+  that the get side fits storage — rejected outright, never clamp-and-lose:
+  explicit player actions differ deliberately from P1.11's passive-overflow
+  rule. Refreshes replace every slot (an unclaimed freebie is forfeited; a
+  refresh batch never mints one) at a doubling credits cost, hard-capped per
+  day; slot count grows with the post's settled level, and a mid-batch level-up
+  appends the new slots immediately (`top_up_deal_slots` — append-only: existing
+  deals and their accepted state are never rerolled, so leveling can't dodge the
+  refresh cost). The shop dialog is opened from the settled post's Trade button
+  (`ShipLevel.openShopDialog`) and re-renders from `gameState.deals` via
+  `bindDialogRows` (see § UI library).
 
 Gameplay constants (production tick, the module catalog's per-type cost/build
 time/production, the asteroid tier catalog + mine rate, room grid, map geometry,
 vessel speed) live in game_state.rs; the ones the UI renders have display-only
 TS mirrors — comments mark each pair; keep them in sync (the asteroid mirror is
 `src/asteroid-catalog.ts`: tier bands, class names, sprite tints, duration
-estimates). The module catalog's cost/build-time/production all scale per level
-through one shared doubling-per-level stub (`scale_for_level`/`scaleForLevel`) —
-real balancing is a later pass, as is the asteroid deposit/rate balance.
-Mothership placement is data, not a constant: it is seeded in `ServerState::new`
-and reaches the client only via the snapshot — the asteroid field seeds the same
-way (deterministic `seed_asteroids`). The game-rule logic is covered by the Rust
+estimates; the deal-shop mirror is `src/trade-catalog.ts`: refresh costs and
+rarity styling — deal sizing has no mirror, amounts arrive on the wire). The
+module catalog's cost/build-time/production all scale per level through one
+shared doubling-per-level stub (`scale_for_level`/`scaleForLevel`) — real
+balancing is a later pass, as is the asteroid deposit/rate balance. Mothership
+placement is data, not a constant: it is seeded in `ServerState::new` and
+reaches the client only via the snapshot — the asteroid field seeds the same way
+(deterministic `seed_asteroids`). The game-rule logic is covered by the Rust
 tests (part of `deno task test`).
 
 Tauri commands return `Result<T, String>` — propagate errors as strings, don't

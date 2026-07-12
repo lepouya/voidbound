@@ -109,19 +109,20 @@ Goal: a playable single-player loop, no persistence yet.
       Still open: cap numbers are stubs (→ P2.5); the README's "boosts
       production" perk was skipped; safe warehousing becomes meaningful with
       P5.5 combat. (The Armory's weapon-storage half moved to P5.4.)
-- [ ] **P1.12 — Trading Post + NPC shop.** Deal-slot NPC shop (full design:
-      `TRADING_POST.md`): server-generated daily deals exchanging the 5
-      trade-eligible types (4 resources + credits, give ≠ get) with rarity
-      tiers, a once-daily freebie, and doubling-cost refreshes — the README's
-      answer for players who need resources between mining runs, independent of
-      the Phase 4 alliance economy. Introduces the generic trade currency
-      (working name "credits", README § Design principles) as a non-produced
-      fifth count; its wider role is designed in P4.6. Also the first consumer
-      of the P1.14 dialog API — evaluate it from the consumer's seat while
-      building, and if the state-bound subscribe-and-rerender scaffolding looks
-      repeatable for the later panels (P6.3 feed, P3.5 mail, P5.1 research),
-      extract a `ui/` code helper — a helper, not a skill (decided July 2026).
-      Needs P1.1, P1.14.
+- [x] **P1.12 — Trading Post + NPC shop.** Deal-slot NPC shop on a new Trading
+      Post module: server-generated daily deals over the 5 trade-eligible types
+      (give ≠ get, rarity boosts the get side, give capped at a storage-cap
+      fraction), a once-daily freebie, doubling-cost refreshes (5/day), slot
+      count scaling with the post's level — credits' entry into the economy
+      (README § Design principles updated). Full model: CLAUDE.md § IPC. The
+      P1.14 dialog API held up from the consumer's seat; the state-bound
+      rerender scaffolding was extracted as `bindDialogRows` (ui/dialog.ts) for
+      the later panels (P6.3 feed, P3.5 mail, P5.1 research). Still open: every
+      deal number — give base, cap fraction, rarity weights/bonuses, refresh
+      costs, freebie band, credits-per-unit rate, unlock level, slot curve — is
+      a balancing stub (→ P2.5); better exchange ratios at higher post level,
+      featured/limited-stock deals, and credits' wider role (→ P4.6); per-type
+      module art (→ P6.1).
 - [x] **P1.13 — Map interest area: windowed world streaming + minimap
       declutter.** The client only holds world entities inside a 100\*100-tile
       AOI window, re-centered as the camera pans; pushes are footprint-filtered,
@@ -135,7 +136,7 @@ Goal: a playable single-player loop, no persistence yet.
       the existing `ui/` primitives, opened via `TiledScene.openDialog()`, which
       captures all pointer input while open. One modal at a time. Still open: no
       scrolling — the content region is a distinct sub-rect a scrollable list
-      can drop into (→ P6.3); first consumer is the P1.12 shop.
+      can drop into (→ P6.3); the P1.12 shop is the reference consumer.
 
 ## Phase 2 — Persistence and balancing
 

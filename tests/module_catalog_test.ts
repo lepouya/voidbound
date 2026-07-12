@@ -14,6 +14,7 @@ import {
   productionAtLevel,
   scaleForLevel,
   storageCapsForModules,
+  TRADING_POST_MODULE_TYPE,
 } from "../src/module-catalog.ts";
 
 Deno.test("scaleForLevel doubles per level above 1 and is 0 at level 0", () => {
@@ -133,11 +134,17 @@ Deno.test("hireCostAt is linear in the new head count", () => {
   assertEquals(hireCostAt(2), HIRE_COST_BIOLOGICAL * 3);
 });
 
-Deno.test("the Command Module is always unlocked and every producer needs it at level 1", () => {
+Deno.test("the Command Module is always unlocked and gates everything else", () => {
   const command = moduleCatalogEntry(COMMAND_MODULE_TYPE)!;
   assertEquals(command.unlockCommandLevel, 0);
   for (const entry of MODULE_CATALOG) {
     if (entry.moduleType === COMMAND_MODULE_TYPE) continue;
-    assertEquals(entry.unlockCommandLevel, 1);
+    // Every other type needs a real Command level; the Trading Post
+    // deliberately unlocks later (ROADMAP P1.12's low-mid unlock).
+    assert(entry.unlockCommandLevel >= 1);
   }
+  assertEquals(
+    moduleCatalogEntry(TRADING_POST_MODULE_TYPE)!.unlockCommandLevel,
+    2,
+  );
 });

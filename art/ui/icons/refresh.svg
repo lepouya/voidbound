@@ -1,0 +1,19 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+>
+  <g
+    stroke="#COLOR2"
+    stroke-width="3"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+    fill="none"
+  >
+    <path d="M 45,25 A 15,15 0 1 0 47,34" stroke="#COLOR1" stroke-width="6" />
+    <polyline points="45,15 45,25 35,25" stroke="#COLOR1" stroke-width="6" />
+    <path d="M 45,25 A 15,15 0 1 0 47,34" />
+    <polyline points="45,15 45,25 35,25" />
+  </g>
+</svg>

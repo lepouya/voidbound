@@ -48,6 +48,10 @@ export const COMMAND_MODULE_TYPE = "command";
  *  button alongside the Command Module. */
 export const CREW_QUARTERS_MODULE_TYPE = "crew-quarters";
 
+/** Catalog key of the Trading Post (ROADMAP P1.12) — a settled one hosts the
+ *  Trade button that opens the deal-shop dialog. */
+export const TRADING_POST_MODULE_TYPE = "trading-post";
+
 export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
   {
     moduleType: COMMAND_MODULE_TYPE,
@@ -137,6 +141,20 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     baseCostConstruction: 15,
     baseBuildTimeMs: 20_000,
     unlockCommandLevel: 1,
+  },
+  {
+    moduleType: TRADING_POST_MODULE_TYPE,
+    displayName: "Trading Post",
+    // No production or storage — its function is the deal shop (ROADMAP
+    // P1.12); leveling it adds deal slots instead.
+    produces: {},
+    stores: {},
+    crewCapacityPerLevel: 0,
+    crewRequiredPerLevel: 1,
+    baseCostConstruction: 15,
+    baseBuildTimeMs: 20_000,
+    // Low-mid unlock; the exact level is a balancing stub → P2.5.
+    unlockCommandLevel: 2,
   },
 ];
 
