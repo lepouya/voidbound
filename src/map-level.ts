@@ -12,7 +12,6 @@ import {
   MothershipData,
   VesselMoveEvent,
 } from "./game-state.ts";
-import { isDockTile } from "./grid-math.ts";
 import { fetchGridGeometry } from "./map-loader.ts";
 import { spawnMinimap } from "./minimap.ts";
 import { TileActor } from "./tile-actor.ts";
@@ -447,16 +446,14 @@ export class MapLevel extends TiledScene {
         applied.destCol === event.destCol &&
         applied.destRow === event.destRow;
       if (unchanged && !force) continue;
-      // A move that already finished on its mothership's docking tile
-      // describes a vessel that no longer exists — the backend prunes it
-      // from its next snapshot; don't respawn it in the meantime. (A live
-      // actor mid-return isn't affected: its arrival handling despawns it.)
-      const home = this.motherships.get(event.mothershipId);
+      // A return leg that already finished describes a vessel that no
+      // longer exists — the backend prunes it from its next snapshot; don't
+      // respawn it in the meantime. (A live actor mid-return isn't affected:
+      // its arrival handling despawns it.)
       if (
         !this.vessels.has(event.vesselId) &&
         now >= event.arrivalAt &&
-        home !== undefined &&
-        isDockTile(home, event.destCol, event.destRow)
+        event.returning
       ) {
         continue;
       }
@@ -523,16 +520,13 @@ export class MapLevel extends TiledScene {
    * events from other players. The vessel is always placed at the position
    * the event timestamps imply, so an aged event — from a late-join snapshot,
    * or re-applied after this scene sat inactive — lands mid-flight (or at the
-   * destination), never back at the source. A move whose destination is a
-   * mothership dock tile is a return: the vessel docks and despawns on
-   * arrival.
+   * destination), never back at the source. A return leg (`event.returning`)
+   * docks and despawns the vessel on arrival.
    */
   applyVesselMoveEvent(event: VesselMoveEvent): void {
-    const home = this.motherships.get(event.mothershipId);
-    const onArrival =
-      home !== undefined && isDockTile(home, event.destCol, event.destRow)
-        ? () => this.vessels.get(event.vesselId)?.kill()
-        : undefined;
+    const onArrival = event.returning
+      ? () => this.vessels.get(event.vesselId)?.kill()
+      : undefined;
 
     // Authoritative current position: lerp src → dest by the event's server
     // timestamps. t >= 1 snaps to the destination and moveTo completes

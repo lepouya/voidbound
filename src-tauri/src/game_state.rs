@@ -1208,6 +1208,13 @@ pub struct VesselMoveEventData {
     pub speed: f64,
     pub dispatched_at: u64,
     pub arrival_at: u64,
+    /// True on a leg built by `return_leg` (recall or mining auto-return),
+    /// false on an outbound dispatch. Settling reads this flag rather than
+    /// re-deriving "is this a return" from `is_dock_tile` against the
+    /// mothership's *current* position — geometry that a future relocation
+    /// (voluntary move, P5.8 forced warp) could change between a return's
+    /// dispatch and arrival, stranding the vessel (CR1.4).
+    pub returning: bool,
     /// Asteroid this vessel is assigned to mine (ROADMAP P1.6) — present on
     /// the outbound leg and while extracting; cleared on the return leg.
     pub mining_asteroid_id: Option<String>,
@@ -1895,8 +1902,8 @@ impl ServerState {
     /// `vessel.arrival_at` rather than `now_ms` — like `settle_mining` below,
     /// so a lazily settled arrival still gets the feed timestamp of when it
     /// actually happened, not when the server got around to noticing. A
-    /// vessel that finished a move onto a docking tile of its own mothership
-    /// additionally despawns (mirroring the arrival handling in
+    /// vessel finishing a return leg (`vessel.returning`, set by
+    /// `return_leg`) additionally despawns (mirroring the arrival handling in
     /// applyVesselMoveEvent, src/map-level.ts) with a VesselRemoved push so
     /// clients drop it from their tables — depositing any cargo it carried
     /// into the resource counts (ROADMAP P1.6: the mining loop's payoff).
@@ -1911,10 +1918,7 @@ impl ServerState {
             .cloned()
             .collect();
         for vessel in arrived {
-            let docked = self
-                .motherships
-                .get(&vessel.mothership_id)
-                .is_some_and(|ship| is_dock_tile(ship, vessel.dest_col, vessel.dest_row));
+            let docked = vessel.returning;
             if docked {
                 self.vessels.remove(&vessel.vessel_id);
                 self.notified_arrivals.remove(&vessel.vessel_id);
@@ -2016,6 +2020,7 @@ impl ServerState {
                     dest_row as f64,
                     VESSEL_SPEED_PX_S,
                 ),
+            returning: false,
             mining_asteroid_id: None,
             cargo: None,
         };
@@ -2084,6 +2089,7 @@ impl ServerState {
                     dest_row as f64,
                     VESSEL_SPEED_PX_S,
                 ),
+            returning: false,
             mining_asteroid_id: Some(asteroid_id.to_string()),
             cargo: None,
         };
@@ -2255,6 +2261,7 @@ impl ServerState {
                     dock_row as f64,
                     vessel.speed,
                 ),
+            returning: true,
             mining_asteroid_id: None,
             ..vessel.clone()
         })
@@ -4105,6 +4112,28 @@ mod tests {
         let back = s.recall_vessel(&out.vessel_id, 0).unwrap();
         assert_eq!((back.dest_col, back.dest_row), (12, 12));
         assert!(s.active_vessels(back.arrival_at).is_empty());
+    }
+
+    #[test]
+    fn returning_vessel_docks_even_if_mothership_moved_after_dispatch() {
+        // CR1.4 regression: a relocation between a return leg's dispatch and
+        // arrival must not strand the vessel. Impossible via any command
+        // today (ships never move), so the move is injected directly —
+        // exercising the fix, that docking reads the `returning` flag stamped
+        // at return_leg time rather than re-deriving it from is_dock_tile
+        // against the mothership's now-different position.
+        let mut s = ServerState::new(0);
+        let out = s.dispatch_vessel(500, 510, 0).unwrap();
+        let back = s.recall_vessel(&out.vessel_id, 0).unwrap();
+        assert!(back.returning);
+        let ship = s.motherships.get_mut("player-1").unwrap();
+        ship.col += 5;
+        ship.row += 5;
+        s.settle(back.arrival_at);
+        assert!(s.active_vessels(back.arrival_at).is_empty());
+        // Recalled before its outbound leg ever arrived, so only the return
+        // leg's notification fires.
+        assert_eq!(notification_kinds(&s), vec!["vessel-returned"]);
     }
 
     // -- Trading Post deals (ROADMAP P1.12) -----------------------------------

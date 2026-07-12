@@ -111,6 +111,12 @@ export interface VesselMoveEvent {
    *  Lets late-joining clients lerp to the current position without
    *  re-computing travel time. */
   arrivalAt: number;
+  /** True on a return leg (recall or mining auto-return), false on an
+   *  outbound dispatch. Authoritative "does this arrival dock and despawn
+   *  the vessel" signal — read this instead of re-deriving it from
+   *  isDockTile against the mothership's current position, which a future
+   *  relocation could change between dispatch and arrival (CR1.4). */
+  returning: boolean;
   /** Asteroid this vessel is assigned to mine (ROADMAP P1.6) — set on the
    *  outbound leg and while extracting; null on return legs and plain
    *  moves. */

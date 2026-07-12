@@ -59,6 +59,7 @@ function sampleVessel(
     speed: 32,
     dispatchedAt: 1_000,
     arrivalAt: 11_000,
+    returning: false,
     miningAsteroidId: null,
     cargo: null,
     ...overrides,
@@ -319,6 +320,7 @@ Deno.test("applyVesselEvent merges by vesselId and notifies", () => {
     destRow: 50,
     dispatchedAt: 6_000,
     arrivalAt: 11_000,
+    returning: true,
   });
   state.applyVesselEvent(recall);
 
@@ -456,6 +458,7 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
   // A server-initiated vessel move (the mining auto-return) merges like a
   // command response.
   const returning = sampleVessel("vessel-b", {
+    returning: true,
     cargo: { resource: "biological", amount: 120 },
   });
   state.applyServerPush({ type: "vessel", data: returning });

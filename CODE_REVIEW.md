@@ -64,14 +64,21 @@ here with a pointer to the task ID.
       under a small emission lock until then. Done: SERVER.md § Ordering now
       documents the in-process reordering and the sequence-number fix P3.1
       needs.
-- [ ] **CR1.4 [hardening] A moved mothership strands returning vessels.**
+- [x] **CR1.4 [hardening] A moved mothership strands returning vessels.**
       Docked-arrival detection re-derives "is this a return" from `is_dock_tile`
       against the mothership's _current_ position; any future mothership move
       (voluntary Move button, P5.8 forced warp) between a return's dispatch and
       arrival leaves the vessel parked forever with its cargo. Impossible today
       (ships never move) — fix before any relocation feature lands, e.g. carry a
       `returning` flag on the event instead of re-deriving from geometry at
-      arrival.
+      arrival. Done: `VesselMoveEventData`/`VesselMoveEvent` gained a
+      `returning` bool, stamped `false` at dispatch (`dispatch_vessel`,
+      `mine_asteroid`) and `true` in `return_leg` (recall + mining auto-return);
+      `settle_vessel_arrivals` and the client's
+      `MapLevel.syncVessels`/`applyVesselMoveEvent` now read that flag instead
+      of re-deriving docking from mothership geometry. Regression test
+      `returning_vessel_docks_even_if_mothership_moved_after_dispatch` relocates
+      the mothership mid-return and asserts the vessel still docks.
 - [x] **CR1.5 [hardening] Vessels are free and unlimited.** `dispatch_vessel`
       has no cost, cooldown, or fleet cap; parked vessels persist forever in the
       table and snapshot. P5.3's vessel crews bound this properly — until then
@@ -81,11 +88,11 @@ here with a pointer to the task ID.
       the cap. Dispatch cost/cooldown remain open, tracked separately at CR6.5.
 - [x] **CR1.6 [idea] "Asteroid mined out" notification names nothing** — no
       class/tier/location, unlike the other feed messages. Compose it like the
-      mining-complete message does. Done: the message now reads "Asteroid
-      mined out — {tier} {resource} deposit at ({col}, {row})", reusing
+      mining-complete message does. Done: the message now reads "Asteroid mined
+      out — {tier} {resource} deposit at ({col}, {row})", reusing
       `resource_display_name` and the same `(col, row)` location format
-      `vessel-arrived` already uses. Regression test asserts the exact string
-      on the seeded mining-completion asteroid.
+      `vessel-arrived` already uses. Regression test asserts the exact string on
+      the seeded mining-completion asteroid.
 
 ## 2. TypeScript client — bugs and corner cases
 
