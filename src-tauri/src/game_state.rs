@@ -330,7 +330,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         base_cost_construction: 15,
         base_build_time_ms: 20_000,
         // Low-mid unlock so trade arrives after the first production loop is
-        // running; the exact level is a balancing stub → P2.5.
+        // running; the exact level is a balancing stub → P2.6.
         unlock_command_level: 2,
     },
 ];
@@ -355,7 +355,7 @@ fn scale_for_level(base: u64, level: u32) -> u64 {
 /// through unchanged; a ship with no crew still runs at half speed (the 50%
 /// floor — understaffing punishes, it never kills). `required == 0` means
 /// nothing wants crew: no damping. The floor value is a balancing stub →
-/// P2.5. Mirrored display-only as crewScaledAmount in
+/// P2.6. Mirrored display-only as crewScaledAmount in
 /// `src/module-catalog.ts` — keep the two in sync.
 fn crew_scaled(amount: u64, staffed: u32, required: u32) -> u64 {
     if required == 0 {
@@ -600,10 +600,10 @@ pub(crate) const MAP_TILE_PX: f64 = 32.0;
 pub(crate) const AOI_SPAN: i64 = 100;
 /// Biological-material cost of one crew hire, multiplied by the new head
 /// count — linear, not the doubling stub: hiring is a repeat purchase
-/// (ROADMAP P1.10). Balancing stub → P2.5. Mirrored display-only as
+/// (ROADMAP P1.10). Balancing stub → P2.6. Mirrored display-only as
 /// HIRE_COST_BIOLOGICAL in `src/module-catalog.ts` — keep the two in sync.
 const HIRE_COST_BIOLOGICAL: u64 = 20;
-/// Recruitment time per hire. Balancing stub → P2.5. Mirrored display-only
+/// Recruitment time per hire. Balancing stub → P2.6. Mirrored display-only
 /// as HIRE_TIME_MS in `src/module-catalog.ts` — keep the two in sync.
 const HIRE_TIME_MS: u64 = 30_000;
 /// A new player starts with no crew (ROADMAP P1.10) and hires from scratch —
@@ -1012,32 +1012,32 @@ fn utc_day_index(now_ms: u64) -> u64 {
 }
 
 /// Credits-per-resource-unit exchange rate. With the four resources still
-/// value-equivalent (all balancing is stubbed until P2.5), deal sizing works
+/// value-equivalent (all balancing is stubbed until P2.6), deal sizing works
 /// in "units" and converts a credits side through this. Balancing stub →
-/// P2.5.
+/// P2.6.
 const CREDITS_PER_RESOURCE_UNIT: u64 = 1;
 
 /// Deal give-side size in units at Trading Post level 1; doubles per level
-/// (scale_for_level). Balancing stub → P2.5.
+/// (scale_for_level). Balancing stub → P2.6.
 const DEAL_GIVE_BASE_UNITS: u64 = 40;
 
 /// The give side is capped at this fraction of the player's current storage
 /// cap for the resource (cap / 5 = 20%) — the single rule that keeps deals
 /// affordable at every progression stage and makes "trade a million
 /// resources" structurally impossible. Credits are uncapped and skip it.
-/// Balancing stub → P2.5.
+/// Balancing stub → P2.6.
 const DEAL_GIVE_CAP_DIVISOR: u64 = 5;
 
 /// Freebie get-amount band in units (inclusive) — a separate, deliberately
 /// small band, not the deal-sizing rule: the daily freebie is a growth
-/// nudge, never a big win. Balancing stub → P2.5.
+/// nudge, never a big win. Balancing stub → P2.6.
 const DEAL_FREEBIE_MIN_UNITS: u64 = 10;
 const DEAL_FREEBIE_MAX_UNITS: u64 = 30;
 
 /// Credits cost of each refresh within a day, indexed by refreshes already
 /// used: the first is free, then doubling, hard-capped at the array length
 /// (5/day). Mirrored display-only as DEAL_REFRESH_COSTS_CREDITS in
-/// `src/trade-catalog.ts` — keep the two in sync. Balancing stub → P2.5.
+/// `src/trade-catalog.ts` — keep the two in sync. Balancing stub → P2.6.
 const DEAL_REFRESH_COSTS_CREDITS: [u64; 5] = [0, 10, 20, 40, 80];
 
 /// Deal slot count by Trading Post level: 3 at level 1, +1 every 2 levels,
@@ -1060,7 +1060,7 @@ pub enum DealRarity {
 }
 
 /// (rarity, roll weight out of 100, get-side bonus percent). Weights and
-/// bonuses are balancing stubs → P2.5; display styling lives in
+/// bonuses are balancing stubs → P2.6; display styling lives in
 /// `src/trade-catalog.ts`.
 const DEAL_RARITIES: [(DealRarity, u64, u64); 3] = [
     (DealRarity::Common, 70, 20),

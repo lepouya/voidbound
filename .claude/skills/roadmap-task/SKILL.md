@@ -51,7 +51,7 @@ Revert every `TEMP-VERIFY` hook (the `/verify` checklist enforces this).
 - Tick the task's checkbox in `ROADMAP.md` in the same commit as the change.
 - **Compact the entry when checking it off**: a one-line summary of what landed,
   plus a "Still open" note listing only what a future task needs to know — each
-  item pointed at its target task (`→ P2.5`). Everything else (implementation
+  item pointed at its target task (`→ P2.6`). Everything else (implementation
   detail, superseded decisions, historical rationale) belongs in `CLAUDE.md`,
   `SERVER.md`, and the commit message, not the roadmap. When a door has no
   target task yet, say "no task yet" rather than inventing one.

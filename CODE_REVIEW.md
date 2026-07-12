@@ -82,7 +82,7 @@ here with a pointer to the task ID.
 - [x] **CR1.5 [hardening] Vessels are free and unlimited.** `dispatch_vessel`
       has no cost, cooldown, or fleet cap; parked vessels persist forever in the
       table and snapshot. P5.3's vessel crews bound this properly — until then
-      consider a cheap `MAX_VESSELS` guard (fold into P2.5). Done: added
+      consider a cheap `MAX_VESSELS` guard (fold into P2.6). Done: added
       `MAX_VESSELS` (20) and `ServerState::player_vessel_count()`; both
       `dispatch_vessel` and `mine_asteroid` reject once the player's fleet is at
       the cap. Dispatch cost/cooldown remain open, tracked separately at CR6.5.
@@ -252,31 +252,57 @@ here with a pointer to the task ID.
 Each of these is an "add/annotate a task in ROADMAP.md" action — check off here
 once the roadmap entry exists.
 
-- [ ] **CR6.1 Player-visible command feedback.** Every rejected request is a
+- [x] **CR6.1 Player-visible command feedback.** Every rejected request is a
       `console.warn` ("No rejection UI yet" appears five times). A
       toast/snackbar surface on the dialog/HUD primitives; pays off in every
-      later feature. Suggested home: Phase 2.
-- [ ] **CR6.2 Wire or task the stub buttons.** Own-mothership **Enter** →
-      `goToScene("ship")` is a one-liner today; **Details** (mothership / vessel
-      / asteroid) is a natural dialog-based "entity details panel" task; HUD
-      **Shop** / **Items** and empty-tile **Move** have no backing tasks at all
-      — decide their fate.
-- [ ] **CR6.3 Mothership relocation.** The Move button exists; P5.8 covers only
+      later feature. Done: added as `ROADMAP.md` P1.15 (general-purpose toast
+      primitive, first consumer is rejection feedback).
+- [x] **CR6.2 Wire or task the stub buttons.** Own-mothership **Enter** is
+      actually still a stub too (`console.log`, duplicating the working HUD
+      "Ship" button) — not the one-liner this item assumed; a fifth stub,
+      **Upgrade**, was also found undocumented on the mothership actor. Done:
+      added `ROADMAP.md` P1.16 (entity details panel — wires all four Details
+      stubs + folds Upgrade in + wires Enter + removes the dead empty-tile Move
+      stub + renames mothership Move→Warp), P4.8 (general item/credits shop for
+      HUD Shop), and P6.5 (Items panel for HUD Items).
+- [x] **CR6.3 Mothership relocation.** The Move button exists; P5.8 covers only
       _forced_ warp. Voluntary relocation (fuel cost, cooldown) needs a task —
-      and it triggers CR1.4.
-- [ ] **CR6.4 Notification i18n before P3.1.** `NotificationData.message` is
+      and it triggers CR1.4. Done: added `ROADMAP.md` P4.7 (renamed "Warp";
+      instant relocation, consumes a new minimal "warp core" item, requires all
+      vessels docked, motivated by repositioning near your P4.1 alliance;
+      re-verify CR1.4/`returning` flag against a live relocation).
+- [x] **CR6.4 Notification i18n before P3.1.** `NotificationData.message` is
       server-composed English prose baked into the wire format and (post P2.2)
       into saves. Switch to `kind` + structured params with client-side
       composition before the socket protocol and save format freeze; note in
-      SERVER.md.
-- [ ] **CR6.5 Vessel cap / dispatch cost stopgap** (see CR1.5) — fold into P2.5.
-- [ ] **CR6.6 Onboarding/tutorial task** (Phase 6?) — code comments already call
-      the first hire "a natural tutorial step later"; nothing tracks it.
-- [ ] **CR6.7 Audio task** (Phase 6) — no sound/music task exists.
-- [ ] **CR6.8 Colorblind accessibility requirement on P6.2.** Asteroid class is
+      SERVER.md. Done: added `ROADMAP.md` P2.2 (structure only, no translations
+      yet), inserted before the renumbered P2.3 versioned-save task and
+      cross-referenced from P3.1 — both Phase 2 and Phase 3 tasks that freeze
+      the wire/save format now depend on it explicitly. The SERVER.md note lands
+      with the task's implementation.
+- [x] **CR6.5 Vessel cap / dispatch cost stopgap** (see CR1.5) — fold into P2.6.
+      Done: on discussion this needed more than a flat-number fold-in — the
+      fleet cap is meant to flex with Hangar Bay/Armory levels, a Research Lab
+      unlock, and (open idea, not committed) a premium-shop purchase, none of
+      which exist before Phase 5. Added `ROADMAP.md` P5.9 (real cap-scaling
+      formula, needs P5.1/P5.4/P5.7) and cross-referenced it from P2.6, which
+      keeps CR1.5's flat `MAX_VESSELS` as the interim stopgap. Dispatch
+      cost/cooldown remain a P2.6 balancing-pass item, unchanged.
+- [x] **CR6.6 Onboarding/tutorial task** (Phase 6?) — code comments already call
+      the first hire "a natural tutorial step later"; nothing tracks it. Done:
+      added `ROADMAP.md` P6.6 — a full scripted tutorial sequence (not just
+      lightweight hints), covering the first crew hire, module build, and mining
+      trip as its early steps.
+- [x] **CR6.7 Audio task** (Phase 6) — no sound/music task exists. Done: added
+      `ROADMAP.md` P6.7 — one combined music + SFX task.
+- [x] **CR6.8 Colorblind accessibility requirement on P6.2.** Asteroid class is
       currently communicated by tint alone; per-class sprite shapes fix it —
-      state it as a requirement of that task so it isn't lost.
-- [ ] **CR6.9 Tooling task for CR4.5** (lint) if it doesn't land directly.
+      state it as a requirement of that task so it isn't lost. Done: added a
+      "**Requirement:**" line to `ROADMAP.md` P6.2 naming shape-distinguishable
+      asteroid classes explicitly.
+- [x] **CR6.9 Tooling task for CR4.5** (lint) if it doesn't land directly. Moot:
+      CR4.5 landed directly (`deno task lint`, CI-wired, all clean) — no roadmap
+      task needed.
 
 ## 7. Skills and steering improvements
 

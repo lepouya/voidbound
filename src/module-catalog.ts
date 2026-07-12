@@ -153,7 +153,7 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
     crewRequiredPerLevel: 1,
     baseCostConstruction: 15,
     baseBuildTimeMs: 20_000,
-    // Low-mid unlock; the exact level is a balancing stub → P2.5.
+    // Low-mid unlock; the exact level is a balancing stub → P2.6.
     unlockCommandLevel: 2,
   },
 ];
@@ -162,13 +162,13 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
  * Biological-material cost of one crew hire, multiplied by the new head
  * count (linear — hiring is a repeat purchase). Display mirror of the Rust
  * HIRE_COST_BIOLOGICAL in src-tauri/src/game_state.rs — keep the two in
- * sync; the backend does the actual verification. Balancing stub → P2.5.
+ * sync; the backend does the actual verification. Balancing stub → P2.6.
  */
 export const HIRE_COST_BIOLOGICAL = 20;
 
 /**
  * Recruitment time per hire, ms. Display mirror of the Rust HIRE_TIME_MS in
- * src-tauri/src/game_state.rs — keep the two in sync. Balancing stub → P2.5.
+ * src-tauri/src/game_state.rs — keep the two in sync. Balancing stub → P2.6.
  */
 export const HIRE_TIME_MS = 30_000;
 
