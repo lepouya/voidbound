@@ -116,11 +116,18 @@ here with a pointer to the task ID.
       consciously documented escape hatch. Kept: doc comment in `event-id.ts`
       and the `/add-game-event` skill now state explicitly that it's an
       intentional escape hatch, not dead code to clean up.
-- [ ] **CR2.4 [hardening] `Date.now()` call sites are the future P3.2 sweep.**
+- [x] **CR2.4 [hardening] `Date.now()` call sites are the future P3.2 sweep.**
       `applyVesselMoveEvent`, the minimap's `vesselWorldPos`, and the countdown
       labels all read the local clock — correct in-process, wrong once the
       server is remote. Largely resolved by CR4.3 (single lerp module = single
-      `serverNow()` seam); otherwise keep the list.
+      `serverNow()` seam); otherwise keep the list. Done: added
+      `serverNow()` to `src/game-state.ts` (returns `Date.now()` today, doc
+      comment points at SERVER.md § Time and P3.2) and routed all five call
+      sites — `MapLevel.syncVessels`/`applyVesselMoveEvent`, the minimap's
+      `vesselWorldPos` caller, and `ShipLevel.createModuleActor`/
+      `onPostUpdate` — through it, so P3.2's clock-offset handshake only has
+      to change one function. CR4.3's fuller vessel-math dedup remains open
+      separately.
 
 ## 3. Tools / art pipeline
 

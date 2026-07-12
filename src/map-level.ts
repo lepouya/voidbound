@@ -10,6 +10,7 @@ import {
   gameState,
   MapWindowData,
   MothershipData,
+  serverNow,
   VesselMoveEvent,
 } from "./game-state.ts";
 import { fetchGridGeometry } from "./map-loader.ts";
@@ -438,7 +439,7 @@ export class MapLevel extends TiledScene {
         this.appliedVesselEvents.delete(vesselId);
       }
     }
-    const now = Date.now();
+    const now = serverNow();
     for (const event of gameState.vessels.values()) {
       const applied = this.appliedVesselEvents.get(event.vesselId);
       const unchanged = applied !== undefined &&
@@ -533,7 +534,7 @@ export class MapLevel extends TiledScene {
     // immediately, running the normal arrival handling.
     const duration = event.arrivalAt - event.dispatchedAt;
     const t = duration > 0
-      ? ex.clamp((Date.now() - event.dispatchedAt) / duration, 0, 1)
+      ? ex.clamp((serverNow() - event.dispatchedAt) / duration, 0, 1)
       : 1;
     const src = this.tileCenter(event.srcCol, event.srcRow);
     const dest = this.tileCenter(event.destCol, event.destRow);

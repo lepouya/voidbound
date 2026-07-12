@@ -17,6 +17,18 @@
  * Deno (see tests/game_state_test.ts).
  */
 
+/**
+ * Best current estimate of server epoch-ms "now" (SERVER.md § Time — "clients
+ * never trust Date.now()"). No clock-offset handshake exists yet (that's
+ * P3.2), so this is `Date.now()` today, but every comparison against a
+ * server timestamp (`dispatchedAt`, `arrivalAt`, `completesAt`) should read
+ * through here rather than calling `Date.now()` directly, so P3.2 only has to
+ * change this one function.
+ */
+export function serverNow(): number {
+  return Date.now();
+}
+
 export interface PlayerIdentity {
   readonly id: string;
   readonly name: string;

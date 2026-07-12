@@ -1,7 +1,7 @@
 import * as ex from "excalibur";
 
 import { ASTEROID_TINTS } from "./asteroid-catalog.ts";
-import { gameState, VesselMoveEvent } from "./game-state.ts";
+import { gameState, serverNow, VesselMoveEvent } from "./game-state.ts";
 import { TileGridGeometry } from "./grid-math.ts";
 import {
   MinimapProjection,
@@ -132,7 +132,7 @@ export function spawnMinimap(
       ctx.fillStyle = BACKGROUND;
       ctx.fillRect(0, 0, SIZE, SIZE);
 
-      const now = Date.now();
+      const now = serverNow();
       // Half-strength asteroid dots first, full-strength ship dots over
       // them (ROADMAP P1.13 hierarchy). The tables are already
       // interest-area filtered: beyond the window the minimap shows only

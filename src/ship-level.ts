@@ -10,6 +10,7 @@ import {
   ModuleData,
   ResourceCounts,
   ResourceKind,
+  serverNow,
 } from "./game-state.ts";
 import { moduleAnchorAt, roomOriginAt, SHIP_ROOM_GRID } from "./grid-math.ts";
 import { buildTileMap } from "./map-loader.ts";
@@ -373,7 +374,7 @@ export class ShipLevel extends TiledScene {
     hireStatus: HireStatus | null,
     staffPct: number,
   ): TileActor {
-    const now = Date.now();
+    const now = serverNow();
     const entry = moduleCatalogEntry(data.moduleType);
     const displayName = entry?.displayName ?? data.moduleType;
     const firstBuildPending = data.pending !== null && data.level === 0;
@@ -762,7 +763,7 @@ export class ShipLevel extends TiledScene {
    * the player was away is already settled in gameState when they return.
    */
   override onPostUpdate(): void {
-    const now = Date.now();
+    const now = serverNow();
     for (const [id, data] of this.pendingModules) {
       if (data.pending === null) continue;
       const module = this.modules.get(id);
