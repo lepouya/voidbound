@@ -39,6 +39,8 @@ import {
   DialogCellDef,
   DialogRowDef,
   formatCompactCount,
+  roundButton,
+  squareButton,
   TileRef,
 } from "./ui/index.ts";
 
@@ -173,18 +175,13 @@ export class ShipLevel extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
     super.onInitialize(engine);
     this.backgroundColor = ex.Color.Black;
-    this.addCommonHud({
-      frameTile: "ui-frame-square:0",
-      activeFrameTile: "ui-frame-square:1",
-      disabledFrameTile: "ui-frame-square:2",
-      tile: "ui-icon-mapview:0",
-      activeTile: "ui-icon-mapview:1",
-      disabledTile: "ui-icon-mapview:2",
+    this.addCommonHud(squareButton({
+      icon: "mapview",
       width: 64,
       height: 64,
       label: "Map",
       onPressed: () => engine.goToScene("map"),
-    });
+    }));
     // The backend state may load (or a future login complete) after this
     // scene is built — reconcile module actors (Command Module included)
     // against the refreshed table on every notify. No unsubscribe: scenes
@@ -389,13 +386,8 @@ export class ShipLevel extends TiledScene {
     if (hireStatus !== null) {
       // "full" (no berths — the fix is Crew Quarters) reads very
       // differently from a cost badge that looks unmet — say so.
-      buttons.push({
-        frameTile: "ui-frame-round:0",
-        activeFrameTile: "ui-frame-round:1",
-        disabledFrameTile: "ui-frame-round:2",
-        tile: "ui-icon-crew:0",
-        activeTile: "ui-icon-crew:1",
-        disabledTile: "ui-icon-crew:2",
+      buttons.push(roundButton({
+        icon: "crew",
         label: hireStatus === "recruiting"
           ? recruitingLabel(gameState.pendingHire?.completesAt ?? now, now)
           : hireStatus === "full"
@@ -406,34 +398,24 @@ export class ShipLevel extends TiledScene {
           : undefined,
         disabled: hireStatus !== "ready",
         onPressed: () => void this.hireCrew(),
-      });
+      }));
     }
     // Trade (ROADMAP P1.12): a settled Trading Post opens the deal shop.
     // Level 0 / mid-first-build shows nothing ("zero and earned"); a pending
     // level-up doesn't block trading — the module keeps functioning at its
     // settled level.
     if (data.moduleType === TRADING_POST_MODULE_TYPE && data.level >= 1) {
-      buttons.push({
-        frameTile: "ui-frame-round:0",
-        activeFrameTile: "ui-frame-round:1",
-        disabledFrameTile: "ui-frame-round:2",
-        tile: "ui-icon-buy:0",
-        activeTile: "ui-icon-buy:1",
-        disabledTile: "ui-icon-buy:2",
+      buttons.push(roundButton({
+        icon: "buy",
         label: "Trade",
         onPressed: () => this.openShopDialog(),
-      });
+      }));
     }
     if (data.pending === null && entry) {
       const nextLevel = data.level + 1;
       const cost = costAtLevel(entry, nextLevel);
-      buttons.push({
-        frameTile: "ui-frame-round:0",
-        activeFrameTile: "ui-frame-round:1",
-        disabledFrameTile: "ui-frame-round:2",
-        tile: "ui-icon-upgrade:0",
-        activeTile: "ui-icon-upgrade:1",
-        disabledTile: "ui-icon-upgrade:2",
+      buttons.push(roundButton({
+        icon: "upgrade",
         // "capped" (blocked by the Command Module's own level, README § Ship
         // design) reads very differently from "unaffordable" — say so rather
         // than showing a cost badge that looks unmet either way.
@@ -443,7 +425,7 @@ export class ShipLevel extends TiledScene {
         badge: `${cost}`,
         disabled: status !== "ready",
         onPressed: () => void this.levelUpModule(data.moduleId),
-      });
+      }));
     }
 
     return new TileActor({
@@ -522,13 +504,8 @@ export class ShipLevel extends TiledScene {
       onPressed,
       buttons: buildable.map((entry) => {
         const cost = costAtLevel(entry, 1);
-        return {
-          frameTile: "ui-frame-round:0",
-          activeFrameTile: "ui-frame-round:1",
-          disabledFrameTile: "ui-frame-round:2",
-          tile: "ui-icon-build:0",
-          activeTile: "ui-icon-build:1",
-          disabledTile: "ui-icon-build:2",
+        return roundButton({
+          icon: "build",
           label: entry.displayName,
           // Cost shown as the button badge; affordability is re-checked by
           // the backend on request — this disable is just UX.
@@ -536,7 +513,7 @@ export class ShipLevel extends TiledScene {
           disabled: gameState.resources.construction < cost,
           onPressed: () =>
             void this.buildModule(anchor.col, anchor.row, entry.moduleType),
-        };
+        });
       }),
     });
   }
@@ -682,13 +659,8 @@ export class ShipLevel extends TiledScene {
           weight: 0.9,
         },
         {
-          button: {
-            frameTile: "ui-frame-square:0",
-            activeFrameTile: "ui-frame-square:1",
-            disabledFrameTile: "ui-frame-square:2",
-            tile: "ui-icon-buy:0",
-            activeTile: "ui-icon-buy:1",
-            disabledTile: "ui-icon-buy:2",
+          button: squareButton({
+            icon: "buy",
             width: 40,
             height: 40,
             // "No Room" (the get side won't fit storage) is the non-obvious
@@ -696,7 +668,7 @@ export class ShipLevel extends TiledScene {
             label: deal.accepted ? "Accepted" : fits ? "Accept" : "No Room",
             disabled: deal.accepted || !affordable || !fits,
             onPressed: () => void this.acceptDeal(deal.dealId),
-          },
+          }),
         },
       ],
     };
@@ -724,13 +696,8 @@ export class ShipLevel extends TiledScene {
       cells: [
         { label: { text, fontSize: 9 }, weight: 3 },
         {
-          button: {
-            frameTile: "ui-frame-square:0",
-            activeFrameTile: "ui-frame-square:1",
-            disabledFrameTile: "ui-frame-square:2",
-            tile: "ui-icon-refresh:0",
-            activeTile: "ui-icon-refresh:1",
-            disabledTile: "ui-icon-refresh:2",
+          button: squareButton({
+            icon: "refresh",
             width: 40,
             height: 40,
             label: "Refresh",
@@ -741,7 +708,7 @@ export class ShipLevel extends TiledScene {
               : formatCompactCount(cost, 1_000),
             disabled: cost === null || gameState.resources.credits < cost,
             onPressed: () => void this.refreshDeals(),
-          },
+          }),
         },
       ],
     };

@@ -16,7 +16,7 @@ import { fetchGridGeometry } from "./map-loader.ts";
 import { spawnMinimap } from "./minimap.ts";
 import { TileActor } from "./tile-actor.ts";
 import { SceneMap, TiledScene } from "./tiled-scene.ts";
-import { formatCompactCount } from "./ui/index.ts";
+import { formatCompactCount, roundButton, squareButton } from "./ui/index.ts";
 
 /**
  * Interest-area client tuning (ROADMAP P1.13). The map camera never shows
@@ -67,18 +67,13 @@ export class MapLevel extends TiledScene {
     // space-dark backdrop — asteroids and motherships are the landmarks
     // (a real starfield is later art work).
     this.backgroundColor = ex.Color.fromHex("#060913");
-    this.addCommonHud({
-      frameTile: "ui-frame-square:0",
-      activeFrameTile: "ui-frame-square:1",
-      disabledFrameTile: "ui-frame-square:2",
-      tile: "ui-icon-shipview:0",
-      activeTile: "ui-icon-shipview:1",
-      disabledTile: "ui-icon-shipview:2",
+    this.addCommonHud(squareButton({
+      icon: "shipview",
       width: 64,
       height: 64,
       label: "Ship",
       onPressed: () => engine.goToScene("ship"),
-    });
+    }));
     // The backend state may load (or a future login complete) after this
     // scene is built — reconcile mothership, asteroid, and vessel actors
     // against the refreshed tables on every notify. Motherships first:
@@ -290,20 +285,6 @@ export class MapLevel extends TiledScene {
    *  command buttons, everyone else's the diplomacy/combat set. */
   private createMothershipActor(data: MothershipData): TileActor {
     const own = data.ownerId === gameState.player.id;
-    const roundButton = (
-      icon: string,
-      label: string,
-      onPressed: () => void,
-    ) => ({
-      frameTile: "ui-frame-round:0",
-      activeFrameTile: "ui-frame-round:1",
-      disabledFrameTile: "ui-frame-round:2",
-      tile: `ui-icon-${icon}:0`,
-      activeTile: `ui-icon-${icon}:1`,
-      disabledTile: `ui-icon-${icon}:2`,
-      label,
-      onPressed,
-    });
     return new TileActor({
       grid: this.grid,
       tile: `${data.shipType}-${data.damaged ? "damaged" : "base"}:0`,
@@ -317,39 +298,43 @@ export class MapLevel extends TiledScene {
       edgeFallthrough: this.supportsEmptyTileActor(),
       buttons: own
         ? [
-          roundButton(
-            "details",
-            "Details",
-            () => console.log("Details my spaceship"),
-          ),
-          roundButton(
-            "enter",
-            "Enter",
-            () => console.log("Enter my spaceship"),
-          ),
-          roundButton(
-            "upgrade",
-            "Upgrade",
-            () => console.log("Upgrade my spaceship"),
-          ),
-          roundButton("warp", "Move", () => console.log("Move my spaceship")),
+          roundButton({
+            icon: "details",
+            label: "Details",
+            onPressed: () => console.log("Details my spaceship"),
+          }),
+          roundButton({
+            icon: "enter",
+            label: "Enter",
+            onPressed: () => console.log("Enter my spaceship"),
+          }),
+          roundButton({
+            icon: "upgrade",
+            label: "Upgrade",
+            onPressed: () => console.log("Upgrade my spaceship"),
+          }),
+          roundButton({
+            icon: "warp",
+            label: "Move",
+            onPressed: () => console.log("Move my spaceship"),
+          }),
         ]
         : [
-          roundButton(
-            "details",
-            "Details",
-            () => console.log("Details enemy spaceship"),
-          ),
-          roundButton(
-            "message",
-            "Message",
-            () => console.log("Message enemy spaceship"),
-          ),
-          roundButton(
-            "attack",
-            "Attack",
-            () => console.log("Attack enemy spaceship"),
-          ),
+          roundButton({
+            icon: "details",
+            label: "Details",
+            onPressed: () => console.log("Details enemy spaceship"),
+          }),
+          roundButton({
+            icon: "message",
+            label: "Message",
+            onPressed: () => console.log("Message enemy spaceship"),
+          }),
+          roundButton({
+            icon: "attack",
+            label: "Attack",
+            onPressed: () => console.log("Attack enemy spaceship"),
+          }),
         ],
     });
   }
@@ -408,27 +393,17 @@ export class MapLevel extends TiledScene {
         { anchor: "top-right", badge: formatCompactCount(data.remaining) },
       ],
       buttons: [
-        {
-          frameTile: "ui-frame-round:0",
-          activeFrameTile: "ui-frame-round:1",
-          disabledFrameTile: "ui-frame-round:2",
-          tile: "ui-icon-details:0",
-          activeTile: "ui-icon-details:1",
-          disabledTile: "ui-icon-details:2",
+        roundButton({
+          icon: "details",
           label: "Details",
           onPressed: () => console.log("Details asteroid", data),
-        },
-        {
-          frameTile: "ui-frame-round:0",
-          activeFrameTile: "ui-frame-round:1",
-          disabledFrameTile: "ui-frame-round:2",
-          tile: "ui-icon-mine:0",
-          activeTile: "ui-icon-mine:1",
-          disabledTile: "ui-icon-mine:2",
+        }),
+        roundButton({
+          icon: "mine",
           label: "Mine",
           disabled: data.mining !== null,
           onPressed: () => void this.mineAsteroid(data.asteroidId),
-        },
+        }),
       ],
     });
   }
@@ -513,26 +488,16 @@ export class MapLevel extends TiledScene {
       row,
       onPressed,
       buttons: [
-        {
-          frameTile: "ui-frame-round:0",
-          activeFrameTile: "ui-frame-round:1",
-          disabledFrameTile: "ui-frame-round:2",
-          tile: "ui-icon-warp:0",
-          activeTile: "ui-icon-warp:1",
-          disabledTile: "ui-icon-warp:2",
+        roundButton({
+          icon: "warp",
           label: "Move",
           onPressed: () => console.log("Move empty tile"),
-        },
-        {
-          frameTile: "ui-frame-round:0",
-          activeFrameTile: "ui-frame-round:1",
-          disabledFrameTile: "ui-frame-round:2",
-          tile: "ui-icon-deploy:0",
-          activeTile: "ui-icon-deploy:1",
-          disabledTile: "ui-icon-deploy:2",
+        }),
+        roundButton({
+          icon: "deploy",
           label: "Deploy",
           onPressed: () => void this.dispatchVessel(col, row),
-        },
+        }),
       ],
     });
   }
@@ -611,26 +576,16 @@ export class MapLevel extends TiledScene {
       ownerId: event.ownerId,
       onPressed: this.handleTilePressed,
       buttons: [
-        {
-          frameTile: "ui-frame-round:0",
-          activeFrameTile: "ui-frame-round:1",
-          disabledFrameTile: "ui-frame-round:2",
-          tile: "ui-icon-details:0",
-          activeTile: "ui-icon-details:1",
-          disabledTile: "ui-icon-details:2",
+        roundButton({
+          icon: "details",
           label: "Details",
           onPressed: () => console.log("Details vessel", event.vesselId),
-        },
-        {
-          frameTile: "ui-frame-round:0",
-          activeFrameTile: "ui-frame-round:1",
-          disabledFrameTile: "ui-frame-round:2",
-          tile: "ui-icon-back:0",
-          activeTile: "ui-icon-back:1",
-          disabledTile: "ui-icon-back:2",
+        }),
+        roundButton({
+          icon: "back",
           label: "Return",
           onPressed: () => void this.recallVessel(event.vesselId),
-        },
+        }),
       ],
     });
     this.vessels.set(event.vesselId, vessel);

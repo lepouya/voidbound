@@ -113,13 +113,17 @@ here with a pointer to the task ID.
 
 ## 4. Refactor / reuse / simplification
 
-- [ ] **CR4.1 [idea] Extract button-def factories.** The 6-line
+- [x] **CR4.1 [idea] Extract button-def factories.** The 6-line
       `frameTile/activeFrameTile/disabledFrameTile/tile/activeTile/
       disabledTile`
       block repeats ~15 times across map-level.ts, ship-level.ts,
       tiled-scene.ts; `MapLevel.createMothershipActor`'s local `roundButton()`
       already found the right shape. Promote `roundButton`/ `squareButton`
       helpers into `src/ui/button.ts`. Largest noise reduction available.
+      Done: `roundButton(opts)`/`squareButton(opts)` added to
+      `src/ui/button.ts` (icon name + label/badge/disabled/onPressed in,
+      full frame+icon ButtonDef out); every call site in map-level.ts,
+      ship-level.ts, tiled-scene.ts, and dialog.ts's close button converted.
 - [ ] **CR4.2 [idea] Small shared reconciler helper.** The four `sync*` methods
       share a skeleton (kill absentees, diff `applied*` map, rebuild changed).
       Full generalization isn't worth the quirks (selection carry-over, force

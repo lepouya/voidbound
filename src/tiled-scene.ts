@@ -14,6 +14,7 @@ import {
   LabelDef,
   spawnDialog,
   spawnHudGroup,
+  squareButton,
 } from "./ui/index.ts";
 import { anchoredZoomPos } from "./camera-math.ts";
 import { TileGridGeometry } from "./grid-math.ts";
@@ -745,30 +746,20 @@ export abstract class TiledScene extends ex.Scene {
       anchor: "top-right",
       gap: 8,
       buttons: [
-        {
-          frameTile: "ui-frame-square:0",
-          activeFrameTile: "ui-frame-square:1",
-          disabledFrameTile: "ui-frame-square:2",
-          tile: "ui-icon-buy:0",
-          activeTile: "ui-icon-buy:1",
-          disabledTile: "ui-icon-buy:2",
+        squareButton({
+          icon: "buy",
           width: 48,
           height: 48,
           label: "Shop",
           onPressed: () => console.log("shop"),
-        },
-        {
-          frameTile: "ui-frame-square:0",
-          activeFrameTile: "ui-frame-square:1",
-          disabledFrameTile: "ui-frame-square:2",
-          tile: "ui-icon-events:0",
-          activeTile: "ui-icon-events:1",
-          disabledTile: "ui-icon-events:2",
+        }),
+        squareButton({
+          icon: "events",
           width: 32,
           height: 32,
           label: "Events",
           onPressed: () => void this.openEventsFeed(),
-        },
+        }),
       ],
     });
     // Events badge (ROADMAP P1.5): the live unread notification count, or no
@@ -797,30 +788,20 @@ export abstract class TiledScene extends ex.Scene {
       gap: 8,
       buttons: [
         switchButton,
-        {
-          frameTile: "ui-frame-square:0",
-          activeFrameTile: "ui-frame-square:1",
-          disabledFrameTile: "ui-frame-square:2",
-          tile: "ui-icon-message:0",
-          activeTile: "ui-icon-message:1",
-          disabledTile: "ui-icon-message:2",
+        squareButton({
+          icon: "message",
           width: 32,
           height: 32,
           label: "Mail",
           onPressed: () => console.log("messages"),
-        },
-        {
-          frameTile: "ui-frame-square:0",
-          activeFrameTile: "ui-frame-square:1",
-          disabledFrameTile: "ui-frame-square:2",
-          tile: "ui-icon-items:0",
-          activeTile: "ui-icon-items:1",
-          disabledTile: "ui-icon-items:2",
+        }),
+        squareButton({
+          icon: "items",
           width: 32,
           height: 32,
           label: "Items",
           onPressed: () => console.log("items"),
-        },
+        }),
       ],
     });
     return { resourceBar, topRight, bottomRight };

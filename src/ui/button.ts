@@ -108,3 +108,64 @@ export function makeButtonGraphic(
     : 1;
   return { graphic, opacity };
 }
+
+// ---------------------------------------------------------------------------
+// Icon button factories
+// ---------------------------------------------------------------------------
+
+/** Shared fields for the roundButton/squareButton factories below. */
+export interface IconButtonOpts {
+  /** Icon name — resolves to the `ui-icon-<icon>` tileset's base/active/disabled frames. */
+  icon: string;
+  label?: string | LabelDef;
+  disabled?: boolean;
+  badge?: BadgeDef;
+  onPressed: () => void;
+}
+
+/**
+ * Builds a ButtonDef wearing the `ui-frame-round` chrome plus the named
+ * `ui-icon-<icon>` sprite (base/active/disabled frames) — the shape every
+ * world-space TileActor action button uses (mothership/asteroid/vessel
+ * commands, empty-tile Move/Deploy, module build/level-up).
+ */
+export function roundButton(opts: IconButtonOpts): ButtonDef {
+  return {
+    frameTile: "ui-frame-round:0",
+    activeFrameTile: "ui-frame-round:1",
+    disabledFrameTile: "ui-frame-round:2",
+    tile: `ui-icon-${opts.icon}:0`,
+    activeTile: `ui-icon-${opts.icon}:1`,
+    disabledTile: `ui-icon-${opts.icon}:2`,
+    label: opts.label,
+    disabled: opts.disabled,
+    badge: opts.badge,
+    onPressed: opts.onPressed,
+  };
+}
+
+/**
+ * Builds a ButtonDef wearing the `ui-frame-square` chrome plus the named
+ * `ui-icon-<icon>` sprite — the shape every HUD/dialog button uses
+ * (top/bottom-right HUD groups, scene-switch, shop/dialog action buttons).
+ * width/height are required: unlike round world-space buttons, every square
+ * caller renders at a HUD-specific size (see HudButtonDef in hud.ts).
+ */
+export function squareButton(
+  opts: IconButtonOpts & { width: number; height: number },
+): ButtonDef & { width: number; height: number } {
+  return {
+    frameTile: "ui-frame-square:0",
+    activeFrameTile: "ui-frame-square:1",
+    disabledFrameTile: "ui-frame-square:2",
+    tile: `ui-icon-${opts.icon}:0`,
+    activeTile: `ui-icon-${opts.icon}:1`,
+    disabledTile: `ui-icon-${opts.icon}:2`,
+    label: opts.label,
+    disabled: opts.disabled,
+    badge: opts.badge,
+    onPressed: opts.onPressed,
+    width: opts.width,
+    height: opts.height,
+  };
+}

@@ -49,7 +49,7 @@
 import * as ex from "excalibur";
 
 import { makeBadgeActor } from "./badge.ts";
-import { makeButtonGraphic } from "./button.ts";
+import { makeButtonGraphic, squareButton } from "./button.ts";
 import {
   DIALOG_DEFAULT_ROW_HEIGHT,
   DialogLayoutOpts,
@@ -286,14 +286,13 @@ export function spawnDialog(
   let buttons: DialogButtonState[] = [];
 
   const closeDef: HudButtonDef = {
-    frameTile: "ui-frame-square:0",
-    activeFrameTile: "ui-frame-square:1",
-    tile: "ui-icon-close:0",
-    activeTile: "ui-icon-close:1",
-    width: CLOSE_BUTTON_SIZE,
-    height: CLOSE_BUTTON_SIZE,
+    ...squareButton({
+      icon: "close",
+      width: CLOSE_BUTTON_SIZE,
+      height: CLOSE_BUTTON_SIZE,
+      onPressed: requestClose,
+    }),
     hitPadding: 8,
-    onPressed: requestClose,
   };
 
   const applyGraphic = (
