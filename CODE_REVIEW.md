@@ -49,7 +49,7 @@ here with a pointer to the task ID.
       ordering yet miss `resources`. Fix: call `s.settle(now)` once at the top
       of the command, then build the struct with no ordering dependencies. Add a
       Rust test: a vessel due to dock deposits into the same snapshot's counts.
-- [ ] **CR1.2 [fix] Arrival notifications stamped at settle time.**
+- [x] **CR1.2 [fix] Arrival notifications stamped at settle time.**
       `settle_vessel_arrivals` passes `now_ms` to `push_notification` for both
       the docked and parked branches, while `settle_mining` deliberately
       back-stamps to `completes_at`. A lazily settled arrival gets a wrong feed
@@ -141,7 +141,7 @@ here with a pointer to the task ID.
 
 - [ ] **CR5.1** Rust: a failed paid refresh (insufficient credits) must not
       consume the daily refresh slot.
-- [ ] **CR5.2** Rust: arrival-notification timestamp assertion (with CR1.2).
+- [x] **CR5.2** Rust: arrival-notification timestamp assertion (with CR1.2).
 - [ ] **CR5.3** Rust/TS: AOI invariant test (with CR2.2).
 - [ ] **CR5.4** TS: confirm `hud-layout`'s `center` direction has coverage; add
       if not.

@@ -1875,15 +1875,18 @@ impl ServerState {
     }
 
     /// Settle every vessel whose current move has arrived: each un-notified
-    /// arrival queues a feed notification (ROADMAP P1.5), and a vessel that
-    /// finished a move onto a docking tile of its own mothership additionally
-    /// despawns (mirroring the arrival handling in applyVesselMoveEvent,
-    /// src/map-level.ts) with a VesselRemoved push so clients drop it from
-    /// their tables — depositing any cargo it carried into the resource
-    /// counts (ROADMAP P1.6: the mining loop's payoff). Vessels parked at any
-    /// other destination persist until recalled. Runs lazily on
-    /// read/mutation plus eagerly from the scheduler thread, like production
-    /// accrual.
+    /// arrival queues a feed notification (ROADMAP P1.5), stamped with
+    /// `vessel.arrival_at` rather than `now_ms` — like `settle_mining` below,
+    /// so a lazily settled arrival still gets the feed timestamp of when it
+    /// actually happened, not when the server got around to noticing. A
+    /// vessel that finished a move onto a docking tile of its own mothership
+    /// additionally despawns (mirroring the arrival handling in
+    /// applyVesselMoveEvent, src/map-level.ts) with a VesselRemoved push so
+    /// clients drop it from their tables — depositing any cargo it carried
+    /// into the resource counts (ROADMAP P1.6: the mining loop's payoff).
+    /// Vessels parked at any other destination persist until recalled. Runs
+    /// lazily on read/mutation plus eagerly from the scheduler thread, like
+    /// production accrual.
     fn settle_vessel_arrivals(&mut self, now_ms: u64) {
         let arrived: Vec<VesselMoveEventData> = self
             .vessels
@@ -1921,7 +1924,7 @@ impl ServerState {
                     }
                     None => "Vessel returned to the mothership".to_string(),
                 };
-                self.push_notification("vessel-returned", message, now_ms);
+                self.push_notification("vessel-returned", message, vessel.arrival_at);
                 // Own vessel (the only kind until P3) — exempt from
                 // interest-area filtering.
                 self.queue_push(ServerPush::VesselRemoved {
@@ -1946,7 +1949,7 @@ impl ServerState {
                         ),
                     )
                 };
-                self.push_notification(kind, message, now_ms);
+                self.push_notification(kind, message, vessel.arrival_at);
             }
         }
     }
@@ -3637,14 +3640,20 @@ mod tests {
         let mut s = ServerState::new(0);
         let out = s.dispatch_vessel(500, 510, 0).unwrap();
         s.drain_pushes();
-        s.settle(out.arrival_at);
+        // Settle lazily, well after the arrival — the notification must still
+        // be stamped with the arrival moment, not this later settle time
+        // (CR1.2).
+        let lazy_settle_at = out.arrival_at + 5 * TICK;
+        s.settle(lazy_settle_at);
         assert!(s.drain_pushes().iter().any(|p| matches!(
             p,
             ServerPush::Notification(n)
-                if n.kind == "vessel-arrived" && n.message.contains("(500, 510)")
+                if n.kind == "vessel-arrived"
+                    && n.message.contains("(500, 510)")
+                    && n.created_at == out.arrival_at
         )));
         // Parked: later settles stay quiet about it.
-        s.settle(out.arrival_at + 5 * TICK);
+        s.settle(lazy_settle_at + 5 * TICK);
         assert!(!s
             .drain_pushes()
             .iter()
@@ -3652,19 +3661,23 @@ mod tests {
         // The recall's docking arrival despawns the vessel: a "returned"
         // notification plus the VesselRemoved push for the client's table.
         let back = s
-            .recall_vessel(&out.vessel_id, out.arrival_at + 5 * TICK)
+            .recall_vessel(&out.vessel_id, lazy_settle_at + 5 * TICK)
             .unwrap();
         s.drain_pushes();
-        s.settle(back.arrival_at);
+        // Same lazy-settle check on the return leg.
+        let lazy_return_settle_at = back.arrival_at + 5 * TICK;
+        s.settle(lazy_return_settle_at);
         let pushes = s.drain_pushes();
-        assert!(pushes
-            .iter()
-            .any(|p| matches!(p, ServerPush::Notification(n) if n.kind == "vessel-returned")));
+        assert!(pushes.iter().any(|p| matches!(
+            p,
+            ServerPush::Notification(n)
+                if n.kind == "vessel-returned" && n.created_at == back.arrival_at
+        )));
         assert!(pushes.iter().any(|p| matches!(
             p,
             ServerPush::VesselRemoved { vessel_id } if *vessel_id == out.vessel_id
         )));
-        assert!(s.active_vessels(back.arrival_at).is_empty());
+        assert!(s.active_vessels(lazy_return_settle_at).is_empty());
         assert_eq!(
             notification_kinds(&s),
             vec!["vessel-arrived", "vessel-returned"]
