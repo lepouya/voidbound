@@ -289,10 +289,16 @@ once the roadmap entry exists.
       `open<Panel>Dialog` + `bindDialogRows` → server-verified action methods →
       wiring a HUD/entity button) with a checklist and pointers into
       `ship-level.ts`/`dialog.ts`; registered it in CLAUDE.md § Skills.
-- [ ] **CR7.2 [idea] Catalog-mirror checklist in `/add-game-event`.** The
+- [x] **CR7.2 [idea] Catalog-mirror checklist in `/add-game-event`.** The
       Rust-constant ↔ TS display mirror ↔ "keep in sync" comment ↔ cross-check
       test ritual has three instances (module/asteroid/trade catalogs) and a
-      known failure mode (drift); make it a checklist step.
+      known failure mode (drift); make it a checklist step. Done: added a
+      "Catalog mirror" bullet to `/add-game-event`'s checklist naming the
+      display-mirror-pure-module requirement, the per-field "keep the two in
+      sync" comment, and the manual field-by-field diff (no automated
+      cross-language check exists) — with `MODULE_CATALOG`/`ASTEROID_TIERS`/
+      `DEAL_REFRESH_COSTS_CREDITS` cited as the three existing instances to
+      pattern-match against.
 - [ ] **CR7.3 [idea] Promote the UX principles into CLAUDE.md.** "Countdowns on
       timers, badges on degraded state, buttons everywhere the player would
       look, zero-and-earned starting states" currently lives only in session

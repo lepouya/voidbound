@@ -194,6 +194,21 @@ auto-recall `ServerPush::Vessel`.
 - [ ] Timed actions: deadline in `next_deadline()`, settlement queues outbox
       pushes, command ends with `finish_command`; TS `ServerPush` union +
       `applyServerPush` routing updated (section 4).
+- [ ] Catalog mirror (if the action reads costs/rates/thresholds a player should
+      see before committing — a build cost, a mining rate, a refresh price): the
+      Rust catalog constant is the source of truth; the TS side gets its own
+      **display-mirror pure module** (no Excalibur/Vite imports, unit-tested
+      under plain `deno test`) rather than a copy inline in the scene file.
+      Every field on the TS side needs a `// keep the two in
+      sync` comment
+      pointing at the exact Rust constant name and file. Diff the two
+      field-by-field before finishing — there is no automated cross-language
+      check, and this ritual has already drifted once. The three existing
+      instances are the template: `MODULE_CATALOG` (src/module-catalog.ts ↔
+      `MODULE_CATALOG` in game_state.rs), `ASTEROID_TIERS`
+      (src/asteroid-catalog.ts ↔ `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR`), and
+      `DEAL_REFRESH_COSTS_CREDITS` (src/trade-catalog.ts ↔ same name in
+      game_state.rs).
 - [ ] `deno task format` and `deno task check` pass (formats and type-checks TS
       and Rust).
 - [ ] Run **`/verify`** and drive the new action in the dev app — there is no
