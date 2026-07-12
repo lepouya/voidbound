@@ -596,8 +596,9 @@ pub(crate) const MAP_TILE_PX: f64 = 32.0;
 /// only ever holds world entities inside this window centered on its camera.
 /// Must stay strictly larger than the client's visible-view tile cap plus
 /// its re-request hysteresis (MAP_VIEW_TILES_CAP / AOI_REQUERY_TILES in
-/// src/map-level.ts — keep the invariant documented there in sync) so
-/// unloaded space can never scroll into sight.
+/// src/aoi-config.ts, which mirrors this constant and whose invariant is
+/// asserted by tests/aoi_config_test.ts — keep the two in sync) so unloaded
+/// space can never scroll into sight.
 pub(crate) const AOI_SPAN: i64 = 100;
 /// Biological-material cost of one crew hire, multiplied by the new head
 /// count — linear, not the doubling stub: hiring is a repeat purchase

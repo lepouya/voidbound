@@ -90,12 +90,15 @@ here with a pointer to the task ID.
       `undefined`-as-`Sprite` and a distant, contextless crash. Throw explicitly
       with tileset name + id, matching the `png()` helper's throw-early
       philosophy.
-- [ ] **CR2.2 [hardening] AOI safety invariant is comment-enforced only.**
+- [x] **CR2.2 [hardening] AOI safety invariant is comment-enforced only.**
       `MAP_VIEW_TILES_CAP / 2 + AOI_REQUERY_TILES < AOI_SPAN / 2` spans the
       language boundary (map-level.ts ↔ game_state.rs) with no test. Move the
       client constants into a pure module (with a TS mirror of `AOI_SPAN`) and
       add a test asserting the inequality — the same drift-catcher class as the
-      tileset-geometry test.
+      tileset-geometry test. Done: constants moved to `src/aoi-config.ts`
+      (with an `AOI_SPAN` mirror), `map-level.ts` imports from it, and
+      `tests/aoi_config_test.ts` asserts the inequality; the Rust doc comment
+      on `AOI_SPAN` now points at the new module and test.
 - [x] **CR2.3 [fix] `src/event-id.ts` is dead code.** `newEventId()` has zero
       consumers since every action became server-verified. Either delete it (and
       the "purely local actions" branch in `/add-game-event`) or keep it as a
@@ -153,7 +156,7 @@ here with a pointer to the task ID.
 - [ ] **CR5.1** Rust: a failed paid refresh (insufficient credits) must not
       consume the daily refresh slot.
 - [x] **CR5.2** Rust: arrival-notification timestamp assertion (with CR1.2).
-- [ ] **CR5.3** Rust/TS: AOI invariant test (with CR2.2).
+- [x] **CR5.3** Rust/TS: AOI invariant test (with CR2.2).
 - [ ] **CR5.4** TS: confirm `hud-layout`'s `center` direction has coverage; add
       if not.
 - [ ] **CR5.5** Rust: `load_game_state`-ordering test (with CR1.1).

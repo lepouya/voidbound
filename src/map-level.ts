@@ -2,6 +2,7 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
+import { AOI_REQUERY_TILES, MAP_VIEW_TILES_CAP } from "./aoi-config.ts";
 import { ASTEROID_TINTS, asteroidDisplayName } from "./asteroid-catalog.ts";
 import { tileViewCapZoom } from "./camera-math.ts";
 import {
@@ -17,19 +18,6 @@ import { spawnMinimap } from "./minimap.ts";
 import { TileActor } from "./tile-actor.ts";
 import { SceneMap, TiledScene } from "./tiled-scene.ts";
 import { formatCompactCount, roundButton, squareButton } from "./ui/index.ts";
-
-/**
- * Interest-area client tuning (ROADMAP P1.13). The map camera never shows
- * more than MAP_VIEW_TILES_CAP tiles on its longer axis, and the window is
- * re-centered once the camera drifts more than AOI_REQUERY_TILES tiles
- * (Chebyshev) from the window center. Together they must keep the visible
- * view strictly inside the backend's AOI_SPAN (100, game_state.rs) window:
- * MAP_VIEW_TILES_CAP / 2 + AOI_REQUERY_TILES < AOI_SPAN / 2 (40 + 8 < 50),
- * so unloaded space can't scroll into sight even while a re-request is in
- * flight for a few frames.
- */
-const MAP_VIEW_TILES_CAP = 80;
-const AOI_REQUERY_TILES = 8;
 
 /** True when two snapshots describe an identical ship — placement, art, and
  *  ownership — so the reconciler can skip rebuilding its actor. */
