@@ -39,7 +39,7 @@ here with a pointer to the task ID.
 
 ## 1. Rust backend — bugs and corner cases
 
-- [ ] **CR1.1 [fix] `load_game_state` can return stale `resources`.** The
+- [x] **CR1.1 [fix] `load_game_state` can return stale `resources`.** The
       `GameStateData` literal reads `resources: s.resources` before
       `active_vessels(now)` runs `settle_vessel_arrivals`, which can deposit
       mining cargo — so the snapshot's counts can miss a deposit settled in the

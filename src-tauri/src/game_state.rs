@@ -2570,6 +2570,33 @@ impl ServerState {
         self.settle_deals(now_ms);
     }
 
+    /// Build the load_game_state snapshot: settle everything due first, then
+    /// read every field off the fully-settled state. `settle` up front means
+    /// `resources` (and every other field) reflects the same settled instant
+    /// regardless of struct-literal field order — settling lazily via the
+    /// individual `*_snapshot` calls below made `resources` a stale read
+    /// whenever a later field (e.g. a docking vessel's cargo deposit) settled
+    /// something that touched it.
+    fn snapshot(&mut self, now_ms: u64) -> GameStateData {
+        self.settle(now_ms);
+        // The camera homes on the player's mothership after a (re)load, so
+        // the interest area does too (ROADMAP P1.13) — the world slices
+        // below are filtered to it.
+        self.recenter_aoi_on_player();
+        GameStateData {
+            player: player_identity(),
+            resources: self.resources,
+            map_window: self.aoi,
+            motherships: self.motherships_snapshot(),
+            asteroids: self.asteroids_snapshot(now_ms),
+            vessels: self.active_vessels(now_ms),
+            modules: self.modules_snapshot(now_ms),
+            deals: self.deals_snapshot(now_ms),
+            notifications: self.notifications.clone(),
+            crew: self.crew_data(),
+        }
+    }
+
     /// Epoch ms of the next moment something comes due: the next production
     /// tick, a pending crew recruitment, the earliest pending build/upgrade
     /// completion, the earliest mining completion, or the earliest
@@ -2725,30 +2752,7 @@ pub(crate) fn load_game_state(
     server: tauri::State<'_, GameServer>,
 ) -> Result<GameStateData, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
-    let now = now_ms();
-    s.accrue_production(now);
-    s.settle_hire(now);
-    // The camera homes on the player's mothership after a (re)load, so the
-    // interest area does too (ROADMAP P1.13) — the world slices below are
-    // filtered to it.
-    s.recenter_aoi_on_player();
-    let data = GameStateData {
-        player: player_identity(),
-        resources: s.resources,
-        map_window: s.aoi,
-        motherships: s.motherships_snapshot(),
-        // Settles mining, so it must precede `vessels` (an auto-return
-        // belongs in the vessel slice) and `notifications`.
-        asteroids: s.asteroids_snapshot(now),
-        // Settles vessels/modules, so `notifications` must be read after.
-        vessels: s.active_vessels(now),
-        modules: s.modules_snapshot(now),
-        // Settles the daily deal rollover, which can queue a notification —
-        // so it too must precede `notifications`.
-        deals: s.deals_snapshot(now),
-        notifications: s.notifications.clone(),
-        crew: s.crew_data(),
-    };
+    let data = s.snapshot(now_ms());
     finish_command(&app, server.inner(), s);
     Ok(data)
 }
@@ -3877,6 +3881,24 @@ mod tests {
             ]
         );
         assert!(s.notifications.last().unwrap().message.contains("240"));
+    }
+
+    #[test]
+    fn snapshot_reflects_a_deposit_settled_within_the_same_call() {
+        // Regression for CR1.1: `snapshot` used to read `resources` before
+        // `settle`-equivalent calls further down the struct literal (mining,
+        // vessel arrivals) could still deposit into it, so a docking
+        // arrival's cargo missed the snapshot it settled inside of.
+        let mut s = mining_state(240);
+        let out = s.mine_asteroid("asteroid-x", 0).unwrap();
+        s.settle(10_000 + HOUR_MS);
+        let back = s.vessels[&out.vessel_id].clone();
+        s.drain_pushes();
+
+        let data = s.snapshot(back.arrival_at);
+        assert_eq!(data.resources.biological, 240);
+        assert_eq!(s.resources.biological, 240);
+        assert!(s.vessels.is_empty());
     }
 
     #[test]
