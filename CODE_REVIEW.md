@@ -166,8 +166,8 @@ here with a pointer to the task ID.
 
 - [x] **CR5.1** Rust: a failed paid refresh (insufficient credits) must not
       consume the daily refresh slot. Done: `refresh_deals` already spent
-      credits via `spend_trade` before incrementing `deal_refreshes_used`, so
-      no code change was needed — added regression test
+      credits via `spend_trade` before incrementing `deal_refreshes_used`, so no
+      code change was needed — added regression test
       `failed_paid_refresh_does_not_consume_the_daily_slot` asserting an
       unaffordable second refresh returns `Err` and leaves
       `deal_refreshes_used`/credits untouched.
@@ -175,7 +175,15 @@ here with a pointer to the task ID.
 - [x] **CR5.3** Rust/TS: AOI invariant test (with CR2.2).
 - [ ] **CR5.4** TS: confirm `hud-layout`'s `center` direction has coverage; add
       if not.
-- [ ] **CR5.5** Rust: `load_game_state`-ordering test (with CR1.1).
+- [x] **CR5.5** Rust: `load_game_state`-ordering test (with CR1.1). Done:
+      already covered by
+      `snapshot_reflects_a_deposit_settled_within_the_same_call` (added
+      alongside the CR1.1 fix itself, commit `8f1b12d`) — it settles a mining
+      job to the point where the vessel is in flight on its return leg, then
+      calls `snapshot()` at the exact arrival instant and asserts the returned
+      `resources` already reflects the cargo deposit that docking settles inside
+      that same call. No code change needed; the checkbox was simply never
+      ticked.
 
 ## 6. ROADMAP additions to consider
 
