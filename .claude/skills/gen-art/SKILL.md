@@ -23,7 +23,8 @@ art/gen_ship_level.sh   # ship-tiles.png + ship-level.json (Tiled map)
 art/gen_cs1.sh          # cs1-base.png, cs1-moving.png  (vessel sprites)
 art/gen_ss1.sh          # ss1-base.png, ss1-damaged.png (mothership sprites)
 art/gen_modules.sh      # module-base.png               (ship interior modules)
-art/gen_ui.sh           # ui-selection*.png, ui-button-*.png
+art/gen_ui.sh           # ui-selection*.png, ui-frame-*.png, ui-icon-*.png
+art/gen_asteroids.sh    # asteroid-{small,medium,large}.png (placeholders)
 ```
 
 If the argument `$ARGUMENTS` is a script short-name (e.g. `cs1`), run
@@ -85,9 +86,9 @@ px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at
 
 3. `chmod +x art/gen_<name>.sh`
 4. Run it once and verify the output in `src/assets/`.
-5. If the filename doesn't match an auto-register pattern (`ui-button-*`,
-   `module-*`), run the **`/add-tileset`** skill to register it in
-   `src/resources.ts`.
+5. If the filename doesn't match an auto-register pattern (`ui-frame-*`,
+   `ui-icon-*`, `module-*`), run the **`/add-tileset`** skill to register it in
+   `src/tileset-geometry.ts`.
 
 ## Checklist after regenerating
 
@@ -106,5 +107,5 @@ px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at
 - [ ] For new tilesets not matching an auto-register pattern, also run
       `/add-tileset`.
 - [ ] For Tiled map changes feeding a scene, ensure the Rust `generate_map` arm
-      in `src-tauri/src/lib.rs` still matches the shape (tile size, key name).
+      in `src-tauri/src/map.rs` still matches the shape (tile size, key name).
       The `ship` arm is the reference for TMJ-backed maps.

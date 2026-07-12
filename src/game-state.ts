@@ -357,7 +357,7 @@ export interface MapWindowData {
 
 /**
  * Wire shape of the `load_game_state` Tauri command. Mirrors the Rust
- * `GameStateData` in src-tauri/src/lib.rs — keep the two in sync.
+ * `GameStateData` in src-tauri/src/game_state.rs — keep the two in sync.
  */
 export interface GameStateData {
   player: PlayerIdentity;

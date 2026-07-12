@@ -73,7 +73,9 @@ tools/                # Python art pipeline (Pillow); called from art/gen_*.sh
 ### Code style
 
 - **Always** `import * as ex from "excalibur"` — never named imports from
-  excalibur. Same applies to Tauri: `import { invoke } from "@tauri-apps/api"`.
+  excalibur. Tauri is the exception: named imports from its subpath modules
+  (`import { invoke } from "@tauri-apps/api/core"`, `listen` from
+  `@tauri-apps/api/event`).
 - UI library imports: always `from "./ui"` (barrel), never `from "./ui/button"`.
   See [src/ui/index.ts](src/ui/index.ts).
 - **Dimensions/grids** use `*` not `×` in code, comments, and docs (e.g. `3*2`,
@@ -103,24 +105,24 @@ arc radii, circumradii, and any world-space math.
 
 Every state-mutating action must be modeled as an event from day one (event
 interface + public `apply<Action>Event` + local action method) so local and
-networked code paths stay identical. All three canonical examples are
+networked code paths stay identical. The canonical examples are all
 **server-verified**: the local action method sends a request to the backend,
 which verifies it and returns the authorized event — required for any action
-that touches resources or shared world state. `VesselMoveEvent` (in
-[src/game-state.ts](src/game-state.ts), applied by `applyVesselEvent()` +
-`MapLevel.syncVessels()` reconciling scene actors from `gameState.vessels`) and
-`ModuleData` (also in game-state.ts, applied by `applyModuleEvent()` +
-`ShipLevel.syncModules()` reconciling from `gameState.modules` — covers both
-`request_build_module` and `request_levelup_module`) both ride the
+that touches resources or shared world state. The reference implementations live
+in [src/game-state.ts](src/game-state.ts): `VesselMoveEvent`
+(`applyVesselEvent()`) and `ModuleData` (`applyModuleEvent()` — covers both
+`request_build_module` and `request_levelup_module`). Both ride the
 `load_game_state` snapshot — the snapshot + replay model that keeps progress
-correct across scene switches and, later, late joins. A `ModuleData` event
-doubles as the entity's full current snapshot rather than a separate
-`<Action>Event` type, since a module's whole state (including its pending
-build's `dispatchedAt`/`completesAt`) _is_ what a server push would send; this
-is the pattern to follow for other persistent, levelable/mutable entities. **Use
-the `/add-game-event` skill** when adding any new action. The server model this
-pattern targets (event log, verification, broadcast, snapshot + replay,
-server-time offsets) is sketched in `SERVER.md`.
+correct across scene switches and, later, late joins — and scenes reconcile
+their actors from the applied state via the `sync*` methods (see § IPC). A
+`ModuleData` event doubles as the entity's full current snapshot rather than a
+separate `<Action>Event` type, since a module's whole state (including its
+pending build's `dispatchedAt`/`completesAt`) _is_ what a server push would
+send; this is the pattern to follow for other persistent, levelable/mutable
+entities — `DealsData` (§ IPC) already follows it. **Use the `/add-game-event`
+skill** when adding any new action. The server model this pattern targets (event
+log, verification, broadcast, snapshot + replay, server-time offsets) is
+sketched in `SERVER.md`.
 
 ### Input model (handled by `TiledScene`, don't reimplement)
 
@@ -299,7 +301,8 @@ Labels, buttons, and badges always render upright regardless of actor rotation.
 ### IPC / Rust backend
 
 `generate_map(map_type) -> Result<TileMapData, String>` in
-[src-tauri/src/lib.rs](src-tauri/src/lib.rs) dispatches on `map_type`:
+[src-tauri/src/map.rs](src-tauri/src/map.rs) (registered in lib.rs) dispatches
+on `map_type`:
 
 - `"map"` — geometry-only 1000*1000 space map (ROADMAP P1.9): empty `tiles`, no
   `ex.TileMap` client-side — the scene renders a plain background and treats the
@@ -366,8 +369,8 @@ with. The client renders what commands return and asks for actions:
   `addCommonHud`) shows the live unread count.
 - `mark_notifications_read` — marks the whole feed read and returns the updated
   list (applied via `gameState.syncNotifications`), clearing the Events badge in
-  every scene. Pressing Events also dumps the feed to the console — a real feed
-  panel is later UI work.
+  every scene. Pressing Events also dumps the feed to the console — the real
+  feed panel is P6.3.
 - `request_build_module(col, row, module_type)` — verifies the catalog type, its
   Command-Module-level unlock, placement (room grid), and level-1 cost, deducts
   resources, returns the new `ModuleData` (level 0, pending its first

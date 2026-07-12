@@ -16,9 +16,9 @@ Create `src/<name>-level.ts` following this template:
 ```ts
 import * as ex from "excalibur";
 
-import { buildTileMap } from "./map-loader";
-import { TileActor } from "./tile-actor";
-import { TiledScene } from "./tiled-scene";
+import { buildTileMap } from "./map-loader.ts";
+import { TileActor } from "./tile-actor.ts";
+import { SceneMap, TiledScene } from "./tiled-scene.ts";
 
 export class <Name>Level extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
@@ -26,14 +26,20 @@ export class <Name>Level extends TiledScene {
 
     // Optional: this.backgroundColor = ex.Color.Black;
 
-    // Standard HUD (Shop/Events top-right, Mail/Items bottom-right) plus the
-    // scene-switch button back to wherever players come from. Returns
-    // { topRight, bottomRight } HudGroupHandles for badge/visibility control.
+    // Standard HUD (resource bar top-left, Shop/Events top-right, Mail/Items
+    // bottom-right) plus the scene-switch button back to wherever players
+    // come from. Returns { resourceBar, topRight, bottomRight }
+    // HudGroupHandles for badge/visibility control.
     this.addCommonHud({
-      tile: "ui-button-<icon>:0",
+      frameTile: "ui-frame-square:0",
+      activeFrameTile: "ui-frame-square:1",
+      disabledFrameTile: "ui-frame-square:2",
+      tile: "ui-icon-<icon>:0",
+      activeTile: "ui-icon-<icon>:1",
+      disabledTile: "ui-icon-<icon>:2",
       width: 64,
       height: 64,
-      label: { text: "<Label>", labelOffset: ex.vec(0, -1), bordered: false },
+      label: "<Label>",
       onPressed: () => engine.goToScene("<other-scene>"),
     });
 
@@ -41,8 +47,12 @@ export class <Name>Level extends TiledScene {
     // see src/ui/hud.ts.
   }
 
-  protected override buildMap(): Promise<ex.TileMap> {
-    return buildTileMap("<map-type>"); // must match a case in src-tauri/src/lib.rs
+  protected override async buildMap(): Promise<SceneMap> {
+    // Tilemap-backed scene (like ship). A geometry-only scene (like the
+    // space map) instead returns { grid: await fetchGridGeometry("...") }
+    // and renders a plain backgroundColor.
+    const tilemap = await buildTileMap("<map-type>"); // must match a case in src-tauri/src/map.rs
+    return { grid: tilemap, tilemap };
   }
 
   protected override setupActors(onTilePressed: (a: TileActor) => void): void {
@@ -91,7 +101,7 @@ export class <Name>Level extends TiledScene {
   handled outside the button flow.
 - To give an actor a custom selection ring, pass `selection: "ui-selection-2"`
   (or any other `ui-selection*` tileset) in its `TileActorOptions`. Default is
-  `ui-selection`. See `ShipLevel.commandModule` for an example.
+  `ui-selection`. See `ShipLevel.createModuleActor` for an example.
 
 **Rendering server state:** scenes must not hardcode world content the backend
 owns. Entities that ride the `load_game_state` snapshot (motherships, vessels,
@@ -130,7 +140,7 @@ boots into — otherwise leave it alone.
 ## 3. Add a Rust map generator case (if needed)
 
 If your scene needs its own map data, add a case to `generate_map` in
-`src-tauri/src/lib.rs`. `generate_map` returns `Result<TileMapData, String>`, so
+`src-tauri/src/map.rs`. `generate_map` returns `Result<TileMapData, String>`, so
 any helper you add should return the same (or an infallible `TileMapData`
 wrapped with `Ok(...)` in the match arm). Two existing patterns:
 
@@ -158,7 +168,8 @@ errors before declaring the task complete.
 
 ## Reference: existing scenes
 
-- `src/map-level.ts` — space map with vessels/motherships, overrides
+- `src/map-level.ts` — geometry-only space map (no tilemap), reconciles
+  mothership/asteroid/vessel actors from the snapshot, overrides
   `createEmptyTileActor` for Move/Deploy actions.
-- `src/ship-level.ts` — mothership interior, black background, centered
-  `commandModule` TileActor.
+- `src/ship-level.ts` — mothership interior (tilemap-backed), black background,
+  reconciles module actors (Command Module included) from the snapshot.

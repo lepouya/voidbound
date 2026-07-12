@@ -36,13 +36,16 @@ run the right pipeline script — art scripts write directly to `src/assets/`.
 If the filename matches one of these patterns, you're **done** after step 1 —
 `src/resources.ts` discovers it automatically:
 
-| Filename pattern  | Auto-registered as                                  |
-| ----------------- | --------------------------------------------------- |
-| `ui-button-*.png` | static, 3*2 grid, 64 px cells                       |
-| `module-*.png`    | animated, 6*6 grid, 256 px cells, 32 frames @ 66 ms |
+| Filename pattern | Auto-registered as                                     |
+| ---------------- | ------------------------------------------------------ |
+| `ui-frame-*.png` | static, 3*1 grid (normal/active/disabled), 64 px cells |
+| `ui-icon-*.png`  | static, 3*1 grid (normal/active/disabled), 64 px cells |
+| `module-*.png`   | animated, 6*6 grid, 256 px cells, 32 frames @ 66 ms    |
 
-So `src/assets/ui-button-trade.png` immediately becomes usable as the `TileRef`
-`"ui-button-trade:0"` (etc.) with no edit to `resources.ts`.
+So `src/assets/ui-icon-trade.png` immediately becomes usable as the `TileRef`
+`"ui-icon-trade:0"` (normal), `":1"` (active), `":2"` (disabled) with no edit to
+`resources.ts`. The rules live in `AUTO_TILESET_RULES` (src/tileset-geometry.ts)
+— check there when in doubt.
 
 ## 4. Otherwise, add a row to `TILESET_GEOMETRY`
 

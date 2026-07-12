@@ -33,10 +33,13 @@ Tauri command that verifies the request against `ServerState` in
 event (for resource-touching actions, plus updated `ResourceCounts`, applied via
 `gameState.syncResources`). Steps 1 and 2 are unchanged; the event interface
 gains a Rust mirror struct (serde `rename_all = "camelCase"`) and the game rule
-gets a `#[cfg(test)]` unit test. Canonical examples: `BuildModuleEvent` /
-`request_build_module` and `VesselMoveEvent` / `request_dispatch_vessel` /
-`request_recall_vessel`. Constructing the event locally (with `newEventId()`
-from `src/event-id.ts`) remains valid only for actions with nothing to verify.
+gets a `#[cfg(test)]` unit test. Canonical examples: `ModuleData` /
+`request_build_module` / `request_levelup_module` (the self-snapshot payload
+pattern — CLAUDE.md § Multiplayer-ready event pattern) and `VesselMoveEvent` /
+`request_dispatch_vessel` / `request_recall_vessel`. Constructing the event
+locally (with `newEventId()` from `src/event-id.ts`) remains valid only for
+actions with nothing to verify — note no current action does this; every shipped
+action is server-verified.
 
 **Events that must survive scene switches or late joins** should also ride the
 `load_game_state` snapshot: the backend records them in `ServerState`, the

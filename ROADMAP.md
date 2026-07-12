@@ -55,16 +55,20 @@ order. Current details live in CLAUDE.md §§ 2–4.
 
 ## Phase 1 — Core gameplay loop
 
-Goal: a playable single-player loop, no persistence yet.
+Goal: a playable single-player loop, no persistence yet. All done (P1.7 moved to
+Phase 2 as P2.6): the loop runs end to end — build and level modules, hire crew,
+mine asteroids, trade at the NPC shop — all server-verified, streamed over the
+push channel, and windowed by interest area. Implementation detail: CLAUDE.md §4
+and SERVER.md.
 
-- [x] **P1.1 — Resource state + production tick.** The 4 resources as game state
-      with periodic production; baseline production from the Command Module so
-      the player can never get stuck.
+- [x] **P1.1 — Resource state + production tick.** The 4 resources as
+      server-side state with periodic production; Command Module baseline output
+      guarantees the player can never get stuck.
 - [x] **P1.2 — Resource bar HUD group.** Screen-top resource counts with live
-      label updates.
-- [x] **P1.3 — Module placement + build timers.** `BuildModuleEvent` (its
-      `completesAt` gives build timers for free) + the empty-tile Build
-      placement UI in the ship view.
+      label updates; later extended with caps (P1.11) and crew (P1.10).
+- [x] **P1.3 — Module placement + build timers.** `BuildModuleEvent` + the
+      empty-tile Build placement UI; its `completesAt` gives build timers for
+      free.
 - [x] **P1.4 — Module catalog.** Rust-authoritative `MODULE_CATALOG` with a
       display-only TS mirror; level-ups reuse the build-timer machinery, capped
       at the Command Module's level. Still open: per-level scaling is the
@@ -76,53 +80,40 @@ Goal: a playable single-player loop, no persistence yet.
       until P3.5.
 - [x] **P1.6 — Mining loop.** Server-seeded asteroids with single-slot mining
       jobs, scheduler auto-recall at mine-out, proportional early harvests, dock
-      deposits. Still open: deposit bands and `MINE_UNITS_PER_HOUR` are
-      balancing stubs, and mixed deposits / multiple miners on large asteroids
-      stay open doors (→ P2.5); asteroid sprites are placeholder vectors (→
-      P6.2).
-- **P1.7 — Diminishing returns.** Moved to Phase 2 (July 2026): a daily damping
-  curve can't be experienced or tuned while every restart wipes state, and it
-  would sit on top of numbers that are still stubs — see Phase 2.
+      deposits. Still open: deposit bands and the mine rate are balancing stubs,
+      and mixed deposits / multiple miners on large asteroids stay open doors (→
+      P2.5); asteroid sprites are placeholder vectors (→ P6.2).
+- **P1.7 — Diminishing returns.** Moved to Phase 2 as P2.6 (July 2026) — a daily
+  damping curve can't be experienced or tuned while restarts wipe state.
 - [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom anchored at the pointer/pinch
-      midpoint (`anchoredZoomPos` in `src/camera-math.ts`; clamp-before-pan so
-      the camera never drifts at min/max zoom).
+      midpoint, clamped so the camera never drifts at min/max zoom
+      (`src/camera-math.ts`).
 - [x] **P1.9 — Minimap + full-size space map.** Geometry-only 1000\*1000 space
       map with minimap navigation (entity dots, viewport rect, tap-to-jump).
       Still open: real starfield background (→ P6.2).
 - [x] **P1.10 — Crew Quarters + crew capacity.** Crew as the third catalog stat:
-      berths sum linearly over settled levels (Crew Quarters + a Command Module
-      baseline), producers want 1 crew per level, and producer output scales by
-      the pooled ship-wide staffing ratio with a 50% floor — the Command
-      Module's baseline production is never damped (the anti-stuck guarantee).
-      Timed `request_hire_crew` recruitment (linear biological cost per head,
-      one at a time); crew/berths in the resource bar, the Hire Crew button on
-      the Command Module + settled Crew Quarters, understaffed producers wear an
-      output-percent badge, and players start at 0 crew (the first hire is a
-      natural tutorial step later). Still open: hire cost/time, the 50% floor,
-      and the berth-vs-demand ratio are balancing stubs, as is optional per-crew
-      biological upkeep (→ P2.5); penalties beyond production, vessel crews (→
-      P5.3), combat casualties (→ P5.5), and specialization / manual crew
-      stationing (no task yet) were deliberately deferred.
+      berths sum over settled levels, producer output scales by the pooled
+      ship-wide staffing ratio with a 50% floor (the Command Module baseline is
+      never damped — the anti-stuck guarantee), timed `request_hire_crew`
+      recruitment, crew surfaced across the HUD (bar, hire buttons, understaffed
+      badges); players start at 0 crew. Still open: hire cost/time, the 50%
+      floor, the berth-vs-demand ratio, and optional per-crew biological upkeep
+      are balancing stubs (→ P2.5); vessel crews (→ P5.3), combat casualties (→
+      P5.5), and crew specialization / manual stationing (no task yet) were
+      deliberately deferred.
 - [x] **P1.11 — Storage Bay capacity caps.** Per-resource caps as a catalog
       `stores` field; production and mining deposits clamp server-side (overflow
-      is lost and the notification says so); the resource bar shows count/cap.
-      Still open: cap numbers are stubs (→ P2.5); the README's "boosts
-      production" perk was skipped; safe warehousing becomes meaningful with
-      P5.5 combat. (The Armory's weapon-storage half moved to P5.4.)
-- [x] **P1.12 — Trading Post + NPC shop.** Deal-slot NPC shop on a new Trading
-      Post module: server-generated daily deals over the 5 trade-eligible types
-      (give ≠ get, rarity boosts the get side, give capped at a storage-cap
-      fraction), a once-daily freebie, doubling-cost refreshes (5/day), slot
-      count scaling with the post's level — credits' entry into the economy
-      (README § Design principles updated). Full model: CLAUDE.md § IPC. The
-      P1.14 dialog API held up from the consumer's seat; the state-bound
-      rerender scaffolding was extracted as `bindDialogRows` (ui/dialog.ts) for
-      the later panels (P6.3 feed, P3.5 mail, P5.1 research). Still open: every
-      deal number — give base, cap fraction, rarity weights/bonuses, refresh
-      costs, freebie band, credits-per-unit rate, unlock level, slot curve — is
-      a balancing stub (→ P2.5); better exchange ratios at higher post level,
-      featured/limited-stock deals, and credits' wider role (→ P4.6); per-type
-      module art (→ P6.1).
+      is lost, and notified); the resource bar shows count/cap. Still open: cap
+      numbers are stubs (→ P2.5); the README's "boosts production" perk was
+      skipped; safe warehousing becomes meaningful with P5.5 combat. (The
+      Armory's weapon-storage half moved to P5.4.)
+- [x] **P1.12 — Trading Post + NPC shop.** Server-generated daily deal slots on
+      the new Trading Post module (give ≠ get, rarity-boosted gets, a once-daily
+      freebie, doubling-cost refreshes, slot count scaling with the post's
+      level) — credits' entry into the economy. Full model: CLAUDE.md § IPC.
+      Still open: every deal number is a balancing stub (→ P2.5); better
+      exchange ratios at higher post level, featured/limited-stock deals, and
+      credits' wider role (→ P4.6); per-type module art (→ P6.1).
 - [x] **P1.13 — Map interest area: windowed world streaming + minimap
       declutter.** The client only holds world entities inside a 100\*100-tile
       AOI window, re-centered as the camera pans; pushes are footprint-filtered,
@@ -130,13 +121,13 @@ Goal: a playable single-player loop, no persistence yet.
       Full model: SERVER.md § Interest management. Feeds P3.1 (per-connection
       windows) and P4.3 (fog of war = this window shrunk to a radar radius).
       Still open: asteroid deposit/rate balance (→ P2.5).
-- [x] **P1.14 — Modal dialog/overlay system.** Screen-space modal layer
-      (`src/ui/dialog.ts` + pure `dialog-layout.ts`, `MODAL_BASE_Z` above the
-      HUD): scrim + framed panel + title/close + row/cell content composed from
-      the existing `ui/` primitives, opened via `TiledScene.openDialog()`, which
-      captures all pointer input while open. One modal at a time. Still open: no
+- [x] **P1.14 — Modal dialog/overlay system.** Screen-space modal layer —
+      scrim + framed panel + row/cell content composed from the existing `ui/`
+      primitives — opened via `TiledScene.openDialog()`; one dialog at a time,
+      all pointer input captured, with `bindDialogRows` for state-bound
+      rerendering (the P1.12 shop is the reference consumer). Still open: no
       scrolling — the content region is a distinct sub-rect a scrollable list
-      can drop into (→ P6.3); the P1.12 shop is the reference consumer.
+      can drop into (→ P6.3).
 
 ## Phase 2 — Persistence and balancing
 
@@ -170,11 +161,11 @@ progress persists — the reason P1.7 moved here.
       h, large 4–12 h. Also revisit the single-deposit / single-miner rules for
       large asteroids (README leaves that door open). Needs P2.1 — tuning
       requires persistent progress.
-- [ ] **P1.7 — Diminishing returns** _(moved from Phase 1, July 2026)_. Repeated
-      actions yield less over the course of a day and reset at a fixed point —
-      the README's alternative to hard energy caps. Local implementation first;
-      the server re-verifies it in phase 3. Mining is the first action worth
-      damping. Needs P2.1; lands naturally alongside P2.5.
+- [ ] **P2.6 — Diminishing returns** _(moved from P1.7)_. Repeated actions yield
+      less over the course of a day and reset at a fixed point — the README's
+      alternative to hard energy caps. Local implementation first; the server
+      re-verifies it in phase 3. Mining is the first action worth damping. Needs
+      P2.1; lands naturally alongside P2.5.
 
 ## Phase 3 — Server-authoritative events
 
@@ -291,3 +282,16 @@ art or missing panels start hurting playtests.
       mobile-first by design — portrait layout and touch input already hold — so
       this is mostly build wiring, performance, and on-device verification.
       Worth pulling early once the core loop stabilizes.
+
+# Unsorted TODO items
+
+Feedback after playtesting phase 1
+
+- game_state.rs is getting way too large
+- dev testing speedup
+- resource bar improvement
+- minimap sucks
+- clicking on modules, dialogs
+- only one of each type of building
+- resource harvesting progress
+- mail vs events

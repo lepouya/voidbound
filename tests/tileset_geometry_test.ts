@@ -1,7 +1,8 @@
 // Cross-checks every PNG under src/assets/ against the tileset catalog in
 // src/tileset-geometry.ts by reading real pixel dimensions from the PNG IHDR
 // chunk (no image library needed). This is exactly the class of drift that
-// caused the module-* mis-slicing bug (CODE_REVIEW 1.1).
+// once caused a module-* mis-slicing bug (catalog rows out of step with the
+// regenerated PNG dimensions).
 
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import { fromFileUrl } from "jsr:@std/path@1";
