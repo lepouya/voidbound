@@ -610,6 +610,47 @@ export abstract class TiledScene extends ex.Scene {
   }
 
   /**
+   * Shared "kill absentees, diff against last-applied data, rebuild changed
+   * entries" skeleton behind every sync* reconciler (motherships, asteroids
+   * today; a future server-owned entity type — e.g. P4.1 alliances — reuses
+   * this instead of re-deriving the loop). `same` decides whether a changed
+   * snapshot warrants a rebuild; `onAdd`/`onRemove` are optional hooks for
+   * entity-specific bookkeeping (e.g. tracking the player's own mothership).
+   * Reconcilers with real quirks on top — vessels (redirect-in-place lerp,
+   * arrival-based respawn skip), modules (multiple side-derived applied maps,
+   * selection carry-over) — don't fit this shape and keep their own loops.
+   */
+  protected reconcileActors<Id, Data>(opts: {
+    actors: Map<Id, TileActor>;
+    applied: Map<Id, Data>;
+    source: ReadonlyMap<Id, Data>;
+    id: (data: Data) => Id;
+    same: (a: Data, b: Data) => boolean;
+    build: (data: Data) => TileActor;
+    onAdd?: (data: Data, actor: TileActor) => void;
+    onRemove?: (id: Id, actor: TileActor) => void;
+  }): void {
+    for (const [id, actor] of opts.actors) {
+      if (opts.source.has(id)) continue;
+      actor.kill();
+      opts.actors.delete(id);
+      opts.applied.delete(id);
+      opts.onRemove?.(id, actor);
+    }
+    for (const data of opts.source.values()) {
+      const id = opts.id(data);
+      const applied = opts.applied.get(id);
+      if (applied !== undefined && opts.same(applied, data)) continue;
+      opts.actors.get(id)?.kill();
+      const actor = opts.build(data);
+      opts.actors.set(id, actor);
+      opts.applied.set(id, data);
+      this.add(actor);
+      opts.onAdd?.(data, actor);
+    }
+  }
+
+  /**
    * Spawn a group of screen-fixed HUD buttons at the given anchor position
    * and add them to this scene. Returns a handle for runtime control
    * (show/hide, disable, active state, badge updates, removal).

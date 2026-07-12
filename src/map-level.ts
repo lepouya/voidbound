@@ -247,26 +247,23 @@ export class MapLevel extends TiledScene {
     // The subscription can fire before the async map load finishes;
     // setupActors calls this again once the tilemap exists.
     if (!this.grid) return;
-    for (const [id, actor] of this.motherships) {
-      if (!gameState.motherships.has(id)) {
-        actor.kill();
-        this.motherships.delete(id);
-        this.appliedMotherships.delete(id);
+    // Placement or appearance changes rebuild the actor in place — a moved
+    // ship is a rare, discrete server event, so there's no travel animation
+    // to preserve.
+    this.reconcileActors({
+      actors: this.motherships,
+      applied: this.appliedMotherships,
+      source: gameState.motherships,
+      id: (data) => data.mothershipId,
+      same: sameMothership,
+      build: (data) => this.createMothershipActor(data),
+      onAdd: (data, actor) => {
+        if (data.ownerId === gameState.player.id) this.mothership = actor;
+      },
+      onRemove: (_id, actor) => {
         if (this.mothership === actor) this.mothership = null;
-      }
-    }
-    for (const data of gameState.motherships.values()) {
-      const applied = this.appliedMotherships.get(data.mothershipId);
-      if (applied !== undefined && sameMothership(applied, data)) continue;
-      // Placement or appearance changed: rebuild the actor. A moved ship is
-      // a rare, discrete server event — no travel animation to preserve.
-      this.motherships.get(data.mothershipId)?.kill();
-      const actor = this.createMothershipActor(data);
-      this.motherships.set(data.mothershipId, actor);
-      this.appliedMotherships.set(data.mothershipId, data);
-      this.add(actor);
-      if (data.ownerId === gameState.player.id) this.mothership = actor;
-    }
+      },
+    });
   }
 
   /** Builds the map actor for one mothership; the player's own ship gets
@@ -339,22 +336,14 @@ export class MapLevel extends TiledScene {
     // The subscription can fire before the async map load finishes;
     // setupActors calls this again once the tilemap exists.
     if (!this.grid) return;
-    for (const [id, actor] of this.asteroids) {
-      if (!gameState.asteroids.has(id)) {
-        actor.kill();
-        this.asteroids.delete(id);
-        this.appliedAsteroids.delete(id);
-      }
-    }
-    for (const data of gameState.asteroids.values()) {
-      const applied = this.appliedAsteroids.get(data.asteroidId);
-      if (applied !== undefined && sameAsteroid(applied, data)) continue;
-      this.asteroids.get(data.asteroidId)?.kill();
-      const actor = this.createAsteroidActor(data);
-      this.asteroids.set(data.asteroidId, actor);
-      this.appliedAsteroids.set(data.asteroidId, data);
-      this.add(actor);
-    }
+    this.reconcileActors({
+      actors: this.asteroids,
+      applied: this.appliedAsteroids,
+      source: gameState.asteroids,
+      id: (data) => data.asteroidId,
+      same: sameAsteroid,
+      build: (data) => this.createAsteroidActor(data),
+    });
   }
 
   /**

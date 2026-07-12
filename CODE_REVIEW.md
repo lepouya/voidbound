@@ -132,8 +132,8 @@ here with a pointer to the task ID.
 
 - [x] **CR3.1 [idea] `gen_asteroids.sh` renders 3 button states into a 1*1
       sheet** — two of the three `svg_ui_gen.py` state renders are computed and
-      discarded. Harmless; a `--states 1` flag would drop the waste. Done:
-      added `--states N` (1-3, default 3) to `svg_ui_gen.py`, honored by
+      discarded. Harmless; a `--states 1` flag would drop the waste. Done: added
+      `--states N` (1-3, default 3) to `svg_ui_gen.py`, honored by
       `process_svg_states`; `gen_asteroids.sh` now passes `--states 1`.
       Regenerated PNGs are byte-identical to before. Regression test
       `test_process_svg_states_respects_num_states` added.
@@ -157,11 +157,22 @@ here with a pointer to the task ID.
       name + label/badge/disabled/onPressed in, full frame+icon ButtonDef out);
       every call site in map-level.ts, ship-level.ts, tiled-scene.ts, and
       dialog.ts's close button converted.
-- [ ] **CR4.2 [idea] Small shared reconciler helper.** The four `sync*` methods
+- [x] **CR4.2 [idea] Small shared reconciler helper.** The four `sync*` methods
       share a skeleton (kill absentees, diff `applied*` map, rebuild changed).
       Full generalization isn't worth the quirks (selection carry-over, force
       re-lerp, hire hosts) — extract just the common diff loop so the next
-      server-owned entity type (P4.1 alliances) is cheap.
+      server-owned entity type (P4.1 alliances) is cheap. Done: added
+      `TiledScene.reconcileActors()` (src/tiled-scene.ts) — the kill-absentee +
+      diff-and-rebuild skeleton, with `onAdd`/`onRemove` hooks for
+      entity-specific bookkeeping — and converted `MapLevel.syncMotherships`/
+      `syncAsteroids` (the two that fit the plain shape) to use it, dropping
+      ~20 duplicated lines. `syncVessels` (redirect-in-place lerp, arrival-based
+      respawn skip) and `syncModules` (multiple side-derived applied maps,
+      selection carry-over) keep their own loops, as the quirks note
+      anticipated. Verified with `/verify`: map scene renders both motherships
+      and a selected asteroid's Details/Mine buttons+badge, and Mine correctly
+      dispatches a vessel and rebuilds the asteroid actor with no console
+      errors.
 - [ ] **CR4.3 [idea] Unify the vessel lerp.** The timestamp lerp exists three
       times: Rust `vessel_position`, TS `applyVesselMoveEvent`, TS minimap
       `vesselWorldPos`. A pure `vessel-math.ts` would deduplicate the TS copies,
