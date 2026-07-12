@@ -133,8 +133,12 @@ here with a pointer to the task ID.
 - [ ] **CR3.1 [idea] `gen_asteroids.sh` renders 3 button states into a 1*1
       sheet** — two of the three `svg_ui_gen.py` state renders are computed and
       discarded. Harmless; a `--states 1` flag would drop the waste.
-- [ ] **CR3.2 [idea] `art/maps/ship-objects-2.png` is referenced by no
-      generator.** Confirm it's intentionally parked source art or delete.
+- [x] **CR3.2 [idea] `art/maps/ship-objects-2.png` is referenced by no
+      generator.** Confirm it's intentionally parked source art or delete. Done:
+      confirmed no generator references it (only `ship-objects.png`, without
+      `-2`, is used by `art/gen_ship_level.sh`); kept as intentionally parked
+      source art, documented with a comment in `gen_ship_level.sh` pointing back
+      at this item.
 
 ## 4. Refactor / reuse / simplification
 

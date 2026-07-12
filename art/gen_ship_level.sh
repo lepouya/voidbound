@@ -11,6 +11,8 @@ python3 ../tools/sprite_merge.py \
     -S maps/ship-objects.png:3:3 \
     -z 64 \
     -d ../src/assets/ship-tiles.png
+# maps/ship-objects-2.png is intentionally unused: parked source art for a
+# future object set, not a leftover to delete (CODE_REVIEW.md CR3.2).
 
 # Convert Tiled map → src/assets/ship-level.json
 # -W 32 -H 32: 32px world tiles with 64px sprite fidelity for zoom detail
