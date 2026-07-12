@@ -18,6 +18,7 @@ import { spawnMinimap } from "./minimap.ts";
 import { TileActor } from "./tile-actor.ts";
 import { SceneMap, TiledScene } from "./tiled-scene.ts";
 import { formatCompactCount, roundButton, squareButton } from "./ui/index.ts";
+import { vesselWorldPos } from "./vessel-math.ts";
 
 /** True when two snapshots describe an identical ship — placement, art, and
  *  ownership — so the reconciler can skip rebuilding its actor. */
@@ -521,13 +522,13 @@ export class MapLevel extends TiledScene {
     // Authoritative current position: lerp src → dest by the event's server
     // timestamps. t >= 1 snaps to the destination and moveTo completes
     // immediately, running the normal arrival handling.
-    const duration = event.arrivalAt - event.dispatchedAt;
-    const t = duration > 0
-      ? ex.clamp((serverNow() - event.dispatchedAt) / duration, 0, 1)
-      : 1;
-    const src = this.tileCenter(event.srcCol, event.srcRow);
-    const dest = this.tileCenter(event.destCol, event.destRow);
-    const currentPos = src.add(dest.sub(src).scale(t));
+    const worldPos = vesselWorldPos(
+      event,
+      this.grid.tileWidth,
+      this.grid.tileHeight,
+      serverNow(),
+    );
+    const currentPos = ex.vec(worldPos.x, worldPos.y);
 
     const existing = this.vessels.get(event.vesselId);
     if (existing) {
@@ -566,14 +567,6 @@ export class MapLevel extends TiledScene {
     this.add(vessel);
     vessel.pos = currentPos;
     vessel.moveTo(event.destCol, event.destRow, event.speed, onArrival);
-  }
-
-  /** World-space center of the given tile (matches 1*1 TileActor placement). */
-  private tileCenter(col: number, row: number): ex.Vector {
-    return ex.vec(
-      col * this.grid.tileWidth + this.grid.tileWidth / 2,
-      row * this.grid.tileHeight + this.grid.tileHeight / 2,
-    );
   }
 
   /**

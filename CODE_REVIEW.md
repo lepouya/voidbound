@@ -165,19 +165,29 @@ here with a pointer to the task ID.
       `TiledScene.reconcileActors()` (src/tiled-scene.ts) — the kill-absentee +
       diff-and-rebuild skeleton, with `onAdd`/`onRemove` hooks for
       entity-specific bookkeeping — and converted `MapLevel.syncMotherships`/
-      `syncAsteroids` (the two that fit the plain shape) to use it, dropping
-      ~20 duplicated lines. `syncVessels` (redirect-in-place lerp, arrival-based
+      `syncAsteroids` (the two that fit the plain shape) to use it, dropping ~20
+      duplicated lines. `syncVessels` (redirect-in-place lerp, arrival-based
       respawn skip) and `syncModules` (multiple side-derived applied maps,
       selection carry-over) keep their own loops, as the quirks note
       anticipated. Verified with `/verify`: map scene renders both motherships
       and a selected asteroid's Details/Mine buttons+badge, and Mine correctly
       dispatches a vessel and rebuilds the asteroid actor with no console
       errors.
-- [ ] **CR4.3 [idea] Unify the vessel lerp.** The timestamp lerp exists three
+- [x] **CR4.3 [idea] Unify the vessel lerp.** The timestamp lerp exists three
       times: Rust `vessel_position`, TS `applyVesselMoveEvent`, TS minimap
       `vesselWorldPos`. A pure `vessel-math.ts` would deduplicate the TS copies,
       gain unit tests, and become the single `serverNow()` call site for P3.2
-      (see CR2.4).
+      (see CR2.4). Done: added `src/vessel-math.ts`
+      (`vesselMoveProgress`/`vesselWorldPos`, structurally typed against
+      `VesselMoveEvent` via a `VesselLeg` interface) with
+      `tests/vessel_math_test.ts`; `MapLevel.applyVesselMoveEvent` (dropping its
+      local `tileCenter` helper) and the minimap's `vesselWorldPos` both now
+      call it, so `serverNow()` is the only clock read left in either call site.
+      The Rust `vessel_position`/`move_progress` mirror is unchanged
+      (cross-language, not a TS duplicate) but is cross-referenced in the new
+      module's doc comment. Verified with `/verify`: dispatched a vessel and
+      watched it animate along its path on the map scene with no console errors;
+      CLAUDE.md's pure-module list updated to include the new file.
 - [ ] **CR4.4 [idea] Rust micro-dedup.** `dispatch_vessel` / `mine_asteroid`
       duplicate outbound-event construction (share an `outbound_leg()` mirroring
       `return_leg()`); `ResourceCounts::add`/`spend` could share a

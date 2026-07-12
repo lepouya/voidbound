@@ -1,7 +1,7 @@
 import * as ex from "excalibur";
 
 import { ASTEROID_TINTS } from "./asteroid-catalog.ts";
-import { gameState, serverNow, VesselMoveEvent } from "./game-state.ts";
+import { gameState, serverNow } from "./game-state.ts";
 import { TileGridGeometry } from "./grid-math.ts";
 import {
   MinimapProjection,
@@ -11,6 +11,7 @@ import {
   worldToMinimap,
 } from "./minimap-math.ts";
 import { HUD_BASE_Z, HudPointerTarget } from "./ui/index.ts";
+import { vesselWorldPos } from "./vessel-math.ts";
 
 /**
  * The space-map overview widget (ROADMAP P1.9): a square screen-fixed canvas
@@ -65,24 +66,6 @@ export interface MinimapOptions {
   camera: ex.Camera;
   /** Confirmed tap on the minimap at the given world point (tap-to-jump). */
   onJump: (x: number, y: number) => void;
-}
-
-/** A vessel's current world position, lerped from its move event timestamps
- *  — the same math applyVesselMoveEvent uses to place the scene actor. */
-function vesselWorldPos(
-  event: VesselMoveEvent,
-  grid: TileGridGeometry,
-  now: number,
-): { x: number; y: number } {
-  const duration = event.arrivalAt - event.dispatchedAt;
-  const t = duration > 0
-    ? Math.min(Math.max((now - event.dispatchedAt) / duration, 0), 1)
-    : 1;
-  const sx = (event.srcCol + 0.5) * grid.tileWidth;
-  const sy = (event.srcRow + 0.5) * grid.tileHeight;
-  const dx = (event.destCol + 0.5) * grid.tileWidth;
-  const dy = (event.destRow + 0.5) * grid.tileHeight;
-  return { x: sx + (dx - sx) * t, y: sy + (dy - sy) * t };
 }
 
 function drawDot(
@@ -162,7 +145,7 @@ export function spawnMinimap(
         );
       }
       for (const v of gameState.vessels.values()) {
-        const pos = vesselWorldPos(v, grid, now);
+        const pos = vesselWorldPos(v, grid.tileWidth, grid.tileHeight, now);
         drawDot(ctx, pos.x, pos.y, projection, VESSEL, VESSEL_DOT);
       }
 
