@@ -20,6 +20,10 @@ Arguments:
     -r / --rows             Number of rows in output sheet (default: 1)
     -z / --size             Side length (px) of each sprite tile (square, default: 64)
     -d / --dest             Output path for the compact spritesheet PNG
+    --states                Number of states to render, 1-3 in Normal/Active/
+                             Disabled order (default: 3). Use 1 for sheets that
+                             only ever show the normal state (e.g. cols=1),
+                             so the unused states aren't rendered and discarded.
     --color1                Primary hex color (replaces #COLOR1 in SVG, default: #FFFFFF)
     --color2                Secondary hex color (replaces #COLOR2 in SVG, default: #00d2ff)
     --color1-active         Primary active hex color (optional override)
@@ -29,7 +33,8 @@ Arguments:
 
 Design decisions:
   - #COLOR1 and #COLOR2 placeholders in SVG files allow 100% flexible color customization from CLI.
-  - Generates 3 states by default (Normal, Active, Disabled) into a cols*rows grid.
+  - Generates 3 states by default (Normal, Active, Disabled) into a cols*rows grid;
+    pass --states to render fewer when the sheet won't use all of them.
   - Auto-computes active (brightened) and disabled (desaturated/darkened) colors if explicit overrides are not provided.
   - Multi-backend SVG rendering: checks for macOS `sips`, Linux `rsvg-convert`, or `cairosvg` for 100% crisp vector rasterization without external dependencies.
 """
@@ -153,9 +158,10 @@ def process_svg_states(
     color2_disabled: str,
     size: int,
     work_dir: str,
+    num_states: int = 3,
 ) -> list[Image.Image]:
     """
-    Read an SVG file and render 3 state tiles: Normal, Active, Disabled.
+    Read an SVG file and render up to 3 state tiles: Normal, Active, Disabled.
     Replaces #COLOR1 and #COLOR2 in the SVG string with state colors.
     """
     with open(svg_path, "r", encoding="utf-8") as f:
@@ -166,7 +172,7 @@ def process_svg_states(
         ("Normal", color1, color2),
         ("Active", color1_active, color2_active),
         ("Disabled", color1_disabled, color2_disabled),
-    ]
+    ][:num_states]
 
     sprites = []
     for state_name, c1, c2 in states:
@@ -216,6 +222,13 @@ def main():
     parser.add_argument("--color2-active", help="Secondary active color hex override")
     parser.add_argument("--color1-disabled", help="Primary disabled color hex override")
     parser.add_argument("--color2-disabled", help="Secondary disabled color hex override")
+    parser.add_argument(
+        "--states",
+        type=int,
+        choices=[1, 2, 3],
+        default=3,
+        help="Number of states to render, Normal/Active/Disabled in that order (default: 3)",
+    )
 
     args = parser.parse_args()
 
@@ -243,6 +256,7 @@ def main():
             color2_disabled,
             args.size,
             tmp_dir,
+            args.states,
         )
 
         sheet = build_compact_sheet(sprites, args.cols, args.rows, args.size)

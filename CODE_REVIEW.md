@@ -130,9 +130,13 @@ here with a pointer to the task ID.
 
 ## 3. Tools / art pipeline
 
-- [ ] **CR3.1 [idea] `gen_asteroids.sh` renders 3 button states into a 1*1
+- [x] **CR3.1 [idea] `gen_asteroids.sh` renders 3 button states into a 1*1
       sheet** — two of the three `svg_ui_gen.py` state renders are computed and
-      discarded. Harmless; a `--states 1` flag would drop the waste.
+      discarded. Harmless; a `--states 1` flag would drop the waste. Done:
+      added `--states N` (1-3, default 3) to `svg_ui_gen.py`, honored by
+      `process_svg_states`; `gen_asteroids.sh` now passes `--states 1`.
+      Regenerated PNGs are byte-identical to before. Regression test
+      `test_process_svg_states_respects_num_states` added.
 - [x] **CR3.2 [idea] `art/maps/ship-objects-2.png` is referenced by no
       generator.** Confirm it's intentionally parked source art or delete. Done:
       confirmed no generator references it (only `ship-objects.png`, without

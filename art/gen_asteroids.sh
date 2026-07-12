@@ -12,6 +12,6 @@ for tier_size in small:64 medium:128 large:192; do
     size="${tier_size#*:}"
     python3 ../tools/svg_ui_gen.py \
         -s "asteroids/asteroid-${tier}.svg" \
-        -c 1 -r 1 -z "$size" \
+        -c 1 -r 1 -z "$size" --states 1 \
         -d "../src/assets/asteroid-${tier}.png"
 done

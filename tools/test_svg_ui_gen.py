@@ -48,6 +48,21 @@ class TestSvgUiGen(unittest.TestCase):
         for s in sprites:
             self.assertEqual(s.size, (64, 64))
 
+    def test_process_svg_states_respects_num_states(self):
+        sprites = svg_ui_gen.process_svg_states(
+            self.svg_path,
+            "#FFFFFF",
+            "#00d2ff",
+            "#FFFFFF",
+            "#00ffff",
+            "#888888",
+            "#005577",
+            64,
+            self.test_dir,
+            num_states=1,
+        )
+        self.assertEqual(len(sprites), 1)
+
     def test_build_compact_sheet(self):
         sprites = [Image.new("RGBA", (64, 64), (255, 0, 0, 255))] * 3
         sheet = svg_ui_gen.build_compact_sheet(sprites, 3, 1, 64)
