@@ -80,7 +80,7 @@ here with a pointer to the task ID.
 
 ## 2. TypeScript client — bugs and corner cases
 
-- [ ] **CR2.1 [fix] `TilesetRegistry.getGraphic` hides out-of-range tile ids.**
+- [x] **CR2.1 [fix] `TilesetRegistry.getGraphic` hides out-of-range tile ids.**
       The final `sheet.getSprite(col, row)!` turns a bad `tileId` into
       `undefined`-as-`Sprite` and a distant, contextless crash. Throw explicitly
       with tileset name + id, matching the `png()` helper's throw-early

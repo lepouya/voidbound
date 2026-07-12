@@ -159,7 +159,11 @@ class TilesetRegistry {
 
     const col = tileId % def.cols;
     const row = Math.floor(tileId / def.cols);
-    return sheet.getSprite(col, row)!;
+    const sprite = sheet.getSprite(col, row);
+    if (!sprite) {
+      throw new Error(`Tile id ${tileId} out of range for tileset "${name}"`);
+    }
+    return sprite;
   }
 }
 
