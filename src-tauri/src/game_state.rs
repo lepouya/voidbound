@@ -4322,6 +4322,22 @@ mod tests {
     }
 
     #[test]
+    fn failed_paid_refresh_does_not_consume_the_daily_slot() {
+        // CR5.1 regression: spend_trade rejects the credits spend before
+        // deal_refreshes_used is bumped, so an unaffordable paid refresh must
+        // leave the day's refresh count and credits untouched.
+        let mut s = ServerState::new(0);
+        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        s.refresh_deals(0).unwrap(); // first refresh is free
+        assert_eq!(s.deal_refreshes_used, 1);
+        s.resources.credits = 5; // second refresh costs 10 — not enough
+        let err = s.refresh_deals(0).unwrap_err();
+        assert!(err.contains("not enough credits"), "{err}");
+        assert_eq!(s.deal_refreshes_used, 1);
+        assert_eq!(s.resources.credits, 5);
+    }
+
+    #[test]
     fn refresh_replaces_accepted_deals_and_scales_slots_with_level() {
         let mut s = ServerState::new(0);
         insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 5);

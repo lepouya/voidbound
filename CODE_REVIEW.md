@@ -164,8 +164,13 @@ here with a pointer to the task ID.
 
 ## 5. Test-coverage additions
 
-- [ ] **CR5.1** Rust: a failed paid refresh (insufficient credits) must not
-      consume the daily refresh slot.
+- [x] **CR5.1** Rust: a failed paid refresh (insufficient credits) must not
+      consume the daily refresh slot. Done: `refresh_deals` already spent
+      credits via `spend_trade` before incrementing `deal_refreshes_used`, so
+      no code change was needed — added regression test
+      `failed_paid_refresh_does_not_consume_the_daily_slot` asserting an
+      unaffordable second refresh returns `Err` and leaves
+      `deal_refreshes_used`/credits untouched.
 - [x] **CR5.2** Rust: arrival-notification timestamp assertion (with CR1.2).
 - [x] **CR5.3** Rust/TS: AOI invariant test (with CR2.2).
 - [ ] **CR5.4** TS: confirm `hud-layout`'s `center` direction has coverage; add
