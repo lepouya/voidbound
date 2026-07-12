@@ -188,10 +188,15 @@ here with a pointer to the task ID.
       module's doc comment. Verified with `/verify`: dispatched a vessel and
       watched it animate along its path on the map scene with no console errors;
       CLAUDE.md's pure-module list updated to include the new file.
-- [ ] **CR4.4 [idea] Rust micro-dedup.** `dispatch_vessel` / `mine_asteroid`
+- [x] **CR4.4 [idea] Rust micro-dedup.** `dispatch_vessel` / `mine_asteroid`
       duplicate outbound-event construction (share an `outbound_leg()` mirroring
       `return_leg()`); `ResourceCounts::add`/`spend` could share a
-      `slot_mut(kind)`.
+      `slot_mut(kind)`. Done: added `ServerState::outbound_leg()` (owns vessel
+      id assignment, owner identity, arrival-time derivation, `returning:
+      false`), used by both `dispatch_vessel` and `mine_asteroid`; added
+      `ResourceCounts::slot_mut(kind)`, used by both `add` and `spend`. Pure
+      internal refactor — no wire-format or behavior change; covered by the
+      existing dispatch/mine/recall Rust test suite (all 69 tests pass).
 - [ ] **CR4.5 [hardening] No linter runs anywhere.** Add `deno task lint`
       (`lint:ts` = `deno lint`, `lint:rs` = clippy) following the task-halves
       convention, wire into CI. Since CLAUDE.md forbids running cargo directly,

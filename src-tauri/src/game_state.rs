@@ -102,13 +102,17 @@ impl ResourceCounts {
         }
     }
 
-    fn add(&mut self, kind: ResourceKind, amount: u64) {
-        let slot = match kind {
+    fn slot_mut(&mut self, kind: ResourceKind) -> &mut u64 {
+        match kind {
             ResourceKind::Construction => &mut self.construction,
             ResourceKind::HighTech => &mut self.high_tech,
             ResourceKind::Biological => &mut self.biological,
             ResourceKind::Fuel => &mut self.fuel,
-        };
+        }
+    }
+
+    fn add(&mut self, kind: ResourceKind, amount: u64) {
+        let slot = self.slot_mut(kind);
         *slot = slot.saturating_add(amount);
     }
 
@@ -133,13 +137,7 @@ impl ResourceCounts {
                 resource_display_name(kind)
             ));
         }
-        let slot = match kind {
-            ResourceKind::Construction => &mut self.construction,
-            ResourceKind::HighTech => &mut self.high_tech,
-            ResourceKind::Biological => &mut self.biological,
-            ResourceKind::Fuel => &mut self.fuel,
-        };
-        *slot -= amount;
+        *self.slot_mut(kind) -= amount;
         Ok(())
     }
 
@@ -1998,32 +1996,15 @@ impl ServerState {
         }
         let (src_col, src_row) = closest_dock_tile(ship, dest_col as f64, dest_row as f64);
         let mothership_id = ship.mothership_id.clone();
-        self.next_vessel_seq += 1;
-        let player = player_identity();
-        let event = VesselMoveEventData {
-            vessel_id: format!("vessel-{}-{}", now_ms, self.next_vessel_seq),
-            owner_id: player.id,
-            owner_name: player.name,
+        let event = self.outbound_leg(
             mothership_id,
-            vessel_type: VESSEL_TYPE.to_string(),
-            src_col: src_col as f64,
-            src_row: src_row as f64,
+            src_col as f64,
+            src_row as f64,
             dest_col,
             dest_row,
-            speed: VESSEL_SPEED_PX_S,
-            dispatched_at: now_ms,
-            arrival_at: now_ms
-                + travel_time_ms(
-                    src_col as f64,
-                    src_row as f64,
-                    dest_col as f64,
-                    dest_row as f64,
-                    VESSEL_SPEED_PX_S,
-                ),
-            returning: false,
-            mining_asteroid_id: None,
-            cargo: None,
-        };
+            now_ms,
+            None,
+        );
         self.vessels.insert(event.vessel_id.clone(), event.clone());
         Ok(event)
     }
@@ -2067,33 +2048,16 @@ impl ServerState {
         let (src_col, src_row) = closest_dock_tile(&ship, center_col, center_row);
         let dest_col = (src_col).clamp(asteroid.col, asteroid.col + asteroid.span - 1);
         let dest_row = (src_row).clamp(asteroid.row, asteroid.row + asteroid.span - 1);
-        self.next_vessel_seq += 1;
-        let player = player_identity();
-        let event = VesselMoveEventData {
-            vessel_id: format!("vessel-{}-{}", now_ms, self.next_vessel_seq),
-            owner_id: player.id,
-            owner_name: player.name,
-            mothership_id: ship.mothership_id.clone(),
-            vessel_type: VESSEL_TYPE.to_string(),
-            src_col: src_col as f64,
-            src_row: src_row as f64,
+        let remaining = asteroid.remaining;
+        let event = self.outbound_leg(
+            ship.mothership_id.clone(),
+            src_col as f64,
+            src_row as f64,
             dest_col,
             dest_row,
-            speed: VESSEL_SPEED_PX_S,
-            dispatched_at: now_ms,
-            arrival_at: now_ms
-                + travel_time_ms(
-                    src_col as f64,
-                    src_row as f64,
-                    dest_col as f64,
-                    dest_row as f64,
-                    VESSEL_SPEED_PX_S,
-                ),
-            returning: false,
-            mining_asteroid_id: Some(asteroid_id.to_string()),
-            cargo: None,
-        };
-        let remaining = asteroid.remaining;
+            now_ms,
+            Some(asteroid_id.to_string()),
+        );
         let asteroid = self
             .asteroids
             .get_mut(asteroid_id)
@@ -2265,6 +2229,50 @@ impl ServerState {
             mining_asteroid_id: None,
             ..vessel.clone()
         })
+    }
+
+    /// A fresh outward leg for a newly dispatched vessel — shared by
+    /// `dispatch_vessel` and `mine_asteroid`, which differ only in
+    /// destination derivation and whether a mining job is attached. Assigns
+    /// the vessel id and owner identity, derives arrival time from speed and
+    /// distance, and stamps `returning: false`. Recording the event in
+    /// `self.vessels` stays with the caller.
+    fn outbound_leg(
+        &mut self,
+        mothership_id: String,
+        src_col: f64,
+        src_row: f64,
+        dest_col: i64,
+        dest_row: i64,
+        now_ms: u64,
+        mining_asteroid_id: Option<String>,
+    ) -> VesselMoveEventData {
+        self.next_vessel_seq += 1;
+        let player = player_identity();
+        VesselMoveEventData {
+            vessel_id: format!("vessel-{}-{}", now_ms, self.next_vessel_seq),
+            owner_id: player.id,
+            owner_name: player.name,
+            mothership_id,
+            vessel_type: VESSEL_TYPE.to_string(),
+            src_col,
+            src_row,
+            dest_col,
+            dest_row,
+            speed: VESSEL_SPEED_PX_S,
+            dispatched_at: now_ms,
+            arrival_at: now_ms
+                + travel_time_ms(
+                    src_col,
+                    src_row,
+                    dest_col as f64,
+                    dest_row as f64,
+                    VESSEL_SPEED_PX_S,
+                ),
+            returning: false,
+            mining_asteroid_id,
+            cargo: None,
+        }
     }
 
     /// Verify and execute a recall: the vessel must exist and belong to the
