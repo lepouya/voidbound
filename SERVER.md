@@ -86,7 +86,17 @@ progress, not fast-forwarded frame by frame.
   later use separate narrower channels; game-state events stay on the system
   log.
 - **Ordering** is total per log: sequence numbers, assigned at append time.
-  Clients apply in sequence order; a gap means "resync from snapshot".
+  Clients apply in sequence order; a gap means "resync from snapshot". **The
+  in-process prototype does not honor this today**: both `run_scheduler` and
+  `finish_command` (`src-tauri/src/game_state.rs`) drain the outbox while
+  holding the state lock, then release the lock before emitting — so two
+  concurrent drains (a scheduler wake racing a command return) can have their
+  emits interleave, letting an older push reach the client after a newer one.
+  Harmless in-process (there's one client and no transport reordering), but a
+  socket implementation must not inherit the assumption: give every push a
+  sequence number at drain time (not emit time) and have clients apply/drop by
+  sequence, the same discipline this section already describes for the log
+  itself.
 - **Idempotency**: event IDs are unique; applying the same event twice must be a
   no-op or a redirect (the existing-vessel redirect in `applyVesselMoveEvent` is
   the pattern).

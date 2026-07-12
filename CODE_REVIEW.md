@@ -55,13 +55,15 @@ here with a pointer to the task ID.
       back-stamps to `completes_at`. A lazily settled arrival gets a wrong feed
       timestamp. Fix: stamp with `vessel.arrival_at`; extend the
       arrival-notification test to assert the timestamp.
-- [ ] **CR1.3 [hardening] Cross-thread push emission can reorder.** Scheduler
+- [x] **CR1.3 [hardening] Cross-thread push emission can reorder.** Scheduler
       and command handlers both drain-then-emit after releasing the lock; two
       concurrent drains can interleave (e.g. an older `Resources` push arriving
       after a newer one). Harmless in-process, but exactly what P3.1's sequence
       numbers exist to prevent. Action: add a note to SERVER.md § Ordering so
       the socket implementation doesn't inherit the assumption; optionally emit
-      under a small emission lock until then.
+      under a small emission lock until then. Done: SERVER.md § Ordering now
+      documents the in-process reordering and the sequence-number fix P3.1
+      needs.
 - [ ] **CR1.4 [hardening] A moved mothership strands returning vessels.**
       Docked-arrival detection re-derives "is this a return" from `is_dock_tile`
       against the mothership's _current_ position; any future mothership move
@@ -119,11 +121,11 @@ here with a pointer to the task ID.
       block repeats ~15 times across map-level.ts, ship-level.ts,
       tiled-scene.ts; `MapLevel.createMothershipActor`'s local `roundButton()`
       already found the right shape. Promote `roundButton`/ `squareButton`
-      helpers into `src/ui/button.ts`. Largest noise reduction available.
-      Done: `roundButton(opts)`/`squareButton(opts)` added to
-      `src/ui/button.ts` (icon name + label/badge/disabled/onPressed in,
-      full frame+icon ButtonDef out); every call site in map-level.ts,
-      ship-level.ts, tiled-scene.ts, and dialog.ts's close button converted.
+      helpers into `src/ui/button.ts`. Largest noise reduction available. Done:
+      `roundButton(opts)`/`squareButton(opts)` added to `src/ui/button.ts` (icon
+      name + label/badge/disabled/onPressed in, full frame+icon ButtonDef out);
+      every call site in map-level.ts, ship-level.ts, tiled-scene.ts, and
+      dialog.ts's close button converted.
 - [ ] **CR4.2 [idea] Small shared reconciler helper.** The four `sync*` methods
       share a skeleton (kill absentees, diff `applied*` map, rebuild changed).
       Full generalization isn't worth the quirks (selection carry-over, force
