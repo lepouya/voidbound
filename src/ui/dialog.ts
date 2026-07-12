@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Modal dialog layer (ROADMAP P1.14)
+// Modal dialog layer
 // ---------------------------------------------------------------------------
 //
 // Scenes open dialogs through TiledScene.openDialog() — never spawnDialog
@@ -50,6 +50,13 @@ import * as ex from "excalibur";
 
 import { makeBadgeActor } from "./badge.ts";
 import { makeButtonGraphic } from "./button.ts";
+import {
+  DIALOG_DEFAULT_ROW_HEIGHT,
+  DialogLayoutOpts,
+  DialogRect,
+  layoutCellRects,
+  layoutDialogFrame,
+} from "./dialog-layout.ts";
 import { HudButtonDef } from "./hud.ts";
 import {
   LABEL_PAD,
@@ -58,13 +65,6 @@ import {
   resolveButtonLabel,
 } from "./label.ts";
 import { TileRef } from "./tile-ref.ts";
-import {
-  DIALOG_DEFAULT_ROW_HEIGHT,
-  DialogLayoutOpts,
-  DialogRect,
-  layoutCellRects,
-  layoutDialogFrame,
-} from "./dialog-layout.ts";
 
 // Layout math lives in dialog-layout.ts — a pure module testable under plain
 // `deno test` (same split as hud.ts / hud-layout.ts). Re-export the pieces

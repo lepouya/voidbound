@@ -5,6 +5,8 @@
       "WebSearch",
       "Skill(claude-api)",
       "Skill(claude-api:*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
       "Read(//private/tmp/**)",
       "Edit(/.claude/**)",
       "Edit(/.claude/skills/**)",
@@ -46,6 +48,7 @@
       "Bash(grep:*)",
       "Bash(sed:*)",
       "Bash(awk:*)",
+      "Bash(lsof:*)",
       "Bash(ps:*)",
       "Bash(pkill:*)",
       "Bash(screencapture:*)",
@@ -54,7 +57,9 @@
       "Bash(art/gen_*.sh)",
       "Bash(./art/gen_*.sh)",
       "Bash(python3 tools/*)",
-      "Bash(tools/*)"
+      "Bash(tools/*)",
+      "Bash(tools/verify_dev.sh:*)",
+      "Bash(tools/verify_capture.sh:*)"
     ]
   }
 }

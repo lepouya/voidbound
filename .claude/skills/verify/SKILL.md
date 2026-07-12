@@ -12,20 +12,35 @@ this machine there are **no accessibility permissions**, so taps/drags cannot be
 scripted — flows are driven with temporary code hooks and observed via
 screenshots.
 
-## 1. Launch
+## 1. Launch — `tools/verify_dev.sh`
+
+All process-lifecycle chains (launch, wait-for-build, log tail, forced reload,
+shutdown) live in the checked-in `tools/verify_dev.sh` — use it instead of
+re-deriving `ps`/`until`/`pkill` chains, which each need a fresh permission
+approval:
 
 ```bash
-# Stale-instance check first: a ghost window from a previous session runs
-# pre-edit JS and falsifies screenshots. Exactly zero instances should exist.
-ps -eo pid,lstart,command | grep target/debug/voidbound | grep -v grep
-
-deno task tauri dev   # run in background; first build takes a minute or two
+tools/verify_dev.sh status     # stale-instance check: dev task, app, window id
+tools/verify_dev.sh start      # launch `deno task tauri dev` in background,
+                               # wait for the app process + window (refuses to
+                               # start over an existing instance); first build
+                               # takes minutes — give the call a large timeout
+tools/verify_dev.sh wait       # wait for app + window to (re)appear, e.g.
+                               # after a src-tauri/ edit relaunches the backend
+tools/verify_dev.sh log -n 40                  # timestamped dev-task log tail
+tools/verify_dev.sh log -s 17:26:37 -g vite    # lines since a time / matching
+tools/verify_dev.sh reload     # touch src/main.ts -> Vite full page reload;
+                               # prints the reload time + the log it produced
+tools/verify_dev.sh stop       # kill app + dev task tree, confirm none remain
 ```
 
-Wait until `ps` shows exactly **one** `target/debug/voidbound` whose start time
-is after your edits. The webview's `console.warn/error` stream into the dev
-task's output as `[vite] (client) [console.warn] ...` — read the task output
-file for client-side logs and errors; no devtools needed.
+A stale instance from a previous session runs pre-edit JS and falsifies
+screenshots — `start` enforces the zero-instance precondition and errors out if
+one exists (`stop` first). The webview's `console.warn/error` stream into the
+dev log as `[vite] (client) [console.warn] ...` — read them via
+`verify_dev.sh log`; no devtools needed. Every log line is prefixed with a
+wall-clock `HH:MM:SS` at emission time, so `log -s <time>` correlates directly
+with the timestamps `verify_capture.sh` prints per frame.
 
 ### Rebuild/reload semantics (what an edit does to the running app)
 
@@ -35,7 +50,11 @@ file for client-side logs and errors; no devtools needed.
 - **Editing frontend files** → Vite HMR reloads the page only; the backend keeps
   running, so server state (resources, vessels in flight, timers) survives and
   reaches the new page via the `load_game_state` snapshot — reloading mid-flow
-  is itself a good snapshot/replay test.
+  is itself a good snapshot/replay test. `verify_dev.sh reload` forces one
+  without editing anything (a bare `touch` is enough for Vite).
+- **After a backend relaunch** the window id changes — `verify_capture.sh`
+  re-derives it per call; run `verify_dev.sh wait` to block until the new
+  process + window are up before capturing.
 
 ## 2. Window screenshots
 
@@ -97,5 +116,6 @@ of them:
 
 ## 5. Shut down
 
-Kill the app and the dev task when done (`pkill -f target/debug/voidbound`), so
-the next session's stale-instance check starts clean.
+`tools/verify_dev.sh stop` when done — it kills the app and the whole dev-task
+tree and confirms nothing is left, so the next session's stale-instance check
+starts clean.
