@@ -192,15 +192,33 @@ here with a pointer to the task ID.
       duplicate outbound-event construction (share an `outbound_leg()` mirroring
       `return_leg()`); `ResourceCounts::add`/`spend` could share a
       `slot_mut(kind)`. Done: added `ServerState::outbound_leg()` (owns vessel
-      id assignment, owner identity, arrival-time derivation, `returning:
-      false`), used by both `dispatch_vessel` and `mine_asteroid`; added
-      `ResourceCounts::slot_mut(kind)`, used by both `add` and `spend`. Pure
-      internal refactor — no wire-format or behavior change; covered by the
-      existing dispatch/mine/recall Rust test suite (all 69 tests pass).
-- [ ] **CR4.5 [hardening] No linter runs anywhere.** Add `deno task lint`
+      id assignment, owner identity, arrival-time derivation,
+      `returning:
+      false`), used by both `dispatch_vessel` and
+      `mine_asteroid`; added `ResourceCounts::slot_mut(kind)`, used by both
+      `add` and `spend`. Pure internal refactor — no wire-format or behavior
+      change; covered by the existing dispatch/mine/recall Rust test suite (all
+      69 tests pass).
+- [x] **CR4.5 [hardening] No linter runs anywhere.** Add `deno task lint`
       (`lint:ts` = `deno lint`, `lint:rs` = clippy) following the task-halves
       convention, wire into CI. Since CLAUDE.md forbids running cargo directly,
-      the task wrapper is also the only sanctioned clippy entry point.
+      the task wrapper is also the only sanctioned clippy entry point. Done:
+      added `lint`/`lint:ts`/`lint:rs` to deno.json; CI's frontend job runs
+      `lint:ts`, the rust job runs `cargo clippy -- -D warnings` (with a new
+      `clippy` toolchain component). Fixed everything the linters actually
+      caught to keep both clean: `deno.json` gained an `imports` map so tests
+      use bare `@std/assert`/`@std/path` specifiers instead of inline `jsr:`
+      prefixes (`no-import-prefix`); `vite.config.ts`'s config callback dropped
+      an unused `async` (`require-await`); `ship-level.ts`'s `openShopDialog`
+      got a documented `deno-lint-ignore prefer-const` for a `let` that's
+      structurally forward-referenced in a closure; and Rust's
+      `room_origin_at`/`drain_pushes` picked up clippy's suggested
+      `Range::contains`/`is_none_or` forms, while `outbound_leg` (CR4.4) had
+      its 8 positional args (over clippy's 7-arg threshold) collapsed into
+      `src`/`dest` tuples. CLAUDE.md's steering line and toolchain/testing
+      sections updated to mention `lint`. Verified with
+      `deno task format && deno task check && deno task lint && deno task test`
+      (all green, 69 Rust + 101 Deno tests).
 
 ## 5. Test-coverage additions
 

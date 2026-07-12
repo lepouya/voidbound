@@ -5,7 +5,7 @@
 // this test the inequality was comment-enforced only across the
 // map-level.ts <-> game_state.rs language boundary.
 
-import { assert } from "jsr:@std/assert@1";
+import { assert } from "@std/assert";
 
 import {
   AOI_REQUERY_TILES,

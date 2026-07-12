@@ -603,6 +603,9 @@ export class ShipLevel extends TiledScene {
    */
   private openShopDialog(): void {
     const buildRows = () => this.buildShopRows();
+    // onClose below closes over `unbind` before it's assigned (it's only
+    // known once `handle` exists), so it can't be a single const init.
+    // deno-lint-ignore prefer-const
     let unbind: (() => void) | undefined;
     const handle = this.openDialog({
       title: "Trading Post",

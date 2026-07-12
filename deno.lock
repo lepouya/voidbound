@@ -399,6 +399,10 @@
     }
   },
   "workspace": {
+    "dependencies": [
+      "jsr:@std/assert@1",
+      "jsr:@std/path@1"
+    ],
     "packageJson": {
       "dependencies": [
         "npm:@tauri-apps/api@2",

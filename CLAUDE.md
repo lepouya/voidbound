@@ -1,8 +1,9 @@
 # Voidbound — AI Agent Steering Document
 
 **Before considering any task complete**, run `deno task format` (formats TS and
-Rust) then `deno task check` (type-checks TS and Rust). Never run `tsc`,
-`prettier`, `cargo fmt`, or `cargo check` directly.
+Rust), `deno task check` (type-checks TS and Rust), then `deno task lint` (lints
+TS and Rust). Never run `tsc`, `prettier`, `cargo fmt`, `cargo check`, or
+`cargo clippy` directly.
 
 ## 1. Project Overview
 
@@ -20,8 +21,8 @@ task list that tracks what's built vs. planned.
   use: `tauri-plugin-opener`.
 - **Toolchain:** [Deno](https://deno.land/) runs scripts (`deno task tauri dev`,
   `deno task build`) that delegate to `package.json`. The Deno-native tasks —
-  `format`, `check`, `test` — live in `deno.json`; each is split into a `:ts`
-  and `:rs` half (e.g. `format:ts` runs `deno fmt`, `format:rs` runs
+  `format`, `check`, `lint`, `test` — live in `deno.json`; each is split into a
+  `:ts` and `:rs` half (e.g. `format:ts` runs `deno fmt`, `format:rs` runs
   `cargo fmt`) and the bare task runs both halves in sequence.
 - **Bundler:** Vite. `vite.config.ts` sets `assetsInlineLimit: 0` — required so
   Excalibur can load image assets in production builds. HMR on port 1421 when
@@ -31,8 +32,8 @@ task list that tracks what's built vs. planned.
   PNG-dimensions-vs-catalog cross-check) and the Rust game-rule tests via cargo.
   `deno task test:ts` / `deno task test:rs` run one half alone;
   `python3 -m unittest discover -s tools` covers the art-pipeline converter. CI
-  (`.github/workflows/ci.yml`) runs format/check/test/cargo checks on push and
-  PR (the frontend job runs `test:ts`; the rust job runs cargo test itself).
+  (`.github/workflows/ci.yml`) runs format/check/lint/test/cargo checks on push
+  and PR (the frontend job runs `test:ts`; the rust job runs cargo test itself).
   Logic that should be unit-tested lives in pure modules with no runtime
   Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
   `src/game-state.ts`, `src/camera-math.ts`, `src/minimap-math.ts`,

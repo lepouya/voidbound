@@ -645,7 +645,7 @@ fn room_origin_at(col: i64, row: i64) -> Option<(i64, i64)> {
     let axis = |v: i64| {
         let rel = v - ROOM_ORIGIN;
         let idx = rel.div_euclid(ROOM_PITCH);
-        if idx < 0 || idx >= ROOM_COUNT || rel.rem_euclid(ROOM_PITCH) >= ROOM_SPAN {
+        if !(0..ROOM_COUNT).contains(&idx) || rel.rem_euclid(ROOM_PITCH) >= ROOM_SPAN {
             return None;
         }
         Some(ROOM_ORIGIN + idx * ROOM_PITCH)
@@ -1998,10 +1998,8 @@ impl ServerState {
         let mothership_id = ship.mothership_id.clone();
         let event = self.outbound_leg(
             mothership_id,
-            src_col as f64,
-            src_row as f64,
-            dest_col,
-            dest_row,
+            (src_col as f64, src_row as f64),
+            (dest_col, dest_row),
             now_ms,
             None,
         );
@@ -2051,10 +2049,8 @@ impl ServerState {
         let remaining = asteroid.remaining;
         let event = self.outbound_leg(
             ship.mothership_id.clone(),
-            src_col as f64,
-            src_row as f64,
-            dest_col,
-            dest_row,
+            (src_col as f64, src_row as f64),
+            (dest_col, dest_row),
             now_ms,
             Some(asteroid_id.to_string()),
         );
@@ -2240,13 +2236,13 @@ impl ServerState {
     fn outbound_leg(
         &mut self,
         mothership_id: String,
-        src_col: f64,
-        src_row: f64,
-        dest_col: i64,
-        dest_row: i64,
+        src: (f64, f64),
+        dest: (i64, i64),
         now_ms: u64,
         mining_asteroid_id: Option<String>,
     ) -> VesselMoveEventData {
+        let (src_col, src_row) = src;
+        let (dest_col, dest_row) = dest;
         self.next_vessel_seq += 1;
         let player = player_identity();
         VesselMoveEventData {
@@ -2689,7 +2685,7 @@ impl ServerState {
             .into_iter()
             .filter(|e| {
                 e.footprint
-                    .map_or(true, |(col, row, span)| aoi.intersects(col, row, span))
+                    .is_none_or(|(col, row, span)| aoi.intersects(col, row, span))
             })
             .map(|e| e.push)
             .collect();

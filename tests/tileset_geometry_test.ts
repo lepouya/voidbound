@@ -4,8 +4,8 @@
 // once caused a module-* mis-slicing bug (catalog rows out of step with the
 // regenerated PNG dimensions).
 
-import { assert, assertEquals } from "jsr:@std/assert@1";
-import { fromFileUrl } from "jsr:@std/path@1";
+import { assert, assertEquals } from "@std/assert";
+import { fromFileUrl } from "@std/path";
 
 import {
   AUTO_TILESET_RULES,
