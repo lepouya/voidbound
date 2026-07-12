@@ -91,10 +91,12 @@ here with a pointer to the task ID.
       client constants into a pure module (with a TS mirror of `AOI_SPAN`) and
       add a test asserting the inequality — the same drift-catcher class as the
       tileset-geometry test.
-- [ ] **CR2.3 [fix] `src/event-id.ts` is dead code.** `newEventId()` has zero
+- [x] **CR2.3 [fix] `src/event-id.ts` is dead code.** `newEventId()` has zero
       consumers since every action became server-verified. Either delete it (and
       the "purely local actions" branch in `/add-game-event`) or keep it as a
-      consciously documented escape hatch.
+      consciously documented escape hatch. Kept: doc comment in `event-id.ts`
+      and the `/add-game-event` skill now state explicitly that it's an
+      intentional escape hatch, not dead code to clean up.
 - [ ] **CR2.4 [hardening] `Date.now()` call sites are the future P3.2 sweep.**
       `applyVesselMoveEvent`, the minimap's `vesselWorldPos`, and the countdown
       labels all read the local clock — correct in-process, wrong once the

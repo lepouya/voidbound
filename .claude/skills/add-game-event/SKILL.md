@@ -38,8 +38,9 @@ gets a `#[cfg(test)]` unit test. Canonical examples: `ModuleData` /
 pattern — CLAUDE.md § Multiplayer-ready event pattern) and `VesselMoveEvent` /
 `request_dispatch_vessel` / `request_recall_vessel`. Constructing the event
 locally (with `newEventId()` from `src/event-id.ts`) remains valid only for
-actions with nothing to verify — note no current action does this; every shipped
-action is server-verified.
+actions with nothing to verify. No current action does this — every shipped
+action is server-verified — but `newEventId()` is kept intentionally as the
+escape hatch for the day one does; it is not dead code to remove.
 
 **Events that must survive scene switches or late joins** should also ride the
 `load_game_state` snapshot: the backend records them in `ServerState`, the
