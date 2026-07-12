@@ -120,14 +120,13 @@ here with a pointer to the task ID.
       `applyVesselMoveEvent`, the minimap's `vesselWorldPos`, and the countdown
       labels all read the local clock — correct in-process, wrong once the
       server is remote. Largely resolved by CR4.3 (single lerp module = single
-      `serverNow()` seam); otherwise keep the list. Done: added
-      `serverNow()` to `src/game-state.ts` (returns `Date.now()` today, doc
-      comment points at SERVER.md § Time and P3.2) and routed all five call
-      sites — `MapLevel.syncVessels`/`applyVesselMoveEvent`, the minimap's
-      `vesselWorldPos` caller, and `ShipLevel.createModuleActor`/
-      `onPostUpdate` — through it, so P3.2's clock-offset handshake only has
-      to change one function. CR4.3's fuller vessel-math dedup remains open
-      separately.
+      `serverNow()` seam); otherwise keep the list. Done: added `serverNow()` to
+      `src/game-state.ts` (returns `Date.now()` today, doc comment points at
+      SERVER.md § Time and P3.2) and routed all five call sites —
+      `MapLevel.syncVessels`/`applyVesselMoveEvent`, the minimap's
+      `vesselWorldPos` caller, and `ShipLevel.createModuleActor`/ `onPostUpdate`
+      — through it, so P3.2's clock-offset handshake only has to change one
+      function. CR4.3's fuller vessel-math dedup remains open separately.
 
 ## 3. Tools / art pipeline
 
@@ -180,8 +179,12 @@ here with a pointer to the task ID.
       `deal_refreshes_used`/credits untouched.
 - [x] **CR5.2** Rust: arrival-notification timestamp assertion (with CR1.2).
 - [x] **CR5.3** Rust/TS: AOI invariant test (with CR2.2).
-- [ ] **CR5.4** TS: confirm `hud-layout`'s `center` direction has coverage; add
-      if not.
+- [x] **CR5.4** TS: confirm `hud-layout`'s `center` direction has coverage; add
+      if not. Done: `center` was already covered on both axes (`middle-left`
+      vertical, `top-center` horizontal), but the `offset` parameter was never
+      exercised for the `center` direction — added
+      `'center' offset shifts the symmetric group along the axis` to
+      `tests/hud_layout_test.ts`.
 - [x] **CR5.5** Rust: `load_game_state`-ordering test (with CR1.1). Done:
       already covered by
       `snapshot_reflects_a_deposit_settled_within_the_same_call` (added

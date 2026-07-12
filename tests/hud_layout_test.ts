@@ -115,6 +115,23 @@ Deno.test("'center' on a top anchor spreads horizontally", () => {
   assertEquals(centers[0].y, 24);
 });
 
+Deno.test("'center' offset shifts the symmetric group along the axis", () => {
+  const base = layoutButtonCenters(
+    { anchor: "middle-left", direction: "center" },
+    [{ w: 32, h: 32 }, { w: 32, h: 32 }],
+    W,
+    H,
+  );
+  const shifted = layoutButtonCenters(
+    { anchor: "middle-left", direction: "center", offset: 40 },
+    [{ w: 32, h: 32 }, { w: 32, h: 32 }],
+    W,
+    H,
+  );
+  assertEquals(shifted[0].y, base[0].y + 40);
+  assertEquals(shifted[1].y, base[1].y + 40);
+});
+
 Deno.test("offset shifts the whole group along the stacking axis", () => {
   const base = layoutButtonCenters(
     { anchor: "top-right" },
