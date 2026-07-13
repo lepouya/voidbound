@@ -48,8 +48,10 @@ const MODULE_ART_TYPE = "base";
 
 /** Wire shape of the `request_build_module` / `request_levelup_module` Tauri
  *  commands' result. Mirrors the Rust `ModuleActionResponse` in
- *  src-tauri/src/game_state/modules.rs — keep in sync. */
-interface ModuleActionResponse {
+ *  src-tauri/src/game_state/modules.rs — keep in sync. Exported for the map
+ *  scene's own-mothership details panel, whose Upgrade action levels the
+ *  Command Module through the same command (ROADMAP P1.16). */
+export interface ModuleActionResponse {
   module: ModuleData;
   /** Authoritative counts after the cost was deducted. */
   resources: ResourceCounts;

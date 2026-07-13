@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 
-import { formatCompactCount } from "../src/ui/format.ts";
+import { formatCompactCount, formatDuration } from "../src/ui/format.ts";
 
 Deno.test("small counts render as plain floored integers", () => {
   assertEquals(formatCompactCount(0), "0");
@@ -44,4 +44,29 @@ Deno.test("a lower compactFrom compacts small thousands (bar count/cap)", () => 
   assertEquals(formatCompactCount(2_950, 1_000), "2.9k");
   // The threshold clamps at 1000, the smallest unit suffix.
   assertEquals(formatCompactCount(500, 0), "500");
+});
+
+Deno.test("durations under a minute render seconds only", () => {
+  assertEquals(formatDuration(0), "0s");
+  assertEquals(formatDuration(1_000), "1s");
+  assertEquals(formatDuration(59_000), "59s");
+});
+
+Deno.test("sub-second remainders round up, never down to a premature 0s", () => {
+  assertEquals(formatDuration(1), "1s");
+  assertEquals(formatDuration(59_001), "1m");
+  assertEquals(formatDuration(-5_000), "0s");
+});
+
+Deno.test("durations under an hour render minutes and seconds", () => {
+  assertEquals(formatDuration(60_000), "1m");
+  assertEquals(formatDuration(192_000), "3m 12s");
+  assertEquals(formatDuration(3_599_000), "59m 59s");
+});
+
+Deno.test("durations with hours drop the seconds", () => {
+  assertEquals(formatDuration(3_600_000), "1h");
+  assertEquals(formatDuration(7_500_000), "2h 5m");
+  assertEquals(formatDuration(7_500_999), "2h 5m");
+  assertEquals(formatDuration(43_200_000), "12h");
 });

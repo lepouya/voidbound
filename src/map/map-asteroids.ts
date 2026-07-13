@@ -35,11 +35,13 @@ function sameAsteroid(a: AsteroidData, b: AsteroidData): boolean {
 
 /** Scene services AsteroidSync needs — kept narrow so it doesn't reach back
  *  into MapLevel for anything beyond spawning actors, routing taps, clearing
- *  the selection when a mining dispatch is sent, and surfacing rejections. */
+ *  the selection when a mining dispatch is sent, opening the details panel,
+ *  and surfacing rejections. */
 export interface AsteroidSyncHost {
   add(actor: TileActor): void;
   onTilePressed(actor: TileActor): void;
   deselectActor(): void;
+  openDetails(asteroidId: string): void;
   showToast(toast: string | ToastDef): void;
 }
 
@@ -103,7 +105,7 @@ export class AsteroidSync {
         roundButton({
           icon: "details",
           label: "Details",
-          onPressed: () => console.log("Details asteroid", data),
+          onPressed: () => this.host.openDetails(data.asteroidId),
         }),
         roundButton({
           icon: "mine",

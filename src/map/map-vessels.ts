@@ -10,11 +10,13 @@ import { vesselWorldPos } from "./vessel-math.ts";
 
 /** Scene services VesselSync needs — kept narrow so it doesn't reach back
  *  into MapLevel for anything beyond spawning actors, routing taps, clearing
- *  the selection when a dispatch is sent, and surfacing rejections. */
+ *  the selection when a dispatch is sent, opening the details panel, and
+ *  surfacing rejections. */
 export interface VesselSyncHost {
   add(actor: TileActor): void;
   onTilePressed(actor: TileActor): void;
   deselectActor(): void;
+  openDetails(vesselId: string): void;
   showToast(toast: string | ToastDef): void;
 }
 
@@ -125,7 +127,7 @@ export class VesselSync {
         roundButton({
           icon: "details",
           label: "Details",
-          onPressed: () => console.log("Details vessel", event.vesselId),
+          onPressed: () => this.host.openDetails(event.vesselId),
         }),
         roundButton({
           icon: "back",

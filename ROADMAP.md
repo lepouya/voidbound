@@ -59,8 +59,8 @@ Goal: a playable single-player loop, no persistence yet. Core loop done (P1.7
 moved to Phase 2 as P2.7): the loop runs end to end — build and level modules,
 hire crew, mine asteroids, trade at the NPC shop — all server-verified, streamed
 over the push channel, and windowed by interest area. Implementation detail:
-CLAUDE.md §4 and SERVER.md. P1.15 is a post-review polish addition (CR6.1). A
-full `/phase-review` followed the phase close (July 2026): 30 findings
+CLAUDE.md §4 and SERVER.md. P1.15/P1.16 are post-review polish additions (CR6.1,
+CR6.2). A full `/phase-review` followed the phase close (July 2026): 30 findings
 (CR1.1–CR9.7), all landed over commits `f18db73..e394ed1` — the full review
 document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
 
@@ -138,22 +138,14 @@ document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
       grown past CR6.1's five) now surfaces an error toast. Background request
       rejections (`request_map_window`, `mark_notifications_read`) stay
       console-only deliberately. (CR6.1)
-- [ ] **P1.16 — Entity details panel.** Wire the four
-      `console.log("Details
-      ...")` stubs (own mothership, enemy
-      mothership, vessel, asteroid — all in `map-level.ts`) to a real details
-      dialog, following the `/add-server-panel` dialog pattern against data
-      already in `gameState`. The own-mothership panel folds in the separate
-      `console.log("Upgrade my
-      spaceship")` stub as a Command-Module-level
-      readout + upgrade action rather than a standalone button. Bundled cleanup:
-      wire the own-mothership "Enter" button to `goToScene("ship")` (today a
-      stub duplicating the already-working HUD "Ship" button); remove the dead
-      empty-tile "Move" stub button (`Deploy` already dispatches a vessel to
-      that tile — "Move" duplicated it with no distinct behavior); rename the
-      own-mothership "Move" button's label to "Warp" to stop it colliding
-      terminology-wise with vessel Move/Deploy (implementation lands with P4.7).
-      (CR6.2)
+- [x] **P1.16 — Entity details panel.** The four map "Details" stubs (own/enemy
+      mothership, vessel, asteroid) now open modal panels rendered from live
+      `gameState` with once-a-second countdown re-renders
+      (`src/map/map-details.ts`); the own-ship panel folds in the Command Module
+      readout + Upgrade action. Cleanup: own-ship "Enter" enters the ship scene,
+      the dead empty-tile "Move" stub is gone, and the own-ship "Move" button is
+      renamed "Warp" (relocation itself → P4.7). Still open: the enemy-ship
+      Message and Attack buttons stay stubs (→ P3.5 / P5.5). (CR6.2)
 
 ## Phase 2 — Persistence and balancing
 
@@ -381,5 +373,6 @@ specific task. We should eventually sort these and expand them properly.
 - Clicking on modules, dialogs, details.
 - Only one of each type of building.
 - Mail (+ notifications tab) vs events (game events to participate in).
-- Enter and upgrade buttons on ship in map view.
+- When a new notification arrives, we should show a quick toast of what
+  happened.
 - Mothership teleport/move.

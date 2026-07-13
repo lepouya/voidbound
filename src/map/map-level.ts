@@ -7,6 +7,7 @@ import { tileViewCapZoom } from "../scene/camera-math.ts";
 import { gameState, MapWindowData } from "../state/game-state.ts";
 import { fetchGridGeometry } from "../scene/map-loader.ts";
 import { AsteroidSync } from "./map-asteroids.ts";
+import { DetailsDialog } from "./map-details.ts";
 import { MothershipSync } from "./map-motherships.ts";
 import { VesselSync } from "./map-vessels.ts";
 import { spawnMinimap } from "./minimap.ts";
@@ -15,6 +16,12 @@ import { SceneMap, TiledScene } from "../scene/tiled-scene.ts";
 import { roundButton, squareButton } from "../ui/index.ts";
 
 export class MapLevel extends TiledScene {
+  /** Owns the entity details panels (ROADMAP P1.16) every Details button
+   *  opens, plus the own-ship Command Module upgrade action. */
+  private details = new DetailsDialog({
+    openDialog: (def) => this.openDialog(def),
+    showToast: (toast) => this.showToast(toast),
+  });
   /** Reconciles mothership actors against gameState.motherships and tracks
    *  the local player's own ship (this.mothershipSync.ownShip) for camera
    *  and vessel-dock math. */
@@ -22,6 +29,8 @@ export class MapLevel extends TiledScene {
     add: (actor) => this.add(actor),
     onTilePressed: this.handleTilePressed,
     edgeFallthrough: () => this.supportsEmptyTileActor(),
+    openDetails: (id) => this.details.openMothership(id),
+    enterShip: () => this.engine.goToScene("ship"),
   });
   /** Reconciles asteroid actors against gameState.asteroids and owns the
    *  Mine action (ROADMAP P1.6). */
@@ -29,6 +38,7 @@ export class MapLevel extends TiledScene {
     add: (actor) => this.add(actor),
     onTilePressed: this.handleTilePressed,
     deselectActor: () => this.deselectActor(),
+    openDetails: (id) => this.details.openAsteroid(id),
     showToast: (toast) => this.showToast(toast),
   });
   /** Reconciles vessel actors against gameState.vessels and owns the
@@ -37,6 +47,7 @@ export class MapLevel extends TiledScene {
     add: (actor) => this.add(actor),
     onTilePressed: this.handleTilePressed,
     deselectActor: () => this.deselectActor(),
+    openDetails: (id) => this.details.openVessel(id),
     showToast: (toast) => this.showToast(toast),
   });
 
@@ -157,6 +168,12 @@ export class MapLevel extends TiledScene {
     void this.requestMapWindow(col, row);
   }
 
+  override onPostUpdate(): void {
+    // Details-panel countdowns (ROADMAP P1.16), same shape as
+    // ModuleSync.tick in ShipLevel: re-renders at most once a second.
+    this.details.tick();
+  }
+
   /**
    * Asks the backend to re-center the interest-area window on the given tile
    * and replaces the world tables with the response (ROADMAP P1.13) — the
@@ -217,12 +234,9 @@ export class MapLevel extends TiledScene {
       col,
       row,
       onPressed,
+      // Deploy only: the old "Move" stub duplicated it with no distinct
+      // behavior (ROADMAP P1.16 cleanup).
       buttons: [
-        roundButton({
-          icon: "warp",
-          label: "Move",
-          onPressed: () => console.log("Move empty tile"),
-        }),
         roundButton({
           icon: "deploy",
           label: "Deploy",

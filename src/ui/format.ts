@@ -32,3 +32,22 @@ export function formatCompactCount(
   }
   return String(floored);
 }
+
+/**
+ * Formats a millisecond duration for countdowns and estimates ("42s",
+ * "3m 12s", "2h 5m"): the two largest nonzero units, with seconds dropped
+ * once hours appear. Sub-second remainders round *up* — a countdown should
+ * show "1s", not flash "0s" while time is still left — and anything at or
+ * below zero is "0s".
+ */
+export function formatDuration(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  return `${seconds}s`;
+}

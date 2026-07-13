@@ -19,11 +19,14 @@ function sameMothership(a: MothershipData, b: MothershipData): boolean {
 }
 
 /** Scene services MothershipSync needs — kept narrow so it doesn't reach back
- *  into MapLevel for anything beyond spawning actors and routing taps. */
+ *  into MapLevel for anything beyond spawning actors, routing taps, opening
+ *  the details panel, and switching to the ship interior. */
 export interface MothershipSyncHost {
   add(actor: TileActor): void;
   onTilePressed(actor: TileActor): void;
   edgeFallthrough(): boolean;
+  openDetails(mothershipId: string): void;
+  enterShip(): void;
 }
 
 /**
@@ -94,32 +97,32 @@ export class MothershipSync {
       edgeFallthrough: this.host.edgeFallthrough(),
       buttons: own
         ? [
+          // No standalone Upgrade button: upgrading the ship is leveling
+          // its Command Module, which lives in the details panel's readout
+          // row (ROADMAP P1.16).
           roundButton({
             icon: "details",
             label: "Details",
-            onPressed: () => console.log("Details my spaceship"),
+            onPressed: () => this.host.openDetails(data.mothershipId),
           }),
           roundButton({
             icon: "enter",
             label: "Enter",
-            onPressed: () => console.log("Enter my spaceship"),
-          }),
-          roundButton({
-            icon: "upgrade",
-            label: "Upgrade",
-            onPressed: () => console.log("Upgrade my spaceship"),
+            onPressed: () => this.host.enterShip(),
           }),
           roundButton({
             icon: "warp",
-            label: "Move",
-            onPressed: () => console.log("Move my spaceship"),
+            // "Warp" (not "Move") so it can't be confused with vessel
+            // Move/Deploy; the relocation itself lands with P4.7.
+            label: "Warp",
+            onPressed: () => console.log("Warp my spaceship"),
           }),
         ]
         : [
           roundButton({
             icon: "details",
             label: "Details",
-            onPressed: () => console.log("Details enemy spaceship"),
+            onPressed: () => this.host.openDetails(data.mothershipId),
           }),
           roundButton({
             icon: "message",
