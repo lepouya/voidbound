@@ -32,14 +32,10 @@ If the argument `$ARGUMENTS` is a script short-name (e.g. `cs1`), run
 
 ## Python tools (in `tools/`)
 
-All require Pillow. If a script fails with
-`ModuleNotFoundError: No module named 'PIL'`, the `python3` on PATH lacks Pillow
-— rather than installing into a system Python, prepend the bin directory of a
-Pillow-equipped Python install for the one command:
-
-```bash
-PATH="/path/to/pillow-python/bin:$PATH" art/gen_ui.sh
-```
+All require Pillow. System default is Homebrew's `python@3.14`
+(`/opt/homebrew/bin/python3`), with Pillow installed via `brew install pillow` —
+no venv or PATH workaround needed. If a script fails with
+`ModuleNotFoundError: No module named 'PIL'`, run `brew install pillow`.
 
 Scripts are called from `art/gen_*.sh` — you usually don't invoke them directly
 except when writing a new generator.

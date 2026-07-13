@@ -63,11 +63,7 @@ if [ "$id_only" = 1 ]; then
     exit 0
 fi
 
-# Pillow lives in the python.org 3.12 install on this machine, not Homebrew.
 py=python3
-if ! "$py" -c "import PIL" 2>/dev/null; then
-    py=/Library/Frameworks/Python.framework/Versions/3.12/bin/python3
-fi
 
 capture_one() {
     local file="$1"

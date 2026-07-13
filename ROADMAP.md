@@ -367,14 +367,10 @@ IDs; work these opportunistically alongside roadmap tasks.
 
 ## Codebase housekeeping
 
-- [ ] Bump default Python to 3.14 (see the `/gen-art` PATH workaround for the
-      current 3.12 pin). Might need to pip install some of the needed packages.
-      There is a bunch of places and scripts that seem to rely on us running py
-      3.12, and we want to fix these to run on current system default of 3.14
-- [ ] Reorganization of ts source code: A lot of files on top level, might be
-      better to put them in subdirectories of relevant modules together.
-- [ ] `/verify` skill should just use the sonnet/default model instead of
-      current, specially when we are using a heavy-weight like Fable.
+- Reorganization of ts source code: A lot of files on top level, might be better
+  to put them in subdirectories of relevant modules together.
+- `/verify` skill should just use the sonnet/default model instead of current,
+  specially when we are using a heavy-weight like Fable.
 
 ## Gameplay/UX polish
 
