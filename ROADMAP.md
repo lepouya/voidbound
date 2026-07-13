@@ -390,8 +390,8 @@ IDs; work these opportunistically alongside roadmap tasks.
       Move/Deploy buttons); full format/check/lint/test gate passes.
 - [x] **Split `src/ship-level.ts` and `src/map-level.ts` together** (~790 / ~590
       lines) — done: one class per synced entity type/system, each owning its
-      actor map(s), rebuild-diff state, and action requests, constructed with
-      a narrow host-callback interface (add/onTilePressed/deselectActor/etc.,
+      actor map(s), rebuild-diff state, and action requests, constructed with a
+      narrow host-callback interface (add/onTilePressed/deselectActor/etc.,
       mirroring the tiled-scene.ts split's SceneCamera/SceneInputController
       pattern) so it never reaches back into the scene directly. Ship:
       `src/ship-modules.ts` (`ModuleSync` — module reconcile, build/level-up/
@@ -400,23 +400,27 @@ IDs; work these opportunistically alongside roadmap tasks.
       `src/map-motherships.ts` (`MothershipSync`), `src/map-asteroids.ts`
       (`AsteroidSync` — also owns Mine, since it dispatches a vessel from the
       asteroid's own button), `src/map-vessels.ts` (`VesselSync` — dispatch/
-      recall/redirect-in-place lerp); `map-level.ts` is now ~230 lines of
-      wiring (AOI window hysteresis, minimap spawn, empty-tile hook). The
-      shared "kill absentees, diff, rebuild changed" skeleton behind
-      motherships/asteroids moved out of `TiledScene.reconcileActors` into a
-      standalone `src/actor-sync.ts` (`reconcileActors`), since it no longer
-      needed scene access beyond an `add` callback — vessels and modules keep
-      their own loops (real quirks: redirect-in-place lerp + arrival-based
-      respawn skip; multiple side-derived applied maps + selection
-      carry-over). No behavior change — verified on both scenes (`/verify`:
-      ship Command Module selection showing Hire Crew/Level Up with live
-      costs, an empty-room build-offer ghost; map mothership/enemy/asteroid
-      rendering, a dispatched vessel flying and arriving, the minimap); full
-      format/check/lint/test gate passes.
-- [ ] **Split `src/game-state.ts`** (~770 lines) — mostly type definitions;
-      lower urgency, could hive the interfaces off into `game-state-types.ts` if
-      the file starts getting in the way, leaving the `GameState` class on its
-      own.
+      recall/redirect-in-place lerp); `map-level.ts` is now ~230 lines of wiring
+      (AOI window hysteresis, minimap spawn, empty-tile hook). The shared "kill
+      absentees, diff, rebuild changed" skeleton behind motherships/asteroids
+      moved out of `TiledScene.reconcileActors` into a standalone
+      `src/actor-sync.ts` (`reconcileActors`), since it no longer needed scene
+      access beyond an `add` callback — vessels and modules keep their own loops
+      (real quirks: redirect-in-place lerp + arrival-based respawn skip;
+      multiple side-derived applied maps + selection carry-over). No behavior
+      change — verified on both scenes (`/verify`: ship Command Module selection
+      showing Hire Crew/Level Up with live costs, an empty-room build-offer
+      ghost; map mothership/enemy/asteroid rendering, a dispatched vessel flying
+      and arriving, the minimap); full format/check/lint/test gate passes.
+- [x] **Split `src/game-state.ts`** (~770 lines) — done: every wire-shape
+      type/interface (mirroring the Rust structs/enums) moved to
+      `src/game-state-types.ts` (~415 lines, pure module, no runtime imports),
+      re-exported via `export *` from `game-state.ts`, which now holds only
+      `serverNow()`, the `GameState` class, and the shared singleton (~385
+      lines). No behavior change — all existing imports from `./game-state.ts`
+      keep working unchanged (matches the `tile-ref.ts`/`tile-ref-parse.ts`
+      pure-types-plus-consumer pattern); full format/check/lint/test gate passes
+      (all 101 TS + 69 Rust tests untouched).
 - [ ] **Split `src/tile-actor.ts`** (~550 lines) — worth a look eventually, not
       urgent yet. Independent of the other items here.
 - [ ] **Split `src/ui/dialog.ts`** (~470 lines) — worth a look eventually, not

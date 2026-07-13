@@ -36,11 +36,12 @@ task list that tracks what's built vs. planned.
   and PR (the frontend job runs `test:ts`; the rust job runs cargo test itself).
   Logic that should be unit-tested lives in pure modules with no runtime
   Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
-  `src/game-state.ts`, `src/camera-math.ts`, `src/minimap-math.ts`,
-  `src/vessel-math.ts`, `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`,
-  `src/ui/dialog-layout.ts`, `src/ui/format.ts`) — Excalibur cannot load under
-  Deno, so keep new testable logic in that shape. There is no runtime/scene
-  coverage — the running app is still the safety net there.
+  `src/game-state.ts`, `src/game-state-types.ts`, `src/camera-math.ts`,
+  `src/minimap-math.ts`, `src/vessel-math.ts`, `src/ui/tile-ref-parse.ts`,
+  `src/ui/hud-layout.ts`, `src/ui/dialog-layout.ts`, `src/ui/format.ts`) —
+  Excalibur cannot load under Deno, so keep new testable logic in that shape.
+  There is no runtime/scene coverage — the running app is still the safety net
+  there.
 
 ## 2. Project Layout
 
