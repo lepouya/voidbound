@@ -131,13 +131,13 @@ document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
       rerendering (the P1.12 shop is the reference consumer). Still open: no
       scrolling — the content region is a distinct sub-rect a scrollable list
       can drop into (→ P6.3).
-- [ ] **P1.15 — Toast/snackbar notifications.** A general-purpose transient
-      on-screen message primitive (new `src/ui/toast.ts`, following the
-      `dialog.ts`/`hud.ts` pattern) — first consumer is player-visible feedback
-      for rejected server requests (five
-      `console.warn("No rejection UI
-      yet")` call sites today), but general
-      enough for other future transient messages. (CR6.1)
+- [x] **P1.15 — Toast/snackbar notifications.** General transient-message
+      primitive (`src/ui/toast.ts` + `TiledScene.showToast()`): auto-fading
+      bottom-center snackbar stack, info/error kinds, rendered above the modal
+      layer; every rejected player-action request (8 call sites — the count had
+      grown past CR6.1's five) now surfaces an error toast. Background request
+      rejections (`request_map_window`, `mark_notifications_read`) stay
+      console-only deliberately. (CR6.1)
 - [ ] **P1.16 — Entity details panel.** Wire the four
       `console.log("Details
       ...")` stubs (own mothership, enemy
@@ -367,21 +367,19 @@ of these might become actual phase tasks, whereas some might roll in to other
 tasks and some others are small todo items to finish+remove without needing a
 specific task. We should eventually sort these and expand them properly.
 
-## Gameplay/UX polish
-
-- Resource bar improvement.
-- Minimap sucks.
-- Clicking on modules, dialogs, details.
 - Shop should be a row of 3 buttons with borders showing rarity.
-- Only one of each type of building.
-- Resource harvesting progress.
-- Mail (+ notifications tab) vs events (game events to participate in).
-- Enter and upgrade buttons on ship in map view.
-- Mothership teleport/move.
-- Clicking outside of dialog should dismiss it.
 - Rename "gift" -> "free" in the trading post
+- Clicking outside of a dialog should dismiss it.
+- Resource harvesting progress.
 - Recalling a vessel that was mining didn't actually add the resources to the
   game after it arrived.
 - Dev testing speedup: Like maybe 2x or even 5x on construction and resource
   collection while I'm running a test. That way I can test out the mechanics
   quickly without waiting for too long
+- Resource bar improvement.
+- Minimap sucks.
+- Clicking on modules, dialogs, details.
+- Only one of each type of building.
+- Mail (+ notifications tab) vs events (game events to participate in).
+- Enter and upgrade buttons on ship in map view.
+- Mothership teleport/move.

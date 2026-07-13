@@ -11,7 +11,12 @@ import {
 } from "../state/game-state.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
 import { TileActor } from "../scene/tile-actor.ts";
-import { formatCompactCount, roundButton } from "../ui/index.ts";
+import {
+  errorToast,
+  formatCompactCount,
+  roundButton,
+  ToastDef,
+} from "../ui/index.ts";
 
 /** True when two snapshots describe an identical asteroid — placement, class,
  *  deposit, and mining slot — so the reconciler can skip rebuilding its
@@ -29,12 +34,13 @@ function sameAsteroid(a: AsteroidData, b: AsteroidData): boolean {
 }
 
 /** Scene services AsteroidSync needs — kept narrow so it doesn't reach back
- *  into MapLevel for anything beyond spawning actors, routing taps, and
- *  clearing the selection when a mining dispatch is sent. */
+ *  into MapLevel for anything beyond spawning actors, routing taps, clearing
+ *  the selection when a mining dispatch is sent, and surfacing rejections. */
 export interface AsteroidSyncHost {
   add(actor: TileActor): void;
   onTilePressed(actor: TileActor): void;
   deselectActor(): void;
+  showToast(toast: string | ToastDef): void;
 }
 
 /**
@@ -125,9 +131,10 @@ export class AsteroidSync {
       });
       gameState.applyVesselEvent(event);
     } catch (err) {
-      // No rejection UI yet — the Mine button is disabled while the slot is
-      // taken, so this is a race (or a bug). Log it; state stays untouched.
+      // The Mine button is disabled while the slot is taken, so this is a
+      // race (or a bug). Surface it; state stays untouched.
       console.warn("request_mine_asteroid rejected:", err);
+      this.host.showToast(errorToast(`Mine failed: ${err}`));
     }
   }
 }

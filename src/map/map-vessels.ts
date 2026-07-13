@@ -5,16 +5,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { gameState, serverNow, VesselMoveEvent } from "../state/game-state.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
 import { TileActor } from "../scene/tile-actor.ts";
-import { roundButton } from "../ui/index.ts";
+import { errorToast, roundButton, ToastDef } from "../ui/index.ts";
 import { vesselWorldPos } from "./vessel-math.ts";
 
 /** Scene services VesselSync needs — kept narrow so it doesn't reach back
- *  into MapLevel for anything beyond spawning actors, routing taps, and
- *  clearing the selection when a dispatch is sent. */
+ *  into MapLevel for anything beyond spawning actors, routing taps, clearing
+ *  the selection when a dispatch is sent, and surfacing rejections. */
 export interface VesselSyncHost {
   add(actor: TileActor): void;
   onTilePressed(actor: TileActor): void;
   deselectActor(): void;
+  showToast(toast: string | ToastDef): void;
 }
 
 /**
@@ -159,9 +160,10 @@ export class VesselSync {
       });
       gameState.applyVesselEvent(event);
     } catch (err) {
-      // No rejection UI yet — the Deploy button only appears on empty tiles,
-      // so this is a race (or a bug). Log it; state stays untouched.
+      // The Deploy button only appears on empty tiles, so this is a race
+      // (e.g. the fleet limit) or a bug. Surface it; state stays untouched.
       console.warn("request_dispatch_vessel rejected:", err);
+      this.host.showToast(errorToast(`Deploy failed: ${err}`));
     }
   }
 
@@ -180,8 +182,10 @@ export class VesselSync {
       gameState.applyVesselEvent(event);
     } catch (err) {
       // Double-recalls are legal redirects, so a rejection here means the
-      // vessel is gone (already docked) or a bug. Log it; state is untouched.
+      // vessel is gone (already docked) or a bug. Surface it; state is
+      // untouched.
       console.warn("request_recall_vessel rejected:", err);
+      this.host.showToast(errorToast(`Return failed: ${err}`));
     }
   }
 }

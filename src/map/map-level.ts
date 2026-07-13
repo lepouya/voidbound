@@ -29,6 +29,7 @@ export class MapLevel extends TiledScene {
     add: (actor) => this.add(actor),
     onTilePressed: this.handleTilePressed,
     deselectActor: () => this.deselectActor(),
+    showToast: (toast) => this.showToast(toast),
   });
   /** Reconciles vessel actors against gameState.vessels and owns the
    *  dispatch/recall actions. */
@@ -36,6 +37,7 @@ export class MapLevel extends TiledScene {
     add: (actor) => this.add(actor),
     onTilePressed: this.handleTilePressed,
     deselectActor: () => this.deselectActor(),
+    showToast: (toast) => this.showToast(toast),
   });
 
   override onInitialize(engine: ex.Engine): void {

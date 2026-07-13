@@ -69,6 +69,24 @@ Deno.test("bottom-right stacking up (the scene-switch/Mail/Items group)", () => 
   ]);
 });
 
+Deno.test("bottom-center stacking up (the toast stack, ui/toast.ts)", () => {
+  // Toast pills vary in size with their message; layoutToastCenters feeds
+  // them through this shape with its constants (padding 88, gap 6).
+  const centers = layoutButtonCenters(
+    { anchor: "bottom-center", direction: "up", padding: 88, gap: 6 },
+    [{ w: 200, h: 24 }, { w: 120, h: 40 }],
+    W,
+    H,
+  );
+  // Both pills center on the screen midline regardless of width; the first
+  // (newest) sits flush above the padding line (844 - 88 = 756), the older
+  // one stacks 6 px above it.
+  assertEquals(centers, [
+    { x: W / 2, y: 756 - 12 },
+    { x: W / 2, y: 756 - 24 - 6 - 20 },
+  ]);
+});
+
 Deno.test("explicit 'right' from top-left grows rightward", () => {
   const centers = layoutButtonCenters(
     { anchor: "top-left", direction: "right" },

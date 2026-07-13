@@ -177,8 +177,10 @@ HUD elements render above the world at `HUD_BASE_Z = 10_000` (see
 [src/ui/hud.ts](src/ui/hud.ts)). HUD groups can pass `zOffset` to stack relative
 to that base. Modal dialogs render above the HUD at `MODAL_BASE_Z = 20_000` (see
 [src/ui/dialog.ts](src/ui/dialog.ts)) — the scrim sits at the base and the panel
-content rides above it as its children. World-space actors use Excalibur
-defaults; don't set `z` unless you have a specific layering need.
+content rides above it as its children. Toasts render above dialogs at
+`TOAST_BASE_Z = 30_000` (see [src/ui/toast.ts](src/ui/toast.ts)). World-space
+actors use Excalibur defaults; don't set `z` unless you have a specific layering
+need.
 
 ### Asset pipeline
 
@@ -222,12 +224,15 @@ Useful protected members: `grid`, `tilemap` (null in geometry-only scenes),
 widget (e.g. the minimap) into HUD tap dispatch and resize relayout —
 `addHudGroup(def)`, `addCommonHud(switchButton)` — spawns the standard
 Shop/Events + Mail/Items HUD around the given scene-switch button; prefer it
-over redefining those groups per scene — and `openDialog(def)` / `closeDialog()`
-— the modal layer (ROADMAP P1.14): one dialog at a time, all pointer input
+over redefining those groups per scene — `openDialog(def)` / `closeDialog()` —
+the modal layer (ROADMAP P1.14): one dialog at a time, all pointer input
 captured while open (dialog buttons run the confirmed-tap logic; camera pan/zoom
-and everything underneath is blocked), closed automatically on scene switch.
-Call the HUD helpers and `openDialog` from `onInitialize` (or later) **after**
-`super.onInitialize(engine)`.
+and everything underneath is blocked), closed automatically on scene switch —
+and `showToast(toast)` — transient snackbar messages (ROADMAP P1.15): a
+bottom-center stack of auto-fading pills that never capture input, cleared on
+scene switch; pass a string for info or an `errorToast(message)` for rejections.
+Call the HUD helpers, `openDialog`, and `showToast` from `onInitialize` (or
+later) **after** `super.onInitialize(engine)`.
 
 **Adding a new scene:** use the `/add-scene` skill — it handles Rust map-arm
 wiring, `main.ts` registration, and HUD setup.
@@ -277,6 +282,14 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
 - `dialog-layout.ts` — pure dialog frame/row/cell math (`layoutDialogFrame`,
   `layoutCellRects`; no runtime imports; unit-tested). Not in the barrel —
   dialog.ts consumes it and re-exports its types
+- `toast.ts` — `ToastDef`, `ToastHandle`, `spawnToast`, `errorToast`,
+  `TOAST_BASE_Z` (ROADMAP P1.15). Transient snackbar pills stacked
+  bottom-center: auto-fading, never capture pointer input, render above the
+  modal layer (so dialog-launched rejections stay visible). Stack layout reuses
+  hud-layout's `layoutButtonCenters`. Don't call `spawnToast` from scenes — use
+  `TiledScene.showToast()`, which owns the stack. First consumer: error toasts
+  on every rejected player-action request (the background `request_map_window` /
+  `mark_notifications_read` rejections stay console-only deliberately)
 
 Pure grid math shared by scenes (dock tiles) lives outside `ui/` in
 [src/scene/grid-math.ts](src/scene/grid-math.ts).

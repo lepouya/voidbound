@@ -7,3 +7,4 @@ export * from "./hud.ts";
 export * from "./label.ts";
 export * from "./path-line.ts";
 export * from "./tile-ref.ts";
+export * from "./toast.ts";

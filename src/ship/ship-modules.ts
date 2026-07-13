@@ -28,7 +28,13 @@ import {
 } from "./module-catalog.ts";
 import { TileActor } from "../scene/tile-actor.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
-import { ButtonDef, roundButton, TileRef } from "../ui/index.ts";
+import {
+  ButtonDef,
+  errorToast,
+  roundButton,
+  TileRef,
+  ToastDef,
+} from "../ui/index.ts";
 
 /** Modules occupy the 4*4 center of their 6*6 room. */
 const MODULE_SPAN = 4;
@@ -119,7 +125,8 @@ const HIRE_BUTTON_INDEX = 0;
 
 /** Scene services ModuleSync needs — kept narrow so it doesn't reach back
  *  into ShipLevel for anything beyond spawning actors, routing taps,
- *  carrying selection across a rebuild, and opening the shop dialog. */
+ *  carrying selection across a rebuild, opening the shop dialog, and
+ *  surfacing rejections. */
 export interface ModuleSyncHost {
   add(actor: TileActor): void;
   onTilePressed(actor: TileActor): void;
@@ -128,6 +135,7 @@ export interface ModuleSyncHost {
   reselectActor(actor: TileActor): void;
   deselectActor(): void;
   openShop(): void;
+  showToast(toast: string | ToastDef): void;
 }
 
 /**
@@ -508,9 +516,10 @@ export class ModuleSync {
       gameState.syncResources(resources);
       gameState.applyModuleEvent(module);
     } catch (err) {
-      // No rejection UI yet — the Build button is disabled when unaffordable,
-      // so this is a race (or a bug). Log it; state stays untouched.
+      // The Build button is disabled when unaffordable, so this is a race
+      // (or a bug). Surface it; state stays untouched.
       console.warn("request_build_module rejected:", err);
+      this.host.showToast(errorToast(`Build failed: ${err}`));
     }
   }
 
@@ -535,6 +544,7 @@ export class ModuleSync {
       gameState.applyModuleEvent(module);
     } catch (err) {
       console.warn("request_levelup_module rejected:", err);
+      this.host.showToast(errorToast(`Level up failed: ${err}`));
     }
   }
 
@@ -557,6 +567,7 @@ export class ModuleSync {
       gameState.applyCrewEvent(crew);
     } catch (err) {
       console.warn("request_hire_crew rejected:", err);
+      this.host.showToast(errorToast(`Hire failed: ${err}`));
     }
   }
 

@@ -22,8 +22,10 @@ import {
   DialogDef,
   DialogHandle,
   DialogRowDef,
+  errorToast,
   formatCompactCount,
   squareButton,
+  ToastDef,
 } from "../ui/index.ts";
 
 /** Wire shape of the `request_accept_deal` / `request_refresh_deals` Tauri
@@ -38,9 +40,11 @@ interface DealActionResponse {
 /** Styling for the daily freebie's give cell — a gift, not a price. */
 const GIFT_LABEL_COLOR = ex.Color.fromHex("#ffcc4d");
 
-/** Scene services ShopDialog needs — just the modal slot. */
+/** Scene services ShopDialog needs — the modal slot, plus rejection
+ *  surfacing (toasts render above the open dialog). */
 export interface ShopDialogHost {
   openDialog(def: DialogDef): DialogHandle;
+  showToast(toast: string | ToastDef): void;
 }
 
 /**
@@ -189,6 +193,7 @@ export class ShopDialog {
       gameState.applyDealsEvent(deals);
     } catch (err) {
       console.warn("request_accept_deal rejected:", err);
+      this.host.showToast(errorToast(`Trade failed: ${err}`));
     }
   }
 
@@ -206,6 +211,7 @@ export class ShopDialog {
       gameState.applyDealsEvent(deals);
     } catch (err) {
       console.warn("request_refresh_deals rejected:", err);
+      this.host.showToast(errorToast(`Refresh failed: ${err}`));
     }
   }
 }

@@ -12,9 +12,14 @@ import {
   HudGroupHandle,
   HudPointerTarget,
   LabelDef,
+  layoutToastCenters,
+  MAX_ACTIVE_TOASTS,
   spawnDialog,
   spawnHudGroup,
+  spawnToast,
   squareButton,
+  ToastDef,
+  ToastHandle,
 } from "../ui/index.ts";
 import { TileGridGeometry } from "./grid-math.ts";
 import { SceneCamera } from "./scene-camera.ts";
@@ -86,6 +91,10 @@ export abstract class TiledScene extends ex.Scene {
    *  One dialog at a time; openDialog replaces any open one. */
   private modalDialog: { handle: DialogHandle; onClose?: () => void } | null =
     null;
+  /** Live toasts (ROADMAP P1.15), newest first — the order layoutToastCenters
+   *  expects (newest nearest the bottom edge). Toasts drop out on their own
+   *  expiry, the stack cap, or scene switch. */
+  private toasts: ToastHandle[] = [];
 
   /** The map's grid geometry, set once buildMap() resolves; accessible to
    *  setupActors() via this. Undefined before that (guard early
@@ -221,6 +230,7 @@ export abstract class TiledScene extends ex.Scene {
     this.isActive = false;
     this.unregisterInputHandlers();
     this.closeDialog();
+    this.clearToasts();
     this.deselectActor();
     this.inputController.reset();
   }
@@ -278,6 +288,7 @@ export abstract class TiledScene extends ex.Scene {
   private handleResize(): void {
     for (const handle of this.hudHandles) handle.relayout(this.engineRef);
     this.modalDialog?.handle.relayout(this.engineRef);
+    this.restackToasts();
     if (!this.mapReady) return;
     this.sceneCamera.recomputeViewBounds(this.engineRef);
     this.sceneCamera.clampCamera();
@@ -461,6 +472,52 @@ export abstract class TiledScene extends ex.Scene {
     this.add(root);
     this.modalDialog = { handle, onClose: def.onClose };
     return handle;
+  }
+
+  /**
+   * Show a transient toast/snackbar message (ROADMAP P1.15): a text pill at
+   * the bottom-center of the screen that fades out on its own. Repeated
+   * calls stack upward, newest nearest the edge, capped at MAX_ACTIVE_TOASTS
+   * (oldest drop off). Toasts never capture pointer input and render above
+   * any open dialog; switching scenes clears them. The plain-string form is
+   * an info toast — pass a ToastDef (e.g. via errorToast) for other kinds.
+   *
+   * Must be called after super.onInitialize(engine) so that this.engineRef
+   * is available.
+   */
+  protected showToast(toast: string | ToastDef): void {
+    const def = typeof toast === "string" ? { message: toast } : toast;
+    const { root, handle } = spawnToast(
+      this.engineRef,
+      def,
+      (expired) => this.dropToast(expired),
+    );
+    this.add(root);
+    this.toasts.unshift(handle);
+    while (this.toasts.length > MAX_ACTIVE_TOASTS) this.toasts.pop()?.remove();
+    this.restackToasts();
+  }
+
+  /** Natural-expiry path: forget the toast and close the stack gap. */
+  private dropToast(handle: ToastHandle): void {
+    const idx = this.toasts.indexOf(handle);
+    if (idx === -1) return; // already removed by the cap or a scene switch
+    this.toasts.splice(idx, 1);
+    this.restackToasts();
+  }
+
+  private restackToasts(): void {
+    const centers = layoutToastCenters(
+      this.toasts.map((t) => ({ w: t.width, h: t.height })),
+      this.engineRef.screen.resolution.width,
+      this.engineRef.screen.resolution.height,
+    );
+    this.toasts.forEach((t, i) => t.setCenter(centers[i].x, centers[i].y));
+  }
+
+  private clearToasts(): void {
+    for (const t of this.toasts) t.remove();
+    this.toasts = [];
   }
 
   /** Close the open modal dialog, if any (fires its onClose). */

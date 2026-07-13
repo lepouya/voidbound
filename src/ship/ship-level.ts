@@ -19,10 +19,12 @@ export class ShipLevel extends TiledScene {
     reselectActor: (actor) => this.reselectActor(actor),
     deselectActor: () => this.deselectActor(),
     openShop: () => this.shop.open(),
+    showToast: (toast) => this.showToast(toast),
   });
   /** Owns the Trading Post dialog and its accept/refresh actions. */
   private shop = new ShopDialog({
     openDialog: (def) => this.openDialog(def),
+    showToast: (toast) => this.showToast(toast),
   });
 
   override onInitialize(engine: ex.Engine): void {
