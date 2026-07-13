@@ -2,8 +2,8 @@ import { AsteroidData, MaterialResourceKind } from "./game-state.ts";
 
 /**
  * Asteroid tier catalog (ROADMAP P1.6) — display/UX mirror of the Rust
- * `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR` in src-tauri/src/game_state.rs —
- * keep the two in sync. The backend is what actually verifies mining and
+ * `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR` in src-tauri/src/game_state/world.rs
+ * — keep the two in sync. The backend is what actually verifies mining and
  * derives harvests; this module only lets the map scene name asteroids,
  * tint their placeholder sprites, and show deposit/duration estimates
  * without a round-trip.

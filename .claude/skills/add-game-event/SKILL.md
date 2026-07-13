@@ -28,8 +28,9 @@ action creates a future deadline):
 **Actions that touch resources or shared world state must be server-verified**
 (never trust the client with resource math or with facts other players will
 see): instead of constructing the event locally, the action method invokes a
-Tauri command that verifies the request against `ServerState` in
-`src-tauri/src/game_state.rs`, mutates state there, and returns the authorized
+Tauri command that verifies the request against `ServerState`
+(`src-tauri/src/game_state/state.rs`, mutated via the owning domain module —
+`modules.rs`, `world.rs`, `deals.rs`, `crew.rs`), and returns the authorized
 event (for resource-touching actions, plus updated `ResourceCounts`, applied via
 `gameState.syncResources`). Steps 1 and 2 are unchanged; the event interface
 gains a Rust mirror struct (serde `rename_all = "camelCase"`) and the game rule
@@ -148,11 +149,12 @@ private async dispatchVessel(destCol: number, destRow: number): Promise<void> {
 If the action creates a **future deadline** — a build `completesAt`, a vessel
 `arrivalAt`, a mining window — the command response is only half the story: the
 scheduler must settle the deadline later and broadcast the result. In
-`src-tauri/src/game_state.rs`:
+`src-tauri/src/game_state/`:
 
-- **Settlement**: add (or extend) a `settle_*` method and call it from
-  `settle()`; include the new deadline in `next_deadline()` so the scheduler
-  thread (`run_scheduler`) sleeps until it.
+- **Settlement**: add (or extend) a `settle_*` method in the owning domain
+  module and call it from `settle()` (`state.rs`); include the new deadline in
+  `next_deadline()` (`state.rs`) so the scheduler thread (`run_scheduler`, in
+  `scheduler.rs`) sleeps until it.
 - **Broadcast**: settlement and mutation paths queue messages into the
   `ServerState` outbox (`self.outbox.push(ServerPush::...)`) — never emit
   directly. The boundaries (scheduler wake, `finish_command`) drain + emit, so
@@ -205,10 +207,10 @@ auto-recall `ServerPush::Vessel`.
       field-by-field before finishing — there is no automated cross-language
       check, and this ritual has already drifted once. The three existing
       instances are the template: `MODULE_CATALOG` (src/module-catalog.ts ↔
-      `MODULE_CATALOG` in game_state.rs), `ASTEROID_TIERS`
-      (src/asteroid-catalog.ts ↔ `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR`), and
-      `DEAL_REFRESH_COSTS_CREDITS` (src/trade-catalog.ts ↔ same name in
-      game_state.rs).
+      `MODULE_CATALOG` in game_state/modules.rs), `ASTEROID_TIERS`
+      (src/asteroid-catalog.ts ↔ `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR` in
+      game_state/world.rs), and `DEAL_REFRESH_COSTS_CREDITS`
+      (src/trade-catalog.ts ↔ same name in game_state/deals.rs).
 - [ ] `deno task format` and `deno task check` pass (formats and type-checks TS
       and Rust).
 - [ ] Run **`/verify`** and drive the new action in the dev app — there is no
@@ -220,7 +222,7 @@ auto-recall `ServerPush::Vessel`.
 See the canonical examples: `VesselMoveEvent` (src/game-state.ts) +
 `applyVesselMoveEvent` / `syncVessels` / `dispatchVessel` / `recallVessel`
 (src/map-level.ts) + `request_dispatch_vessel` / `request_recall_vessel`
-(src-tauri/src/game_state.rs); and, for a timed scheduler-settled action,
-`mineAsteroid` (src/map-level.ts) + `request_mine_asteroid` / `settle_mining`
-(game_state.rs). See `SERVER.md` for the architecture this pattern is written
-against.
+(src-tauri/src/game_state/world.rs, exposed via commands.rs); and, for a timed
+scheduler-settled action, `mineAsteroid` (src/map-level.ts) +
+`request_mine_asteroid` / `settle_mining` (game_state/world.rs). See `SERVER.md`
+for the architecture this pattern is written against.

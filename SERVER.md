@@ -88,8 +88,8 @@ progress, not fast-forwarded frame by frame.
 - **Ordering** is total per log: sequence numbers, assigned at append time.
   Clients apply in sequence order; a gap means "resync from snapshot". **The
   in-process prototype does not honor this today**: both `run_scheduler` and
-  `finish_command` (`src-tauri/src/game_state.rs`) drain the outbox while
-  holding the state lock, then release the lock before emitting — so two
+  `finish_command` (`src-tauri/src/game_state/scheduler.rs`) drain the outbox
+  while holding the state lock, then release the lock before emitting — so two
   concurrent drains (a scheduler wake racing a command return) can have their
   emits interleave, letting an older push reach the client after a newer one.
   Harmless in-process (there's one client and no transport reordering), but a
@@ -108,8 +108,8 @@ progress, not fast-forwarded frame by frame.
 
 A client never holds the whole world. The server keeps an **interest-area
 window** per connection — today one in-process client, the `MapWindow` in
-`ServerState::aoi` (`src-tauri/src/game_state.rs`), a 100\*100-tile square — and
-filters both snapshot slices and entity pushes to it (ROADMAP P1.13):
+`ServerState::aoi` (`src-tauri/src/game_state/state.rs`), a 100\*100-tile square
+— and filters both snapshot slices and entity pushes to it (ROADMAP P1.13):
 
 - **Snapshots are windowed.** `load_game_state` (window re-centered on the
   player's mothership) and the `request_map_window` response return only

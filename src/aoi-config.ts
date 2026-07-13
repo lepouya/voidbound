@@ -15,5 +15,5 @@
 export const MAP_VIEW_TILES_CAP = 80;
 export const AOI_REQUERY_TILES = 8;
 
-/** Mirror of AOI_SPAN in src-tauri/src/game_state.rs — keep in sync. */
+/** Mirror of AOI_SPAN in src-tauri/src/game_state/world.rs — keep in sync. */
 export const AOI_SPAN = 100;

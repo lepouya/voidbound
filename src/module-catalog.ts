@@ -2,8 +2,8 @@ import { ModuleData, ResourceKind } from "./game-state.ts";
 
 /**
  * Module type catalog (ROADMAP P1.4) — display/UX mirror of the Rust
- * `MODULE_CATALOG` in src-tauri/src/game_state.rs — keep the two in sync.
- * The backend is what actually verifies and derives cost/time/production;
+ * `MODULE_CATALOG` in src-tauri/src/game_state/modules.rs — keep the two in
+ * sync. The backend is what actually verifies and derives cost/time/production;
  * this module only lets buttons show cost badges and pre-check affordability
  * without a round-trip.
  *
@@ -161,14 +161,14 @@ export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
 /**
  * Biological-material cost of one crew hire, multiplied by the new head
  * count (linear — hiring is a repeat purchase). Display mirror of the Rust
- * HIRE_COST_BIOLOGICAL in src-tauri/src/game_state.rs — keep the two in
+ * HIRE_COST_BIOLOGICAL in src-tauri/src/game_state/crew.rs — keep the two in
  * sync; the backend does the actual verification. Balancing stub → P2.6.
  */
 export const HIRE_COST_BIOLOGICAL = 20;
 
 /**
  * Recruitment time per hire, ms. Display mirror of the Rust HIRE_TIME_MS in
- * src-tauri/src/game_state.rs — keep the two in sync. Balancing stub → P2.6.
+ * src-tauri/src/game_state/crew.rs — keep the two in sync. Balancing stub → P2.6.
  */
 export const HIRE_TIME_MS = 30_000;
 
@@ -281,7 +281,7 @@ export function crewRequiredForModules(
  * Damp a production amount by the pooled crew staffing ratio (ROADMAP
  * P1.10): amount * (required + staffed) / (2 * required), integer-floored —
  * exactly 0.5 + 0.5 * ratio with a 50% floor. Display mirror of the Rust
- * `crew_scaled` in src-tauri/src/game_state.rs — keep the two in sync; the
+ * `crew_scaled` in src-tauri/src/game_state/modules.rs — keep the two in sync; the
  * backend does the actual damping. `required <= 0` means nothing wants crew:
  * no damping.
  */

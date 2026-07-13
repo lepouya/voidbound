@@ -5,7 +5,7 @@
 // module is their single shared implementation, and (review findings
 // CR2.4/CR4.3) the one TS call site P3.2's clock-offset handshake needs to
 // change. The Rust mirror is `vessel_position`/`move_progress` in
-// src-tauri/src/game_state.rs — keep the two in sync.
+// src-tauri/src/game_state/world.rs — keep the two in sync.
 
 /** The timestamp fields a vessel move needs to be lerped. A VesselMoveEvent
  *  (game-state.ts) satisfies this structurally. */

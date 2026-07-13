@@ -51,7 +51,7 @@ export class GameStateResource implements ex.Loadable<GameStateData | null> {
 
 /**
  * Subscribe to the backend's push channel (ROADMAP P1.5). The scheduler
- * thread in src-tauri/src/game_state.rs settles state the moment something
+ * thread in src-tauri/src/game_state/scheduler.rs settles state the moment something
  * comes due — a production tick, a build/level-up completing, a vessel
  * arriving — and emits a ServerPush; applyServerPush routes it into the
  * shared gameState. This replaces the old load_game_state polling loop: the

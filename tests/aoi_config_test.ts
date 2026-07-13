@@ -3,7 +3,7 @@
 // hysteresis must stay strictly inside the backend's AOI_SPAN window, so
 // unloaded space can never scroll into sight even mid re-request. Without
 // this test the inequality was comment-enforced only across the
-// map-level.ts <-> game_state.rs language boundary.
+// map-level.ts <-> game_state/world.rs language boundary.
 
 import { assert } from "@std/assert";
 

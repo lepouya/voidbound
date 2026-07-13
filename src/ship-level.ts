@@ -57,7 +57,7 @@ const MODULE_ART_TYPE = "base";
 
 /** Wire shape of the `request_build_module` / `request_levelup_module` Tauri
  *  commands' result. Mirrors the Rust `ModuleActionResponse` in
- *  src-tauri/src/game_state.rs — keep in sync. */
+ *  src-tauri/src/game_state/modules.rs — keep in sync. */
 interface ModuleActionResponse {
   module: ModuleData;
   /** Authoritative counts after the cost was deducted. */
@@ -71,7 +71,7 @@ interface ModuleActionResponse {
 type LevelUpStatus = "unavailable" | "capped" | "unaffordable" | "ready";
 
 /** Wire shape of the `request_hire_crew` Tauri command's result. Mirrors the
- *  Rust `CrewActionResponse` in src-tauri/src/game_state.rs — keep in
+ *  Rust `CrewActionResponse` in src-tauri/src/game_state/crew.rs — keep in
  *  sync. */
 interface CrewActionResponse {
   crew: CrewData;
@@ -87,7 +87,7 @@ type HireStatus = "recruiting" | "full" | "unaffordable" | "ready";
 
 /** Wire shape of the `request_accept_deal` / `request_refresh_deals` Tauri
  *  commands' result (ROADMAP P1.12). Mirrors the Rust `DealActionResponse`
- *  in src-tauri/src/game_state.rs — keep in sync. */
+ *  in src-tauri/src/game_state/deals.rs — keep in sync. */
 interface DealActionResponse {
   deals: DealsData;
   /** Authoritative counts after the exchange/cost was applied. */

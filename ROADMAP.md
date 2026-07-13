@@ -353,28 +353,67 @@ art or missing panels start hurting playtests.
       introduced. Needs P4.7. (CR6.2)
 - [ ] **P6.6 — Onboarding/tutorial sequence.** A full scripted first-run
       tutorial walking a new player through the core loop's natural early goals
-      — `STARTING_CREW = 0` (`game_state.rs`) already frames the first crew hire
-      as one such step; the first module build and first mining trip are others.
-      Needs P1.3, P1.6, P1.10. (CR6.6)
+      — `STARTING_CREW = 0` (`game_state/crew.rs`) already frames the first crew
+      hire as one such step; the first module build and first mining trip are
+      others. Needs P1.3, P1.6, P1.10. (CR6.6)
 - [ ] **P6.7 — Audio.** Ambient/music plus SFX (button presses, build/level-up
       and hire completions, vessel arrivals, mining) — no sound exists in the
       game today. (CR6.7)
 
 # Unsorted TODO items
 
-Feedback after playtesting phase 1
+Housekeeping and playtest feedback — not roadmap features, so no P<phase>.<n>
+IDs; work these opportunistically alongside roadmap tasks.
 
-- game_state.rs is getting way too large
-- dev testing speedup
-- resource bar improvement
-- minimap sucks
-- clicking on modules, dialogs, details
-- shop should be a row of 3 buttons with borders showing rarity
-- only one of each type of building
-- resource harvesting progress
-- mail (+ notifications tab) vs events (game events to participate in)
-- enter and upgrade buttons on ship in map view
-- mothership teleport/move
-- python 3.14 default
-- verify skill should just use the sonnet/default model instead of current
-- frontend CI in github is failing
+## Codebase housekeeping
+
+- [ ] **File-size refactor pass.** Several files have grown large enough to hurt
+      context/readability. The subtasks below are the per-file/per-group
+      breakdown, ranked by priority — tackle one per followup session.
+- [x] **Split `src-tauri/src/game_state.rs`** (4400+ lines) — done: split into
+      `src-tauri/src/game_state/{resources,modules,crew,deals,world,state,
+      scheduler,commands}.rs` +
+      `mod.rs`, each domain file keeping its own `impl ServerState` block and
+      colocated `#[cfg(test)] mod tests` (plus a shared `test_support.rs` for
+      cross-domain test helpers). No behavior change — `ServerState`'s fields
+      and cross-file-called methods moved from module-private to `pub(crate)` to
+      allow the sibling-module split; full format/check/lint/test gate passes
+      (all 69 Rust tests relocated intact).
+- [ ] **Split `src/tiled-scene.ts`** (~870 lines) — split camera/zoom math and
+      tap/drag input dispatch out of the base scene class. Handle carefully:
+      every scene extends it, so do this independently and land it (with
+      `/verify` on both scenes) before leaning on it for the `ship-level.ts` /
+      `map-level.ts` split below.
+- [ ] **Split `src/ship-level.ts` and `src/map-level.ts` together** (~790 / ~590
+      lines) — do these in the same pass, not separately: both mix several
+      parallel sync-and-render systems in one class (modules + shop dialog;
+      motherships + asteroids + vessels), so the same split pattern (one
+      helper/module per synced entity type) should apply to both, and settling
+      the pattern on one only to redo it on the other is wasted work.
+- [ ] **Split `src/game-state.ts`** (~770 lines) — mostly type definitions;
+      lower urgency, could hive the interfaces off into `game-state-types.ts` if
+      the file starts getting in the way, leaving the `GameState` class on its
+      own.
+- [ ] **Split `src/tile-actor.ts`** (~550 lines) — worth a look eventually, not
+      urgent yet. Independent of the other items here.
+- [ ] **Split `src/ui/dialog.ts`** (~470 lines) — worth a look eventually, not
+      urgent yet. Independent of the other items here.
+- [ ] Dev testing speedup.
+- [ ] Bump default Python to 3.14 (see the `/gen-art` PATH workaround for the
+      current 3.12 pin). Might need to pip install some of the needed packages
+- [ ] `/verify` skill should just use the sonnet/default model instead of
+      current, specially when we are using a heavy-weight like Fable.
+
+## Gameplay/UX polish
+
+- Resource bar improvement.
+- Minimap sucks.
+- Clicking on modules, dialogs, details.
+- Shop should be a row of 3 buttons with borders showing rarity.
+- Only one of each type of building.
+- Resource harvesting progress.
+- Mail (+ notifications tab) vs events (game events to participate in).
+- Enter and upgrade buttons on ship in map view.
+- Mothership teleport/move.
+- Clicking outside of dialog should dismiss it.
+- Rename "gift" -> "free" in the trading post

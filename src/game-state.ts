@@ -8,7 +8,7 @@
  *
  * The backend is authoritative for everything in here (ROADMAP P1.1): all
  * resource math — production accrual, build costs — happens in
- * src-tauri/src/game_state.rs, because the client can be tampered with. This
+ * src-tauri/src/game_state/, because the client can be tampered with. This
  * module only mirrors what the backend last sent (via the loader-phase fetch,
  * the server-push channel subscribed in game-state-loader.ts, or a command
  * response) and notifies subscribers so scenes re-render.
@@ -63,7 +63,7 @@ export type ResourceCounts = Record<ResourceKind, number>;
  * The four material resources a module can produce, a build can cost, or an
  * asteroid can yield — everything except the trade-only currency. Matches
  * the serialized form of the Rust `ResourceKind` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/resources.rs — keep the two in sync.
  */
 export type MaterialResourceKind = Exclude<ResourceKind, "credits">;
 
@@ -72,8 +72,8 @@ export type MaterialResourceKind = Exclude<ResourceKind, "credits">;
  * source of truth for placement. MapLevel builds its map actors from the
  * snapshot list rather than hardcoding positions, so moved ships or newly
  * joined players arrive through the same reconcile with no client changes.
- * Mirrors the Rust `MothershipData` in src-tauri/src/game_state.rs — keep
- * the two in sync.
+ * Mirrors the Rust `MothershipData` in src-tauri/src/game_state/world.rs —
+ * keep the two in sync.
  */
 export interface MothershipData {
   /** One mothership per player for now, so ids equal the owner id. */
@@ -100,7 +100,7 @@ export interface MothershipData {
  * load_game_state snapshot: the shared state holds the vessel table between
  * scenes. srcCol/srcRow may be fractional — a recall departs from the
  * vessel's lerped mid-flight position. Mirrors the Rust `VesselMoveEventData`
- * in src-tauri/src/game_state.rs — keep the two in sync.
+ * in src-tauri/src/game_state/world.rs — keep the two in sync.
  */
 export interface VesselMoveEvent {
   vesselId: string;
@@ -140,8 +140,8 @@ export interface VesselMoveEvent {
 
 /**
  * Harvested resources riding home on a vessel's return leg (ROADMAP P1.6).
- * Mirrors the Rust `VesselCargo` in src-tauri/src/game_state.rs — keep the
- * two in sync.
+ * Mirrors the Rust `VesselCargo` in src-tauri/src/game_state/world.rs — keep
+ * the two in sync.
  */
 export interface VesselCargo {
   resource: MaterialResourceKind;
@@ -152,7 +152,7 @@ export interface VesselCargo {
  * An active mining job on an asteroid — which vessel, and the extraction
  * window. At most one per asteroid today (single-slot rule); if large
  * asteroids gain multiple miners later this becomes a list. Mirrors the Rust
- * `AsteroidMining` in src-tauri/src/game_state.rs — keep the two in sync.
+ * `AsteroidMining` in src-tauri/src/game_state/world.rs — keep the two in sync.
  */
 export interface AsteroidMining {
   vesselId: string;
@@ -171,7 +171,7 @@ export interface AsteroidMining {
  * `remaining` and a mined-out asteroid leaves the table (asteroidRemoved
  * push). Like ModuleData, the struct doubles as its own event payload: an
  * asteroid push carries the full current snapshot. Mirrors the Rust
- * `AsteroidData` in src-tauri/src/game_state.rs — keep the two in sync.
+ * `AsteroidData` in src-tauri/src/game_state/world.rs — keep the two in sync.
  */
 export interface AsteroidData {
   asteroidId: string;
@@ -203,7 +203,7 @@ export interface AsteroidData {
  * completing, a vessel arriving or returning. Rides the load_game_state
  * snapshot (so the feed and its unread state survive a reload) and arrives
  * live as a ServerPush. Mirrors the Rust `NotificationData` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/state.rs — keep the two in sync.
  */
 export interface NotificationData {
   notificationId: string;
@@ -222,7 +222,7 @@ export interface NotificationData {
 /**
  * A crew recruitment in flight (ROADMAP P1.10) — one at a time, same timer
  * shape as a module's pending build. Mirrors the Rust `PendingHire` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/crew.rs — keep the two in sync.
  */
 export interface PendingHire {
   /** Server epoch ms when the hire was authorized. */
@@ -238,7 +238,7 @@ export interface PendingHire {
  * crew push carries the full current snapshot. Capacity is not on the wire:
  * it derives from the module snapshot (crewCapacityForModules in
  * src/module-catalog.ts). Mirrors the Rust `CrewData` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/crew.rs — keep the two in sync.
  */
 export interface CrewData {
   crew: number;
@@ -249,15 +249,15 @@ export interface CrewData {
  * How player-favorable a Trading Post deal is (ROADMAP P1.12) — the rarity's
  * bonus multiplied the get side when the server rolled the deal; the client
  * only styles it (see src/trade-catalog.ts). Mirrors the serialized form of
- * the Rust `DealRarity` in src-tauri/src/game_state.rs — keep the two in
- * sync.
+ * the Rust `DealRarity` in src-tauri/src/game_state/deals.rs — keep the two
+ * in sync.
  */
 export type DealRarity = "common" | "uncommon" | "rare";
 
 /**
  * One side of a Trading Post deal: a trade-eligible type — any ResourceKind,
  * credits included — and its amount. Mirrors the Rust `DealSide` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/deals.rs — keep the two in sync.
  */
 export interface DealSide {
   kind: ResourceKind;
@@ -269,7 +269,7 @@ export interface DealSide {
  * backend — generation, acceptance, refreshes, and the daily cycle are all
  * server-side; the client only renders and asks. Give and get types always
  * differ (server-enforced); `give: null` is the once-daily freebie. Mirrors
- * the Rust `DealData` in src-tauri/src/game_state.rs — keep the two in sync.
+ * the Rust `DealData` in src-tauri/src/game_state/deals.rs — keep the two in sync.
  */
 export interface DealData {
   /** Stable id: "deal-<day>-<slot>-<generation>". */
@@ -288,8 +288,8 @@ export interface DealData {
  * The whole Trading Post shop state (ROADMAP P1.12) — day, refreshes used,
  * and every current deal slot. Following the ModuleData pattern, the struct
  * doubles as its own event payload: a deals push/response carries the full
- * current list. Mirrors the Rust `DealsData` in src-tauri/src/game_state.rs
- * — keep the two in sync.
+ * current list. Mirrors the Rust `DealsData` in
+ * src-tauri/src/game_state/deals.rs — keep the two in sync.
  */
 export interface DealsData {
   /** UTC day index the current batch belongs to. */
@@ -303,7 +303,7 @@ export interface DealsData {
 /**
  * A build or level-up in progress on a module — the level it completes to
  * and when. Mirrors the Rust `ModulePendingBuild` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/modules.rs — keep the two in sync.
  */
 export interface ModulePendingBuild {
   /** The level this build completes to. */
@@ -323,7 +323,7 @@ export interface ModulePendingBuild {
  * completed yet; `pending` carries the in-progress timer for either a first
  * build (level 0 -> 1) or a level-up (level N -> N+1, during which the
  * module keeps functioning at level N). Mirrors the Rust `ModuleData` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/modules.rs — keep the two in sync.
  */
 export interface ModuleData {
   moduleId: string;
@@ -350,7 +350,7 @@ export interface ModuleData {
  * streams world entities. Snapshots and entity pushes are filtered to it
  * server-side (everything the player owns is exempt); MapLevel re-centers it
  * via request_map_window as the camera pans. Mirrors the Rust `MapWindow` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/world.rs — keep the two in sync.
  */
 export interface MapWindow {
   centerCol: number;
@@ -364,7 +364,7 @@ export interface MapWindow {
  * P1.13): the re-centered window plus every world entity the client should
  * now hold — applyMapWindow replaces the mothership/asteroid/vessel tables
  * wholesale with these slices. Mirrors the Rust `MapWindowData` in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/world.rs — keep the two in sync.
  */
 export interface MapWindowData {
   window: MapWindow;
@@ -375,7 +375,7 @@ export interface MapWindowData {
 
 /**
  * Wire shape of the `load_game_state` Tauri command. Mirrors the Rust
- * `GameStateData` in src-tauri/src/game_state.rs — keep the two in sync.
+ * `GameStateData` in src-tauri/src/game_state/state.rs — keep the two in sync.
  */
 export interface GameStateData {
   player: PlayerIdentity;
@@ -409,7 +409,7 @@ export interface GameStateData {
 
 /**
  * Name of the Tauri event channel carrying ServerPush messages. Mirrors
- * SERVER_PUSH_EVENT in src-tauri/src/game_state.rs — keep the two in sync.
+ * SERVER_PUSH_EVENT in src-tauri/src/game_state/state.rs — keep the two in sync.
  */
 export const SERVER_PUSH_EVENT = "server-push";
 
@@ -421,7 +421,7 @@ export const SERVER_PUSH_EVENT = "server-push";
  * applyServerPush routes it into the same apply/sync entry points that
  * command responses already use, so pushed and requested changes take one
  * code path. Mirrors the Rust `ServerPush` enum in
- * src-tauri/src/game_state.rs — keep the two in sync.
+ * src-tauri/src/game_state/state.rs — keep the two in sync.
  */
 export type ServerPush =
   | { type: "resources"; data: ResourceCounts }

@@ -2,7 +2,7 @@ import { DealRarity } from "./game-state.ts";
 
 /**
  * Trading Post display mirror (ROADMAP P1.12) — the UX half of the deal
- * constants in src-tauri/src/game_state.rs. The backend is what actually
+ * constants in src-tauri/src/game_state/deals.rs. The backend is what actually
  * generates deals, verifies acceptance, and charges refreshes; this module
  * only lets the shop dialog show price tags and rarity styling without a
  * round-trip. Deal sizing itself (give base, cap fraction, freebie band) has
@@ -16,7 +16,7 @@ import { DealRarity } from "./game-state.ts";
  * Credits cost of each deal refresh within a day, indexed by refreshes
  * already used: the first is free, then doubling, hard-capped at the array
  * length. Display mirror of the Rust DEAL_REFRESH_COSTS_CREDITS in
- * src-tauri/src/game_state.rs — keep the two in sync. Balancing stub → P2.6.
+ * src-tauri/src/game_state/deals.rs — keep the two in sync. Balancing stub → P2.6.
  */
 export const DEAL_REFRESH_COSTS_CREDITS: readonly number[] = [
   0,
@@ -42,7 +42,7 @@ export function dealRefreshCost(refreshesUsed: number): number | null {
  * Rarity styling for deal rows: display name plus a label tint (hex, so this
  * module stays free of runtime imports — scenes convert via ex.Color).
  * The get-side bonus each rarity applied is server-side only (DEAL_RARITIES
- * in game_state.rs); the client shows the rolled amounts, not the math.
+ * in game_state/deals.rs); the client shows the rolled amounts, not the math.
  */
 export const DEAL_RARITY_STYLE: Record<
   DealRarity,

@@ -59,7 +59,10 @@ src/                  # Frontend (TypeScript + Excalibur.js)
 
 src-tauri/            # Backend (Rust + Tauri)
   src/lib.rs          # Tauri entry point; registers the command handlers
-  src/game_state.rs   # ServerState + gameplay commands (game rules live here)
+  src/game_state/     # ServerState + gameplay commands (game rules live here);
+                      #   mod.rs, state.rs (ServerState + push/settle plumbing),
+                      #   scheduler.rs, commands.rs, and one file per domain —
+                      #   modules.rs, world.rs, deals.rs, crew.rs, resources.rs
   src/map.rs          # generate_map command (map data)
 
 tests/                # deno test pure-logic suite (run: deno task test:ts)
@@ -336,11 +339,11 @@ the `include_str!` call with a fetched string — the `Result` propagation is
 already in place.
 
 **The backend is authoritative for game state** (`ServerState` in
-src-tauri/src/game_state.rs): all resource math — production accrual, module
-catalog costs/build times/production, and build verification — plus mothership
-placement, the module table, and the vessel table (positions implicit in event
-timestamps) live Rust-side, never in TS, because the client can be tampered
-with. The client renders what commands return and asks for actions:
+src-tauri/src/game_state/state.rs): all resource math — production accrual,
+module catalog costs/build times/production, and build verification — plus
+mothership placement, the module table, and the vessel table (positions implicit
+in event timestamps) live Rust-side, never in TS, because the client can be
+tampered with. The client renders what commands return and asks for actions:
 
 - `load_game_state` — identity + resource counts (production lazily accrued on
   read, summed per settled module level) + mothership placements + the asteroid
@@ -371,20 +374,21 @@ with. The client renders what commands return and asks for actions:
   unloaded space never scrolls into sight.
 - **Push channel** (`server-push` Tauri event; ROADMAP P1.5) — the backend tells
   the client when state changes, the in-process prototype of P3.1's WebSocket
-  bus: a scheduler thread (`run_scheduler` in game_state.rs) sleeps until the
-  next deadline — production tick, build `completesAt`, vessel `arrivalAt`,
-  mining `completesAt`, the 00:00 UTC deal reset — settles state, and emits
-  `ServerPush` messages (`resources`, `module`, `vesselRemoved`, `vessel`,
-  `asteroid`, `asteroidRemoved`, `notification`, `crew`, `deals`); a Condvar
-  wakes it early when a command creates a nearer deadline (e.g. a short vessel
-  flight). Mutations queue pushes into a `ServerState` outbox and the boundaries
-  (scheduler wake, command return via `finish_command`) drain + emit, so every
-  settlement path broadcasts identically. Client side, `startServerPushListener`
-  (game-state-loader.ts) routes each push into `gameState.applyServerPush()` —
-  the same apply/sync entry points command responses use. Notifications
-  (build/level-up completions, vessel arrivals/returns) are server state riding
-  the snapshot, capped at 100 entries; the Events HUD badge (tiled-scene.ts
-  `addCommonHud`) shows the live unread count.
+  bus: a scheduler thread (`run_scheduler` in game_state/scheduler.rs) sleeps
+  until the next deadline — production tick, build `completesAt`, vessel
+  `arrivalAt`, mining `completesAt`, the 00:00 UTC deal reset — settles state,
+  and emits `ServerPush` messages (`resources`, `module`, `vesselRemoved`,
+  `vessel`, `asteroid`, `asteroidRemoved`, `notification`, `crew`, `deals`); a
+  Condvar wakes it early when a command creates a nearer deadline (e.g. a short
+  vessel flight). Mutations queue pushes into a `ServerState` outbox and the
+  boundaries (scheduler wake, command return via `finish_command`) drain + emit,
+  so every settlement path broadcasts identically. Client side,
+  `startServerPushListener` (game-state-loader.ts) routes each push into
+  `gameState.applyServerPush()` — the same apply/sync entry points command
+  responses use. Notifications (build/level-up completions, vessel
+  arrivals/returns) are server state riding the snapshot, capped at 100 entries;
+  the Events HUD badge (tiled-scene.ts `addCommonHud`) shows the live unread
+  count.
 - `mark_notifications_read` — marks the whole feed read and returns the updated
   list (applied via `gameState.syncNotifications`), clearing the Events badge in
   every scene. Pressing Events also dumps the feed to the console — the real
@@ -435,18 +439,19 @@ with. The client renders what commands return and asks for actions:
 
 Gameplay constants (production tick, the module catalog's per-type cost/build
 time/production, the asteroid tier catalog + mine rate, room grid, map geometry,
-vessel speed) live in game_state.rs; the ones the UI renders have display-only
-TS mirrors — comments mark each pair; keep them in sync (the asteroid mirror is
-`src/asteroid-catalog.ts`: tier bands, class names, sprite tints, duration
-estimates; the deal-shop mirror is `src/trade-catalog.ts`: refresh costs and
-rarity styling — deal sizing has no mirror, amounts arrive on the wire). The
-module catalog's cost/build-time/production all scale per level through one
-shared doubling-per-level stub (`scale_for_level`/`scaleForLevel`) — real
-balancing is a later pass, as is the asteroid deposit/rate balance. Mothership
-placement is data, not a constant: it is seeded in `ServerState::new` and
-reaches the client only via the snapshot — the asteroid field seeds the same way
-(deterministic `seed_asteroids`). The game-rule logic is covered by the Rust
-tests (part of `deno task test`).
+vessel speed) live in game_state/ (modules.rs, world.rs, state.rs); the ones the
+UI renders have display-only TS mirrors — comments mark each pair; keep them in
+sync (the asteroid mirror is `src/asteroid-catalog.ts`: tier bands, class names,
+sprite tints, duration estimates; the deal-shop mirror is
+`src/trade-catalog.ts`: refresh costs and rarity styling — deal sizing has no
+mirror, amounts arrive on the wire). The module catalog's
+cost/build-time/production all scale per level through one shared
+doubling-per-level stub (`scale_for_level`/`scaleForLevel`) — real balancing is
+a later pass, as is the asteroid deposit/rate balance. Mothership placement is
+data, not a constant: it is seeded in `ServerState::new` and reaches the client
+only via the snapshot — the asteroid field seeds the same way (deterministic
+`seed_asteroids`). The game-rule logic is covered by the Rust tests (part of
+`deno task test`).
 
 Tauri commands return `Result<T, String>` — propagate errors as strings, don't
 `unwrap`/panic in command handlers.
