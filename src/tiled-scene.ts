@@ -16,8 +16,9 @@ import {
   spawnHudGroup,
   squareButton,
 } from "./ui/index.ts";
-import { anchoredZoomPos } from "./camera-math.ts";
 import { TileGridGeometry } from "./grid-math.ts";
+import { SceneCamera } from "./scene-camera.ts";
+import { SceneInputController } from "./scene-input.ts";
 import {
   gameState,
   NotificationData,
@@ -70,16 +71,9 @@ export interface SceneMap {
  */
 export abstract class TiledScene extends ex.Scene {
   // --- Interaction state ---
-  private hasDragged = false;
-  private lastScreenPos: ex.Vector | null = null;
   private selectedActor: TileActor | null = null;
   protected pendingActor: TileActor | null = null;
-  // Escape hatch for subclasses: skip all tap handling on the next pointer-up.
-  // World-space button presses are consumed automatically (see handleTap), so
-  // button handlers do NOT need to set this.
-  protected suppressNextPointerUp = false;
   private emptyTileActor: TileActor | null = null;
-  private pinchDistance: number | null = null;
   /** All HUD pointer targets (button groups and custom widgets like the
    *  minimap), used to dispatch pointer-up events and resize relayouts. */
   private hudHandles: HudPointerTarget[] = [];
@@ -97,22 +91,30 @@ export abstract class TiledScene extends ex.Scene {
    *  (space map) leave it null. */
   protected tilemap: ex.TileMap | null = null;
 
-  // --- Map-derived constants, set after buildMap() resolves ---
-  private mapWidth = 0;
-  private mapHeight = 0;
-  private drawW = 0;
-  private drawH = 0;
-  private minZoom = 0;
-  private static readonly MAX_ZOOM = 4;
-  // Movement below this many screen px from the pointer-down position is
-  // jitter, not a drag — touch taps on real devices wobble a few px.
-  private static readonly DRAG_THRESHOLD_PX = 5;
+  // --- Camera + pointer input, factored out (ROADMAP housekeeping) ---
+  private readonly sceneCamera = new SceneCamera(
+    this.camera,
+    () => this.minZoomFloor(),
+  );
+  private readonly inputController = new SceneInputController({
+    isModalCaptured: () => this.modalDialog !== null,
+    pan: (dx, dy) => this.sceneCamera.pan(dx, dy),
+    zoomAtAnchor: (anchor, zoom) => this.sceneCamera.zoomAtAnchor(anchor, zoom),
+    currentZoom: () => this.sceneCamera.zoom,
+    onTap: (screenPos) => this.handleTap(screenPos),
+    onPointerReset: () => {
+      this.pendingActor = null;
+      // Discard any button press that never got tap confirmation (e.g. the
+      // press turned into a drag, or the pointer was cancelled).
+      this.selectedActor?.takePendingButton();
+    },
+  });
+  private resizeCleanup: (() => void) | null = null;
 
   // --- Lifecycle helpers ---
   private isActive = false;
   private mapReady = false;
   private engineRef!: ex.Engine;
-  private inputCleanup: Array<() => void> = [];
 
   /**
    * Stable callback reference used by every TileActor in this scene.
@@ -122,6 +124,16 @@ export abstract class TiledScene extends ex.Scene {
   protected readonly handleTilePressed = (a: TileActor): void => {
     this.pendingActor = a;
   };
+
+  /** Escape hatch for subclasses: skip all tap handling on the next
+   *  pointer-up. World-space button presses are consumed automatically (see
+   *  handleTap), so button handlers do NOT need to set this. */
+  protected get suppressNextPointerUp(): boolean {
+    return this.inputController.suppressNextPointerUp;
+  }
+  protected set suppressNextPointerUp(value: boolean) {
+    this.inputController.suppressNextPointerUp = value;
+  }
 
   /** Return the grid geometry (and optional real tilemap) for this scene. */
   protected abstract buildMap(): Promise<SceneMap>;
@@ -196,7 +208,7 @@ export abstract class TiledScene extends ex.Scene {
     if (this.mapReady) {
       // The window may have resized while this scene was inactive.
       this.handleResize();
-      this.resetCamera();
+      this.sceneCamera.resetTo(this.initialCameraTarget());
       this.registerInputHandlers();
     }
   }
@@ -206,18 +218,7 @@ export abstract class TiledScene extends ex.Scene {
     this.unregisterInputHandlers();
     this.closeDialog();
     this.deselectActor();
-    this.resetPointerState();
-  }
-
-  private resetPointerState(): void {
-    this.pendingActor = null;
-    this.hasDragged = false;
-    this.lastScreenPos = null;
-    this.pinchDistance = null;
-    this.suppressNextPointerUp = false;
-    // Discard any button press that never got tap confirmation (e.g. the
-    // press turned into a drag, or the pointer was cancelled).
-    this.selectedActor?.takePendingButton();
+    this.inputController.reset();
   }
 
   protected deselectActor(): void {
@@ -257,23 +258,6 @@ export abstract class TiledScene extends ex.Scene {
     actor.select();
   }
 
-  private clampedPos(
-    x: number,
-    y: number,
-    atZoom = this.camera.zoom,
-  ): ex.Vector {
-    const halfW = this.drawW / (2 * atZoom);
-    const halfH = this.drawH / (2 * atZoom);
-    return ex.vec(
-      halfW * 2 >= this.mapWidth
-        ? this.mapWidth / 2
-        : ex.clamp(x, halfW, this.mapWidth - halfW),
-      halfH * 2 >= this.mapHeight
-        ? this.mapHeight / 2
-        : ex.clamp(y, halfH, this.mapHeight - halfH),
-    );
-  }
-
   /**
    * Lowest camera zoom this scene allows, regardless of how much of the map
    * would fit on screen. 0 (the default) means "as far as fits the whole
@@ -286,82 +270,13 @@ export abstract class TiledScene extends ex.Scene {
     return 0;
   }
 
-  /**
-   * Recompute the zoom-1 draw dimensions and the resulting minimum zoom.
-   * screen.resolution is the zoom-1 draw size (screen.drawWidth divides by
-   * the current camera zoom), which is the baseline clampedPos expects.
-   */
-  private recomputeViewBounds(): void {
-    this.drawW = this.engineRef.screen.resolution.width;
-    this.drawH = this.engineRef.screen.resolution.height;
-    this.minZoom = Math.max(
-      this.drawW / this.mapWidth,
-      this.drawH / this.mapHeight,
-      this.minZoomFloor(),
-    );
-  }
-
   /** Re-derive everything that depends on the screen size. */
   private handleResize(): void {
     for (const handle of this.hudHandles) handle.relayout(this.engineRef);
     this.modalDialog?.handle.relayout(this.engineRef);
     if (!this.mapReady) return;
-    this.recomputeViewBounds();
-    this.clampCamera();
-  }
-
-  private resetCamera(): void {
-    const target = this.initialCameraTarget();
-    this.camera.x = target.pos.x;
-    this.camera.y = target.pos.y;
-    this.camera.zoom = target.zoom;
-    this.clampCamera();
-  }
-
-  private clampCamera(): void {
-    this.camera.zoom = ex.clamp(
-      this.camera.zoom,
-      this.minZoom,
-      TiledScene.MAX_ZOOM,
-    );
-    const pos = this.clampedPos(this.camera.x, this.camera.y);
-    this.camera.x = pos.x;
-    this.camera.y = pos.y;
-  }
-
-  /**
-   * Set the camera zoom (clamped) while keeping the world point
-   * `anchorWorld` fixed on screen, so wheel and pinch zoom anchor at the
-   * pointer instead of the screen center (ROADMAP P1.8). The anchor may be
-   * up to one frame stale (the camera transform behind screenToWorld /
-   * WheelEvent world coords only refreshes per frame), but the resulting
-   * camera error scales by 1 − oldZoom/newZoom — sub-pixel per event.
-   */
-  private zoomAtAnchor(anchorWorld: ex.Vector, newZoom: number): void {
-    const zoom = ex.clamp(newZoom, this.minZoom, TiledScene.MAX_ZOOM);
-    const pos = anchoredZoomPos(
-      anchorWorld,
-      this.camera.pos,
-      this.camera.zoom,
-      zoom,
-    );
-    this.camera.zoom = zoom;
-    this.camera.x = pos.x;
-    this.camera.y = pos.y;
-    this.clampCamera();
-  }
-
-  private applyPinchZoom(a: ex.Vector, b: ex.Vector): void {
-    if (this.pinchDistance === null || this.modalDialog) return;
-    const newDist = a.distance(b);
-    const midpoint = this.engineRef.screen.screenToWorldCoordinates(
-      a.add(b).scale(0.5),
-    );
-    this.zoomAtAnchor(
-      midpoint,
-      this.camera.zoom * (newDist / this.pinchDistance),
-    );
-    this.pinchDistance = newDist;
+    this.sceneCamera.recomputeViewBounds(this.engineRef);
+    this.sceneCamera.clampCamera();
   }
 
   private async setupScene(): Promise<void> {
@@ -370,8 +285,10 @@ export abstract class TiledScene extends ex.Scene {
     this.tilemap = tilemap ?? null;
     if (this.tilemap) this.add(this.tilemap);
 
-    this.mapWidth = grid.columns * grid.tileWidth;
-    this.mapHeight = grid.rows * grid.tileHeight;
+    this.sceneCamera.setMapSize(
+      grid.columns * grid.tileWidth,
+      grid.rows * grid.tileHeight,
+    );
 
     this.setupActors(this.handleTilePressed);
 
@@ -379,7 +296,7 @@ export abstract class TiledScene extends ex.Scene {
     // Recompute view bounds and HUD layout now: the window may have resized
     // between HUD spawn in onInitialize and the async map load finishing.
     this.handleResize();
-    this.resetCamera();
+    this.sceneCamera.resetTo(this.initialCameraTarget());
     // The scene may already be active (e.g. it is the start scene and
     // onActivate fired before the async map load finished).
     if (this.isActive) this.registerInputHandlers();
@@ -387,15 +304,14 @@ export abstract class TiledScene extends ex.Scene {
 
   /**
    * Dispatches a confirmed tap (no drag) to the appropriate handler, in
-   * priority order: the `suppressNextPointerUp` escape hatch, the modal
-   * dialog (which swallows the tap entirely — dialog buttons fire, anything
-   * else is absorbed by the scrim), world-space action buttons (recorded on
-   * pointer-down, fired here on confirmation), HUD buttons, then actor-tap
-   * or empty-tile-tap.
-   * `suppressNextPointerUp` is cleared by the subsequent resetPointerState().
+   * priority order: the modal dialog (which swallows the tap entirely —
+   * dialog buttons fire, anything else is absorbed by the scrim), world-space
+   * action buttons (recorded on pointer-down, fired here on confirmation),
+   * HUD buttons, then actor-tap or empty-tile-tap. The `suppressNextPointerUp`
+   * escape hatch and drag-vs-tap decision happen upstream, in
+   * SceneInputController.
    */
   private handleTap(screenPos: ex.Vector): void {
-    if (this.suppressNextPointerUp) return;
     if (this.modalDialog) {
       this.modalDialog.handle.tryPointerUp(screenPos);
       return;
@@ -426,16 +342,7 @@ export abstract class TiledScene extends ex.Scene {
       return;
     }
     this.selectActor(actor);
-    const targetZoom = ex.clamp(
-      this.camera.zoom,
-      Math.max(this.minZoom, 0.5),
-      2,
-    );
-    const target = this.clampedPos(actor.pos.x, actor.pos.y, targetZoom);
-    this.camera.move(target, 500, ex.easeInOutCubic);
-    if (targetZoom !== this.camera.zoom) {
-      this.camera.zoomOverTime(targetZoom, 500, ex.easeInOutCubic);
-    }
+    this.sceneCamera.focusOn(actor.pos, this.camera.zoom);
   }
 
   /**
@@ -471,124 +378,20 @@ export abstract class TiledScene extends ex.Scene {
     emptyActor.select();
   }
 
+  /** Register the pointer/wheel/resize listeners for this scene (delegated
+   *  to SceneInputController for the pointer/wheel half). */
   private registerInputHandlers(): void {
-    const engine = this.engineRef;
-    const pointer1 = engine.input.pointers.primary;
-    const pointer2 = engine.input.pointers.at(1);
-
-    const onP1Down = (evt: ex.PointerEvent) => {
-      this.hasDragged = false;
-      this.lastScreenPos = evt.screenPos.clone();
-    };
-    pointer1.on("down", onP1Down);
-
-    const onP1Move = (evt: ex.PointerEvent) => {
-      if (!this.lastScreenPos) return;
-      if (this.pinchDistance !== null) {
-        const p2 = pointer2.lastScreenPos;
-        if (p2) this.applyPinchZoom(evt.screenPos, p2);
-        this.lastScreenPos = evt.screenPos.clone();
-        return;
-      }
-      // Until the threshold is crossed, ignore the move entirely: the tap
-      // stays a tap and the camera doesn't micro-jitter. lastScreenPos is
-      // only updated once dragging starts, so before that it still holds the
-      // pointer-down position.
-      if (
-        !this.hasDragged &&
-        evt.screenPos.distance(this.lastScreenPos) <
-          TiledScene.DRAG_THRESHOLD_PX
-      ) {
-        return;
-      }
-      this.hasDragged = true;
-      // Modal input capture: keep tracking the drag (so a press that slides
-      // off a dialog button still cancels the tap) but never pan the camera.
-      if (this.modalDialog) {
-        this.lastScreenPos = evt.screenPos.clone();
-        return;
-      }
-      const delta = this.lastScreenPos.sub(evt.screenPos);
-      this.camera.x += delta.x / this.camera.zoom;
-      this.camera.y += delta.y / this.camera.zoom;
-      this.clampCamera();
-      this.lastScreenPos = evt.screenPos.clone();
-    };
-    pointer1.on("move", onP1Move);
-
-    const onP1Up = () => {
-      if (!this.hasDragged && this.lastScreenPos) {
-        this.handleTap(this.lastScreenPos);
-      }
-      this.resetPointerState();
-    };
-    pointer1.on("up", onP1Up);
-
-    const onP1Cancel = () => this.resetPointerState();
-    pointer1.on("cancel", onP1Cancel);
-
-    const onP2Down = (evt: ex.PointerEvent) => {
-      // Only start a pinch if finger 1 is actually down. Use our tracked
-      // position — pointer1.lastScreenPos can be stale/(0,0) if finger 1
-      // never moved before finger 2 landed.
-      if (!this.lastScreenPos) return;
-      this.pinchDistance = this.lastScreenPos.distance(evt.screenPos);
-      this.hasDragged = true;
-    };
-    pointer2.on("down", onP2Down);
-
-    const onP2Move = (evt: ex.PointerEvent) => {
-      if (this.pinchDistance === null) return;
-      const p1 = pointer1.lastScreenPos;
-      if (p1) this.applyPinchZoom(p1, evt.screenPos);
-    };
-    pointer2.on("move", onP2Move);
-
-    const endPinch = () => {
-      this.pinchDistance = null;
-    };
-    pointer2.on("up", endPinch);
-    pointer2.on("cancel", endPinch);
-
-    // Trackpad scroll pans; trackpad pinch arrives as wheel + ctrlKey and zooms
-    const onWheel = (evt: ex.WheelEvent) => {
-      if (this.modalDialog) return;
-      if ((evt.ev as WheelEvent).ctrlKey) {
-        // Clamp the per-event factor: a fast wheel can send deltaY > 100,
-        // which would make the factor zero or negative. evt.x/y is the
-        // pointer's world position, the zoom anchor.
-        this.zoomAtAnchor(
-          ex.vec(evt.x, evt.y),
-          this.camera.zoom * ex.clamp(1 - evt.deltaY * 0.01, 0.5, 2),
-        );
-      } else {
-        this.camera.x += evt.deltaX / this.camera.zoom;
-        this.camera.y += evt.deltaY / this.camera.zoom;
-        this.clampCamera();
-      }
-    };
-    engine.input.pointers.on("wheel", onWheel);
-
+    this.inputController.register(this.engineRef);
     const onResize = () => this.handleResize();
-    engine.screen.events.on("resize", onResize);
-
-    this.inputCleanup = [
-      () => engine.screen.events.off("resize", onResize),
-      () => pointer1.off("down", onP1Down),
-      () => pointer1.off("move", onP1Move),
-      () => pointer1.off("up", onP1Up),
-      () => pointer1.off("cancel", onP1Cancel),
-      () => pointer2.off("down", onP2Down),
-      () => pointer2.off("move", onP2Move),
-      () => pointer2.off("up", endPinch),
-      () => pointer2.off("cancel", endPinch),
-      () => engine.input.pointers.off("wheel", onWheel),
-    ];
+    this.engineRef.screen.events.on("resize", onResize);
+    this.resizeCleanup = () =>
+      this.engineRef.screen.events.off("resize", onResize);
   }
 
   private unregisterInputHandlers(): void {
-    for (const fn of this.inputCleanup) fn();
-    this.inputCleanup = [];
+    this.inputController.unregister();
+    this.resizeCleanup?.();
+    this.resizeCleanup = null;
   }
 
   /**
@@ -606,7 +409,7 @@ export abstract class TiledScene extends ex.Scene {
    * bounds at the current zoom) — e.g. the minimap's tap-to-jump.
    */
   protected panCameraTo(x: number, y: number): void {
-    this.camera.move(this.clampedPos(x, y), 400, ex.easeInOutCubic);
+    this.sceneCamera.panTo(x, y);
   }
 
   /**

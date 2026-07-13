@@ -379,11 +379,15 @@ IDs; work these opportunistically alongside roadmap tasks.
       and cross-file-called methods moved from module-private to `pub(crate)` to
       allow the sibling-module split; full format/check/lint/test gate passes
       (all 69 Rust tests relocated intact).
-- [ ] **Split `src/tiled-scene.ts`** (~870 lines) — split camera/zoom math and
-      tap/drag input dispatch out of the base scene class. Handle carefully:
-      every scene extends it, so do this independently and land it (with
-      `/verify` on both scenes) before leaning on it for the `ship-level.ts` /
-      `map-level.ts` split below.
+- [x] **Split `src/tiled-scene.ts`** (~870 lines) — done: camera zoom/pan/clamp
+      math moved to `src/scene-camera.ts` (`SceneCamera`), and the raw
+      pointer/drag/pinch/wheel state machine + Excalibur listener
+      registration moved to `src/scene-input.ts` (`SceneInputController`,
+      handlers-callback interface). `TiledScene` keeps tap-dispatch semantics
+      (modal/HUD/actor/empty-tile priority chain) and orchestration, now ~675
+      lines. No behavior change — verified on both scenes (`/verify`: drag-pan,
+      wheel-zoom, actor tap-to-select + camera focus, empty-tile tap spawning
+      Move/Deploy buttons); full format/check/lint/test gate passes.
 - [ ] **Split `src/ship-level.ts` and `src/map-level.ts` together** (~790 / ~590
       lines) — do these in the same pass, not separately: both mix several
       parallel sync-and-render systems in one class (modules + shop dialog;
