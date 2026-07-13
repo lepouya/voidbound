@@ -35,26 +35,33 @@ task list that tracks what's built vs. planned.
   (`.github/workflows/ci.yml`) runs format/check/lint/test/cargo checks on push
   and PR (the frontend job runs `test:ts`; the rust job runs cargo test itself).
   Logic that should be unit-tested lives in pure modules with no runtime
-  Excalibur/Vite imports (`src/tileset-geometry.ts`, `src/grid-math.ts`,
-  `src/game-state.ts`, `src/game-state-types.ts`, `src/camera-math.ts`,
-  `src/minimap-math.ts`, `src/vessel-math.ts`, `src/ui/tile-ref-parse.ts`,
-  `src/ui/hud-layout.ts`, `src/ui/dialog-layout.ts`, `src/ui/format.ts`) —
-  Excalibur cannot load under Deno, so keep new testable logic in that shape.
-  There is no runtime/scene coverage — the running app is still the safety net
-  there.
+  Excalibur/Vite imports (`src/resources/tileset-geometry.ts`,
+  `src/scene/grid-math.ts`, `src/state/game-state.ts`,
+  `src/state/game-state-types.ts`, `src/scene/camera-math.ts`,
+  `src/map/minimap-math.ts`, `src/map/vessel-math.ts`,
+  `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`, `src/ui/dialog-layout.ts`,
+  `src/ui/format.ts`) — Excalibur cannot load under Deno, so keep new testable
+  logic in that shape. There is no runtime/scene coverage — the running app is
+  still the safety net there.
 
 ## 2. Project Layout
 
 ```text
 src/                  # Frontend (TypeScript + Excalibur.js)
   main.ts             # Engine init; registers scenes; starts on "ship"
-  tiled-scene.ts      # Abstract base scene (camera, input, HUD, selection)
-  map-level.ts        # Space map scene — canonical event-pattern example
-  ship-level.ts       # Mothership interior scene — game starts here
-  tile-actor.ts       # Base class for all interactive entities
-  map-loader.ts       # buildTileMap() via Tauri IPC
-  resources.ts        # TilesetRegistry; builds defs from tileset-geometry.ts
-  tileset-geometry.ts # Pure-data tileset catalog (grid geometry + auto-rules)
+  scene/              # Shared TiledScene framework (camera, input, tile actors)
+    tiled-scene.ts    # Abstract base scene (camera, input, HUD, selection)
+    tile-actor.ts     # Base class for all interactive entities
+    map-loader.ts     # fetchGridGeometry()/buildTileMap() via Tauri IPC
+  state/              # Cross-scene game state + IPC snapshot/push plumbing
+    game-state.ts     # gameState singleton; apply*Event methods
+  map/                # Space map scene — canonical event-pattern example
+    map-level.ts
+  ship/               # Mothership interior scene — game starts here
+    ship-level.ts
+  resources/          # Tileset/asset registry
+    resources.ts        # TilesetRegistry; builds defs from tileset-geometry.ts
+    tileset-geometry.ts # Pure-data tileset catalog (grid geometry + auto-rules)
   ui/                 # UI module library (always import from "./ui" barrel)
   assets/             # PNG spritesheets + pre-converted map JSON
 
@@ -114,7 +121,7 @@ networked code paths stay identical. The canonical examples are all
 **server-verified**: the local action method sends a request to the backend,
 which verifies it and returns the authorized event — required for any action
 that touches resources or shared world state. The reference implementations live
-in [src/game-state.ts](src/game-state.ts): `VesselMoveEvent`
+in [src/state/game-state.ts](src/state/game-state.ts): `VesselMoveEvent`
 (`applyVesselEvent()`) and `ModuleData` (`applyModuleEvent()` — covers both
 `request_build_module` and `request_levelup_module`). Both ride the
 `load_game_state` snapshot — the snapshot + replay model that keeps progress
@@ -181,7 +188,7 @@ defaults; don't set `z` unless you have a specific layering need.
   size varies per asset). Every animated tileset in the catalog uses this shape
   — match it for new animated assets unless there's a specific reason not to.
 - **Never `import` a PNG directly** — wrap with the `png("name")` helper in
-  [src/resources.ts](src/resources.ts) instead.
+  [src/resources/resources.ts](src/resources/resources.ts) instead.
 - Generated files under `src/assets/` are excluded from `deno fmt`
   (`fmt.exclude` in `deno.json`) so regen + fmt cycles stay diff-free — commit
   them in the compact form the pipeline writes.
@@ -229,12 +236,12 @@ wiring, `main.ts` registration, and HUD setup.
 
 Startup-time backend work (game-state sync, a future login flow) must ride the
 shared Excalibur `loader` as an `ex.Loadable` (see `GameStateResource` in
-src/game-state-loader.ts) — never block or gate `game.start()`; the loading
-screen exists precisely so slow work happens behind it. A loadable must catch
-its own errors and resolve anyway: a failed or slow backend must never block
-game start (the player continues on new-player defaults). Scenes must tolerate
-the snapshot landing late or never — read `gameState` defaults at init and
-`subscribe()` to re-stamp visuals when a load lands. Player identity never
+src/state/game-state-loader.ts) — never block or gate `game.start()`; the
+loading screen exists precisely so slow work happens behind it. A loadable must
+catch its own errors and resolve anyway: a failed or slow backend must never
+block game start (the player continues on new-player defaults). Scenes must
+tolerate the snapshot landing late or never — read `gameState` defaults at init
+and `subscribe()` to re-stamp visuals when a load lands. Player identity never
 changes mid-game (re-launching is the only way to switch users), so this
 resilience only covers the initial load, not live identity swaps.
 
@@ -272,7 +279,7 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   dialog.ts consumes it and re-exports its types
 
 Pure grid math shared by scenes (dock tiles) lives outside `ui/` in
-[src/grid-math.ts](src/grid-math.ts).
+[src/scene/grid-math.ts](src/scene/grid-math.ts).
 
 Full field lists live in the source — read `src/ui/<file>.ts` when you need the
 exact interface rather than duplicating it here.
@@ -301,7 +308,7 @@ own animation timer, so separate instances are **not frame-synchronized**.
 ### `TileActor`
 
 Base class for all interactive map entities. Key options (full list in
-[src/tile-actor.ts](src/tile-actor.ts)):
+[src/scene/tile-actor.ts](src/scene/tile-actor.ts)):
 
 - `tile` / `movingTile` — `TileRef | TileRef[] | null`; the array form stacks
   layers, null makes the actor invisible (empty tile pattern)
@@ -328,8 +335,8 @@ on `map_type`:
 
 - `"map"` — geometry-only 1000*1000 space map (ROADMAP P1.9): empty `tiles`, no
   `ex.TileMap` client-side — the scene renders a plain background and treats the
-  grid as coordinate math; a minimap widget (`src/minimap.ts` + pure
-  `src/minimap-math.ts`) covers navigation
+  grid as coordinate math; a minimap widget (`src/map/minimap.ts` + pure
+  `src/map/minimap-math.ts`) covers navigation
 - `"ship"` — `include_str!`-embedded `src/assets/ship-level.json` (40*40, 32px
   world tiles, `ship-tiles` spritesheet)
 
@@ -370,7 +377,7 @@ tampered with. The client renders what commands return and asks for actions:
   mothership/asteroid/vessel tables wholesale, so the reconcilers despawn
   everything that left the window. Entity pushes are footprint-filtered against
   the same window at outbox drain (own-entity and global pushes are exempt). The
-  map scene's zoom floor (`tileViewCapZoom`, src/camera-math.ts) caps the
+  map scene's zoom floor (`tileViewCapZoom`, src/scene/camera-math.ts) caps the
   visible view at 80 tiles on the longer axis — strictly inside the window, so
   unloaded space never scrolls into sight.
 - **Push channel** (`server-push` Tauri event; ROADMAP P1.5) — the backend tells
@@ -442,10 +449,10 @@ Gameplay constants (production tick, the module catalog's per-type cost/build
 time/production, the asteroid tier catalog + mine rate, room grid, map geometry,
 vessel speed) live in game_state/ (modules.rs, world.rs, state.rs); the ones the
 UI renders have display-only TS mirrors — comments mark each pair; keep them in
-sync (the asteroid mirror is `src/asteroid-catalog.ts`: tier bands, class names,
-sprite tints, duration estimates; the deal-shop mirror is
-`src/trade-catalog.ts`: refresh costs and rarity styling — deal sizing has no
-mirror, amounts arrive on the wire). The module catalog's
+sync (the asteroid mirror is `src/map/asteroid-catalog.ts`: tier bands, class
+names, sprite tints, duration estimates; the deal-shop mirror is
+`src/ship/trade-catalog.ts`: refresh costs and rarity styling — deal sizing has
+no mirror, amounts arrive on the wire). The module catalog's
 cost/build-time/production all scale per level through one shared
 doubling-per-level stub (`scale_for_level`/`scaleForLevel`) — real balancing is
 a later pass, as is the asteroid deposit/rate balance. Mothership placement is

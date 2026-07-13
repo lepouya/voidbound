@@ -1,4 +1,4 @@
-// Asserts the AOI safety invariant documented in src/aoi-config.ts (review
+// Asserts the AOI safety invariant documented in src/map/aoi-config.ts (review
 // finding CR2.2): the client's visible-view cap plus its re-query
 // hysteresis must stay strictly inside the backend's AOI_SPAN window, so
 // unloaded space can never scroll into sight even mid re-request. Without
@@ -11,7 +11,7 @@ import {
   AOI_REQUERY_TILES,
   AOI_SPAN,
   MAP_VIEW_TILES_CAP,
-} from "../src/aoi-config.ts";
+} from "../src/map/aoi-config.ts";
 
 Deno.test("AOI safety invariant: view cap + requery hysteresis stays inside AOI_SPAN", () => {
   assert(

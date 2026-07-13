@@ -1,5 +1,5 @@
 // Cross-checks every PNG under src/assets/ against the tileset catalog in
-// src/tileset-geometry.ts by reading real pixel dimensions from the PNG IHDR
+// src/resources/tileset-geometry.ts by reading real pixel dimensions from the PNG IHDR
 // chunk (no image library needed). This is exactly the class of drift that
 // once caused a module-* mis-slicing bug (catalog rows out of step with the
 // regenerated PNG dimensions).
@@ -11,7 +11,7 @@ import {
   AUTO_TILESET_RULES,
   TILESET_GEOMETRY,
   TilesetGridGeometry,
-} from "../src/tileset-geometry.ts";
+} from "../src/resources/tileset-geometry.ts";
 
 const ASSETS_DIR = fromFileUrl(new URL("../src/assets/", import.meta.url));
 

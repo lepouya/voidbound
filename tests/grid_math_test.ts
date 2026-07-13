@@ -7,7 +7,7 @@ import {
   roomOriginAt,
   SHIP_ROOM_GRID,
   TileFootprint,
-} from "../src/grid-math.ts";
+} from "../src/scene/grid-math.ts";
 
 // The MapLevel mothership: 4*4 at (48, 48). Its inner 2*2 docking tiles are
 // cols 49-50, rows 49-50.

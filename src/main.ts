@@ -3,10 +3,10 @@ import * as ex from "excalibur";
 import {
   GameStateResource,
   startServerPushListener,
-} from "./game-state-loader.ts";
-import { MapLevel } from "./map-level.ts";
-import { loader } from "./resources.ts";
-import { ShipLevel } from "./ship-level.ts";
+} from "./state/game-state-loader.ts";
+import { MapLevel } from "./map/map-level.ts";
+import { loader } from "./resources/resources.ts";
+import { ShipLevel } from "./ship/ship-level.ts";
 
 const game = new ex.Engine({
   width: 390,

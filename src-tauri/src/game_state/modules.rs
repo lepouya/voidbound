@@ -7,7 +7,7 @@ use super::state::{player_identity, ServerPush, ServerState};
 /// cost, build time, and unlock prerequisite for a module type.
 /// Cost/time/production/storage all scale by `scale_for_level` — a
 /// deliberate doubling-per-level stub until real balancing lands. Mirrors
-/// the TS `MODULE_CATALOG` in `src/module-catalog.ts` — keep the two in
+/// the TS `MODULE_CATALOG` in `src/ship/module-catalog.ts` — keep the two in
 /// sync.
 pub struct ModuleCatalogEntry {
     /// Wire key — the `module_type` string on `ModuleData` and build requests.
@@ -185,7 +185,7 @@ pub(super) fn scale_for_level(base: u64, level: u32) -> u64 {
 /// floor — understaffing punishes, it never kills). `required == 0` means
 /// nothing wants crew: no damping. The floor value is a balancing stub →
 /// P2.6. Mirrored display-only as crewScaledAmount in
-/// `src/module-catalog.ts` — keep the two in sync.
+/// `src/ship/module-catalog.ts` — keep the two in sync.
 fn crew_scaled(amount: u64, staffed: u32, required: u32) -> u64 {
     if required == 0 {
         return amount;
@@ -198,7 +198,7 @@ fn crew_scaled(amount: u64, staffed: u32, required: u32) -> u64 {
 /// Level 0 means the first build hasn't completed yet. `pending` carries the
 /// in-progress timer for either a first build (level 0 → 1) or a level-up
 /// (level N → N+1, during which the module keeps functioning at level N).
-/// Mirrors the TS `ModuleData` in `src/game-state.ts` — keep the two in sync.
+/// Mirrors the TS `ModuleData` in `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleData {
@@ -218,7 +218,7 @@ pub struct ModuleData {
     pub pending: Option<ModulePendingBuild>,
 }
 
-/// Mirrors the TS `ModulePendingBuild` in `src/game-state.ts` — keep the two
+/// Mirrors the TS `ModulePendingBuild` in `src/state/game-state.ts` — keep the two
 /// in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -248,7 +248,7 @@ pub struct ModuleActionResponse {
 /// polls; see run_scheduler).
 pub(super) const PRODUCTION_TICK_MS: u64 = 5_000;
 
-/// Ship-interior room layout — mirrors SHIP_ROOM_GRID in `src/grid-math.ts`
+/// Ship-interior room layout — mirrors SHIP_ROOM_GRID in `src/scene/grid-math.ts`
 /// and the geometry drawn in art/ship-level.tmj; keep all three in sync.
 const ROOM_ORIGIN: i64 = 1;
 

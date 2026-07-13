@@ -2,10 +2,10 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { gameState, serverNow, VesselMoveEvent } from "./game-state.ts";
-import { TileGridGeometry } from "./grid-math.ts";
-import { TileActor } from "./tile-actor.ts";
-import { roundButton } from "./ui/index.ts";
+import { gameState, serverNow, VesselMoveEvent } from "../state/game-state.ts";
+import { TileGridGeometry } from "../scene/grid-math.ts";
+import { TileActor } from "../scene/tile-actor.ts";
+import { roundButton } from "../ui/index.ts";
 import { vesselWorldPos } from "./vessel-math.ts";
 
 /** Scene services VesselSync needs — kept narrow so it doesn't reach back
@@ -22,7 +22,7 @@ export interface VesselSyncHost {
  * the backend's vessel table, refreshed by every load_game_state snapshot
  * and merged into by dispatch/recall command responses — and owns the
  * dispatch/recall requests themselves. Doesn't fit the shared
- * `reconcileActors` skeleton (src/actor-sync.ts): a changed event redirects
+ * `reconcileActors` skeleton (src/scene/actor-sync.ts): a changed event redirects
  * an existing actor in place with a lerp rather than rebuilding it, and a
  * return leg that already finished must *not* respawn (the backend prunes it
  * from its next snapshot).

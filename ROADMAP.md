@@ -90,7 +90,7 @@ document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
   damping curve can't be experienced or tuned while restarts wipe state.
 - [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom anchored at the pointer/pinch
       midpoint, clamped so the camera never drifts at min/max zoom
-      (`src/camera-math.ts`).
+      (`src/scene/camera-math.ts`).
 - [x] **P1.9 — Minimap + full-size space map.** Geometry-only 1000\*1000 space
       map with minimap navigation (entity dots, viewport rect, tap-to-jump).
       Still open: real starfield background (→ P6.2).
@@ -367,8 +367,6 @@ IDs; work these opportunistically alongside roadmap tasks.
 
 ## Codebase housekeeping
 
-- Reorganization of ts source code: A lot of files on top level, might be better
-  to put them in subdirectories of relevant modules together.
 - `/verify` skill should just use the sonnet/default model instead of current,
   specially when we are using a heavy-weight like Fable.
 
@@ -385,6 +383,8 @@ IDs; work these opportunistically alongside roadmap tasks.
 - Mothership teleport/move.
 - Clicking outside of dialog should dismiss it.
 - Rename "gift" -> "free" in the trading post
+- Recalling a vessel that was mining didn't actually add the resources to the
+  game after it arrived.
 - Dev testing speedup: Like maybe 2x or even 5x on construction and resource
   collection while I'm running a test. That way I can test out the mechanics
   quickly without waiting for too long

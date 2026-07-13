@@ -1,8 +1,8 @@
-import { gameState, MothershipData } from "./game-state.ts";
-import { TileGridGeometry } from "./grid-math.ts";
-import { reconcileActors } from "./actor-sync.ts";
-import { TileActor } from "./tile-actor.ts";
-import { roundButton } from "./ui/index.ts";
+import { gameState, MothershipData } from "../state/game-state.ts";
+import { TileGridGeometry } from "../scene/grid-math.ts";
+import { reconcileActors } from "../scene/actor-sync.ts";
+import { TileActor } from "../scene/tile-actor.ts";
+import { roundButton } from "../ui/index.ts";
 
 /** True when two snapshots describe an identical ship — placement, art, and
  *  ownership — so the reconciler can skip rebuilding its actor. */

@@ -5,7 +5,7 @@ use super::state::{ServerPush, ServerState};
 
 /// A crew recruitment in flight (ROADMAP P1.10) — one at a time, same timer
 /// shape as a module's pending build. Mirrors the TS `PendingHire` in
-/// `src/game-state.ts` — keep the two in sync.
+/// `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingHire {
@@ -18,7 +18,7 @@ pub struct PendingHire {
 /// crew push carries the full current snapshot. Capacity is not on the wire:
 /// it derives from the module snapshot (crew_capacity / the TS
 /// crewCapacityForModules mirror). Mirrors the TS `CrewData` in
-/// `src/game-state.ts` — keep the two in sync.
+/// `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CrewData {
@@ -37,11 +37,11 @@ pub struct CrewActionResponse {
 /// Biological-material cost of one crew hire, multiplied by the new head
 /// count — linear, not the doubling stub: hiring is a repeat purchase
 /// (ROADMAP P1.10). Balancing stub → P2.6. Mirrored display-only as
-/// HIRE_COST_BIOLOGICAL in `src/module-catalog.ts` — keep the two in sync.
+/// HIRE_COST_BIOLOGICAL in `src/ship/module-catalog.ts` — keep the two in sync.
 const HIRE_COST_BIOLOGICAL: u64 = 20;
 
 /// Recruitment time per hire. Balancing stub → P2.6. Mirrored display-only
-/// as HIRE_TIME_MS in `src/module-catalog.ts` — keep the two in sync.
+/// as HIRE_TIME_MS in `src/ship/module-catalog.ts` — keep the two in sync.
 const HIRE_TIME_MS: u64 = 30_000;
 
 /// A new player starts with no crew (ROADMAP P1.10) and hires from scratch —

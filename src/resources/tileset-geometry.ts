@@ -1,9 +1,10 @@
 // Pure-data tileset catalog: grid geometry for every tileset in the game.
 //
 // This module has NO imports and NO side effects — it is consumed both by
-// src/resources.ts (which resolves asset URLs and builds SpriteSheets) and by
-// tests/tileset_geometry_test.ts (which cross-checks each PNG's real pixel
-// dimensions against these rows without needing Vite or Excalibur).
+// src/resources/resources.ts (which resolves asset URLs and builds
+// SpriteSheets) and by tests/tileset_geometry_test.ts (which cross-checks
+// each PNG's real pixel dimensions against these rows without needing Vite
+// or Excalibur).
 //
 // To add a tileset: drop the PNG in src/assets/ and either match an
 // auto-register prefix in AUTO_TILESET_RULES or add a row to TILESET_GEOMETRY.
@@ -53,7 +54,7 @@ export const TILESET_GEOMETRY: TilesetGeometry[] = [
   { name: "cs1-moving", tileSize: 64, ...CANONICAL_ANIM },
   // Placeholder asteroid sprites (ROADMAP P1.6): grayscale single-sprite
   // sheets tinted per resource kind at render time (art/gen_asteroids.sh,
-  // ASTEROID_TINTS in src/asteroid-catalog.ts). Map tiles are 32 px world
+  // ASTEROID_TINTS in src/map/asteroid-catalog.ts). Map tiles are 32 px world
   // with 2x sprite resolution, so span 1/2/3 is 64/128/192 px.
   { name: "asteroid-small", cols: 1, rows: 1, tileSize: 64 },
   { name: "asteroid-medium", cols: 1, rows: 1, tileSize: 128 },

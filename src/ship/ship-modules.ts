@@ -8,8 +8,12 @@ import {
   ModuleData,
   ResourceCounts,
   serverNow,
-} from "./game-state.ts";
-import { moduleAnchorAt, roomOriginAt, SHIP_ROOM_GRID } from "./grid-math.ts";
+} from "../state/game-state.ts";
+import {
+  moduleAnchorAt,
+  roomOriginAt,
+  SHIP_ROOM_GRID,
+} from "../scene/grid-math.ts";
 import {
   COMMAND_MODULE_TYPE,
   costAtLevel,
@@ -22,9 +26,9 @@ import {
   moduleCatalogEntry,
   TRADING_POST_MODULE_TYPE,
 } from "./module-catalog.ts";
-import { TileActor } from "./tile-actor.ts";
-import { TileGridGeometry } from "./grid-math.ts";
-import { ButtonDef, roundButton, TileRef } from "./ui/index.ts";
+import { TileActor } from "../scene/tile-actor.ts";
+import { TileGridGeometry } from "../scene/grid-math.ts";
+import { ButtonDef, roundButton, TileRef } from "../ui/index.ts";
 
 /** Modules occupy the 4*4 center of their 6*6 room. */
 const MODULE_SPAN = 4;
@@ -132,7 +136,7 @@ export interface ModuleSyncHost {
  * refreshed by every load_game_state snapshot and merged into by
  * build/level-up command responses — and owns every module-domain action
  * (build, level up, hire crew). Doesn't fit the shared `reconcileActors`
- * skeleton (src/actor-sync.ts): a module's rebuild diff depends on several
+ * skeleton (src/scene/actor-sync.ts): a module's rebuild diff depends on several
  * side-derived values (level-up/hire status, staffing %) beyond its own
  * snapshot, and a rebuilt actor must carry the outgoing one's selection
  * state over.

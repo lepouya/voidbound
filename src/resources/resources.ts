@@ -9,9 +9,11 @@ import {
 } from "./tileset-geometry.ts";
 
 // All PNG assets under src/assets/, including any future subdirectories.
-// Keys are paths relative to this file, e.g. "./assets/cs1-base.png" or
-// "./assets/weapons/sword.png". Values are Vite-resolved URLs.
-const allPngs = import.meta.glob<string>("./assets/**/*.png", {
+// The leading "/" makes this project-root-absolute rather than relative to
+// this file, so it keeps resolving correctly if resources.ts moves again.
+// Keys are paths like "/src/assets/cs1-base.png" or
+// "/src/assets/weapons/sword.png". Values are Vite-resolved URLs.
+const allPngs = import.meta.glob<string>("/src/assets/**/*.png", {
   eager: true,
   query: "?url",
   import: "default",
@@ -21,7 +23,7 @@ const allPngs = import.meta.glob<string>("./assets/**/*.png", {
 // E.g., png("cs1-base") or png("subdir/foo"). Throws at startup if the file
 // is missing, giving an early and clear error rather than a silent undefined.
 const png = (name: string): string => {
-  const key = `./assets/${name}.png`;
+  const key = `/src/assets/${name}.png`;
   const url = allPngs[key];
   if (!url) throw new Error(`PNG not found in assets: "${name}.png"`);
   return url;
@@ -40,9 +42,9 @@ const png = (name: string): string => {
 //              returns the individual frame sprite at index N.
 //
 // The catalog itself (grid geometry per tileset + auto-register rules) lives
-// in src/tileset-geometry.ts as pure data. To add a new tileset: drop the PNG
-// in src/assets/ and add a row (or match an auto-register prefix) there — no
-// import statement needed.
+// in src/resources/tileset-geometry.ts as pure data. To add a new tileset:
+// drop the PNG in src/assets/ and add a row (or match an auto-register
+// prefix) there — no import statement needed.
 
 type StaticDef = {
   kind: "static";
@@ -101,7 +103,7 @@ const autoRegister = (rule: AutoTilesetRule): TilesetDef[] =>
   Object.entries(allPngs)
     .filter(([path]) => path.split("/").pop()?.startsWith(rule.prefix) ?? false)
     .map(([path, src]) =>
-      defFrom(path.replace("./assets/", "").replace(".png", ""), src, rule)
+      defFrom(path.replace("/src/assets/", "").replace(".png", ""), src, rule)
     );
 
 const TILESET_DEFS: TilesetDef[] = [

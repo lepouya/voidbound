@@ -14,7 +14,7 @@ import {
   resolveGraphicLayers,
   TileActorBadgeDef,
   TileRef,
-} from "./ui/index.ts";
+} from "../ui/index.ts";
 
 export interface TileActorOptions {
   /**

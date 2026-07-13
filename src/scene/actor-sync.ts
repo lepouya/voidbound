@@ -6,12 +6,13 @@ import { TileActor } from "./tile-actor.ts";
  * `source` are killed and dropped, entities whose last-applied snapshot
  * (`applied`) no longer matches `same` are rebuilt in place, everything else
  * is left alone. Shared by every TiledScene entity-sync module (motherships,
- * asteroids — see src/map-motherships.ts, src/map-asteroids.ts) whose actors
- * are a pure function of one server snapshot with no other per-actor state to
- * carry across a rebuild. Reconcilers with real quirks on top — vessels
- * (redirect-in-place lerp, arrival-based respawn skip; src/map-vessels.ts),
- * modules (multiple side-derived applied maps, selection carry-over;
- * src/ship-modules.ts) — don't fit this shape and keep their own loops.
+ * asteroids — see src/map/map-motherships.ts, src/map/map-asteroids.ts) whose
+ * actors are a pure function of one server snapshot with no other per-actor
+ * state to carry across a rebuild. Reconcilers with real quirks on top —
+ * vessels (redirect-in-place lerp, arrival-based respawn skip;
+ * src/map/map-vessels.ts), modules (multiple side-derived applied maps,
+ * selection carry-over; src/ship/ship-modules.ts) — don't fit this shape and
+ * keep their own loops.
  */
 export function reconcileActors<Id, Data>(opts: {
   actors: Map<Id, TileActor>;

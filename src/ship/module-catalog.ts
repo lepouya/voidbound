@@ -1,4 +1,4 @@
-import { ModuleData, ResourceKind } from "./game-state.ts";
+import { ModuleData, ResourceKind } from "../state/game-state.ts";
 
 /**
  * Module type catalog (ROADMAP P1.4) — display/UX mirror of the Rust

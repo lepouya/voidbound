@@ -1,4 +1,4 @@
-import { AsteroidData, MaterialResourceKind } from "./game-state.ts";
+import { AsteroidData, MaterialResourceKind } from "../state/game-state.ts";
 
 /**
  * Asteroid tier catalog (ROADMAP P1.6) — display/UX mirror of the Rust

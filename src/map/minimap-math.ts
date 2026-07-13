@@ -1,6 +1,6 @@
 // Pure minimap projection math (ROADMAP P1.9) — no runtime dependencies, so
 // tests/minimap_math_test.ts can exercise it under plain `deno test`. The
-// minimap widget itself (src/minimap.ts) owns everything Excalibur: this
+// minimap widget itself (src/map/minimap.ts) owns everything Excalibur: this
 // module only maps between world px and minimap px.
 
 /** A plain 2D point; ex.Vector satisfies this structurally. */

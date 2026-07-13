@@ -5,8 +5,8 @@ import {
   DEAL_REFRESH_COSTS_CREDITS,
   dealRefreshCost,
   MAX_DEAL_REFRESHES_PER_DAY,
-} from "../src/trade-catalog.ts";
-import { DealRarity } from "../src/game-state.ts";
+} from "../src/ship/trade-catalog.ts";
+import { DealRarity } from "../src/state/game-state.ts";
 
 Deno.test("refresh costs start free, then double per use", () => {
   assertEquals(DEAL_REFRESH_COSTS_CREDITS[0], 0);

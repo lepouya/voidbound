@@ -3,11 +3,15 @@ import * as ex from "excalibur";
 import { invoke } from "@tauri-apps/api/core";
 
 import { ASTEROID_TINTS, asteroidDisplayName } from "./asteroid-catalog.ts";
-import { reconcileActors } from "./actor-sync.ts";
-import { AsteroidData, gameState, VesselMoveEvent } from "./game-state.ts";
-import { TileGridGeometry } from "./grid-math.ts";
-import { TileActor } from "./tile-actor.ts";
-import { formatCompactCount, roundButton } from "./ui/index.ts";
+import { reconcileActors } from "../scene/actor-sync.ts";
+import {
+  AsteroidData,
+  gameState,
+  VesselMoveEvent,
+} from "../state/game-state.ts";
+import { TileGridGeometry } from "../scene/grid-math.ts";
+import { TileActor } from "../scene/tile-actor.ts";
+import { formatCompactCount, roundButton } from "../ui/index.ts";
 
 /** True when two snapshots describe an identical asteroid — placement, class,
  *  deposit, and mining slot — so the reconciler can skip rebuilding its

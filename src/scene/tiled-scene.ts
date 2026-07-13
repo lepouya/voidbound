@@ -15,7 +15,7 @@ import {
   spawnDialog,
   spawnHudGroup,
   squareButton,
-} from "./ui/index.ts";
+} from "../ui/index.ts";
 import { TileGridGeometry } from "./grid-math.ts";
 import { SceneCamera } from "./scene-camera.ts";
 import { SceneInputController } from "./scene-input.ts";
@@ -24,11 +24,15 @@ import {
   NotificationData,
   RESOURCE_KINDS,
   ResourceKind,
-} from "./game-state.ts";
+} from "../state/game-state.ts";
+// Deliberate exception to the scene/ directory being domain-agnostic: the
+// shared HUD resource bar renders storage/crew caps, which are ship-module
+// derived, so the base scene class reaches into ship/'s catalog for this one
+// display computation.
 import {
   crewCapacityForModules,
   storageCapsForModules,
-} from "./module-catalog.ts";
+} from "../ship/module-catalog.ts";
 import { TileActor } from "./tile-actor.ts";
 
 /**

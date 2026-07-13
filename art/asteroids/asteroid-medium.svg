@@ -5,7 +5,7 @@
   viewBox="0 0 128 128"
 >
   <!-- Placeholder medium asteroid (2*2 tiles): grayscale so the client can
-       tint per resource kind (ASTEROID_TINTS in src/asteroid-catalog.ts). -->
+       tint per resource kind (ASTEROID_TINTS in src/map/asteroid-catalog.ts). -->
   <g stroke="#4a4a4a" stroke-width="3" stroke-linejoin="round">
     <path
       d="M60 8 L88 14 L110 34 L118 60 L108 90 L84 112 L52 118 L26 104

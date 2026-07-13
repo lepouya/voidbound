@@ -154,7 +154,7 @@ export interface AsteroidMining {
  */
 export interface AsteroidData {
   asteroidId: string;
-  /** Size tier, an ASTEROID_TIERS key (src/asteroid-catalog.ts):
+  /** Size tier, an ASTEROID_TIERS key (src/map/asteroid-catalog.ts):
    *  "small" | "medium" | "large". */
   tier: string;
   /** The one resource this asteroid yields. Single-resource by design for
@@ -216,7 +216,7 @@ export interface PendingHire {
  * flight. Like ModuleData, the struct doubles as its own event payload — a
  * crew push carries the full current snapshot. Capacity is not on the wire:
  * it derives from the module snapshot (crewCapacityForModules in
- * src/module-catalog.ts). Mirrors the Rust `CrewData` in
+ * src/ship/module-catalog.ts). Mirrors the Rust `CrewData` in
  * src-tauri/src/game_state/crew.rs — keep the two in sync.
  */
 export interface CrewData {
@@ -227,7 +227,7 @@ export interface CrewData {
 /**
  * How player-favorable a Trading Post deal is (ROADMAP P1.12) — the rarity's
  * bonus multiplied the get side when the server rolled the deal; the client
- * only styles it (see src/trade-catalog.ts). Mirrors the serialized form of
+ * only styles it (see src/ship/trade-catalog.ts). Mirrors the serialized form of
  * the Rust `DealRarity` in src-tauri/src/game_state/deals.rs — keep the two
  * in sync.
  */
@@ -274,7 +274,7 @@ export interface DealsData {
   /** UTC day index the current batch belongs to. */
   dayIndex: number;
   /** Refreshes used since the daily reset — indexes the doubling cost table
-   *  (src/trade-catalog.ts) for the Refresh button's price tag. */
+   *  (src/ship/trade-catalog.ts) for the Refresh button's price tag. */
   refreshesUsed: number;
   deals: DealData[];
 }
@@ -309,7 +309,7 @@ export interface ModuleData {
   ownerId: string;
   /** Display name shown below the module sprite. */
   ownerName: string;
-  /** Catalog key, e.g. "ore-refinery" (see src/module-catalog.ts). Until
+  /** Catalog key, e.g. "ore-refinery" (see src/ship/module-catalog.ts). Until
    *  per-type art lands, every module renders with the same "module-base"
    *  sprite regardless of this value. */
   moduleType: string;

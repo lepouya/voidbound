@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 
-import { vesselMoveProgress, vesselWorldPos } from "../src/vessel-math.ts";
+import { vesselMoveProgress, vesselWorldPos } from "../src/map/vessel-math.ts";
 
 const LEG = {
   srcCol: 10,

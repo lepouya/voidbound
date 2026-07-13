@@ -5,7 +5,7 @@ description: Register a new PNG spritesheet as a Voidbound tileset for use via T
 
 # Adding a new tileset
 
-All visual assets in Voidbound go through `src/resources.ts` as typed
+All visual assets in Voidbound go through `src/resources/resources.ts` as typed
 `TilesetDef` entries and are consumed via `TileRef` strings like
 `"my-sprite:0"`. Follow these steps to register a new one.
 
@@ -34,7 +34,7 @@ run the right pipeline script — art scripts write directly to `src/assets/`.
 ## 3. Auto-registered patterns (no code change needed!)
 
 If the filename matches one of these patterns, you're **done** after step 1 —
-`src/resources.ts` discovers it automatically:
+`src/resources/resources.ts` discovers it automatically:
 
 | Filename pattern | Auto-registered as                                     |
 | ---------------- | ------------------------------------------------------ |
@@ -44,13 +44,14 @@ If the filename matches one of these patterns, you're **done** after step 1 —
 
 So `src/assets/ui-icon-trade.png` immediately becomes usable as the `TileRef`
 `"ui-icon-trade:0"` (normal), `":1"` (active), `":2"` (disabled) with no edit to
-`resources.ts`. The rules live in `AUTO_TILESET_RULES` (src/tileset-geometry.ts)
-— check there when in doubt.
+`resources.ts`. The rules live in `AUTO_TILESET_RULES`
+(src/resources/tileset-geometry.ts) — check there when in doubt.
 
 ## 4. Otherwise, add a row to `TILESET_GEOMETRY`
 
-Open `src/tileset-geometry.ts` (pure data — no imports) and add one row to the
-`TILESET_GEOMETRY` array. A row with `frames` is animated; without, static:
+Open `src/resources/tileset-geometry.ts` (pure data — no imports) and add one
+row to the `TILESET_GEOMETRY` array. A row with `frames` is animated; without,
+static:
 
 ```ts
 // static: sheet of independent sprites
@@ -63,9 +64,9 @@ Open `src/tileset-geometry.ts` (pure data — no imports) and add one row to the
 **Important:**
 
 - `name` must exactly match the PNG path under `src/assets/` without the
-  extension — `src/resources.ts` resolves the asset URL from it (via the `png()`
-  helper, which throws at startup if the file is missing). **Never import PNGs
-  directly.**
+  extension — `src/resources/resources.ts` resolves the asset URL from it (via
+  the `png()` helper, which throws at startup if the file is missing). **Never
+  import PNGs directly.**
 - `name` is also the key used in every `TileRef` referring to this tileset. Pick
   a stable, lowercase-kebab name.
 

@@ -10,7 +10,7 @@ use super::state::{
 /// Response to request_map_window (ROADMAP P1.13): the re-centered interest
 /// area plus every world entity the client should now hold — it replaces its
 /// mothership/asteroid/vessel tables wholesale with these slices. Mirrors
-/// the TS `MapWindowData` in `src/game-state.ts` — keep the two in sync.
+/// the TS `MapWindowData` in `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, Debug)]
 pub struct MapWindowData {
     pub window: MapWindow,
@@ -23,7 +23,7 @@ pub struct MapWindowData {
 /// only ever holds world entities inside this window centered on its camera.
 /// Must stay strictly larger than the client's visible-view tile cap plus
 /// its re-request hysteresis (MAP_VIEW_TILES_CAP / AOI_REQUERY_TILES in
-/// src/aoi-config.ts, which mirrors this constant and whose invariant is
+/// src/map/aoi-config.ts, which mirrors this constant and whose invariant is
 /// asserted by tests/aoi_config_test.ts — keep the two in sync) so unloaded
 /// space can never scroll into sight.
 pub(super) const AOI_SPAN: i64 = 100;
@@ -45,7 +45,7 @@ const MAX_VESSELS: usize = 20;
 /// renders whatever the load_game_state snapshot says (MapLevel reconciles
 /// its actors from the list), so moved ships or newly joined players reach
 /// every client through the same snapshot with no hardcoded positions.
-/// Mirrors the TS `MothershipData` in `src/game-state.ts` — keep the two in
+/// Mirrors the TS `MothershipData` in `src/state/game-state.ts` — keep the two in
 /// sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -69,7 +69,7 @@ pub struct MothershipData {
 /// Center tile of the ship's inner 2*2 that is closest to the given position
 /// — the spawn/dock point for vessels. Positions are fractional because
 /// recalls depart from a lerped mid-flight position. Mirrors closestDockTile
-/// in `src/grid-math.ts` — keep the two in sync.
+/// in `src/scene/grid-math.ts` — keep the two in sync.
 fn closest_dock_tile(ship: &MothershipData, col: f64, row: f64) -> (i64, i64) {
     let axis = |v: f64, origin: i64| {
         let half = origin + ship.span / 2;
@@ -83,7 +83,7 @@ fn closest_dock_tile(ship: &MothershipData, col: f64, row: f64) -> (i64, i64) {
 }
 
 /// True if (col, row) is one of the ship's inner 2*2 docking tiles.
-/// Mirrors isDockTile in `src/grid-math.ts` — keep the two in sync.
+/// Mirrors isDockTile in `src/scene/grid-math.ts` — keep the two in sync.
 fn is_dock_tile(ship: &MothershipData, col: i64, row: i64) -> bool {
     let on_axis = |v: i64, origin: i64| {
         let half = origin + ship.span / 2;
@@ -100,7 +100,7 @@ fn is_dock_tile(ship: &MothershipData, col: i64, row: i64) -> bool {
 /// P4). Per-client state: single-client today (`ServerState::aoi`), but
 /// shaped exactly like the per-connection subscriptions P3.1's socket bus
 /// needs (SERVER.md § Interest management). Mirrors the TS `MapWindow` in
-/// `src/game-state.ts` — keep the two in sync.
+/// `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Copy, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MapWindow {
@@ -150,7 +150,7 @@ impl MapWindow {
 /// tiers differ only in how much an asteroid holds, so a full mine-out takes
 /// amount / rate (small 15–60 min, medium 1–4 h, large 4–12 h). A stub like
 /// `scale_for_level` until real balancing lands. Mirrored display-only in
-/// `src/asteroid-catalog.ts` — keep the two in sync.
+/// `src/map/asteroid-catalog.ts` — keep the two in sync.
 const MINE_UNITS_PER_HOUR: u64 = 240;
 
 pub(super) const HOUR_MS: u64 = 3_600_000;
@@ -167,7 +167,7 @@ fn mined_amount(elapsed_ms: u64) -> u64 {
 
 /// One asteroid size tier (README § Design principles): footprint, how much
 /// resource it can hold, and how many the starter field seeds. Mirrors the
-/// TS `ASTEROID_TIERS` in `src/asteroid-catalog.ts` — keep the two in sync.
+/// TS `ASTEROID_TIERS` in `src/map/asteroid-catalog.ts` — keep the two in sync.
 pub struct AsteroidTierEntry {
     /// Wire key — the `tier` string on `AsteroidData`.
     pub tier: &'static str,
@@ -225,7 +225,7 @@ fn asteroid_tier(tier: &str) -> Option<&'static AsteroidTierEntry> {
 /// An active mining job on an asteroid — which vessel, and the extraction
 /// window. At most one per asteroid today (single-slot rule); if large
 /// asteroids gain multiple miners later this becomes a list, with one window
-/// per miner. Mirrors the TS `AsteroidMining` in `src/game-state.ts` — keep
+/// per miner. Mirrors the TS `AsteroidMining` in `src/state/game-state.ts` — keep
 /// the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -245,7 +245,7 @@ pub struct AsteroidMining {
 /// `remaining`, and a mined-out asteroid leaves the table (AsteroidRemoved
 /// push). Following the ModuleData pattern, the struct doubles as its own
 /// event payload: an Asteroid push carries the full current snapshot.
-/// Mirrors the TS `AsteroidData` in `src/game-state.ts` — keep the two in
+/// Mirrors the TS `AsteroidData` in `src/state/game-state.ts` — keep the two in
 /// sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -302,7 +302,7 @@ pub(super) fn seed_asteroids(
     /// Tiles kept empty between asteroids.
     const ASTEROID_CLEARANCE: i64 = 2;
     // Rocky (construction) commonest, metallic (high-tech) rarest — README's
-    // asteroid classes; display names live in src/asteroid-catalog.ts.
+    // asteroid classes; display names live in src/map/asteroid-catalog.ts.
     const RESOURCE_WEIGHTS: [ResourceKind; 8] = [
         ResourceKind::Construction,
         ResourceKind::Construction,
@@ -371,7 +371,7 @@ fn travel_time_ms(
 
 /// Harvested resources riding home on a vessel's return leg — deposited into
 /// the player's counts when the vessel docks. Mirrors the TS `VesselCargo`
-/// in `src/game-state.ts` — keep the two in sync.
+/// in `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct VesselCargo {
@@ -383,7 +383,7 @@ pub struct VesselCargo {
 /// (in phase 3) moves pushed from other players all use this one shape.
 /// `src_col`/`src_row` are fractional for recalls, which depart from the
 /// vessel's lerped mid-flight position. Mirrors the TS `VesselMoveEvent` in
-/// `src/game-state.ts` — keep the two in sync.
+/// `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct VesselMoveEventData {
@@ -424,7 +424,8 @@ fn move_progress(v: &VesselMoveEventData, now_ms: u64) -> f64 {
 }
 
 /// A vessel's current fractional tile position at `now_ms`, lerped from its
-/// move timestamps — the same math the client's applyVesselMoveEvent uses.
+/// move timestamps — the same math the client's vesselWorldPos
+/// (src/map/vessel-math.ts) uses.
 fn vessel_position(v: &VesselMoveEventData, now_ms: u64) -> (f64, f64) {
     let t = move_progress(v, now_ms);
     (
@@ -458,7 +459,7 @@ impl ServerState {
     /// actually happened, not when the server got around to noticing. A
     /// vessel finishing a return leg (`vessel.returning`, set by
     /// `return_leg`) additionally despawns (mirroring the arrival handling in
-    /// applyVesselMoveEvent, src/map-level.ts) with a VesselRemoved push so
+    /// VesselSync.sync's onArrival, src/map/map-vessels.ts) with a VesselRemoved push so
     /// clients drop it from their tables — depositing any cargo it carried
     /// into the resource counts (ROADMAP P1.6: the mining loop's payoff).
     /// Vessels parked at any other destination persist until recalled. Runs

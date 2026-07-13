@@ -1,12 +1,12 @@
 import * as ex from "excalibur";
 
-import { gameState } from "./game-state.ts";
-import { buildTileMap } from "./map-loader.ts";
+import { gameState } from "../state/game-state.ts";
+import { buildTileMap } from "../scene/map-loader.ts";
 import { ModuleSync } from "./ship-modules.ts";
 import { ShopDialog } from "./ship-shop.ts";
-import { TileActor } from "./tile-actor.ts";
-import { SceneMap, TiledScene } from "./tiled-scene.ts";
-import { squareButton } from "./ui/index.ts";
+import { TileActor } from "../scene/tile-actor.ts";
+import { SceneMap, TiledScene } from "../scene/tiled-scene.ts";
+import { squareButton } from "../ui/index.ts";
 
 export class ShipLevel extends TiledScene {
   /** Reconciles module actors (Command Module included) against

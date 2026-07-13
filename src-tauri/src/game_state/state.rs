@@ -24,7 +24,7 @@ const MAX_NOTIFICATIONS: usize = 100;
 /// completing, a vessel arriving or returning. Rides the load_game_state
 /// snapshot (so the feed and its unread state survive a reload) and is also
 /// pushed live (`ServerPush::Notification`). Mirrors the TS
-/// `NotificationData` in `src/game-state.ts` — keep the two in sync.
+/// `NotificationData` in `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationData {
@@ -43,7 +43,7 @@ pub struct NotificationData {
 }
 
 /// The Tauri event channel carrying `ServerPush` messages to the webview.
-/// Mirrors SERVER_PUSH_EVENT in `src/game-state.ts` — keep the two in sync.
+/// Mirrors SERVER_PUSH_EVENT in `src/state/game-state.ts` — keep the two in sync.
 pub const SERVER_PUSH_EVENT: &str = "server-push";
 
 /// A server-initiated state push — the in-process stand-in for the phase-3
@@ -53,8 +53,8 @@ pub const SERVER_PUSH_EVENT: &str = "server-push";
 /// request-triggered settlement — drains the outbox and emits each entry as a
 /// SERVER_PUSH_EVENT. The client routes every variant into the matching
 /// `gameState` apply/sync entry point (`applyServerPush` in
-/// `src/game-state.ts`) — the same entry points a phase-3 socket handler will
-/// call. Mirrors the TS `ServerPush` union in `src/game-state.ts` — keep the
+/// `src/state/game-state.ts`) — the same entry points a phase-3 socket handler will
+/// call. Mirrors the TS `ServerPush` union in `src/state/game-state.ts` — keep the
 /// two in sync.
 #[derive(Serialize, Clone, Debug)]
 #[serde(tag = "type", content = "data", rename_all = "camelCase")]
@@ -85,7 +85,7 @@ pub enum ServerPush {
 }
 
 /// Game state pushed to the client. Mirrors the TS `GameStateData` in
-/// `src/game-state.ts` — keep the two in sync.
+/// `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameStateData {

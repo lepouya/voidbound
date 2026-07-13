@@ -1,6 +1,10 @@
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 
-import { anchoredZoomPos, Point, tileViewCapZoom } from "../src/camera-math.ts";
+import {
+  anchoredZoomPos,
+  Point,
+  tileViewCapZoom,
+} from "../src/scene/camera-math.ts";
 
 /**
  * World point under the screen offset `offset` (screen px from the screen

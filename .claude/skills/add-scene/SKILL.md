@@ -11,14 +11,16 @@ these steps to add a new one.
 
 ## 1. Create the scene file
 
-Create `src/<name>-level.ts` following this template:
+Create `src/<name>/<name>-level.ts` — its own domain directory alongside
+`src/map/` and `src/ship/` — following this template. Shared framework pieces
+live in `src/scene/`, cross-scene state in `src/state/`:
 
 ```ts
 import * as ex from "excalibur";
 
-import { buildTileMap } from "./map-loader.ts";
-import { TileActor } from "./tile-actor.ts";
-import { SceneMap, TiledScene } from "./tiled-scene.ts";
+import { buildTileMap } from "../scene/map-loader.ts";
+import { TileActor } from "../scene/tile-actor.ts";
+import { SceneMap, TiledScene } from "../scene/tiled-scene.ts";
 
 export class <Name>Level extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
@@ -168,8 +170,9 @@ errors before declaring the task complete.
 
 ## Reference: existing scenes
 
-- `src/map-level.ts` — geometry-only space map (no tilemap), reconciles
+- `src/map/map-level.ts` — geometry-only space map (no tilemap), reconciles
   mothership/asteroid/vessel actors from the snapshot, overrides
   `createEmptyTileActor` for Move/Deploy actions.
-- `src/ship-level.ts` — mothership interior (tilemap-backed), black background,
-  reconciles module actors (Command Module included) from the snapshot.
+- `src/ship/ship-level.ts` — mothership interior (tilemap-backed), black
+  background, reconciles module actors (Command Module included) from the
+  snapshot.

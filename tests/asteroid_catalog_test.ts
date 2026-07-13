@@ -7,8 +7,11 @@ import {
   asteroidDisplayName,
   asteroidTierEntry,
   mineDurationMs,
-} from "../src/asteroid-catalog.ts";
-import { MaterialResourceKind, RESOURCE_KINDS } from "../src/game-state.ts";
+} from "../src/map/asteroid-catalog.ts";
+import {
+  MaterialResourceKind,
+  RESOURCE_KINDS,
+} from "../src/state/game-state.ts";
 
 const MINUTE_MS = 60_000;
 

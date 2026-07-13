@@ -25,7 +25,7 @@ already ride the `load_game_state` snapshot as a self-snapshot payload
 (`ModuleData`/`DealsData`-style — see CLAUDE.md § Multiplayer-ready event
 pattern), and each action command additionally returns updated `ResourceCounts`
 when it touches resources. Reference: `DealActionResponse`/`DealsData` in
-src/ship-level.ts and src-tauri/src/game_state/deals.rs.
+src/ship/ship-shop.ts and src-tauri/src/game_state/deals.rs.
 
 ## 2. Define a status enum per row-level decision
 
@@ -43,9 +43,9 @@ type <Action>Status = "unavailable" | "<specific-blocker>" | "unaffordable" | "r
 Reference: `LevelUpStatus`
 (`"unavailable" | "capped" | "unaffordable" |
 "ready"`) and `HireStatus`
-(`"recruiting" | "full" | "unaffordable" | "ready"`) in src/ship-level.ts — both
-documented inline with why the non-obvious blocker variant exists. Compute the
-status in its own method (`levelUpStatus()`, `hireStatus()`) so both
+(`"recruiting" | "full" | "unaffordable" | "ready"`) in src/ship/ship-modules.ts
+— both documented inline with why the non-obvious blocker variant exists.
+Compute the status in its own method (`levelUpStatus()`, `hireStatus()`) so both
 row-building and any reconciler diff-check (`syncModules`'s
 `appliedLevelUpStatus`) call the same logic.
 
@@ -65,7 +65,7 @@ One row per entity, built by a per-row helper (`build<Entity>Row(data)`):
   rejects rather than silently clamping (see § 5).
 
 Append any footer row (a refresh/paginate control) at the end. Reference:
-`buildShopRows`/`buildDealRow`/`buildRefreshRow` in src/ship-level.ts.
+`buildShopRows`/`buildDealRow`/`buildRefreshRow` in src/ship/ship-shop.ts.
 
 ## 4. Write `open<Panel>Dialog()`
 
@@ -87,7 +87,7 @@ private open<Panel>Dialog(): void {
 action response, a resource change flipping affordability, a server push — so
 the dialog is always a pure render of the latest state. Always unbind in
 `onClose`, or a closed dialog keeps rebuilding rows in the background.
-Reference: `openShopDialog` in src/ship-level.ts.
+Reference: `openShopDialog` in src/ship/ship-shop.ts.
 
 ## 5. Wire the action methods
 
@@ -98,7 +98,7 @@ apply the returned self-snapshot event via its `apply<Entity>Event`/
 `gameState.apply<Entity>Event`. Reject explicitly rather than clamping —
 `console.warn` on `catch`, matching every other action (ROADMAP P1.15 is the
 toast task that replaces this with real UI feedback). Reference:
-`acceptDeal`/`refreshDeals` in src/ship-level.ts.
+`acceptDeal`/`refreshDeals` in src/ship/ship-shop.ts.
 
 ## 6. Open the panel from somewhere
 
@@ -125,10 +125,10 @@ ROADMAP before adding a new one.
 
 ## Reference
 
-The P1.12 Trading Post shop is the canonical implementation, entirely in
-src/ship-level.ts: `LevelUpStatus`/`HireStatus` (status enums),
-`openShopDialog`/`buildShopRows`/`buildDealRow`/`buildRefreshRow` (panel +
-rows), `acceptDeal`/`refreshDeals` (actions). The modal layer itself
-(`DialogDef`, `DialogRowDef`, `bindDialogRows`, `TiledScene.openDialog`) lives
-in src/ui/dialog.ts — read its header comment for the full input-capture and
-z-ordering model.
+The P1.12 Trading Post shop is the canonical implementation, split across
+src/ship/ship-modules.ts (`LevelUpStatus`/`HireStatus` status enums) and
+src/ship/ship-shop.ts (`openShopDialog`/`buildShopRows`/`buildDealRow`/
+`buildRefreshRow` panel + rows, `acceptDeal`/`refreshDeals` actions). The modal
+layer itself (`DialogDef`, `DialogRowDef`, `bindDialogRows`,
+`TiledScene.openDialog`) lives in src/ui/dialog.ts — read its header comment for
+the full input-capture and z-ordering model.

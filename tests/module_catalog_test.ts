@@ -15,7 +15,7 @@ import {
   scaleForLevel,
   storageCapsForModules,
   TRADING_POST_MODULE_TYPE,
-} from "../src/module-catalog.ts";
+} from "../src/ship/module-catalog.ts";
 
 Deno.test("scaleForLevel doubles per level above 1 and is 0 at level 0", () => {
   assertEquals(scaleForLevel(10, 0), 0);

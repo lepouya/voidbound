@@ -11,7 +11,7 @@ import {
   NotificationData,
   ResourceCounts,
   VesselMoveEvent,
-} from "../src/game-state.ts";
+} from "../src/state/game-state.ts";
 
 const ZERO_RESOURCES: ResourceCounts = {
   construction: 0,

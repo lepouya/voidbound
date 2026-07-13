@@ -4,8 +4,8 @@ The intended server model behind the multiplayer-ready event pattern
 (`CLAUDE.md` § Conventions, `/add-game-event`). Nothing here is built yet — this
 exists so that every new `*Event` interface is written against the same model
 and stays compatible when ROADMAP.md phase 3 lands. `VesselMoveEvent` (in
-`src/game-state.ts`) / `applyVesselMoveEvent` in `src/map-level.ts` is the
-reference implementation of the client half, including the snapshot half:
+`src/state/game-state.ts`) / `applyVesselMoveEvent` in `src/map/map-level.ts` is
+the reference implementation of the client half, including the snapshot half:
 `load_game_state` returns the active-vessel event list, and
 `MapLevel.syncVessels()` reconciles scene actors from it.
 

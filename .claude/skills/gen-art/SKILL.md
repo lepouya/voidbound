@@ -6,8 +6,8 @@ description: Run the Voidbound art pipeline to (re)generate PNG spritesheets and
 # Voidbound art pipeline
 
 All source art lives under `art/`. Processed assets — the ones Vite picks up and
-`src/resources.ts` registers — live under `src/assets/`. The bridge is a set of
-Python scripts in `tools/` driven by shell scripts in `art/gen_*.sh`.
+`src/resources/resources.ts` registers — live under `src/assets/`. The bridge is
+a set of Python scripts in `tools/` driven by shell scripts in `art/gen_*.sh`.
 
 **Never edit `src/assets/` PNGs or generated JSON by hand.** Re-run the
 appropriate generator script instead.
@@ -84,7 +84,7 @@ px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at
 4. Run it once and verify the output in `src/assets/`.
 5. If the filename doesn't match an auto-register pattern (`ui-frame-*`,
    `ui-icon-*`, `module-*`), run the **`/add-tileset`** skill to register it in
-   `src/tileset-geometry.ts`.
+   `src/resources/tileset-geometry.ts`.
 
 ## Checklist after regenerating
 

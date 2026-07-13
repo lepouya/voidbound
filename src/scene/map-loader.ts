@@ -3,7 +3,7 @@ import * as ex from "excalibur";
 import { invoke } from "@tauri-apps/api/core";
 
 import { TileGridGeometry } from "./grid-math.ts";
-import { parseTileRef } from "./ui/index.ts";
+import { parseTileRef } from "../ui/index.ts";
 
 interface TileMapData {
   cols: number;

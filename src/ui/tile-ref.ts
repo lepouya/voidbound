@@ -1,6 +1,6 @@
 import * as ex from "excalibur";
 
-import { Resources } from "../resources.ts";
+import { Resources } from "../resources/resources.ts";
 import {
   parseSegment,
   splitRefLayers,

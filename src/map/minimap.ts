@@ -1,8 +1,8 @@
 import * as ex from "excalibur";
 
 import { ASTEROID_TINTS } from "./asteroid-catalog.ts";
-import { gameState, serverNow } from "./game-state.ts";
-import { TileGridGeometry } from "./grid-math.ts";
+import { gameState, serverNow } from "../state/game-state.ts";
+import { TileGridGeometry } from "../scene/grid-math.ts";
 import {
   MinimapProjection,
   minimapProjection,
@@ -10,7 +10,7 @@ import {
   viewportRect,
   worldToMinimap,
 } from "./minimap-math.ts";
-import { HUD_BASE_Z, HudPointerTarget } from "./ui/index.ts";
+import { HUD_BASE_Z, HudPointerTarget } from "../ui/index.ts";
 import { vesselWorldPos } from "./vessel-math.ts";
 
 /**
@@ -27,7 +27,7 @@ import { vesselWorldPos } from "./vessel-math.ts";
  * moves with every pan/zoom frame anyway, dots read the live gameState
  * tables directly — the same source the scene's reconcilers render from —
  * and the widget is far too small for the redraw to matter. Projection math
- * lives in src/minimap-math.ts (pure, unit-tested).
+ * lives in src/map/minimap-math.ts (pure, unit-tested).
  */
 
 /** Widget edge length in screen px. */

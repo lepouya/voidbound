@@ -41,7 +41,7 @@ const DEAL_FREEBIE_MAX_UNITS: u64 = 30;
 /// Credits cost of each refresh within a day, indexed by refreshes already
 /// used: the first is free, then doubling, hard-capped at the array length
 /// (5/day). Mirrored display-only as DEAL_REFRESH_COSTS_CREDITS in
-/// `src/trade-catalog.ts` — keep the two in sync. Balancing stub → P2.6.
+/// `src/ship/trade-catalog.ts` — keep the two in sync. Balancing stub → P2.6.
 const DEAL_REFRESH_COSTS_CREDITS: [u64; 5] = [0, 10, 20, 40, 80];
 
 /// Deal slot count by Trading Post level: 3 at level 1, +1 every 2 levels,
@@ -54,7 +54,7 @@ fn deal_slot_count(trading_post_level: u32) -> u32 {
 
 /// How player-favorable a deal is: the rarity's bonus multiplies the get
 /// side only (the give side keeps the affordability cap). Serializes to the
-/// TS `DealRarity` strings in `src/game-state.ts` — keep the two in sync.
+/// TS `DealRarity` strings in `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum DealRarity {
@@ -65,7 +65,7 @@ pub enum DealRarity {
 
 /// (rarity, roll weight out of 100, get-side bonus percent). Weights and
 /// bonuses are balancing stubs → P2.6; display styling lives in
-/// `src/trade-catalog.ts`.
+/// `src/ship/trade-catalog.ts`.
 const DEAL_RARITIES: [(DealRarity, u64, u64); 3] = [
     (DealRarity::Common, 70, 20),
     (DealRarity::Uncommon, 25, 50),
@@ -92,7 +92,7 @@ fn roll_rarity(rng: &mut SeedRng) -> DealRarity {
 }
 
 /// One side of a deal: a trade-eligible type and its amount. Mirrors the TS
-/// `DealSide` in `src/game-state.ts` — keep the two in sync.
+/// `DealSide` in `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Copy, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DealSide {
@@ -103,7 +103,7 @@ pub struct DealSide {
 /// One deal slot in the Trading Post shop (ROADMAP P1.12). Give and get
 /// types always differ (server-enforced at generation *and* acceptance);
 /// `give: None` is the once-daily freebie — refreshes never mint a new one.
-/// Mirrors the TS `DealData` in `src/game-state.ts` — keep the two in sync.
+/// Mirrors the TS `DealData` in `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DealData {
@@ -123,7 +123,7 @@ pub struct DealData {
 /// The whole deal-shop state — day, refreshes used, and every current slot.
 /// Following the ModuleData pattern, the struct doubles as its own event
 /// payload: a deals push/response carries the full current list. Mirrors the
-/// TS `DealsData` in `src/game-state.ts` — keep the two in sync.
+/// TS `DealsData` in `src/state/game-state.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DealsData {

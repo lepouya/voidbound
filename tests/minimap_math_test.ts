@@ -5,7 +5,7 @@ import {
   minimapToWorld,
   viewportRect,
   worldToMinimap,
-} from "../src/minimap-math.ts";
+} from "../src/map/minimap-math.ts";
 
 // The real space map: 1000*1000 tiles at 32 px on a 120 px widget.
 const MAP_PX = 1000 * 32;

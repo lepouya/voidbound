@@ -8,9 +8,9 @@ import {
   gameState,
   ResourceCounts,
   ResourceKind,
-} from "./game-state.ts";
+} from "../state/game-state.ts";
 import { storageCapsForModules } from "./module-catalog.ts";
-import { RESOURCE_ICON_TILESET } from "./tiled-scene.ts";
+import { RESOURCE_ICON_TILESET } from "../scene/tiled-scene.ts";
 import {
   DEAL_RARITY_STYLE,
   dealRefreshCost,
@@ -24,7 +24,7 @@ import {
   DialogRowDef,
   formatCompactCount,
   squareButton,
-} from "./ui/index.ts";
+} from "../ui/index.ts";
 
 /** Wire shape of the `request_accept_deal` / `request_refresh_deals` Tauri
  *  commands' result (ROADMAP P1.12). Mirrors the Rust `DealActionResponse`

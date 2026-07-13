@@ -38,8 +38,8 @@ gets a `#[cfg(test)]` unit test. Canonical examples: `ModuleData` /
 `request_build_module` / `request_levelup_module` (the self-snapshot payload
 pattern — CLAUDE.md § Multiplayer-ready event pattern) and `VesselMoveEvent` /
 `request_dispatch_vessel` / `request_recall_vessel`. Constructing the event
-locally (with `newEventId()` from `src/event-id.ts`) remains valid only for
-actions with nothing to verify. No current action does this — every shipped
+locally (with `newEventId()` from `src/state/event-id.ts`) remains valid only
+for actions with nothing to verify. No current action does this — every shipped
 action is server-verified — but `newEventId()` is kept intentionally as the
 escape hatch for the day one does; it is not dead code to remove.
 
@@ -48,14 +48,16 @@ escape hatch for the day one does; it is not dead code to remove.
 snapshot returns the active list, the shared `gameState` holds the table and
 merges command responses into it (`applyVesselEvent`), and the owning scene
 reconciles its actors from the table on every notify plus a forced re-lerp in
-`onActivate` (see `gameState.vessels` + `MapLevel.syncVessels()`). Such event
-interfaces live in `src/game-state.ts` (pure module) instead of the scene file.
+`onActivate` (see `gameState.vessels` + `VesselSync.sync()`, invoked from
+`MapLevel`). Such event interfaces live in `src/state/game-state.ts` (pure
+module) instead of the scene file.
 
 ## 1. Define the event interface
 
 Place the interface at the top of the scene file that owns the action — or in
-`src/game-state.ts` when the event rides the `load_game_state` snapshot (like
-`VesselMoveEvent`), since the pure shared-state module can't import from scenes.
+`src/state/game-state.ts` when the event rides the `load_game_state` snapshot
+(like `VesselMoveEvent`), since the pure shared-state module can't import from
+scenes.
 
 ```ts
 export interface <Action>Event {
@@ -119,7 +121,7 @@ responsible for:
   the action; everything derivable belongs to the verifier
 - Obtaining the authorized event: `await invoke(...)` for server-verified
   actions, or — for purely local ones — constructing it with `newEventId()`
-  (src/event-id.ts) for new IDs, `Date.now()` for `dispatchedAt`, and any
+  (src/state/event-id.ts) for new IDs, `Date.now()` for `dispatchedAt`, and any
   server-style derived fields (`arrivalAt`, …)
 - Routing the event into `apply<Action>Event` — NOT mutating scene state
   directly. Snapshot-riding events route via the shared-state merge
@@ -164,8 +166,8 @@ scheduler must settle the deadline later and broadcast the result. In
   releasing the lock and wakes the scheduler Condvar so a nearer deadline the
   command just created is picked up (e.g. a short vessel flight).
 - **New push shape**: add a `ServerPush` variant and mirror it in the TS
-  `ServerPush` union in `src/game-state.ts` (comments mark the pair — keep in
-  sync), then route it in `gameState.applyServerPush()` into the **same**
+  `ServerPush` union in `src/state/game-state.ts` (comments mark the pair — keep
+  in sync), then route it in `gameState.applyServerPush()` into the **same**
   apply/sync entry point the command response uses (`applyVesselEvent`,
   `applyModuleEvent`, …) so pushed and locally-triggered changes are
   indistinguishable to scenes.
@@ -206,11 +208,11 @@ auto-recall `ServerPush::Vessel`.
       pointing at the exact Rust constant name and file. Diff the two
       field-by-field before finishing — there is no automated cross-language
       check, and this ritual has already drifted once. The three existing
-      instances are the template: `MODULE_CATALOG` (src/module-catalog.ts ↔
+      instances are the template: `MODULE_CATALOG` (src/ship/module-catalog.ts ↔
       `MODULE_CATALOG` in game_state/modules.rs), `ASTEROID_TIERS`
-      (src/asteroid-catalog.ts ↔ `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR` in
+      (src/map/asteroid-catalog.ts ↔ `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR` in
       game_state/world.rs), and `DEAL_REFRESH_COSTS_CREDITS`
-      (src/trade-catalog.ts ↔ same name in game_state/deals.rs).
+      (src/ship/trade-catalog.ts ↔ same name in game_state/deals.rs).
 - [ ] `deno task format` and `deno task check` pass (formats and type-checks TS
       and Rust).
 - [ ] Run **`/verify`** and drive the new action in the dev app — there is no
@@ -219,10 +221,10 @@ auto-recall `ServerPush::Vessel`.
 
 ## Reference
 
-See the canonical examples: `VesselMoveEvent` (src/game-state.ts) +
-`applyVesselMoveEvent` / `syncVessels` / `dispatchVessel` / `recallVessel`
-(src/map-level.ts) + `request_dispatch_vessel` / `request_recall_vessel`
+See the canonical examples: `VesselMoveEvent` / `applyVesselEvent`
+(src/state/game-state.ts) + `VesselSync.sync` / `.dispatch` / `.recall`
+(src/map/map-vessels.ts) + `request_dispatch_vessel` / `request_recall_vessel`
 (src-tauri/src/game_state/world.rs, exposed via commands.rs); and, for a timed
-scheduler-settled action, `mineAsteroid` (src/map-level.ts) +
+scheduler-settled action, `AsteroidSync.mine` (src/map/map-asteroids.ts) +
 `request_mine_asteroid` / `settle_mining` (game_state/world.rs). See `SERVER.md`
 for the architecture this pattern is written against.

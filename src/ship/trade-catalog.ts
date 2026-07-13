@@ -1,4 +1,4 @@
-import { DealRarity } from "./game-state.ts";
+import { DealRarity } from "../state/game-state.ts";
 
 /**
  * Trading Post display mirror (ROADMAP P1.12) — the UX half of the deal

@@ -3,16 +3,16 @@ import * as ex from "excalibur";
 import { invoke } from "@tauri-apps/api/core";
 
 import { AOI_REQUERY_TILES, MAP_VIEW_TILES_CAP } from "./aoi-config.ts";
-import { tileViewCapZoom } from "./camera-math.ts";
-import { gameState, MapWindowData } from "./game-state.ts";
-import { fetchGridGeometry } from "./map-loader.ts";
+import { tileViewCapZoom } from "../scene/camera-math.ts";
+import { gameState, MapWindowData } from "../state/game-state.ts";
+import { fetchGridGeometry } from "../scene/map-loader.ts";
 import { AsteroidSync } from "./map-asteroids.ts";
 import { MothershipSync } from "./map-motherships.ts";
 import { VesselSync } from "./map-vessels.ts";
 import { spawnMinimap } from "./minimap.ts";
-import { TileActor } from "./tile-actor.ts";
-import { SceneMap, TiledScene } from "./tiled-scene.ts";
-import { roundButton, squareButton } from "./ui/index.ts";
+import { TileActor } from "../scene/tile-actor.ts";
+import { SceneMap, TiledScene } from "../scene/tiled-scene.ts";
+import { roundButton, squareButton } from "../ui/index.ts";
 
 export class MapLevel extends TiledScene {
   /** Reconciles mothership actors against gameState.motherships and tracks
