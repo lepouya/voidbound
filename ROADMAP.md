@@ -381,19 +381,38 @@ IDs; work these opportunistically alongside roadmap tasks.
       (all 69 Rust tests relocated intact).
 - [x] **Split `src/tiled-scene.ts`** (~870 lines) — done: camera zoom/pan/clamp
       math moved to `src/scene-camera.ts` (`SceneCamera`), and the raw
-      pointer/drag/pinch/wheel state machine + Excalibur listener
-      registration moved to `src/scene-input.ts` (`SceneInputController`,
-      handlers-callback interface). `TiledScene` keeps tap-dispatch semantics
+      pointer/drag/pinch/wheel state machine + Excalibur listener registration
+      moved to `src/scene-input.ts` (`SceneInputController`, handlers-callback
+      interface). `TiledScene` keeps tap-dispatch semantics
       (modal/HUD/actor/empty-tile priority chain) and orchestration, now ~675
       lines. No behavior change — verified on both scenes (`/verify`: drag-pan,
       wheel-zoom, actor tap-to-select + camera focus, empty-tile tap spawning
       Move/Deploy buttons); full format/check/lint/test gate passes.
-- [ ] **Split `src/ship-level.ts` and `src/map-level.ts` together** (~790 / ~590
-      lines) — do these in the same pass, not separately: both mix several
-      parallel sync-and-render systems in one class (modules + shop dialog;
-      motherships + asteroids + vessels), so the same split pattern (one
-      helper/module per synced entity type) should apply to both, and settling
-      the pattern on one only to redo it on the other is wasted work.
+- [x] **Split `src/ship-level.ts` and `src/map-level.ts` together** (~790 / ~590
+      lines) — done: one class per synced entity type/system, each owning its
+      actor map(s), rebuild-diff state, and action requests, constructed with
+      a narrow host-callback interface (add/onTilePressed/deselectActor/etc.,
+      mirroring the tiled-scene.ts split's SceneCamera/SceneInputController
+      pattern) so it never reaches back into the scene directly. Ship:
+      `src/ship-modules.ts` (`ModuleSync` — module reconcile, build/level-up/
+      hire-crew) + `src/ship-shop.ts` (`ShopDialog` — Trading Post rows,
+      accept/refresh); `ship-level.ts` is now ~75 lines of wiring. Map:
+      `src/map-motherships.ts` (`MothershipSync`), `src/map-asteroids.ts`
+      (`AsteroidSync` — also owns Mine, since it dispatches a vessel from the
+      asteroid's own button), `src/map-vessels.ts` (`VesselSync` — dispatch/
+      recall/redirect-in-place lerp); `map-level.ts` is now ~230 lines of
+      wiring (AOI window hysteresis, minimap spawn, empty-tile hook). The
+      shared "kill absentees, diff, rebuild changed" skeleton behind
+      motherships/asteroids moved out of `TiledScene.reconcileActors` into a
+      standalone `src/actor-sync.ts` (`reconcileActors`), since it no longer
+      needed scene access beyond an `add` callback — vessels and modules keep
+      their own loops (real quirks: redirect-in-place lerp + arrival-based
+      respawn skip; multiple side-derived applied maps + selection
+      carry-over). No behavior change — verified on both scenes (`/verify`:
+      ship Command Module selection showing Hire Crew/Level Up with live
+      costs, an empty-room build-offer ghost; map mothership/enemy/asteroid
+      rendering, a dispatched vessel flying and arriving, the minimap); full
+      format/check/lint/test gate passes.
 - [ ] **Split `src/game-state.ts`** (~770 lines) — mostly type definitions;
       lower urgency, could hive the interfaces off into `game-state-types.ts` if
       the file starts getting in the way, leaving the `GameState` class on its
@@ -402,9 +421,12 @@ IDs; work these opportunistically alongside roadmap tasks.
       urgent yet. Independent of the other items here.
 - [ ] **Split `src/ui/dialog.ts`** (~470 lines) — worth a look eventually, not
       urgent yet. Independent of the other items here.
-- [ ] Dev testing speedup.
 - [ ] Bump default Python to 3.14 (see the `/gen-art` PATH workaround for the
-      current 3.12 pin). Might need to pip install some of the needed packages
+      current 3.12 pin). Might need to pip install some of the needed packages.
+      There is a bunch of places and scripts that seem to rely on us running py
+      3.12, and we want to fix these to run on current system default of 3.14
+- [ ] Reorganization of ts source code: A lot of files on top level, might be
+      better to put them in subdirectories of relevant modules together.
 - [ ] `/verify` skill should just use the sonnet/default model instead of
       current, specially when we are using a heavy-weight like Fable.
 
@@ -421,3 +443,6 @@ IDs; work these opportunistically alongside roadmap tasks.
 - Mothership teleport/move.
 - Clicking outside of dialog should dismiss it.
 - Rename "gift" -> "free" in the trading post
+- Dev testing speedup: Like maybe 2x or even 5x on construction and resource
+  collection while I'm running a test. That way I can test out the mechanics
+  quickly without waiting for too long
