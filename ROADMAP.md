@@ -362,13 +362,10 @@ art or missing panels start hurting playtests.
 
 # Unsorted TODO items
 
-Housekeeping and playtest feedback — not roadmap features, so no P<phase>.<n>
-IDs; work these opportunistically alongside roadmap tasks.
-
-## Codebase housekeeping
-
-- `/verify` skill should just use the sonnet/default model instead of current,
-  specially when we are using a heavy-weight like Fable.
+Housekeeping and playtest feedback — not sorted into milestone phases yet. Some
+of these might become actual phase tasks, whereas some might roll in to other
+tasks and some others are small todo items to finish+remove without needing a
+specific task. We should eventually sort these and expand them properly.
 
 ## Gameplay/UX polish
 

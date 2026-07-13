@@ -12,6 +12,26 @@ this machine there are **no accessibility permissions**, so taps/drags cannot be
 scripted — flows are driven with temporary code hooks and observed via
 screenshots.
 
+**Model:** the checklist below is mechanical (launch, screenshot, tail logs,
+grep for leftover hooks, run the gate) and doesn't need extra reasoning weight.
+If the current conversation is running on a heavier model than Sonnet (e.g.
+Fable), don't run these steps inline — delegate the whole run to a subagent
+pinned to Sonnet instead:
+
+```
+Agent({
+  description: "Runtime verify",
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  prompt: "<the change under test, the code path to drive, and what a pass
+           looks like — the subagent starts cold and follows the /verify
+           skill's steps itself>",
+})
+```
+
+If the session is already on Sonnet or another default-weight model, just follow
+the steps below directly — no need to spawn a subagent for its own sake.
+
 ## 1. Launch — `tools/verify_dev.sh`
 
 All process-lifecycle chains (launch, wait-for-build, log tail, forced reload,
