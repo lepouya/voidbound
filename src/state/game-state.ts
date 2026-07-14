@@ -244,6 +244,19 @@ export class GameState {
   }
 
   /**
+   * Apply a single authorized mothership relocation from a command response
+   * (ROADMAP P1.22), notifying subscribers — the `apply<Action>Event` entry
+   * point for mothership changes, following the ModuleData pattern:
+   * MothershipData is the entity's full current snapshot, so merging by
+   * mothershipId is idempotent. The next load()/applyMapWindow supersedes it.
+   */
+  applyMothershipEvent(ship: MothershipData): void {
+    this.update((s) => {
+      s.motherships.set(ship.mothershipId, ship);
+    });
+  }
+
+  /**
    * Apply a single authorized asteroid event from a server push (mining
    * started/stopped, deposit reduced), notifying subscribers — the
    * `apply<Action>Event` entry point for asteroid changes, following the

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use super::resources::{resource_display_name, ResourceKind};
+use super::resources::{resource_display_name, ResourceCounts, ResourceKind};
 use super::state::{
     player_identity, scaled_ms, time_scale, unscaled_ms, SeedRng, ServerPush, ServerState,
     MAP_COLS, MAP_ROWS, MAP_TILE_PX,
@@ -76,6 +76,18 @@ pub struct MothershipData {
     /// Footprint size in tiles (span*span).
     pub span: i64,
 }
+
+/// Result of a verified mothership relocation (ROADMAP P1.22): the ship's new
+/// placement plus the resource counts after the fuel cost.
+#[derive(Serialize, Debug)]
+pub struct MothershipActionResponse {
+    pub mothership: MothershipData,
+    pub resources: ResourceCounts,
+}
+
+/// Fuel cost per tile of straight-line warp distance — the first real fuel
+/// sink (ROADMAP P1.22). Balancing stub like scale_for_level (→ P2.6).
+const WARP_FUEL_PER_TILE: u64 = 1;
 
 /// Center tile of the ship's inner 2*2 that is closest to the given position
 /// — the spawn/dock point for vessels. Positions are fractional because
@@ -578,6 +590,78 @@ impl ServerState {
         Ok(event)
     }
 
+    /// Verify and execute a mothership relocation (ROADMAP P1.22): the player
+    /// must have no vessel in the table at all (in flight, parked, or mining —
+    /// the simplest reading of "all must be docked", and it structurally can't
+    /// strand anything, since CR1.4's restranding risk needs a vessel to
+    /// strand). The 4*4 destination must be on the map and clear of every
+    /// other mothership/asteroid (plain overlap — `footprints_clear` at
+    /// `gap: 0` — distinct from `seed_asteroids`' wider seeding clearance).
+    /// Fuel cost scales with straight-line tile distance (balancing stub, →
+    /// P2.6). Instant and synchronous like `accept_deal`: no scheduler/timer
+    /// involved, so the returned response is already authoritative. The
+    /// occupancy check re-reads `self.motherships`/`self.asteroids` live —
+    /// never the client's picker preview — so a same-tick race (another
+    /// action landing between the client's last preview and this call) can't
+    /// slip through: every command runs to completion under one lock on
+    /// `ServerState` (see `GameServer::state` / `commands.rs`), so there is no
+    /// yield point between this check and the mutation below where another
+    /// player's (future, P3.1) command could interleave.
+    pub(super) fn relocate_mothership(
+        &mut self,
+        dest_col: i64,
+        dest_row: i64,
+        now_ms: u64,
+    ) -> Result<MothershipActionResponse, String> {
+        self.settle_vessel_arrivals(now_ms);
+        let player_id = player_identity().id;
+        if self.vessels.values().any(|v| v.owner_id == player_id) {
+            return Err("recall every vessel before warping".to_string());
+        }
+        let (src_col, src_row, span) = {
+            let ship = self.player_mothership()?;
+            (ship.col, ship.row, ship.span)
+        };
+        if dest_col < 0 || dest_row < 0 || dest_col + span > MAP_COLS || dest_row + span > MAP_ROWS
+        {
+            return Err(format!("({dest_col}, {dest_row}) is outside the map"));
+        }
+        let spot = (dest_col, dest_row, span);
+        let occupied = self.motherships.values().any(|m| {
+            m.mothership_id != player_id && !footprints_clear(spot, (m.col, m.row, m.span), 0)
+        }) || self
+            .asteroids
+            .values()
+            .any(|a| !footprints_clear(spot, (a.col, a.row, a.span), 0));
+        if occupied {
+            return Err(format!("({dest_col}, {dest_row}) is occupied"));
+        }
+        let dist = ((dest_col - src_col) as f64).hypot((dest_row - src_row) as f64);
+        let cost = if dist == 0.0 {
+            0
+        } else {
+            (dist * WARP_FUEL_PER_TILE as f64).ceil().max(1.0) as u64
+        };
+        self.resources.spend(ResourceKind::Fuel, cost)?;
+        self.resources_dirty = true;
+        let ship = self
+            .motherships
+            .get_mut(&player_id)
+            .expect("player_mothership already checked existence");
+        ship.col = dest_col;
+        ship.row = dest_row;
+        let mothership = ship.clone();
+        self.push_notification(
+            "mothership-warped",
+            format!("Mothership warped from ({src_col}, {src_row}) to ({dest_col}, {dest_row})"),
+            now_ms,
+        );
+        Ok(MothershipActionResponse {
+            mothership,
+            resources: self.resources,
+        })
+    }
+
     /// Verify and execute a mining dispatch (ROADMAP P1.6): the asteroid must
     /// exist (a mined-out one has already left the table) and have a free
     /// mining slot. The slot is reserved immediately — an in-transit miner
@@ -1035,6 +1119,73 @@ mod tests {
         let mut s = ServerState::new(0);
         let err = s.recall_vessel("vessel-x", 0).unwrap_err();
         assert!(err.contains("unknown vessel"), "{err}");
+    }
+
+    #[test]
+    fn relocate_moves_the_ship_and_spends_fuel_by_distance() {
+        let mut s = ServerState::new(0);
+        s.resources.fuel = 200;
+        // Player starts at (498, 498); straight-line distance to (600, 600)
+        // is hypot(102, 102) ≈ 144.25, so the fuel cost rounds up to 145.
+        let response = s.relocate_mothership(600, 600, 0).unwrap();
+        assert_eq!(
+            (response.mothership.col, response.mothership.row),
+            (600, 600)
+        );
+        assert_eq!(response.resources.fuel, 200 - 145);
+        assert_eq!(s.player_mothership().unwrap().col, 600);
+    }
+
+    #[test]
+    fn relocate_queues_a_notification_and_resources_push() {
+        let mut s = ServerState::new(0);
+        s.resources.fuel = 200;
+        s.relocate_mothership(600, 600, 0).unwrap();
+        let pushes = s.drain_pushes();
+        assert!(pushes.iter().any(|p| matches!(
+            p,
+            ServerPush::Notification(n)
+                if n.kind == "mothership-warped"
+                    && n.message == "Mothership warped from (498, 498) to (600, 600)"
+                    && !n.read
+        )));
+        assert!(pushes
+            .iter()
+            .any(|p| matches!(p, ServerPush::Resources(r) if r.fuel == 200 - 145)));
+    }
+
+    #[test]
+    fn relocate_to_the_same_spot_costs_no_fuel() {
+        let mut s = ServerState::new(0);
+        let response = s.relocate_mothership(498, 498, 0).unwrap();
+        assert_eq!(response.resources.fuel, 0);
+    }
+
+    #[test]
+    fn relocate_rejects_when_a_vessel_is_deployed() {
+        let mut s = ServerState::new(0);
+        s.dispatch_vessel(500, 510, 0).unwrap();
+        let err = s.relocate_mothership(600, 600, 0).unwrap_err();
+        assert!(err.contains("recall every vessel"), "{err}");
+    }
+
+    #[test]
+    fn relocate_rejects_off_map_and_occupied_destinations() {
+        let mut s = ServerState::new(0);
+        let err = s.relocate_mothership(999, 5, 0).unwrap_err();
+        assert!(err.contains("outside the map"), "{err}");
+        // (503, 499) is the seeded enemy mothership's own anchor.
+        let err = s.relocate_mothership(503, 499, 0).unwrap_err();
+        assert!(err.contains("occupied"), "{err}");
+    }
+
+    #[test]
+    fn relocate_rejects_insufficient_fuel() {
+        let mut s = ServerState::new(0);
+        let err = s.relocate_mothership(600, 600, 0).unwrap_err();
+        assert!(err.contains("not enough fuel"), "{err}");
+        // Nothing moved: the failed spend left the ship at its old spot.
+        assert_eq!(s.player_mothership().unwrap().col, 498);
     }
 
     #[test]

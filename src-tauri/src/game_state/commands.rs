@@ -3,7 +3,7 @@ use super::deals::DealActionResponse;
 use super::modules::ModuleActionResponse;
 use super::scheduler::{finish_command, GameServer};
 use super::state::{now_ms, GameStateData, NotificationData};
-use super::world::{MapWindowData, VesselMoveEventData};
+use super::world::{MapWindowData, MothershipActionResponse, VesselMoveEventData};
 
 /// Load the player's current game state, first settling anything that has
 /// come due. The client calls this once during the loader phase; after that,
@@ -82,6 +82,24 @@ pub(crate) fn request_recall_vessel(
 ) -> Result<VesselMoveEventData, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.recall_vessel(&vessel_id, now_ms());
+    finish_command(&app, server.inner(), s);
+    result
+}
+
+/// Request relocation of the player's mothership to the given 4*4 footprint
+/// (ROADMAP P1.22). The no-vessels-deployed precondition, map bounds, and
+/// footprint occupancy against every other mothership/asteroid are all
+/// verified here — on success the fuel cost is already deducted and the
+/// returned mothership + resource counts are authoritative.
+#[tauri::command]
+pub(crate) fn request_relocate_mothership(
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
+    dest_col: i64,
+    dest_row: i64,
+) -> Result<MothershipActionResponse, String> {
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.relocate_mothership(dest_col, dest_row, now_ms());
     finish_command(&app, server.inner(), s);
     result
 }

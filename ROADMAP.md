@@ -182,33 +182,16 @@ P1.22 are further additions from playtesting the closed phase (July 2026).
       vessel-returned (dropped the plain-arrival and mining-complete noise,
       playtest feedback). Still open: P3.5 wires up the Player Mail/System Mail
       tabs (already present here, disabled) on this same panel.
-- [ ] **P1.22 — Basic mothership warp/relocation.** Split from the original
-      "mothership warp" task into an earlier, alliance-free half (dependency
-      audit, July 2026): wires up the P1.16 "Warp" button stub. Destination
-      picker: a draggable 4\*4 footprint overlay on the map, colored per cell —
-      red (occupied by another mothership/asteroid), yellow (a neighbor cell in
-      the footprint is red), green (clear) — confirm enabled only once the whole
-      footprint is green; cancel backs out. Dragging the footprint
-      pans/re-centers the P1.13 AOI window (reusing `request_map_window`) so the
-      client has live occupancy data to color against; the server re-verifies
-      the footprint is actually clear at confirm time (never trust the client's
-      picker state) — same shape as P1.3's room-grid placement check, but
-      against world entities instead of the room grid. Dragging the footprint is
-      a distinct input mode from `TiledScene`'s normal drag-to-pan camera (§
-      Input model, CLAUDE.md) — while the picker is open it needs to own drag
-      gestures itself, the way an open dialog already captures all pointer
-      input. Fuel cost scales with warp distance — the first real fuel sink
-      (amounts are a balancing stub, → P2.6). Requires no vessels currently
-      deployed outside the mothership (all must be docked); triggers CR1.4 (a
-      moved mothership must not strand a vessel already in flight — already
-      fixed generically via the `returning` flag on `VesselMoveEvent`, but
-      re-verify against a live relocation). P4.7 later adds the alliance-driven
-      framing and swaps the cost to a "warp core" item. Needs P1.16, P1.13. Open
-      idea, not yet scoped (playtest feedback, July 2026): fuel is envisioned as
-      the broader "leaves the system" currency — routine vessel dispatch (README
-      § Design principles) and a future, undefined "expeditions" feature are
-      planned further sinks alongside warp; no task ID yet, and retrofitting a
-      cost onto today's free vessel dispatch needs its own design pass.
+- [x] **P1.22 — Basic mothership warp/relocation.** Wires up the P1.16 Warp
+      button: a draggable 4\*4 footprint picker (red/yellow/green live
+      occupancy, a live fuel-cost readout) relocates the mothership instantly
+      via a server-verified `request_relocate_mothership` — no vessels may be
+      deployed, and occupancy/cost are re-verified against live state under the
+      same lock regardless of what the client's preview showed; a
+      "mothership-warped" notification lands in the feed. Still open: fuel cost
+      is a balancing stub (→ P2.6); warp-out/warp-in animation (→ P6.11); P4.7
+      later reframes the cost as a warp-core item; fuel as the broader "leaves
+      the system" currency stays an unscoped idea (no task yet).
 
 ## Phase 2 — Persistence and balancing
 
@@ -454,3 +437,8 @@ art or missing panels start hurting playtests.
       cost), freeing HUD space crew doesn't need there. Tapping either group
       opens a dialog with the full breakdown: all 5 resources with caps and live
       production rates. Needs P1.2, P1.10, P1.11. (Playtest feedback, July 2026)
+- [ ] **P6.11 — Mothership warp-out/warp-in animation.** Replace P1.22's instant
+      relocation teleport with a fade/warp visual transition at both the old and
+      new tile, so a relocation reads clearly to anyone watching the map, not
+      just the mover. Split out from P1.22 as presentation polish, not core
+      mechanics (playtest feedback, July 2026). Needs P1.22.

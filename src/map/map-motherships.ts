@@ -27,6 +27,7 @@ export interface MothershipSyncHost {
   edgeFallthrough(): boolean;
   openDetails(mothershipId: string): void;
   enterShip(): void;
+  openWarpPicker(mothershipId: string): void;
 }
 
 /**
@@ -113,9 +114,9 @@ export class MothershipSync {
           roundButton({
             icon: "warp",
             // "Warp" (not "Move") so it can't be confused with vessel
-            // Move/Deploy; the relocation itself lands with P4.7.
+            // Move/Deploy (ROADMAP P1.22).
             label: "Warp",
-            onPressed: () => console.log("Warp my spaceship"),
+            onPressed: () => this.host.openWarpPicker(data.mothershipId),
           }),
         ]
         : [

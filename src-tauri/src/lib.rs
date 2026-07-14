@@ -30,6 +30,7 @@ pub fn run() {
             game_state::request_levelup_module,
             game_state::request_dispatch_vessel,
             game_state::request_recall_vessel,
+            game_state::request_relocate_mothership,
             game_state::request_mine_asteroid,
             game_state::request_hire_crew,
             game_state::request_accept_deal,

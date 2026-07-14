@@ -197,6 +197,20 @@ export abstract class TiledScene extends ex.Scene {
   }
 
   /**
+   * Return true to swallow world-space taps (actor selection, empty-tile
+   * spawning) while some scene-owned exclusive mode is active — e.g. the
+   * P1.22 mothership relocation picker, which needs the mothership deselected
+   * and no other actor selectable while its Confirm/Cancel HUD group is the
+   * only thing that should respond to a tap. HUD groups (including that one)
+   * still dispatch normally, since they're checked earlier in handleTap;
+   * unlike the modal dialog slot, camera pan/zoom is intentionally left
+   * working. Default: false.
+   */
+  protected worldInputSuppressed(): boolean {
+    return false;
+  }
+
+  /**
    * Called when the player taps an empty map tile. Return a TileActor to
    * spawn and immediately select it, or null to do nothing (default).
    * The actor should include `onPressed` in its options so the standard
@@ -347,6 +361,7 @@ export abstract class TiledScene extends ex.Scene {
     for (const handle of this.hudHandles) {
       if (handle.tryPointerUp(screenPos)) return;
     }
+    if (this.worldInputSuppressed()) return;
     if (this.pendingActor) {
       this.handleActorTap(this.pendingActor);
     } else {

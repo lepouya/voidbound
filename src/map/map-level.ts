@@ -11,6 +11,7 @@ import { DetailsDialog } from "./map-details.ts";
 import { MothershipSync } from "./map-motherships.ts";
 import { VesselSync } from "./map-vessels.ts";
 import { spawnMinimap } from "./minimap.ts";
+import { WarpPicker } from "./warp-picker.ts";
 import { TileActor } from "../scene/tile-actor.ts";
 import { SceneMap, TiledScene } from "../scene/tiled-scene.ts";
 import { roundButton, squareButton } from "../ui/index.ts";
@@ -31,6 +32,17 @@ export class MapLevel extends TiledScene {
     edgeFallthrough: () => this.supportsEmptyTileActor(),
     openDetails: (id) => this.details.openMothership(id),
     enterShip: () => this.engine.goToScene("ship"),
+    openWarpPicker: (id) =>
+      this.warpPicker.open(this.grid, this.camera.pos, id),
+  });
+  /** The mothership relocation picker (ROADMAP P1.22), opened by the own-ship
+   *  Warp button — a footprint overlay pinned to the camera center, re-tuned
+   *  every frame in onPreUpdate while active. */
+  private warpPicker = new WarpPicker({
+    add: (actor) => this.add(actor),
+    deselectActor: () => this.deselectActor(),
+    addHudGroup: (def) => this.addHudGroup(def),
+    showToast: (toast) => this.showToast(toast),
   });
   /** Reconciles asteroid actors against gameState.asteroids and owns the
    *  Mine action (ROADMAP P1.6). */
@@ -107,6 +119,21 @@ export class MapLevel extends TiledScene {
     return true;
   }
 
+  /** While the relocation picker is open, world taps (actor selection,
+   *  empty-tile spawning) are swallowed — only its own Confirm/Cancel HUD
+   *  group and normal camera pan/zoom stay live (ROADMAP P1.22). */
+  protected override worldInputSuppressed(): boolean {
+    return this.warpPicker.isActive();
+  }
+
+  /** Scene switches (e.g. tapping Ship mid-picker) would otherwise leak the
+   *  overlay actor and HUD group — TiledScene.onDeactivate() has no notion of
+   *  scene-specific exclusive modes, so this scene closes its own. */
+  override onDeactivate(): void {
+    super.onDeactivate();
+    this.warpPicker.close();
+  }
+
   /**
    * Cap the visible view at MAP_VIEW_TILES_CAP tiles on the longer axis
    * (ROADMAP P1.13) — strictly inside the interest-area window, so space the
@@ -143,6 +170,11 @@ export class MapLevel extends TiledScene {
    * check itself is a few comparisons.
    */
   override onPreUpdate(): void {
+    // Re-derive the relocation picker's destination footprint from the
+    // current camera center every frame it's open (ROADMAP P1.22) — a no-op
+    // otherwise, and independent of the AOI hysteresis below (which reads the
+    // same camera.pos, so both re-center together as the camera pans/zooms).
+    this.warpPicker.tick(this.camera.pos);
     if (!this.grid || !gameState.loaded || this.windowRequestInFlight) return;
     const reference = this.lastWindowRequest ??
       (gameState.mapWindow && {
