@@ -33,6 +33,7 @@ import type {
   ModuleData,
   MothershipData,
   NotificationData,
+  NotificationListener,
   PendingHire,
   PlayerIdentity,
   ResourceCounts,
@@ -162,6 +163,7 @@ export class GameState {
   mapWindow: MapWindow | null = null;
 
   private listeners = new Set<GameStateListener>();
+  private notificationListeners = new Set<NotificationListener>();
 
   /**
    * Register a listener called after every update(). Returns an unsubscribe
@@ -173,6 +175,20 @@ export class GameState {
   subscribe(listener: GameStateListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /**
+   * Register a listener fired once per freshly-arrived `notification` server
+   * push (ROADMAP P1.19) — never for the backlog a load() snapshot or
+   * syncNotifications() (mark_notifications_read) applies, so a returning
+   * player's unread feed doesn't flood the toast layer. Returns an
+   * unsubscribe function. The notification itself still lands in
+   * `notifications` (and the Events badge) via applyServerPush regardless of
+   * whether anyone is listening here.
+   */
+  subscribeToNotifications(listener: NotificationListener): () => void {
+    this.notificationListeners.add(listener);
+    return () => this.notificationListeners.delete(listener);
   }
 
   /**
@@ -343,6 +359,9 @@ export class GameState {
         this.update((s) => {
           s.notifications.set(push.data.notificationId, push.data);
         });
+        for (const listener of [...this.notificationListeners]) {
+          listener(push.data);
+        }
         break;
       case "crew":
         this.applyCrewEvent(push.data);

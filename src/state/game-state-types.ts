@@ -414,3 +414,7 @@ export type ServerPush =
   | { type: "deals"; data: DealsData };
 
 export type GameStateListener = () => void;
+
+/** Fired once per freshly-pushed notification (ROADMAP P1.19) — see
+ *  GameState.subscribeToNotifications(). */
+export type NotificationListener = (notification: NotificationData) => void;

@@ -170,20 +170,14 @@ P1.22 are further additions from playtesting the closed phase (July 2026).
       deposit once a stockpile passes 1000 — worth checking first on a retest.
       (Playtest feedback, July 2026)
 - [x] **P1.18 — One module per type.** `request_build_module` rejects a second
-      module of a type the player already owns (any level, pending or
-      settled); the ship-scene build-offer UI hides types already placed
-      instead of offering a button that would just error. (Playtest
-      feedback, July 2026)
-- [ ] **P1.19 — Toast on every notification.** Extend P1.15's toast system so
-      every `notification` server-push (build/hire completions, vessel
-      arrivals/returns, mining completions) also surfaces a toast, not just
-      rejected actions — today's toasts only cover the error path.
-      `MAX_ACTIVE_TOASTS` (4, `src/ui/toast.ts`) already bounds a burst
-      gracefully (oldest evicted, no crash), but revisit when P2.5's offline
-      catch-up lands: settling many completions at once on load could flash most
-      of them past the cap before a player who just opened the app can read them
-      — the P1.21 feed is the full record either way. Needs P1.5, P1.15.
-      (Playtest feedback, July 2026)
+      module of a type the player already owns (any level, pending or settled);
+      the ship-scene build-offer UI hides types already placed instead of
+      offering a button that would just error. (Playtest feedback, July 2026)
+- [x] **P1.19 — Toast on every notification.** Every `notification` server-push
+      now surfaces a toast on the active scene, not just rejected actions. Still
+      open: P2.5's offline catch-up could flash many completions past
+      `MAX_ACTIVE_TOASTS` at once on load (→ P2.5); the P1.21 feed is the full
+      record either way. (Playtest feedback, July 2026)
 - [ ] **P1.20 — Ship module details dialog.** Extend the P1.16 details-panel
       pattern to ship-scene modules (Command Module, Crew Quarters, Trading
       Post, etc.) — tapping a module opens a details dialog with its stats,

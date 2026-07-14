@@ -647,6 +647,15 @@ export abstract class TiledScene extends ex.Scene {
     };
     updateEventsBadge();
     gameState.subscribe(updateEventsBadge);
+    // Toast every freshly-pushed notification (ROADMAP P1.19) — build/hire
+    // completions, vessel arrivals/returns, mining completions — on whichever
+    // scene is currently active, not just the error path P1.15 originally
+    // covered. subscribeToNotifications only fires for the push channel, so
+    // the initial snapshot's unread backlog never floods the toast layer, and
+    // MAX_ACTIVE_TOASTS already bounds a burst gracefully.
+    gameState.subscribeToNotifications((n) => {
+      if (this.isActive) this.showToast(n.message);
+    });
     const bottomRight = this.addHudGroup({
       anchor: "bottom-right",
       gap: 8,
