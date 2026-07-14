@@ -502,6 +502,13 @@ impl ServerState {
                 entry.display_name, entry.unlock_command_level
             ));
         }
+        // One module per type (ROADMAP P1.18): the Command Module is exempt
+        // above (it can never reach this check — build_module already
+        // rejects that type outright), so this only ever catches a second
+        // player-built module of the same type.
+        if self.modules.values().any(|m| m.module_type == module_type) {
+            return Err(format!("you already have a {}", entry.display_name));
+        }
         let anchor = module_anchor_at(col, row).ok_or("build spot is not inside a room")?;
         if anchor != (col, row) {
             return Err(format!(
@@ -775,10 +782,12 @@ mod tests {
             .build_module(2, 2, "turbo".to_string(), 0)
             .unwrap_err()
             .contains("unknown module type"));
-        // A successful build occupies the room for the next attempt.
+        // A successful build occupies the room for the next attempt — a
+        // different type, so the P1.18 one-per-type rule doesn't pre-empt
+        // the room-occupancy check this test is actually after.
         assert!(s.build_module(2, 2, "ore-refinery".to_string(), 0).is_ok());
         assert!(s
-            .build_module(2, 2, "ore-refinery".to_string(), 0)
+            .build_module(2, 2, "storage-bay".to_string(), 0)
             .unwrap_err()
             .contains("already has a module"));
     }
@@ -790,6 +799,20 @@ mod tests {
             .build_module(2, 2, COMMAND_MODULE_TYPE.to_string(), 0)
             .unwrap_err();
         assert!(err.contains("already built"), "{err}");
+    }
+
+    #[test]
+    fn build_rejects_a_second_module_of_the_same_type() {
+        let mut s = funded_state(10, 0);
+        assert!(s.build_module(2, 2, "ore-refinery".to_string(), 0).is_ok());
+        // A different, still-empty room — rejected on type, not room
+        // occupancy (that's build_rejects_occupied_rooms_and_bad_spots).
+        let err = s
+            .build_module(10, 2, "ore-refinery".to_string(), 0)
+            .unwrap_err();
+        assert!(err.contains("already have a"), "{err}");
+        // A different type is unaffected.
+        assert!(s.build_module(10, 2, "storage-bay".to_string(), 0).is_ok());
     }
 
     #[test]

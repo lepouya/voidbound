@@ -156,20 +156,24 @@ P1.22 are further additions from playtesting the closed phase (July 2026).
       enters the ship scene, and its "Move" button is renamed "Warp" (relocation
       itself → P1.22). Still open: the enemy-ship Message and Attack buttons
       stay stubs (→ P3.5 / P5.5). (CR6.2)
-- [ ] **P1.17 — Fix: vessel-recall cargo not reflected client-side.** A vessel
-      recalled off a mining job and docking home shows the arrival notification,
-      but the resource bar doesn't reflect the deposited cargo. The Rust
-      recall/deposit path has passing tests for this exact case, so the gap is
-      most likely in client-side reconciliation (`gameState.applyServerPush` /
-      the `vessel`+`resources` push pair, or `syncVessels`) rather than the
-      backend math — confirm the deposit is actually landing server-side (check
-      the pushed `resources` event) before chasing the client. (Playtest
-      feedback, July 2026)
-- [ ] **P1.18 — One module per type.** Server-verified cap:
-      `request_build_module` rejects a second module of a type the player
-      already owns (Command Module is exempt — it's seeded, not built); the
-      build-offer UI hides/disables types already placed. Needs P1.3, P1.4.
+- [ ] **P1.17 — Fix: vessel-recall cargo not reflected client-side.**
+      Investigated (July 2026), not reproducible: a full static trace of the
+      server→client push pipeline plus a live `/verify` repro (both a manual
+      mid-mining recall and a full mine-out auto-recall, each through to
+      docking) showed the deposit landing correctly and the resource bar
+      updating immediately in both cases. Also confirmed while investigating:
+      mining only starts accruing at actual arrival and cargo only deposits at
+      actual dock — not earlier in either case, matching the intended design.
+      Left unchecked pending a retest with more specific repro details. One real
+      but _unconfirmed_ candidate surfaced along the way: the resource bar's
+      compact "1.2k"-style rounding (`formatCompactCount`) can hide a small
+      deposit once a stockpile passes 1000 — worth checking first on a retest.
       (Playtest feedback, July 2026)
+- [x] **P1.18 — One module per type.** `request_build_module` rejects a second
+      module of a type the player already owns (any level, pending or
+      settled); the ship-scene build-offer UI hides types already placed
+      instead of offering a button that would just error. (Playtest
+      feedback, July 2026)
 - [ ] **P1.19 — Toast on every notification.** Extend P1.15's toast system so
       every `notification` server-push (build/hire completions, vessel
       arrivals/returns, mining completions) also surfaces a toast, not just

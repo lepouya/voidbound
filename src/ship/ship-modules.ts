@@ -465,10 +465,18 @@ export class ModuleSync {
     if (this.roomOccupied(room.col, room.row)) return null;
 
     const commandLevel = this.commandModuleLevel();
+    // One module per type (ROADMAP P1.18): the backend rejects a second
+    // build of a type the player already owns (any level, build pending or
+    // not), so the offer hides it here too rather than showing a button
+    // that would just come back as an error.
+    const ownedTypes = new Set(
+      [...gameState.modules.values()].map((m) => m.moduleType),
+    );
     const buildable = MODULE_CATALOG.filter(
       (e) =>
         e.moduleType !== COMMAND_MODULE_TYPE &&
-        e.unlockCommandLevel <= commandLevel,
+        e.unlockCommandLevel <= commandLevel &&
+        !ownedTypes.has(e.moduleType),
     );
     if (buildable.length === 0) return null;
 
