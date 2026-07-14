@@ -82,10 +82,9 @@ P1.22 are further additions from playtesting the closed phase (July 2026).
       doubling stub (→ P2.6); per-type module art (→ P6.1).
 - [x] **P1.5 — Local notifications + server-push channel.** Server-owned
       notification feed + the scheduler push channel — the in-process prototype
-      of P3.1's event bus. Still open: pressing the HUD's Events button dumps
-      the feed to the console until P1.21's Notifications tab lands and renames
-      that button to Mail; P6.3's later curated-content Events panel is a
-      different feature that reintroduces an Events button of its own.
+      of P3.1's event bus. The feed's UI is P1.21's Mail panel; P6.3's later
+      curated-content Events panel is a different feature that reintroduces an
+      Events button of its own.
 - [x] **P1.6 — Mining loop.** Server-seeded asteroids with single-slot mining
       jobs, scheduler auto-recall at mine-out, proportional early harvests, dock
       deposits. By design (confirmed in playtest, July 2026): harvested cargo
@@ -139,9 +138,9 @@ P1.22 are further additions from playtesting the closed phase (July 2026).
       scrim + framed panel + row/cell content composed from the existing `ui/`
       primitives — opened via `TiledScene.openDialog()`; one dialog at a time,
       all pointer input captured, with `bindDialogRows` for state-bound
-      rerendering (the P1.12 shop is the reference consumer). Still open: no
-      scrolling — the content region is a distinct sub-rect a scrollable list
-      can drop into (→ P1.21's Notifications tab, the first consumer).
+      rerendering (the P1.12 shop is the reference consumer). Scrolling
+      (`DialogDef.scroll`/`headerRow`, drag or mouse wheel) and a pinned,
+      never-scrolling header row landed via P1.21, generic to any dialog.
 - [x] **P1.15 — Toast/snackbar notifications.** General transient-message
       primitive (`src/ui/toast.ts` + `TiledScene.showToast()`): auto-fading
       bottom-center snackbar stack, info/error kinds, rendered above the modal
@@ -172,16 +171,17 @@ P1.22 are further additions from playtesting the closed phase (July 2026).
       Post, etc.) — tapping a module opens a details dialog with its stats,
       level, and pending build/upgrade countdown, the same affordance the map
       entities already have. Needs P1.16. (Playtest feedback, July 2026)
-- [ ] **P1.21 — Notifications tab (Mail panel, part 1).** Pulled forward from
-      P3.5 (playtest feedback, July 2026): the Notifications tab doesn't need
-      networking — it's just a real scrollable-list UI over the P1.5 feed,
-      replacing the console dump, so it doesn't have to wait on P3.1. The first
-      scrollable-list panel (P1.14's open door); P6.3's future Events panel can
-      reuse the same list-rendering work. Also renames the HUD's "Events"
-      button/badge/`openEventsFeed()` to "Mail" — that naming is a leftover
-      misnomer now that "Events" means P6.3's curated-content panel, not
-      notifications. P3.5 later adds the Player Mail / System Mail tabs to this
-      same panel. Needs P1.5, P1.14.
+- [x] **P1.21 — Notifications tab (Mail panel, part 1).** Real scrollable-list
+      dialog (`src/scene/mail-dialog.ts`) over the P1.5 feed, replacing the
+      console dump; the HUD's old "Events" button is now bottom-right "Mail"
+      (top-right stays free for P6.3's future Events button). Added generic
+      scroll (drag or mouse wheel) and pinned-header-row support to
+      `DialogDef`/`DialogHandle` (dialog.ts) for any dialog to use, with Mail's
+      Notifications/Player Mail/System Mail tab strip as the first consumer.
+      Also trimmed vessel notifications to just mining-started and
+      vessel-returned (dropped the plain-arrival and mining-complete noise,
+      playtest feedback). Still open: P3.5 wires up the Player Mail/System Mail
+      tabs (already present here, disabled) on this same panel.
 - [ ] **P1.22 — Basic mothership warp/relocation.** Split from the original
       "mothership warp" task into an earlier, alliance-free half (dependency
       audit, July 2026): wires up the P1.16 "Warp" button stub. Destination

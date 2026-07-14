@@ -1,6 +1,10 @@
 import { assertEquals } from "@std/assert";
 
-import { formatCompactCount, formatDuration } from "../src/ui/format.ts";
+import {
+  formatCompactCount,
+  formatDuration,
+  formatTimeAgo,
+} from "../src/ui/format.ts";
 
 Deno.test("small counts render as plain floored integers", () => {
   assertEquals(formatCompactCount(0), "0");
@@ -69,4 +73,20 @@ Deno.test("durations with hours drop the seconds", () => {
   assertEquals(formatDuration(7_500_000), "2h 5m");
   assertEquals(formatDuration(7_500_999), "2h 5m");
   assertEquals(formatDuration(43_200_000), "12h");
+});
+
+Deno.test("time-ago: under a minute (or negative) is 'just now'", () => {
+  assertEquals(formatTimeAgo(0), "just now");
+  assertEquals(formatTimeAgo(59_000), "just now");
+  assertEquals(formatTimeAgo(-5_000), "just now");
+});
+
+Deno.test("time-ago: floors to the largest unit, never rounds up", () => {
+  assertEquals(formatTimeAgo(60_000), "1m ago");
+  assertEquals(formatTimeAgo(119_999), "1m ago");
+  assertEquals(formatTimeAgo(3_599_000), "59m ago");
+  assertEquals(formatTimeAgo(3_600_000), "1h ago");
+  assertEquals(formatTimeAgo(86_399_000), "23h ago");
+  assertEquals(formatTimeAgo(86_400_000), "1d ago");
+  assertEquals(formatTimeAgo(259_200_000), "3d ago");
 });

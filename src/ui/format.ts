@@ -51,3 +51,22 @@ export function formatDuration(ms: number): string {
   }
   return `${seconds}s`;
 }
+
+/**
+ * Formats an elapsed millisecond duration as a relative "ago" label (the
+ * P1.21 Mail panel's notification timestamps): "just now" under a minute,
+ * then the single largest unit ("42m ago", "3h ago", "5d ago"). Unlike
+ * formatDuration (a countdown, rounds up so it never flashes "0s" early),
+ * this floors — an elapsed time should never claim more has passed than
+ * actually has.
+ */
+export function formatTimeAgo(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  if (totalSeconds < 60) return "just now";
+  const minutes = Math.floor(totalSeconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}

@@ -30,7 +30,7 @@ const MAX_NOTIFICATIONS: usize = 100;
 #[serde(rename_all = "camelCase")]
 pub struct NotificationData {
     pub notification_id: String,
-    /// Category slug: "build-complete", "levelup-complete", "vessel-arrived",
+    /// Category slug: "build-complete", "levelup-complete", "mining-started",
     /// or "vessel-returned". Display/grouping only — new kinds need no client
     /// changes.
     pub kind: String,

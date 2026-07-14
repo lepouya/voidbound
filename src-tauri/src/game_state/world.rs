@@ -526,24 +526,19 @@ impl ServerState {
                 });
             } else {
                 self.notified_arrivals.insert(vessel.vessel_id.clone());
-                let (kind, message) = if vessel.mining_asteroid_id.is_some() {
-                    (
+                // Arriving at a plain map destination isn't notification-worthy
+                // (P1.21 playtest feedback, July 2026) — only mining-started
+                // and vessel-returned are.
+                if vessel.mining_asteroid_id.is_some() {
+                    self.push_notification(
                         "mining-started",
                         format!(
                             "Vessel started mining at ({}, {})",
                             vessel.dest_col, vessel.dest_row
                         ),
-                    )
-                } else {
-                    (
-                        "vessel-arrived",
-                        format!(
-                            "Vessel arrived at ({}, {})",
-                            vessel.dest_col, vessel.dest_row
-                        ),
-                    )
-                };
-                self.push_notification(kind, message, vessel.arrival_at);
+                        vessel.arrival_at,
+                    );
+                }
             }
         }
     }
@@ -731,20 +726,10 @@ impl ServerState {
             })
             .collect();
         for (asteroid_id, mining) in due {
-            // Announce before stop_mining so the feed reads completion →
-            // depletion. A full window always harvests exactly the remainder
-            // (the window length was derived from it).
-            if let Some(asteroid) = self.asteroids.get(&asteroid_id) {
-                self.push_notification(
-                    "mining-complete",
-                    format!(
-                        "Mining complete — vessel returning with {} {}",
-                        asteroid.remaining,
-                        resource_display_name(asteroid.resource)
-                    ),
-                    mining.completes_at,
-                );
-            }
+            // No "mining complete" notification of its own (P1.21 playtest
+            // feedback, July 2026) — vessel-returned reports the harvested
+            // amount once the vessel actually docks, so an interim mid-flight
+            // announcement here would just be noise.
             let cargo = self.stop_mining(&asteroid_id, &mining.vessel_id, mining.completes_at);
             let Some(vessel) = self.vessels.get_mut(&mining.vessel_id) else {
                 continue;
@@ -1119,23 +1104,20 @@ mod tests {
     }
 
     #[test]
-    fn vessel_arrival_notifies_once_and_docking_prunes_with_push() {
+    fn plain_arrival_is_quiet_and_docking_notifies_with_push() {
         let mut s = ServerState::new(0);
         let out = s.dispatch_vessel(500, 510, 0).unwrap();
         s.drain_pushes();
-        // Settle lazily, well after the arrival — the notification must still
-        // be stamped with the arrival moment, not this later settle time
-        // (CR1.2).
+        // A plain arrival (not mining) is deliberately quiet (P1.21 playtest
+        // feedback, July 2026) — only mining-started and vessel-returned are
+        // notification-worthy.
         let lazy_settle_at = out.arrival_at + 5 * TICK;
         s.settle(lazy_settle_at);
-        assert!(s.drain_pushes().iter().any(|p| matches!(
-            p,
-            ServerPush::Notification(n)
-                if n.kind == "vessel-arrived"
-                    && n.message.contains("(500, 510)")
-                    && n.created_at == out.arrival_at
-        )));
-        // Parked: later settles stay quiet about it.
+        assert!(!s
+            .drain_pushes()
+            .iter()
+            .any(|p| matches!(p, ServerPush::Notification(_))));
+        // Parked: later settles stay quiet about it too.
         s.settle(lazy_settle_at + 5 * TICK);
         assert!(!s
             .drain_pushes()
@@ -1147,7 +1129,9 @@ mod tests {
             .recall_vessel(&out.vessel_id, lazy_settle_at + 5 * TICK)
             .unwrap();
         s.drain_pushes();
-        // Same lazy-settle check on the return leg.
+        // Same lazy-settle check on the return leg — the notification must
+        // still be stamped with the arrival moment, not this later settle
+        // time (CR1.2).
         let lazy_return_settle_at = back.arrival_at + 5 * TICK;
         s.settle(lazy_return_settle_at);
         let pushes = s.drain_pushes();
@@ -1161,10 +1145,7 @@ mod tests {
             ServerPush::VesselRemoved { vessel_id } if *vessel_id == out.vessel_id
         )));
         assert!(s.active_vessels(lazy_return_settle_at).is_empty());
-        assert_eq!(
-            notification_kinds(&s),
-            vec!["vessel-arrived", "vessel-returned"]
-        );
+        assert_eq!(notification_kinds(&s), vec!["vessel-returned"]);
     }
 
     #[test]
@@ -1285,12 +1266,7 @@ mod tests {
         assert!(s.vessels.is_empty());
         assert_eq!(
             notification_kinds(&s),
-            vec![
-                "mining-started",
-                "mining-complete",
-                "asteroid-depleted",
-                "vessel-returned",
-            ]
+            vec!["mining-started", "asteroid-depleted", "vessel-returned"]
         );
         assert!(s.notifications.last().unwrap().message.contains("240"));
         // CR1.6: the depletion message names the deposit, not just "mined

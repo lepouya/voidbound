@@ -186,7 +186,7 @@ export interface AsteroidData {
  */
 export interface NotificationData {
   notificationId: string;
-  /** Category slug, e.g. "build-complete", "vessel-arrived" — display and
+  /** Category slug, e.g. "build-complete", "mining-started" — display and
    *  grouping only; new kinds need no client changes. */
   kind: string;
   /** Server-composed display text (the server owns the catalog names). */

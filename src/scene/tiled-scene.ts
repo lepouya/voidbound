@@ -1,7 +1,5 @@
 import * as ex from "excalibur";
 
-import { invoke } from "@tauri-apps/api/core";
-
 import {
   BadgeDef,
   DialogDef,
@@ -26,10 +24,10 @@ import { SceneCamera } from "./scene-camera.ts";
 import { SceneInputController } from "./scene-input.ts";
 import {
   gameState,
-  NotificationData,
   RESOURCE_KINDS,
   ResourceKind,
 } from "../state/game-state.ts";
+import { MailDialog } from "./mail-dialog.ts";
 // Deliberate exception to the scene/ directory being domain-agnostic: the
 // shared HUD resource bar renders storage/crew caps, which are ship-module
 // derived, so the base scene class reaches into ship/'s catalog for this one
@@ -95,6 +93,11 @@ export abstract class TiledScene extends ex.Scene {
    *  expects (newest nearest the bottom edge). Toasts drop out on their own
    *  expiry, the stack cap, or scene switch. */
   private toasts: ToastHandle[] = [];
+  /** The Mail panel (ROADMAP P1.21), shared by every scene via the common
+   *  HUD's Mail button — it owns the modal slot like any other dialog. */
+  private readonly mailDialog = new MailDialog({
+    openDialog: (def) => this.openDialog(def),
+  });
 
   /** The map's grid geometry, set once buildMap() resolves; accessible to
    *  setupActors() via this. Undefined before that (guard early
@@ -607,6 +610,9 @@ export abstract class TiledScene extends ex.Scene {
       resourceBar.setLabel(CREW_INDEX, crewLabel());
     });
 
+    // Top-right is just Shop for now — the Events slot (P6.3's curated-content
+    // panel) stays open until that lands rather than being squatted on by
+    // Mail (P1.21 playtest feedback, July 2026: Mail belongs bottom-right).
     const topRight = this.addHudGroup({
       anchor: "top-right",
       gap: 8,
@@ -618,36 +624,8 @@ export abstract class TiledScene extends ex.Scene {
           label: "Shop",
           onPressed: () => console.log("shop"),
         }),
-        squareButton({
-          icon: "events",
-          width: 32,
-          height: 32,
-          label: "Events",
-          onPressed: () => void this.openEventsFeed(),
-        }),
       ],
     });
-    // Events badge (ROADMAP P1.5): the live unread notification count, or no
-    // badge at all when everything is read. Set once now (the snapshot may
-    // have loaded before this scene initialized) and kept live by the same
-    // always-on subscription pattern as the resource bar above — but only
-    // rebuilding the badge actor when the count actually changed, since most
-    // notifies (every production tick) don't touch it.
-    const EVENTS_INDEX = 1;
-    let shownUnread = -1;
-    const updateEventsBadge = () => {
-      const unread = gameState.unreadNotificationCount();
-      if (unread === shownUnread) return;
-      shownUnread = unread;
-      const badge: BadgeDef | undefined = unread === 0 ? undefined : {
-        text: formatCompactCount(unread),
-        bordered: false,
-        color: ex.Color.Red,
-      };
-      topRight.setBadge(EVENTS_INDEX, badge);
-    };
-    updateEventsBadge();
-    gameState.subscribe(updateEventsBadge);
     // Toast every freshly-pushed notification (ROADMAP P1.19) — build/hire
     // completions, vessel arrivals/returns, mining completions — on whichever
     // scene is currently active, not just the error path P1.15 originally
@@ -667,7 +645,7 @@ export abstract class TiledScene extends ex.Scene {
           width: 32,
           height: 32,
           label: "Mail",
-          onPressed: () => console.log("messages"),
+          onPressed: () => this.mailDialog.open(),
         }),
         squareButton({
           icon: "items",
@@ -678,27 +656,28 @@ export abstract class TiledScene extends ex.Scene {
         }),
       ],
     });
+    // Mail badge (ROADMAP P1.5, renamed to Mail by P1.21): the live unread
+    // notification count, or no badge at all when everything is read. Set
+    // once now (the snapshot may have loaded before this scene initialized)
+    // and kept live by the same always-on subscription pattern as the
+    // resource bar above — but only rebuilding the badge actor when the count
+    // actually changed, since most notifies (every production tick) don't
+    // touch it.
+    const MAIL_INDEX = 1;
+    let shownUnread = -1;
+    const updateMailBadge = () => {
+      const unread = gameState.unreadNotificationCount();
+      if (unread === shownUnread) return;
+      shownUnread = unread;
+      const badge: BadgeDef | undefined = unread === 0 ? undefined : {
+        text: formatCompactCount(unread),
+        bordered: false,
+        color: ex.Color.Red,
+      };
+      bottomRight.setBadge(MAIL_INDEX, badge);
+    };
+    updateMailBadge();
+    gameState.subscribe(updateMailBadge);
     return { resourceBar, topRight, bottomRight };
-  }
-
-  /**
-   * Events button press (ROADMAP P1.5): dump the feed to the console — a
-   * real feed panel is later UI work; P1.5 only wires the badge — and ask
-   * the backend to mark everything read. Applying the returned list clears
-   * the badge in every scene via the shared-state notify.
-   */
-  private async openEventsFeed(): Promise<void> {
-    for (const n of gameState.notifications.values()) {
-      console.log(`[events]${n.read ? " " : " * "}${n.message}`);
-    }
-    if (gameState.unreadNotificationCount() === 0) return;
-    try {
-      const notifications = await invoke<NotificationData[]>(
-        "mark_notifications_read",
-      );
-      gameState.syncNotifications(notifications);
-    } catch (err) {
-      console.warn("mark_notifications_read rejected:", err);
-    }
   }
 }

@@ -14,8 +14,9 @@ re-deriving it.
 
 This skill builds on `/add-game-event` (the wire/event plumbing) and assumes
 `src/ui/dialog.ts`'s modal layer (`TiledScene.openDialog`, `DialogRowDef`,
-`bindDialogRows`) — read that file's header comment first if you haven't used
-dialogs before.
+`bindDialogRows`, and — for a list that can overflow the screen —
+`DialogDef.scroll`/`headerRow`) — read that file's header comment first if you
+haven't used dialogs before.
 
 ## 1. Wire types
 
@@ -89,6 +90,16 @@ the dialog is always a pure render of the latest state. Always unbind in
 `onClose`, or a closed dialog keeps rebuilding rows in the background.
 Reference: `openShopDialog` in src/ship/ship-shop.ts.
 
+If the list can grow past what fits on screen (a feed/mail/research panel is
+exactly this shape, unlike the shop's small fixed slot count), pass
+`scroll: { rowHeight, visibleRows }` in the `openDialog` call so `rows` becomes
+the full list windowed to `visibleRows` at a time (uniform row height only) —
+scrollable by drag or mouse wheel with no extra wiring. Add `headerRow` for a
+pinned, never-scrolling row above the list (a tab strip, a search box, a summary
+line). Reference: `MailDialog` in src/scene/mail-dialog.ts (P1.21) — `scroll`
+for the notification list, `headerRow` for its Notifications/Player Mail/System
+Mail tab strip.
+
 ## 5. Wire the action methods
 
 Each row button's `onPressed` calls a private `async` method following the
@@ -105,8 +116,10 @@ toast task that replaces this with real UI feedback). Reference:
 Wire a HUD button (`addHudGroup`/`addCommonHud`) or an entity's action button
 (`TileActor` `buttons`) to call `open<Panel>Dialog()`. If the panel is a
 top-level destination, it likely already has a placeholder button with a ROADMAP
-task attached (HUD Shop → P4.8, Items → P6.5, feed → P6.3, mail → P3.5) — check
-ROADMAP before adding a new one.
+task attached (HUD Shop → P4.8, Items → P6.5, Events → P6.3) — check ROADMAP
+before adding a new one. The Mail button (bottom-right common HUD) already opens
+`MailDialog` (P1.21's Notifications tab); P3.5 adds Player Mail/System Mail as
+more tabs on that same panel rather than a new button.
 
 ## Checklist before declaring done
 
@@ -125,10 +138,13 @@ ROADMAP before adding a new one.
 
 ## Reference
 
-The P1.12 Trading Post shop is the canonical implementation, split across
-src/ship/ship-modules.ts (`LevelUpStatus`/`HireStatus` status enums) and
-src/ship/ship-shop.ts (`openShopDialog`/`buildShopRows`/`buildDealRow`/
-`buildRefreshRow` panel + rows, `acceptDeal`/`refreshDeals` actions). The modal
-layer itself (`DialogDef`, `DialogRowDef`, `bindDialogRows`,
+The P1.12 Trading Post shop is the canonical implementation for the base
+pattern, split across src/ship/ship-modules.ts (`LevelUpStatus`/`HireStatus`
+status enums) and src/ship/ship-shop.ts (`openShopDialog`/`buildShopRows`/
+`buildDealRow`/`buildRefreshRow` panel + rows, `acceptDeal`/`refreshDeals`
+actions). For a scrollable, tabbed list panel, src/scene/mail-dialog.ts
+(`MailDialog`, P1.21) is the reference: `scroll` windowing a live notification
+feed and `headerRow` as a tab strip. The modal layer itself (`DialogDef`,
+`DialogRowDef`, `bindDialogRows`, `DialogDef.scroll`/`headerRow`,
 `TiledScene.openDialog`) lives in src/ui/dialog.ts — read its header comment for
-the full input-capture and z-ordering model.
+the full input-capture, scrolling, and z-ordering model.
