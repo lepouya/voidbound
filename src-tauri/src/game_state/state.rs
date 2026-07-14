@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
@@ -149,6 +150,40 @@ pub(crate) fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
+}
+
+static TIME_SCALE: OnceLock<f64> = OnceLock::new();
+
+/// Dev-speed multiplier (ROADMAP P0.13), read once from `VOIDBOUND_TIME_SCALE`
+/// at first use. Unset — the normal `deno task tauri dev` — behaves as 1.0
+/// (real-time); `deno task tauri dev:fast` sets it so build/hire/mine timers
+/// and the production tick complete N* faster, for playtesting the core loop
+/// without waiting out real-time timers.
+pub(crate) fn time_scale() -> f64 {
+    *TIME_SCALE.get_or_init(|| {
+        std::env::var("VOIDBOUND_TIME_SCALE")
+            .ok()
+            .and_then(|v| v.parse::<f64>().ok())
+            .filter(|v| *v > 0.0)
+            .unwrap_or(1.0)
+    })
+}
+
+/// Scale a gameplay duration (ms) down by the dev-speed multiplier — apply at
+/// every point a duration becomes a deadline or tick interval (build/hire
+/// completion, production tick, mining duration, vessel travel time). A
+/// no-op at the default scale of 1.0.
+pub(crate) fn scaled_ms(ms: u64) -> u64 {
+    ((ms as f64 / time_scale()).round() as u64).max(1)
+}
+
+/// Inverse of `scaled_ms`: scale an elapsed real duration (ms) back up to the
+/// equivalent un-scaled duration — needed wherever a rate (units per ms) is
+/// applied to real elapsed time instead of to a precomputed deadline, so the
+/// two stay consistent (e.g. `mined_amount`'s proportional early-harvest math
+/// against `mine_duration_ms`'s scaled completion deadline).
+pub(crate) fn unscaled_ms(ms: u64) -> u64 {
+    ((ms as f64) * time_scale()).round() as u64
 }
 
 /// Tiny deterministic PRNG (xorshift64) for world seeding — the starter
@@ -448,7 +483,7 @@ impl ServerState {
     /// or until a command wakes it early because it created a nearer
     /// deadline.
     pub(super) fn next_deadline(&self) -> u64 {
-        let mut deadline = self.last_production_at + PRODUCTION_TICK_MS;
+        let mut deadline = self.last_production_at + scaled_ms(PRODUCTION_TICK_MS);
         if let Some(pending) = &self.pending_hire {
             deadline = deadline.min(pending.completes_at);
         }

@@ -52,14 +52,9 @@ order. Current details live in CLAUDE.md §§ 2–4.
       singleton (subscribe/notify) both scenes import, synced from
       `load_game_state` during the loader phase; scenes tolerate slow/failed
       loads (CLAUDE.md § Startup / loader phase).
-- [ ] **P0.13 — Dev-speed build/run target.** A distinct target (not a toggle on
-      the normal dev build) that scales scheduler timers — production tick,
-      build/level-up/hire completions, mining extraction — by a fixed multiplier
-      (e.g. 5x), so playtesting the core loop doesn't mean waiting out real-time
-      timers. Normal `deno task tauri dev` stays real-time; this is a separate
-      `deno task` (and matching cargo feature/env var the scheduler reads at
-      startup). Also useful for `/verify` runs that need to observe a completion
-      without a long wait. (Playtest feedback, July 2026)
+- [x] **P0.13 — Dev-speed build/run target.** `deno task dev:fast` scales every
+      scheduler timer (production, build/hire, mining, vessel travel) via
+      `VOIDBOUND_TIME_SCALE`; normal `deno task tauri dev` is unaffected.
 
 ## Phase 1 — Core gameplay loop
 

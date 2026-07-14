@@ -65,7 +65,8 @@
       "Bash(tools/*)",
       "Bash(tools/verify_dev.sh:*)",
       "Bash(tools/verify_capture.sh:*)",
-      "Bash(python3 -m unittest *)"
+      "Bash(python3 -m unittest *)",
+      "Bash(VOIDBOUND_TIME_SCALE=5 tools/verify_dev.sh:*)"
     ],
     "additionalDirectories": ["/tmp"]
   }

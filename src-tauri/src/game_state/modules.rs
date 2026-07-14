@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use super::resources::{ResourceCounts, ResourceKind};
-use super::state::{player_identity, ServerPush, ServerState};
+use super::state::{player_identity, scaled_ms, ServerPush, ServerState};
 
 /// One entry in the module catalog (ROADMAP P1.4): production, storage,
 /// cost, build time, and unlock prerequisite for a module type.
@@ -410,7 +410,8 @@ impl ServerState {
             return;
         }
         let interval_start = self.last_production_at;
-        let ticks = (now_ms - interval_start) / PRODUCTION_TICK_MS;
+        let tick_ms = scaled_ms(PRODUCTION_TICK_MS);
+        let ticks = (now_ms - interval_start) / tick_ms;
         if ticks == 0 {
             self.settle_modules(now_ms);
             return;
@@ -438,11 +439,7 @@ impl ServerState {
             let (old_level, new_level, old_ticks) = match &module.pending {
                 Some(p) if p.completes_at > interval_start && p.completes_at <= now_ms => {
                     let elapsed_before = p.completes_at - interval_start;
-                    (
-                        module.level,
-                        p.level,
-                        (elapsed_before / PRODUCTION_TICK_MS).min(ticks),
-                    )
+                    (module.level, p.level, (elapsed_before / tick_ms).min(ticks))
                 }
                 // Already due to settle at (or before) the start of this
                 // window — e.g. a caller settled it directly in between
@@ -477,7 +474,7 @@ impl ServerState {
                 }
             }
         }
-        self.last_production_at += ticks * PRODUCTION_TICK_MS;
+        self.last_production_at += ticks * tick_ms;
         self.settle_modules(now_ms);
     }
 
@@ -531,7 +528,7 @@ impl ServerState {
             pending: Some(ModulePendingBuild {
                 level: 1,
                 dispatched_at: now_ms,
-                completes_at: now_ms + scale_for_level(entry.base_build_time_ms, 1),
+                completes_at: now_ms + scaled_ms(scale_for_level(entry.base_build_time_ms, 1)),
             }),
         };
         self.modules
@@ -588,7 +585,8 @@ impl ServerState {
         let cost = scale_for_level(entry.base_cost_construction, next_level);
         self.resources.spend(ResourceKind::Construction, cost)?;
         self.resources_dirty = true;
-        let completes_at = now_ms + scale_for_level(entry.base_build_time_ms, next_level);
+        let completes_at =
+            now_ms + scaled_ms(scale_for_level(entry.base_build_time_ms, next_level));
         let module = self
             .modules
             .get_mut(module_id)

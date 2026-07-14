@@ -9,6 +9,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(GameServer::new(game_state::now_ms()))
         .setup(|app| {
+            // ROADMAP P0.13: VOIDBOUND_TIME_SCALE speeds up scheduler timers
+            // for playtesting (`deno task dev:fast`); log it so a real-time
+            // dev run vs. a fast one is obvious from the console.
+            let scale = game_state::time_scale();
+            if scale != 1.0 {
+                println!("VOIDBOUND_TIME_SCALE={scale} — scheduler timers running {scale}x speed");
+            }
             // The push scheduler (game_state::run_scheduler) settles due
             // state and emits server-push events for the app's lifetime.
             let handle = app.handle().clone();

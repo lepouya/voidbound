@@ -4,7 +4,8 @@ use serde::Serialize;
 
 use super::resources::{resource_display_name, ResourceKind};
 use super::state::{
-    player_identity, SeedRng, ServerPush, ServerState, MAP_COLS, MAP_ROWS, MAP_TILE_PX,
+    player_identity, scaled_ms, time_scale, unscaled_ms, SeedRng, ServerPush, ServerState,
+    MAP_COLS, MAP_ROWS, MAP_TILE_PX,
 };
 
 /// Response to request_map_window (ROADMAP P1.13): the re-centered interest
@@ -31,6 +32,16 @@ pub(super) const AOI_SPAN: i64 = 100;
 /// Vessel travel speed in world px/s. Server-verified: clients render the
 /// speed the event carries, they never choose it. Update on upgrade (P4).
 const VESSEL_SPEED_PX_S: f64 = 32.0;
+
+/// `VESSEL_SPEED_PX_S` scaled by the dev-speed multiplier (ROADMAP P0.13) —
+/// the wire `speed` every `VesselMoveEvent` carries. The client's visual tween
+/// (`TileActor.moveTo`) derives its own animation duration from this speed
+/// and distance alone, never from `arrival_at`, so it must already reflect
+/// the same scaling `travel_time_ms` applies to the arrival deadline or the
+/// two disagree: a scaled arrival with unscaled on-screen movement.
+fn effective_vessel_speed_px_s() -> f64 {
+    VESSEL_SPEED_PX_S * time_scale()
+}
 
 /// Sprite/capability type of the only vessel class so far.
 const VESSEL_TYPE: &str = "cs1";
@@ -155,14 +166,18 @@ const MINE_UNITS_PER_HOUR: u64 = 240;
 
 pub(super) const HOUR_MS: u64 = 3_600_000;
 
-/// How long mining the given amount takes at MINE_UNITS_PER_HOUR.
+/// How long mining the given amount takes at MINE_UNITS_PER_HOUR, scaled by
+/// the dev-speed multiplier (ROADMAP P0.13).
 fn mine_duration_ms(amount: u64) -> u64 {
-    amount.saturating_mul(HOUR_MS) / MINE_UNITS_PER_HOUR
+    scaled_ms(amount.saturating_mul(HOUR_MS) / MINE_UNITS_PER_HOUR)
 }
 
-/// How much a miner extracts in the given time at MINE_UNITS_PER_HOUR.
+/// How much a miner extracts in the given real elapsed time at
+/// MINE_UNITS_PER_HOUR — the inverse of `mine_duration_ms`, so proportional
+/// early-harvest math (`stop_mining`) stays consistent with the dev-speed
+/// multiplier applied to the completion deadline.
 fn mined_amount(elapsed_ms: u64) -> u64 {
-    elapsed_ms.saturating_mul(MINE_UNITS_PER_HOUR) / HOUR_MS
+    unscaled_ms(elapsed_ms).saturating_mul(MINE_UNITS_PER_HOUR) / HOUR_MS
 }
 
 /// One asteroid size tier (README § Design principles): footprint, how much
@@ -358,6 +373,10 @@ pub(super) fn seed_asteroids(
 }
 
 /// Straight-line travel time between two tile positions at the given speed.
+/// Callers pass `effective_vessel_speed_px_s()` (already dev-speed scaled)
+/// rather than the raw `VESSEL_SPEED_PX_S`, so this stays pure distance/speed
+/// math with no scaling of its own — the same speed value that ends up on
+/// the wire is what derives the deadline, so the two can never disagree.
 fn travel_time_ms(
     src_col: f64,
     src_row: f64,
@@ -802,6 +821,7 @@ impl ServerState {
         let (dest_col, dest_row) = dest;
         self.next_vessel_seq += 1;
         let player = player_identity();
+        let speed = effective_vessel_speed_px_s();
         VesselMoveEventData {
             vessel_id: format!("vessel-{}-{}", now_ms, self.next_vessel_seq),
             owner_id: player.id,
@@ -812,16 +832,10 @@ impl ServerState {
             src_row,
             dest_col,
             dest_row,
-            speed: VESSEL_SPEED_PX_S,
+            speed,
             dispatched_at: now_ms,
             arrival_at: now_ms
-                + travel_time_ms(
-                    src_col,
-                    src_row,
-                    dest_col as f64,
-                    dest_row as f64,
-                    VESSEL_SPEED_PX_S,
-                ),
+                + travel_time_ms(src_col, src_row, dest_col as f64, dest_row as f64, speed),
             returning: false,
             mining_asteroid_id,
             cargo: None,

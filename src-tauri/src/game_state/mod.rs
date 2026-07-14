@@ -14,4 +14,4 @@ mod world;
 // generate_handler! also needs — an explicit re-export list would miss them.
 pub(crate) use commands::*;
 pub(crate) use scheduler::{run_scheduler, GameServer};
-pub(crate) use state::{now_ms, MAP_COLS, MAP_ROWS, MAP_TILE_PX};
+pub(crate) use state::{now_ms, time_scale, MAP_COLS, MAP_ROWS, MAP_TILE_PX};

@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use super::resources::{ResourceCounts, ResourceKind};
-use super::state::{ServerPush, ServerState};
+use super::state::{scaled_ms, ServerPush, ServerState};
 
 /// A crew recruitment in flight (ROADMAP P1.10) — one at a time, same timer
 /// shape as a module's pending build. Mirrors the TS `PendingHire` in
@@ -82,7 +82,7 @@ impl ServerState {
         self.resources_dirty = true;
         self.pending_hire = Some(PendingHire {
             dispatched_at: now_ms,
-            completes_at: now_ms + HIRE_TIME_MS,
+            completes_at: now_ms + scaled_ms(HIRE_TIME_MS),
         });
         Ok(CrewActionResponse {
             crew: self.crew_data(),

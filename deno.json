@@ -11,10 +11,14 @@
     "lint:rs": "cd src-tauri && cargo clippy",
     "test": "deno task test:ts && deno task test:rs",
     "test:ts": "deno test --allow-read tests/",
-    "test:rs": "cd src-tauri && cargo test"
+    "test:rs": "cd src-tauri && cargo test",
+    "dev:app": "deno task tauri dev",
+    "dev:fast": "VOIDBOUND_TIME_SCALE=5 deno task tauri dev"
   },
   "fmt": {
-    "exclude": ["src/assets/"]
+    "exclude": [
+      "src/assets/"
+    ]
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
