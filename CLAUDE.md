@@ -227,12 +227,13 @@ Shop/Events + Mail/Items HUD around the given scene-switch button; prefer it
 over redefining those groups per scene — `openDialog(def)` / `closeDialog()` —
 the modal layer (ROADMAP P1.14): one dialog at a time, all pointer input
 captured while open (dialog buttons run the confirmed-tap logic; camera pan/zoom
-and everything underneath is blocked), closed automatically on scene switch —
-and `showToast(toast)` — transient snackbar messages (ROADMAP P1.15): a
-bottom-center stack of auto-fading pills that never capture input, cleared on
-scene switch; pass a string for info or an `errorToast(message)` for rejections.
-Call the HUD helpers, `openDialog`, and `showToast` from `onInitialize` (or
-later) **after** `super.onInitialize(engine)`.
+and everything underneath is blocked; a tap on the scrim outside the panel
+dismisses it), closed automatically on scene switch — and `showToast(toast)` —
+transient snackbar messages (ROADMAP P1.15): a bottom-center stack of
+auto-fading pills that never capture input, cleared on scene switch; pass a
+string for info or an `errorToast(message)` for rejections. Call the HUD
+helpers, `openDialog`, and `showToast` from `onInitialize` (or later) **after**
+`super.onInitialize(engine)`.
 
 **Adding a new scene:** use the `/add-scene` skill — it handles Rust map-arm
 wiring, `main.ts` registration, and HUD setup.
@@ -278,7 +279,10 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   `bindDialogRows(handle, subscribe, buildRows)` — rebuild a dialog's rows on
   every state-store notify (store-agnostic; unsubscribe from `onClose`). The
   scaffold for every server-driven panel: P1.12's shop is the reference
-  consumer, the P6.3 feed / P3.5 mail / P5.1 research panels are next
+  consumer; P1.16's entity details panels (`src/map/map-details.ts`) add a
+  once-a-second `setRows` tick on top of `bindDialogRows` for live countdown
+  re-renders — the pattern for any dialog showing a pending timer. P1.21's Mail
+  panel, P6.3's Events panel, and P5.1's research panel are next
 - `dialog-layout.ts` — pure dialog frame/row/cell math (`layoutDialogFrame`,
   `layoutCellRects`; no runtime imports; unit-tested). Not in the barrel —
   dialog.ts consumes it and re-exports its types
@@ -412,8 +416,8 @@ tampered with. The client renders what commands return and asks for actions:
   count.
 - `mark_notifications_read` — marks the whole feed read and returns the updated
   list (applied via `gameState.syncNotifications`), clearing the Events badge in
-  every scene. Pressing Events also dumps the feed to the console — the real
-  feed panel is P6.3.
+  every scene. Pressing Events currently dumps the feed to the console — the
+  real panel is P1.21, which also renames that button to Mail.
 - `request_build_module(col, row, module_type)` — verifies the catalog type, its
   Command-Module-level unlock, placement (room grid), and level-1 cost, deducts
   resources, returns the new `ModuleData` (level 0, pending its first
@@ -422,6 +426,19 @@ tampered with. The client renders what commands return and asks for actions:
   build/upgrade is already pending, and that the target level doesn't exceed the
   Command Module's own level (README § Ship design), deducts the level-scaled
   cost, returns the updated `ModuleData` plus updated counts.
+- `request_hire_crew()` — timed crew recruitment (ROADMAP P1.10): one hire in
+  flight at a time, the new head must fit crew capacity
+  (`crew_capacity_per_level` summed over settled module levels), and a linear
+  biological cost (scales with the new head count — a repeat purchase, not the
+  doubling-per-level stub) gates it; returns `CrewData` (head count + pending
+  recruitment) plus updated counts (`CrewActionResponse`). Crew berths damp
+  producer output through a pooled ship-wide staffing ratio at production
+  accrual — `output * (0.5 + 0.5 * staffed/required)` — floored at 50% so
+  understaffing punishes but never kills; the Command Module's baseline output
+  is never damped (the anti-stuck guarantee: a new player can progress at 0
+  crew). Hire cost/time and the 50% floor are balancing stubs (→ P2.6); richer
+  understaffing UX (per-module indicators, crew prioritization, temporary
+  reassignment) is an open idea with no task yet (ROADMAP P1.10).
 - `request_dispatch_vessel(dest_col, dest_row)` /
   `request_recall_vessel(vessel_id)` — verify the move, derive dock, speed, and
   arrival time (recalls depart from the server-lerped current position), record

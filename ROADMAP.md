@@ -52,6 +52,14 @@ order. Current details live in CLAUDE.md §§ 2–4.
       singleton (subscribe/notify) both scenes import, synced from
       `load_game_state` during the loader phase; scenes tolerate slow/failed
       loads (CLAUDE.md § Startup / loader phase).
+- [ ] **P0.13 — Dev-speed build/run target.** A distinct target (not a toggle on
+      the normal dev build) that scales scheduler timers — production tick,
+      build/level-up/hire completions, mining extraction — by a fixed multiplier
+      (e.g. 5x), so playtesting the core loop doesn't mean waiting out real-time
+      timers. Normal `deno task tauri dev` stays real-time; this is a separate
+      `deno task` (and matching cargo feature/env var the scheduler reads at
+      startup). Also useful for `/verify` runs that need to observe a completion
+      without a long wait. (Playtest feedback, July 2026)
 
 ## Phase 1 — Core gameplay loop
 
@@ -62,7 +70,8 @@ over the push channel, and windowed by interest area. Implementation detail:
 CLAUDE.md §4 and SERVER.md. P1.15/P1.16 are post-review polish additions (CR6.1,
 CR6.2). A full `/phase-review` followed the phase close (July 2026): 30 findings
 (CR1.1–CR9.7), all landed over commits `f18db73..e394ed1` — the full review
-document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
+document lives in git history (`CODE_REVIEW.md`, deleted after roll-up). P1.17–
+P1.22 are further additions from playtesting the closed phase (July 2026).
 
 - [x] **P1.1 — Resource state + production tick.** The 4 resources as
       server-side state with periodic production; Command Module baseline output
@@ -78,14 +87,19 @@ document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
       doubling stub (→ P2.6); per-type module art (→ P6.1).
 - [x] **P1.5 — Local notifications + server-push channel.** Server-owned
       notification feed + the scheduler push channel — the in-process prototype
-      of P3.1's event bus. Still open: pressing Events dumps the feed to the
-      console until the P6.3 feed panel; the Mail badge stays a placeholder
-      until P3.5.
+      of P3.1's event bus. Still open: pressing the HUD's Events button dumps
+      the feed to the console until P1.21's Notifications tab lands and renames
+      that button to Mail; P6.3's later curated-content Events panel is a
+      different feature that reintroduces an Events button of its own.
 - [x] **P1.6 — Mining loop.** Server-seeded asteroids with single-slot mining
       jobs, scheduler auto-recall at mine-out, proportional early harvests, dock
-      deposits. Still open: deposit bands and the mine rate are balancing stubs,
-      and mixed deposits / multiple miners on large asteroids stay open doors (→
-      P2.6); asteroid sprites are placeholder vectors (→ P6.2).
+      deposits. By design (confirmed in playtest, July 2026): harvested cargo
+      rides the vessel and only lands in the resource counts when it docks home
+      — never mid-mining or mid-return — which is what makes a mining/returning
+      vessel a meaningful looting target later (→ P5.5). Still open: deposit
+      bands and the mine rate are balancing stubs, and mixed deposits / multiple
+      miners on large asteroids stay open doors (→ P2.6); asteroid sprites are
+      placeholder vectors (→ P6.2).
 - **P1.7 — Diminishing returns.** Moved to Phase 2 as P2.7 (July 2026) — a daily
   damping curve can't be experienced or tuned while restarts wipe state.
 - [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom anchored at the pointer/pinch
@@ -95,15 +109,17 @@ document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
       map with minimap navigation (entity dots, viewport rect, tap-to-jump).
       Still open: real starfield background (→ P6.2).
 - [x] **P1.10 — Crew Quarters + crew capacity.** Crew as the third catalog stat:
-      berths sum over settled levels, producer output scales by the pooled
-      ship-wide staffing ratio with a 50% floor (the Command Module baseline is
-      never damped — the anti-stuck guarantee), timed `request_hire_crew`
-      recruitment, crew surfaced across the HUD (bar, hire buttons, understaffed
-      badges); players start at 0 crew. Still open: hire cost/time, the 50%
-      floor, the berth-vs-demand ratio, and optional per-crew biological upkeep
-      are balancing stubs (→ P2.6); vessel crews (→ P5.3), combat casualties (→
-      P5.5), and crew specialization / manual stationing (no task yet) were
-      deliberately deferred.
+      berths, a pooled ship-wide staffing ratio damping producer output, timed
+      hire recruitment, HUD surfacing (bar, hire buttons, understaffed badges);
+      players start at 0 crew. Full model: CLAUDE.md § IPC
+      (`request_hire_crew`). Still open: hire cost/time, the 50% floor, the
+      berth-vs-demand ratio, and optional per-crew biological upkeep are
+      balancing stubs (→ P2.6); vessel crews (→ P5.3), combat casualties (→
+      P5.5), and crew specialization / manual stationing were deliberately
+      deferred. Open idea, still half-baked (playtest feedback, July 2026):
+      richer understaffing UX (per-module indicators, crew prioritization,
+      temporary reassignment) plus a much lower floor once one of those exists —
+      no task ID yet, needs a design pass first.
 - [x] **P1.11 — Storage Bay capacity caps.** Per-resource caps as a catalog
       `stores` field; production and mining deposits clamp server-side (overflow
       is lost, and notified); the resource bar shows count/cap. Still open: cap
@@ -130,7 +146,7 @@ document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
       all pointer input captured, with `bindDialogRows` for state-bound
       rerendering (the P1.12 shop is the reference consumer). Still open: no
       scrolling — the content region is a distinct sub-rect a scrollable list
-      can drop into (→ P6.3).
+      can drop into (→ P1.21's Notifications tab, the first consumer).
 - [x] **P1.15 — Toast/snackbar notifications.** General transient-message
       primitive (`src/ui/toast.ts` + `TiledScene.showToast()`): auto-fading
       bottom-center snackbar stack, info/error kinds, rendered above the modal
@@ -139,13 +155,78 @@ document lives in git history (`CODE_REVIEW.md`, deleted after roll-up).
       rejections (`request_map_window`, `mark_notifications_read`) stay
       console-only deliberately. (CR6.1)
 - [x] **P1.16 — Entity details panel.** The four map "Details" stubs (own/enemy
-      mothership, vessel, asteroid) now open modal panels rendered from live
-      `gameState` with once-a-second countdown re-renders
-      (`src/map/map-details.ts`); the own-ship panel folds in the Command Module
-      readout + Upgrade action. Cleanup: own-ship "Enter" enters the ship scene,
-      the dead empty-tile "Move" stub is gone, and the own-ship "Move" button is
-      renamed "Warp" (relocation itself → P4.7). Still open: the enemy-ship
-      Message and Attack buttons stay stubs (→ P3.5 / P5.5). (CR6.2)
+      mothership, vessel, asteroid) now open modal panels rendered live from
+      `gameState` (pattern: CLAUDE.md § UI library, `dialog.ts`); the own-ship
+      panel folds in the Command Module readout + Upgrade action, its "Enter"
+      enters the ship scene, and its "Move" button is renamed "Warp" (relocation
+      itself → P1.22). Still open: the enemy-ship Message and Attack buttons
+      stay stubs (→ P3.5 / P5.5). (CR6.2)
+- [ ] **P1.17 — Fix: vessel-recall cargo not reflected client-side.** A vessel
+      recalled off a mining job and docking home shows the arrival notification,
+      but the resource bar doesn't reflect the deposited cargo. The Rust
+      recall/deposit path has passing tests for this exact case, so the gap is
+      most likely in client-side reconciliation (`gameState.applyServerPush` /
+      the `vessel`+`resources` push pair, or `syncVessels`) rather than the
+      backend math — confirm the deposit is actually landing server-side (check
+      the pushed `resources` event) before chasing the client. (Playtest
+      feedback, July 2026)
+- [ ] **P1.18 — One module per type.** Server-verified cap:
+      `request_build_module` rejects a second module of a type the player
+      already owns (Command Module is exempt — it's seeded, not built); the
+      build-offer UI hides/disables types already placed. Needs P1.3, P1.4.
+      (Playtest feedback, July 2026)
+- [ ] **P1.19 — Toast on every notification.** Extend P1.15's toast system so
+      every `notification` server-push (build/hire completions, vessel
+      arrivals/returns, mining completions) also surfaces a toast, not just
+      rejected actions — today's toasts only cover the error path.
+      `MAX_ACTIVE_TOASTS` (4, `src/ui/toast.ts`) already bounds a burst
+      gracefully (oldest evicted, no crash), but revisit when P2.5's offline
+      catch-up lands: settling many completions at once on load could flash most
+      of them past the cap before a player who just opened the app can read them
+      — the P1.21 feed is the full record either way. Needs P1.5, P1.15.
+      (Playtest feedback, July 2026)
+- [ ] **P1.20 — Ship module details dialog.** Extend the P1.16 details-panel
+      pattern to ship-scene modules (Command Module, Crew Quarters, Trading
+      Post, etc.) — tapping a module opens a details dialog with its stats,
+      level, and pending build/upgrade countdown, the same affordance the map
+      entities already have. Needs P1.16. (Playtest feedback, July 2026)
+- [ ] **P1.21 — Notifications tab (Mail panel, part 1).** Pulled forward from
+      P3.5 (playtest feedback, July 2026): the Notifications tab doesn't need
+      networking — it's just a real scrollable-list UI over the P1.5 feed,
+      replacing the console dump, so it doesn't have to wait on P3.1. The first
+      scrollable-list panel (P1.14's open door); P6.3's future Events panel can
+      reuse the same list-rendering work. Also renames the HUD's "Events"
+      button/badge/`openEventsFeed()` to "Mail" — that naming is a leftover
+      misnomer now that "Events" means P6.3's curated-content panel, not
+      notifications. P3.5 later adds the Player Mail / System Mail tabs to this
+      same panel. Needs P1.5, P1.14.
+- [ ] **P1.22 — Basic mothership warp/relocation.** Split from the original
+      "mothership warp" task into an earlier, alliance-free half (dependency
+      audit, July 2026): wires up the P1.16 "Warp" button stub. Destination
+      picker: a draggable 4\*4 footprint overlay on the map, colored per cell —
+      red (occupied by another mothership/asteroid), yellow (a neighbor cell in
+      the footprint is red), green (clear) — confirm enabled only once the whole
+      footprint is green; cancel backs out. Dragging the footprint
+      pans/re-centers the P1.13 AOI window (reusing `request_map_window`) so the
+      client has live occupancy data to color against; the server re-verifies
+      the footprint is actually clear at confirm time (never trust the client's
+      picker state) — same shape as P1.3's room-grid placement check, but
+      against world entities instead of the room grid. Dragging the footprint is
+      a distinct input mode from `TiledScene`'s normal drag-to-pan camera (§
+      Input model, CLAUDE.md) — while the picker is open it needs to own drag
+      gestures itself, the way an open dialog already captures all pointer
+      input. Fuel cost scales with warp distance — the first real fuel sink
+      (amounts are a balancing stub, → P2.6). Requires no vessels currently
+      deployed outside the mothership (all must be docked); triggers CR1.4 (a
+      moved mothership must not strand a vessel already in flight — already
+      fixed generically via the `returning` flag on `VesselMoveEvent`, but
+      re-verify against a live relocation). P4.7 later adds the alliance-driven
+      framing and swaps the cost to a "warp core" item. Needs P1.16, P1.13. Open
+      idea, not yet scoped (playtest feedback, July 2026): fuel is envisioned as
+      the broader "leaves the system" currency — routine vessel dispatch (README
+      § Design principles) and a future, undefined "expeditions" feature are
+      planned further sinks alongside warp; no task ID yet, and retrofitting a
+      cost onto today's free vessel dispatch needs its own design pass.
 
 ## Phase 2 — Persistence and balancing
 
@@ -217,13 +298,18 @@ Goal: the event pattern goes live over the network, per `SERVER.md`.
       snapshot plus log suffix on join. The client half already works
       (`applyVesselMoveEvent` interpolates aged events). Needs P3.1; builds on
       the P2.3 versioned format.
-- [ ] **P3.4 — HTTP fallback for `generate_map`.** Fetch-based map source behind
-      the same `buildTileMap` signature — unlocks the planned web-browser
-      platform (update the CLAUDE.md Platform line when done).
-- [ ] **P3.5 — Player-to-player mail.** First messaging feature; wires the Mail
-      HUD badge to a real unread count (completes the notification work started
-      in P1.5). The P6.3 feed panel is the natural UI surface to reuse. Needs
-      P3.1.
+- **P3.4 — HTTP fallback for `generate_map`.** Moved to Phase 6, alongside P6.4
+  (dependency audit, July 2026) — it has no actual dependency on Phase 3's
+  networking work, only on the web-browser platform effort it unlocks.
+- [ ] **P3.5 — Mail panel: Player Mail + System Mail tabs.** Adds the remaining
+      two tabs to P1.21's Mail panel: **Player Mail** for player-to-player
+      messaging (the enemy-ship "Message" button's real destination, P1.16's
+      stub) and **System Mail** for server-composed announcements/GM messages.
+      Split from the original "player-to-player mail" task (playtest feedback,
+      July 2026) because these two need the networked event bus for real
+      cross-player delivery, unlike P1.21's Notifications tab. "Events" (P6.3)
+      is a separate, curated-content panel — not notifications. Needs P3.1,
+      P1.21.
 - [ ] **P3.6 — Production hardening.** Set a real CSP in `tauri.conf.json`
       (currently `null`); drop the unused `withGlobalTauri: true`. Do before the
       first public/networked build.
@@ -261,16 +347,12 @@ Goal: the MMO layer.
       beyond the P1.12 NPC shop: player-to-player and alliance-level trade.
       Design is open — the README calls the currency's exact role "not fleshed
       out yet" — so settle the design before building. Needs P1.12, P4.1.
-- [ ] **P4.7 — Mothership warp/relocation.** Voluntary instant relocation to a
-      new map location via the mothership's "Warp" button (renamed from "Move" —
-      see P1.16); the main driver is repositioning near your alliance once P4.1
-      lands. Consumes 1 "warp core" — a new minimal item type introduced by this
-      task (ahead of P6.5's full inventory panel, which later becomes the
-      general UI for this and future item types) — and requires no vessels
-      currently deployed outside the mothership (all must be docked). Triggers
-      CR1.4 (a moved mothership must not strand a vessel already in flight —
-      already fixed generically via the `returning` flag on `VesselMoveEvent`,
-      but re-verify against a live relocation). Needs P4.1.
+- [ ] **P4.7 — Alliance-aware warp + warp core item.** Refines P1.22's basic
+      warp once alliances exist: the main draw becomes repositioning near your
+      alliance (P4.1), and the fuel cost is swapped for 1 "warp core" — a new
+      minimal item type introduced by this task, ahead of P6.5's full inventory
+      panel (which later becomes the general UI for this and future item types).
+      Needs P4.1, P1.22.
 - [ ] **P4.8 — General item/credits shop.** A standalone shop (HUD "Shop"
       button, currently unwired) distinct from the per-module P1.12 Trading Post
       — spends credits on general goods rather than the Trading Post's give/get
@@ -300,7 +382,12 @@ Goal: the README's Technologies, Combat, and Defence module categories.
 - [ ] **P5.5 — PvP combat resolution.** Attacking another player's mothership or
       vessels: damage exchange using P5.4 weapons and P5.3 stats, resolved
       server-side so neither side can lie about the outcome. Crew casualties
-      (P1.10's open door) belong to this resolution. Needs P3.1, P5.4.
+      (P1.10's open door) belong to this resolution. Open design idea, not yet
+      committed: since P1.6 keeps mined cargo on the vessel until it docks and a
+      mothership's resources sit in its counts, a mothership raid or catching a
+      vessel mid-mining/mid-return is a looting opportunity, not just a damage
+      exchange — needs its own design pass (what's stealable, whether a raid
+      needs to "win" first, defender recourse). Needs P3.1, P5.4.
 - [ ] **P5.6 — Repair Shop.** Repairs weapon/vessel damage from P5.5 combat
       using resources and time, mirroring the P1.3 build-timer pattern. Needs
       P5.5.
@@ -331,14 +418,26 @@ art or missing panels start hurting playtests.
       tinted placeholder vectors. **Requirement:** asteroid class must be
       distinguishable by shape, not tint alone — today's placeholder vectors are
       colorblind-inaccessible (CR6.8). Needs P1.9.
-- [ ] **P6.3 — Notification feed panel.** A real Events panel replacing the P1.5
-      console dump — likely the game's first scrollable list UI, so build it as
-      a reusable panel; P3.5's mail UI is the second consumer. Needs P1.5.
+- [ ] **P6.3 — Curated Events panel.** Reframed from "notification feed" — that
+      moved to P1.21's Mail panel (playtest feedback, July 2026). This is a
+      distinct feature: server-curated live content (holiday specials, team
+      contests) with its own definitions, scheduling, and participation/rewards
+      — no existing backend to lean on, so needs its own design pass (a
+      `/roadmap-task` design-review pause) before implementation, likely reusing
+      P1.21's scrollable-panel work. Needs its own HUD button (P1.21 renamed the
+      old "Events" button to "Mail", so this reintroduces an Events button
+      pointed at the new panel). Needs P1.21.
 - [ ] **P6.4 — Mobile builds (Android/iOS).** Bring up
       `deno task tauri android|ios` (README § Other platforms). The game is
       mobile-first by design — portrait layout and touch input already hold — so
       this is mostly build wiring, performance, and on-device verification.
       Worth pulling early once the core loop stabilizes.
+- [ ] **P3.4 — HTTP fallback for `generate_map`** _(moved from Phase 3;
+      dependency audit, July 2026)_. Fetch-based map source behind the same
+      `buildTileMap` signature — unlocks the planned web-browser platform
+      (update the CLAUDE.md Platform line when done). No real dependency on
+      Phase 3's networking; it only ever depended on wanting a web build, so it
+      belongs alongside P6.4's other-platforms work instead.
 - [ ] **P6.5 — Items/inventory panel.** A real panel behind the HUD "Items"
       button (currently unwired), covering item types beyond the 4 core
       resources — starting with P4.7's "warp core", the first item type
@@ -351,28 +450,25 @@ art or missing panels start hurting playtests.
 - [ ] **P6.7 — Audio.** Ambient/music plus SFX (button presses, build/level-up
       and hire completions, vessel arrivals, mining) — no sound exists in the
       game today. (CR6.7)
-
-# Unsorted TODO items
-
-Housekeeping and playtest feedback — not sorted into milestone phases yet. Some
-of these might become actual phase tasks, whereas some might roll in to other
-tasks and some others are small todo items to finish+remove without needing a
-specific task. We should eventually sort these and expand them properly.
-
-- Shop should be a row of 3 buttons with borders showing rarity.
-- Rename "gift" -> "free" in the trading post
-- Clicking outside of a dialog should dismiss it.
-- Resource harvesting progress.
-- Recalling a vessel that was mining didn't actually add the resources to the
-  game after it arrived.
-- Dev testing speedup: Like maybe 2x or even 5x on construction and resource
-  collection while I'm running a test. That way I can test out the mechanics
-  quickly without waiting for too long
-- Resource bar improvement.
-- Minimap sucks.
-- Clicking on modules, dialogs, details.
-- Only one of each type of building.
-- Mail (+ notifications tab) vs events (game events to participate in).
-- When a new notification arrives, we should show a quick toast of what
-  happened.
-- Mothership teleport/move.
+- [ ] **P6.8 — Dialog column layout + Trading Post shop redesign.** Generalize
+      `dialog-layout.ts`/`dialog.ts` with real multi-column grid support (today
+      is row/cell only), then rebuild the P1.12 shop as 3 columns of bordered
+      deal boxes: border color by rarity (green common / blue uncommon / purple
+      rare), two text rows per box ("+" get-side icon/amount, "-" give-side
+      icon/cost). Future panels (P3.5 Mail, P6.3 Events) can reuse the column
+      support. Needs P1.12, P1.14. (Playtest feedback, July 2026)
+- [ ] **P6.9 — Minimap two-tier zoom revamp.** Replace the current fixed view
+      (too small, mostly blank outside the loaded window) with two modes: at
+      normal zoom, show the live 100\*100 P1.13 AOI window (everything loaded);
+      zoomed all the way out, show the full 1000\*1000 map with only player
+      markers, interest-area outlines, and background — omitting individual
+      asteroids, since ~1920 of them at that scale is unreadable clutter, not a
+      useful reference. Needs P1.9, P1.13. (Playtest feedback, July 2026)
+- [ ] **P6.10 — Context-sensitive resource bar + expandable detail dialog.**
+      Trim the always-on-screen resource bar per scene instead of showing all 5
+      `ResourceKind`s everywhere: the ship scene shows the 3 material resources
+      (construction/highTech/biological, no cap shown) plus crew (with cap); the
+      map scene shows only fuel (the travel-relevant resource — P1.22's warp
+      cost), freeing HUD space crew doesn't need there. Tapping either group
+      opens a dialog with the full breakdown: all 5 resources with caps and live
+      production rates. Needs P1.2, P1.10, P1.11. (Playtest feedback, July 2026)

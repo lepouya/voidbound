@@ -83,13 +83,16 @@ game:
   material — from rocky or iron-rich asteroids, (b) high-tech materials — for
   electronics and reactors, from rare asteroids, (c) biological materials —
   water, food, and such, from icy asteroids or terrariums, and (d) fuel material
-  — like hydrogen or methane. (Open question: whether uranium fits here or is
-  one resource too many.) Alongside the materials there is a generic trade
-  currency — working name "credits", final name settled in the display layer —
-  earned through trade rather than production or mining. It enters the economy
-  at the Trading Post (credits-get deals are selling, credits-give deals are
-  buying; paid deal refreshes are the sink); its wider role — player-to-player
-  and alliance trade — isn't fleshed out yet.
+  — like hydrogen or methane, spent on vessel actions that leave the system:
+  mothership warp/relocation is the first sink, with routine vessel dispatch and
+  a future "expeditions" feature planned as further sinks (not yet fleshed out).
+  (Open question: whether uranium fits here or is one resource too many.)
+  Alongside the materials there is a generic trade currency — working name
+  "credits", final name settled in the display layer — earned through trade
+  rather than production or mining. It enters the economy at the Trading Post
+  (credits-get deals are selling, credits-give deals are buying; paid deal
+  refreshes are the sink); its wider role — player-to-player and alliance trade
+  — isn't fleshed out yet.
 - No hard daily energy caps. Repeating actions over the course of a day yields
   diminishing returns instead, resetting at a fixed point.
 - Resource nodes (asteroids, moons, planets) get higher level and more difficult

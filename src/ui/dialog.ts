@@ -6,10 +6,10 @@
 // directly — from onInitialize (or later), after super.onInitialize(engine).
 // One dialog is open at a time; opening another closes the first. While one
 // is open the scene captures all pointer input: dialog buttons fire on the
-// same confirmed-tap logic as HUD buttons, and everything else — camera
-// pan/zoom, world taps, HUD taps, scrim taps — is swallowed. The close
-// button (or a scene switch) is the only way out unless a cell button closes
-// it programmatically.
+// same confirmed-tap logic as HUD buttons, camera pan/zoom and world/HUD taps
+// underneath are swallowed, and a tap on the scrim (outside the panel) closes
+// the dialog — the same as the close button, a scene switch, or a cell button
+// closing it programmatically.
 //
 // Content is rows of cells composed from the existing ui/ primitives:
 //
@@ -284,6 +284,7 @@ export function spawnDialog(
 
   let rows = def.rows;
   let buttons: DialogButtonState[] = [];
+  let panelRect: DialogRect;
 
   const closeDef: HudButtonDef = {
     ...squareButton({
@@ -401,6 +402,7 @@ export function spawnDialog(
       def.layout,
     );
     const titleHeight = (frame.titleCenter.y - frame.panel.y) * 2;
+    panelRect = frame.panel;
 
     root.addChild(makePanelActor(frame.panel, titleHeight));
     const title = makeLabelActor(
@@ -455,7 +457,15 @@ export function spawnDialog(
           return true;
         }
       }
-      return false;
+      // A tap outside the panel itself lands on the scrim — dismiss instead
+      // of silently swallowing it.
+      if (
+        screenPos.x < panelRect.x || screenPos.x > panelRect.x + panelRect.w ||
+        screenPos.y < panelRect.y || screenPos.y > panelRect.y + panelRect.h
+      ) {
+        requestClose();
+      }
+      return true;
     },
 
     remove() {

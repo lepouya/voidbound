@@ -94,7 +94,7 @@ export class ShopDialog {
   ): DialogRowDef {
     const rarity = DEAL_RARITY_STYLE[deal.rarity];
     const giveCell: DialogCellDef = deal.give === null
-      ? { label: { text: "Gift", fontSize: 12, color: GIFT_LABEL_COLOR } }
+      ? { label: { text: "Free", fontSize: 12, color: GIFT_LABEL_COLOR } }
       : {
         tile: `${RESOURCE_ICON_TILESET[deal.give.kind]}:0`,
         label: formatCompactCount(deal.give.amount, 1_000),
