@@ -156,19 +156,8 @@ P1.22 are further additions from playtesting the closed phase (July 2026).
       enters the ship scene, and its "Move" button is renamed "Warp" (relocation
       itself → P1.22). Still open: the enemy-ship Message and Attack buttons
       stay stubs (→ P3.5 / P5.5). (CR6.2)
-- [ ] **P1.17 — Fix: vessel-recall cargo not reflected client-side.**
-      Investigated (July 2026), not reproducible: a full static trace of the
-      server→client push pipeline plus a live `/verify` repro (both a manual
-      mid-mining recall and a full mine-out auto-recall, each through to
-      docking) showed the deposit landing correctly and the resource bar
-      updating immediately in both cases. Also confirmed while investigating:
-      mining only starts accruing at actual arrival and cargo only deposits at
-      actual dock — not earlier in either case, matching the intended design.
-      Left unchecked pending a retest with more specific repro details. One real
-      but _unconfirmed_ candidate surfaced along the way: the resource bar's
-      compact "1.2k"-style rounding (`formatCompactCount`) can hide a small
-      deposit once a stockpile passes 1000 — worth checking first on a retest.
-      (Playtest feedback, July 2026)
+- [x] **P1.17 — Fix: vessel-recall cargo not reflected client-side.** Invalid —
+      not reproducible (July 2026); closed without a code change.
 - [x] **P1.18 — One module per type.** `request_build_module` rejects a second
       module of a type the player already owns (any level, pending or settled);
       the ship-scene build-offer UI hides types already placed instead of
