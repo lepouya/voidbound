@@ -115,6 +115,7 @@ export abstract class TiledScene extends ex.Scene {
     zoomAtAnchor: (anchor, zoom) => this.sceneCamera.zoomAtAnchor(anchor, zoom),
     currentZoom: () => this.sceneCamera.zoom,
     onTap: (screenPos) => this.handleTap(screenPos),
+    onModalScroll: (deltaY) => this.modalDialog?.handle.scrollBy(deltaY),
     onPointerReset: () => {
       this.pendingActor = null;
       // Discard any button press that never got tap confirmation (e.g. the

@@ -40,6 +40,13 @@ export interface ButtonDef {
    * plain string unless you need to override those.
    */
   label?: string | LabelDef;
+  /**
+   * Where the label renders relative to the button. Default: "below" (every
+   * icon button). "center" overlays the label on the button itself instead —
+   * for a text-only button with no icon (e.g. a dialog tab strip, ROADMAP
+   * P1.21) where the label *is* the button face.
+   */
+  labelPosition?: "below" | "center";
   onPressed: () => void;
 }
 

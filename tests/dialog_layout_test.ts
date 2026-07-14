@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 
 import {
+  computeScrollWindow,
   DIALOG_DEFAULT_ROW_HEIGHT,
   layoutCellRects,
   layoutDialogFrame,
@@ -103,4 +104,40 @@ Deno.test("cells: weights divide proportionally", () => {
 Deno.test("cells: a single cell spans the full row", () => {
   const row = { x: 5, y: 5, w: 200, h: 30 };
   assertEquals(layoutCellRects(row, [1]), [row]);
+});
+
+Deno.test("frame: headerHeight adds a pinned band above content", () => {
+  const frame = layoutDialogFrame(W, H, [56], {}, 32);
+  // Height: 44 (title) + 32 (header) + 2*12 (padding) + 56 (row) = 156.
+  assertEquals(frame.panel.h, 156);
+  assertEquals(frame.header, {
+    x: frame.panel.x + 12,
+    y: frame.panel.y + 44,
+    w: frame.panel.w - 24,
+    h: 32,
+  });
+  assertEquals(frame.content.y, frame.panel.y + 44 + 32 + 12);
+  assertEquals(frame.content.h, frame.panel.h - 44 - 32 - 24);
+  assertEquals(frame.rows[0].y, frame.content.y);
+});
+
+Deno.test("frame: zero headerHeight (default) leaves a zero-height header rect", () => {
+  const frame = layoutDialogFrame(W, H, [56]);
+  assertEquals(frame.header.h, 0);
+});
+
+Deno.test("scroll window: fewer rows than the page shows everything, no offset", () => {
+  const w = computeScrollWindow(3, 6, 0);
+  assertEquals(w, { startIndex: 0, visibleCount: 3, maxOffset: 0 });
+});
+
+Deno.test("scroll window: more rows than the page clamps maxOffset to the overflow", () => {
+  const w = computeScrollWindow(10, 6, 0);
+  assertEquals(w, { startIndex: 0, visibleCount: 6, maxOffset: 4 });
+});
+
+Deno.test("scroll window: offset clamps to [0, maxOffset]", () => {
+  assertEquals(computeScrollWindow(10, 6, -5).startIndex, 0);
+  assertEquals(computeScrollWindow(10, 6, 999).startIndex, 4);
+  assertEquals(computeScrollWindow(10, 6, 2).startIndex, 2);
 });

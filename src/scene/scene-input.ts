@@ -18,6 +18,12 @@ export interface SceneInputHandlers {
   currentZoom(): number;
   /** Dispatch a confirmed tap (pointer down+up with no drag in between). */
   onTap(screenPos: ex.Vector): void;
+  /** A vertical scroll gesture (drag or wheel) while a modal dialog captures
+   *  input: positive deltaY means "reveal more content below" (a finger
+   *  dragging up, or a wheel/trackpad scrolling down — same convention as
+   *  `pan`'s delta) — the dialog's scrollable content, if any, moves with
+   *  it. See DialogDef.scroll in ui/dialog.ts. */
+  onModalScroll(deltaY: number): void;
   /** Called whenever pointer state resets (tap dispatched, drag cancelled,
    *  scene deactivated) so the scene can discard gesture-scoped actor state
    *  (e.g. a pending world-button press that never got confirmed). */
@@ -103,8 +109,11 @@ export class SceneInputController {
       }
       this.hasDragged = true;
       // Modal input capture: keep tracking the drag (so a press that slides
-      // off a dialog button still cancels the tap) but never pan the camera.
+      // off a dialog button still cancels the tap) but never pan the camera —
+      // forward it to the dialog as a scroll gesture instead.
       if (this.handlers.isModalCaptured()) {
+        const delta = this.lastScreenPos.sub(evt.screenPos);
+        this.handlers.onModalScroll(delta.y);
         this.lastScreenPos = evt.screenPos.clone();
         return;
       }
@@ -152,7 +161,12 @@ export class SceneInputController {
 
     // Trackpad scroll pans; trackpad pinch arrives as wheel + ctrlKey and zooms
     const onWheel = (evt: ex.WheelEvent) => {
-      if (this.handlers.isModalCaptured()) return;
+      // Modal input capture: a wheel/trackpad scroll moves the dialog's
+      // scrollable content, if any, instead of the camera or its zoom.
+      if (this.handlers.isModalCaptured()) {
+        this.handlers.onModalScroll(evt.deltaY);
+        return;
+      }
       if ((evt.ev as WheelEvent).ctrlKey) {
         // Clamp the per-event factor: a fast wheel can send deltaY > 100,
         // which would make the factor zero or negative. evt.x/y is the

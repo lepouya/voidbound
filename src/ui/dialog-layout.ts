@@ -41,9 +41,15 @@ export interface DialogFrameLayout {
   /** Center of the close button, at the right end of the title band. */
   closeCenter: { x: number; y: number };
   /**
-   * The content region below the title band, inside the padding — kept a
-   * distinct sub-rect so a future scrollable region (ROADMAP P6.3) can drop
-   * into it without touching the frame math.
+   * The pinned band below the title and above `content` — zero height unless
+   * the caller passed a `headerHeight` (ROADMAP P1.21: a dialog's tab strip).
+   * Never scrolls, unlike `content`/`rows`.
+   */
+  header: DialogRect;
+  /**
+   * The content region below the title band (and header, if any), inside the
+   * padding — kept a distinct sub-rect so the scrollable row window (ROADMAP
+   * P1.21) can clamp against it without touching the frame math.
    */
   content: DialogRect;
   /** One rect per content row, stacked top-down inside `content`. */
@@ -53,15 +59,17 @@ export interface DialogFrameLayout {
 /**
  * Computes the dialog frame for the given screen dimensions (the zoom-1
  * resolution — screen space is not affected by camera zoom). The panel height
- * follows the row heights but never exceeds the screen minus margins; there
- * is no scrolling yet (P6.3), so rows past the clamp simply overflow —
- * dialogs are expected to fit portrait.
+ * follows the row heights (plus `headerHeight`, if given) but never exceeds
+ * the screen minus margins. `rowHeights` should be only the *visible* window
+ * of rows for a scrollable dialog (ROADMAP P1.21's `computeScrollWindow`) —
+ * this function has no scroll awareness of its own.
  */
 export function layoutDialogFrame(
   screenW: number,
   screenH: number,
   rowHeights: number[],
   opts: DialogLayoutOpts = {},
+  headerHeight = 0,
 ): DialogFrameLayout {
   const margin = opts.margin ?? 12;
   const maxWidth = opts.maxWidth ?? 480;
@@ -74,7 +82,7 @@ export function layoutDialogFrame(
 
   const w = Math.min(maxWidth, screenW - 2 * margin);
   const h = Math.min(
-    titleHeight + contentH + 2 * padding,
+    titleHeight + headerHeight + contentH + 2 * padding,
     screenH - 2 * margin,
   );
   const panel: DialogRect = {
@@ -84,11 +92,18 @@ export function layoutDialogFrame(
     h,
   };
 
+  const header: DialogRect = {
+    x: panel.x + padding,
+    y: panel.y + titleHeight,
+    w: panel.w - 2 * padding,
+    h: headerHeight,
+  };
+
   const content: DialogRect = {
     x: panel.x + padding,
-    y: panel.y + titleHeight + padding,
+    y: panel.y + titleHeight + headerHeight + padding,
     w: panel.w - 2 * padding,
-    h: panel.h - titleHeight - 2 * padding,
+    h: panel.h - titleHeight - headerHeight - 2 * padding,
   };
 
   const rows: DialogRect[] = [];
@@ -105,9 +120,28 @@ export function layoutDialogFrame(
       x: panel.x + panel.w - titleHeight / 2,
       y: panel.y + titleHeight / 2,
     },
+    header,
     content,
     rows,
   };
+}
+
+/**
+ * Windows a row list for a scrollable dialog (ROADMAP P1.21): assumes
+ * uniform row height (the only shape needed so far — a message feed), so the
+ * math is a simple row count rather than a rolling height sum. `offset` is
+ * clamped to `[0, maxOffset]`, so a caller can pass a raw drag-derived value
+ * without pre-clamping.
+ */
+export function computeScrollWindow(
+  totalRows: number,
+  visibleRows: number,
+  offset: number,
+): { startIndex: number; visibleCount: number; maxOffset: number } {
+  const visibleCount = Math.min(visibleRows, totalRows);
+  const maxOffset = Math.max(0, totalRows - visibleCount);
+  const startIndex = Math.min(Math.max(0, offset), maxOffset);
+  return { startIndex, visibleCount, maxOffset };
 }
 
 /**

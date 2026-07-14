@@ -281,8 +281,20 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   scaffold for every server-driven panel: P1.12's shop is the reference
   consumer; P1.16's entity details panels (`src/map/map-details.ts`) add a
   once-a-second `setRows` tick on top of `bindDialogRows` for live countdown
-  re-renders — the pattern for any dialog showing a pending timer. P1.21's Mail
-  panel, P6.3's Events panel, and P5.1's research panel are next
+  re-renders — the pattern for any dialog showing a pending timer. Two more
+  pieces, generic to any dialog (ROADMAP P1.21 added both; P1.21's Mail panel,
+  `src/scene/mail-dialog.ts`, is a worked example of both, not a special case):
+  `headerRow` — one `DialogRowDef` pinned below the title, above the scrollable
+  rows, that never scrolls (Mail's tab strip: button cells with
+  `labelPosition: "center"`, `button.ts`); and
+  `scroll: { rowHeight,
+  visibleRows }` — `rows` becomes the full list, with
+  only a `visibleRows` window (uniform row height) rendered at a time,
+  scrollable by drag or mouse wheel via `DialogHandle.scrollBy(deltaY)` (wired
+  through `SceneInputHandlers.onModalScroll`, `scene-input.ts`) and a
+  scroll-position thumb on the content region's right edge — see
+  `dialog-layout.ts`'s `computeScrollWindow`. P6.3's Events panel and P5.1's
+  research panel are next to use `bindDialogRows`/`scroll`/`headerRow`
 - `dialog-layout.ts` — pure dialog frame/row/cell math (`layoutDialogFrame`,
   `layoutCellRects`; no runtime imports; unit-tested). Not in the barrel —
   dialog.ts consumes it and re-exports its types

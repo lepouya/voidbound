@@ -43,14 +43,32 @@
 // the panel re-centers to the new row count — and per-button state (e.g.
 // affordability) flips with handle.setButtonDisabled(row, cell, disabled).
 // Frame constants (margins, title band, padding) override per-dialog via
-// DialogDef.layout (DialogLayoutOpts). There is no scrolling yet (ROADMAP
-// P6.3): dialogs must fit the portrait 390*844 design target.
+// DialogDef.layout (DialogLayoutOpts).
+//
+// Two more general-purpose pieces, any dialog can opt into (the P1.21 Mail
+// panel is the first consumer of both — src/scene/mail-dialog.ts is a worked
+// example — but neither is Mail-specific):
+//
+//   - `headerRow`: one row pinned below the title, above the scrollable rows
+//     — never scrolls. Mail uses it for a tab strip (button cells with
+//     `labelPosition: "center"`, button.ts), but it's a plain DialogRowDef, so
+//     anything a normal row can hold works (a search box, a summary line, a
+//     filter toggle, ...).
+//   - `scroll: { rowHeight, visibleRows }`: `rows` is the FULL list; only a
+//     window of `visibleRows` renders at once (uniform height only — see
+//     dialog-layout.ts's computeScrollWindow). Scroll vertically anywhere in
+//     an open dialog — drag or mouse wheel, both routed through
+//     DialogHandle.scrollBy(deltaY) by TiledScene — to move the window one
+//     row at a time (there's no sub-row clipping, so the window always
+//     renders whole rows); a thumb on the right edge of the content region
+//     shows scroll position when the list overflows the window.
 
 import * as ex from "excalibur";
 
 import { makeBadgeActor } from "./badge.ts";
 import { makeButtonGraphic, squareButton } from "./button.ts";
 import {
+  computeScrollWindow,
   DIALOG_DEFAULT_ROW_HEIGHT,
   DialogLayoutOpts,
   DialogRect,
@@ -90,6 +108,14 @@ const PANEL_BG = ex.Color.fromRGB(10, 14, 26, 0.95);
 const PANEL_BORDER = ex.Color.fromHex("#00d2ff");
 const PANEL_DIVIDER = ex.Color.fromRGB(0, 210, 255, 0.35);
 const SCRIM_COLOR = ex.Color.fromRGB(0, 0, 0, 0.6);
+// Scroll thumb: a thin track along the content region's right edge. GUTTER is
+// reserved from row width so rows never render under it.
+const SCROLLBAR_GUTTER = 10;
+const SCROLLBAR_WIDTH = 4;
+const SCROLLBAR_TRACK = ex.Color.fromRGB(255, 255, 255, 0.12);
+const SCROLLBAR_THUMB = ex.Color.fromRGB(0, 210, 255, 0.6);
+// One scroll-accumulated row-height's worth of px moves the scroll window by
+// one row — see spawnDialog's scrollBy.
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -114,6 +140,12 @@ export interface DialogCellDef {
   tileSize?: number;
   /** Text label (below the tile when one is present, else cell-centered). */
   label?: string | LabelDef;
+  /**
+   * Text alignment for a label-only cell (ignored on tile/button cells).
+   * Default: "center". "left" wraps to the cell width — for prose-length
+   * text (e.g. a notification message) that centered text can't hold.
+   */
+  align?: "left" | "center";
   /** Relative share of the row width. Default: 1. */
   weight?: number;
 }
@@ -129,6 +161,17 @@ export interface DialogRowDef {
 export interface DialogDef {
   title: string;
   rows: DialogRowDef[];
+  /**
+   * A row pinned below the title, above `rows` — never part of the
+   * scrollable window. See the header comment (ROADMAP P1.21).
+   */
+  headerRow?: DialogRowDef;
+  /**
+   * When set, `rows` is the full list and only a `visibleRows`-tall window
+   * renders at once (drag-to-scroll). All rows must share `rowHeight` — see
+   * dialog-layout.ts's computeScrollWindow.
+   */
+  scroll?: { rowHeight: number; visibleRows: number };
   /** Frame overrides (margins, title band, padding). */
   layout?: DialogLayoutOpts;
   /**
@@ -155,6 +198,15 @@ export interface DialogHandle {
   setButtonDisabled(row: number, cell: number, disabled: boolean): void;
   /** Recompute the frame and all content for the current screen size. */
   relayout(engine: ex.Engine): void;
+  /**
+   * Feed a vertical scroll delta — a drag distance or a wheel event's deltaY
+   * (same sign convention as SceneInputHandlers.onModalScroll: positive =
+   * reveal more content below). No-op when the dialog isn't scrollable (no
+   * `scroll` in the def) or the list already fits the window. Deltas
+   * accumulate until they cross a row height, then step the scroll window by
+   * whole rows and rebuild — there's no sub-row clipping to animate smoothly.
+   */
+  scrollBy(deltaY: number): void;
   /**
    * Fire the button under a confirmed tap, if any. Returns whether a button
    * was hit — but the tap never falls through either way: while a dialog is
@@ -285,6 +337,11 @@ export function spawnDialog(
   let rows = def.rows;
   let buttons: DialogButtonState[] = [];
   let panelRect: DialogRect;
+  // Scroll state — only meaningful when def.scroll is set. scrollOffsetRows
+  // is the index of the first visible row; dragAccumPx is leftover sub-row
+  // scroll distance carried between scrollBy calls.
+  let scrollOffsetRows = 0;
+  let dragAccumPx = 0;
 
   const closeDef: HudButtonDef = {
     ...squareButton({
@@ -324,10 +381,14 @@ export function spawnDialog(
     const disabled = btn.disabled ?? false;
     applyGraphic(actor, btn, disabled, w, h);
     // Label below and badge at the top-right corner, exactly like HUD
-    // buttons (button center is (0,0) in local space).
+    // buttons (button center is (0,0) in local space) — unless the button
+    // opts into centering the label on its own face (ROADMAP P1.21's
+    // icon-less tab buttons, where the label *is* the button).
     const label = makeLabelActor(
       resolveButtonLabel(btn.label),
-      ex.vec(0, h / 2 + LABEL_PAD),
+      btn.labelPosition === "center"
+        ? ex.vec(0, 0)
+        : ex.vec(0, h / 2 + LABEL_PAD),
     );
     if (label) actor.addChild(label);
     if (btn.badge !== undefined) {
@@ -371,10 +432,11 @@ export function spawnDialog(
       root.addChild(actor);
       return;
     }
+    const left = cell.align === "left";
     const label = makeLabelActor(
       resolveDialogLabel(cell.label),
-      ex.vec(center.x, center.y),
-      { anchor: "middle-center" },
+      left ? ex.vec(rect.x, center.y) : ex.vec(center.x, center.y),
+      { anchor: left ? "middle-left" : "middle-center", maxWidth: rect.w },
     );
     if (label) root.addChild(label);
   };
@@ -384,6 +446,9 @@ export function spawnDialog(
    * A dialog is a couple dozen actors at most, so full rebuild keeps resize,
    * setRows, and initial spawn on one code path.
    */
+  /** Whichever rows are actually visible this rebuild, plus scroll bookkeeping. */
+  let maxScrollOffset = 0;
+
   const rebuild = (): void => {
     for (const child of [...root.children]) child.kill();
     buttons = [];
@@ -395,11 +460,31 @@ export function spawnDialog(
       new ex.Rectangle({ width: sw, height: sh, color: SCRIM_COLOR }),
     );
 
+    let visibleRows = rows;
+    if (def.scroll) {
+      const window = computeScrollWindow(
+        rows.length,
+        def.scroll.visibleRows,
+        scrollOffsetRows,
+      );
+      scrollOffsetRows = window.startIndex;
+      maxScrollOffset = window.maxOffset;
+      visibleRows = rows.slice(
+        window.startIndex,
+        window.startIndex + window.visibleCount,
+      );
+    } else {
+      maxScrollOffset = 0;
+    }
+    const scrollable = maxScrollOffset > 0;
+
+    const headerHeight = def.headerRow?.height ?? DIALOG_DEFAULT_ROW_HEIGHT;
     const frame = layoutDialogFrame(
       sw,
       sh,
-      rows.map((row) => row.height ?? DIALOG_DEFAULT_ROW_HEIGHT),
+      visibleRows.map((row) => row.height ?? DIALOG_DEFAULT_ROW_HEIGHT),
       def.layout,
+      def.headerRow ? headerHeight : 0,
     );
     const titleHeight = (frame.titleCenter.y - frame.panel.y) * 2;
     panelRect = frame.panel;
@@ -413,14 +498,64 @@ export function spawnDialog(
     if (title) root.addChild(title);
     addButton(closeDef, frame.closeCenter);
 
-    rows.forEach((row, i) => {
+    if (def.headerRow) {
+      const headerCellRects = layoutCellRects(
+        frame.header,
+        def.headerRow.cells.map((cell) => cell.weight ?? 1),
+        def.headerRow.gap,
+      );
+      def.headerRow.cells.forEach((cell, j) =>
+        addCell(cell, headerCellRects[j])
+      );
+    }
+
+    // Reserve a gutter for the scroll thumb so row content never renders
+    // under it.
+    const rowGutter = scrollable ? SCROLLBAR_GUTTER : 0;
+    visibleRows.forEach((row, i) => {
+      const rowRect = { ...frame.rows[i], w: frame.rows[i].w - rowGutter };
       const cellRects = layoutCellRects(
-        frame.rows[i],
+        rowRect,
         row.cells.map((cell) => cell.weight ?? 1),
         row.gap,
       );
       row.cells.forEach((cell, j) => addCell(cell, cellRects[j]));
     });
+
+    if (scrollable) {
+      const trackX = frame.content.x + frame.content.w - SCROLLBAR_WIDTH;
+      const track = new ex.Actor({
+        pos: ex.vec(trackX, frame.content.y),
+        anchor: ex.vec(0, 0),
+      });
+      track.graphics.use(
+        new ex.Rectangle({
+          width: SCROLLBAR_WIDTH,
+          height: frame.content.h,
+          color: SCROLLBAR_TRACK,
+        }),
+      );
+      root.addChild(track);
+
+      const thumbH = Math.max(
+        16,
+        frame.content.h * (visibleRows.length / rows.length),
+      );
+      const thumbY = frame.content.y +
+        (frame.content.h - thumbH) * (scrollOffsetRows / maxScrollOffset);
+      const thumb = new ex.Actor({
+        pos: ex.vec(trackX, thumbY),
+        anchor: ex.vec(0, 0),
+      });
+      thumb.graphics.use(
+        new ex.Rectangle({
+          width: SCROLLBAR_WIDTH,
+          height: thumbH,
+          color: SCROLLBAR_THUMB,
+        }),
+      );
+      root.addChild(thumb);
+    }
   };
 
   rebuild();
@@ -445,6 +580,21 @@ export function spawnDialog(
 
     relayout(_engine: ex.Engine) {
       rebuild();
+    },
+
+    scrollBy(deltaY: number) {
+      if (!def.scroll || maxScrollOffset === 0) return;
+      dragAccumPx += deltaY;
+      const step = def.scroll.rowHeight;
+      let moved = false;
+      while (Math.abs(dragAccumPx) >= step) {
+        const dir = dragAccumPx > 0 ? 1 : -1;
+        const next = ex.clamp(scrollOffsetRows + dir, 0, maxScrollOffset);
+        moved = moved || next !== scrollOffsetRows;
+        scrollOffsetRows = next;
+        dragAccumPx -= dir * step;
+      }
+      if (moved) rebuild();
     },
 
     tryPointerUp(screenPos: ex.Vector): boolean {
