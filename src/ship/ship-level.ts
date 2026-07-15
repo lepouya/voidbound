@@ -2,6 +2,7 @@ import * as ex from "excalibur";
 
 import { gameState } from "../state/game-state.ts";
 import { buildTileMap } from "../scene/map-loader.ts";
+import { ModuleDetailsDialog } from "./ship-module-details.ts";
 import { ModuleSync } from "./ship-modules.ts";
 import { ShopDialog } from "./ship-shop.ts";
 import { TileActor } from "../scene/tile-actor.ts";
@@ -19,12 +20,18 @@ export class ShipLevel extends TiledScene {
     reselectActor: (actor) => this.reselectActor(actor),
     deselectActor: () => this.deselectActor(),
     openShop: () => this.shop.open(),
+    openDetails: (moduleId) => this.details.open(moduleId),
     showToast: (toast) => this.showToast(toast),
   });
   /** Owns the Trading Post dialog and its accept/refresh actions. */
   private shop = new ShopDialog({
     openDialog: (def) => this.openDialog(def),
     showToast: (toast) => this.showToast(toast),
+  });
+  /** Owns the module details panels (ROADMAP P1.20) every module's Details
+   *  button opens. */
+  private details = new ModuleDetailsDialog({
+    openDialog: (def) => this.openDialog(def),
   });
 
   override onInitialize(engine: ex.Engine): void {
@@ -76,5 +83,8 @@ export class ShipLevel extends TiledScene {
 
   override onPostUpdate(): void {
     this.moduleSync.tick();
+    // Details-panel countdown (ROADMAP P1.20), same shape as
+    // DetailsDialog.tick in MapLevel: re-renders at most once a second.
+    this.details.tick();
   }
 }

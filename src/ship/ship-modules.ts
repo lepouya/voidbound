@@ -137,6 +137,7 @@ export interface ModuleSyncHost {
   reselectActor(actor: TileActor): void;
   deselectActor(): void;
   openShop(): void;
+  openDetails(moduleId: string): void;
   showToast(toast: string | ToastDef): void;
 }
 
@@ -404,6 +405,14 @@ export class ModuleSync {
         onPressed: () => void this.levelUp(data.moduleId),
       }));
     }
+    // Details (ROADMAP P1.20): read-only stats/level/countdown panel, the
+    // same affordance map entities already have (P1.16). Always available —
+    // unlike the actions above, it has nothing to gate.
+    buttons.push(roundButton({
+      icon: "details",
+      label: "Details",
+      onPressed: () => this.host.openDetails(data.moduleId),
+    }));
 
     return new TileActor({
       grid,
