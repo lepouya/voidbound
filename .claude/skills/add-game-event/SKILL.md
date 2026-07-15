@@ -207,12 +207,14 @@ auto-recall `ServerPush::Vessel`.
       sync` comment
       pointing at the exact Rust constant name and file. Diff the two
       field-by-field before finishing — there is no automated cross-language
-      check, and this ritual has already drifted once. The three existing
-      instances are the template: `MODULE_CATALOG` (src/ship/module-catalog.ts ↔
+      check, and this ritual has already drifted once. The existing instances
+      are the template: `MODULE_CATALOG` (src/ship/module-catalog.ts ↔
       `MODULE_CATALOG` in game_state/modules.rs), `ASTEROID_TIERS`
       (src/map/asteroid-catalog.ts ↔ `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR` in
-      game_state/world.rs), and `DEAL_REFRESH_COSTS_CREDITS`
-      (src/ship/trade-catalog.ts ↔ same name in game_state/deals.rs).
+      game_state/world.rs), `DEAL_REFRESH_COSTS_CREDITS`
+      (src/ship/trade-catalog.ts ↔ same name in game_state/deals.rs), and
+      `HIRE_COST_BIOLOGICAL`/`HIRE_TIME_MS` (src/ship/module-catalog.ts ↔ same
+      names in game_state/crew.rs).
 - [ ] `deno task format` and `deno task check` pass (formats and type-checks TS
       and Rust).
 - [ ] Run **`/verify`** and drive the new action in the dev app — there is no

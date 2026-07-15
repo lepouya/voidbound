@@ -45,6 +45,7 @@ except when writing a new generator.
 | `sprite_extract.py`    | Extract + uniform-resize sprites from a padded source sheet            |
 | `sprite_merge.py`      | Merge sprites from multiple source sheets into one output sheet        |
 | `sprite_transition.py` | Generate animated spritesheets with fade/roll/scale/rotate transitions |
+| `svg_ui_gen.py`        | Render SVG UI frames/icons to normal/active/disabled spritesheets      |
 | `tmj_to_tilemap.py`    | Convert a Tiled `.tmj` file → `TileMapData` JSON asset                 |
 
 ### `tmj_to_tilemap.py` flags

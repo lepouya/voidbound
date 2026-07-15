@@ -28,9 +28,10 @@ task list that tracks what's built vs. planned.
   Excalibur can load image assets in production builds. HMR on port 1421 when
   running under Tauri dev.
 - **Testing:** `deno task test` runs both halves: the pure-logic TS suite in
-  `tests/` (anchor math, TileRef parsing, HUD layout, dock-tile math, and a
-  PNG-dimensions-vs-catalog cross-check) and the Rust game-rule tests via cargo.
-  `deno task test:ts` / `deno task test:rs` run one half alone;
+  `tests/` (e.g. anchor/camera/dialog/HUD/minimap/grid math, TileRef parsing, a
+  PNG-dimensions-vs-catalog cross-check, the `GameState` apply/sync entry
+  points, and the module/asteroid/trade catalog mirrors) and the Rust game-rule
+  tests via cargo. `deno task test:ts` / `deno task test:rs` run one half alone;
   `python3 -m unittest discover -s tools` covers the art-pipeline converter. CI
   (`.github/workflows/ci.yml`) runs format/check/lint/test/cargo checks on push
   and PR (the frontend job runs `test:ts`; the rust job runs cargo test itself).
@@ -38,7 +39,9 @@ task list that tracks what's built vs. planned.
   Excalibur/Vite imports (`src/resources/tileset-geometry.ts`,
   `src/scene/grid-math.ts`, `src/state/game-state.ts`,
   `src/state/game-state-types.ts`, `src/scene/camera-math.ts`,
-  `src/map/minimap-math.ts`, `src/map/vessel-math.ts`,
+  `src/map/minimap-math.ts`, `src/map/vessel-math.ts`, `src/map/aoi-config.ts`,
+  `src/map/warp-footprint.ts`, `src/map/asteroid-catalog.ts`,
+  `src/ship/module-catalog.ts`, `src/ship/trade-catalog.ts`,
   `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`, `src/ui/dialog-layout.ts`,
   `src/ui/format.ts`) — Excalibur cannot load under Deno, so keep new testable
   logic in that shape. There is no runtime/scene coverage — the running app is

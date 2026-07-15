@@ -156,7 +156,7 @@ static TIME_SCALE: OnceLock<f64> = OnceLock::new();
 
 /// Dev-speed multiplier (ROADMAP P0.13), read once from `VOIDBOUND_TIME_SCALE`
 /// at first use. Unset — the normal `deno task tauri dev` — behaves as 1.0
-/// (real-time); `deno task tauri dev:fast` sets it so build/hire/mine timers
+/// (real-time); `deno task dev:fast` sets it so build/hire/mine timers
 /// and the production tick complete N* faster, for playtesting the core loop
 /// without waiting out real-time timers.
 pub(crate) fn time_scale() -> f64 {

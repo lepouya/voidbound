@@ -9,13 +9,13 @@ engine/tooling scaffolding all of that already sits on.
 
 **How to use this file:** tasks have stable IDs (`P<phase>.<n>`) so sessions and
 commits can reference them — check off a task when it's committed and
-`deno task format` + `deno task check` + `deno task test` pass. IDs never
-change, even when a task moves phases (e.g. P1.7 now lands in Phase 2). Within a
-phase, tasks are listed in rough dependency order, but anything without an
-explicit "needs" note can be picked up independently. Done items keep only a
-one-line summary plus any notes that still matter for future work (marked "Still
-open"); implementation detail lives in `CLAUDE.md`, `SERVER.md`, and the commit
-history.
+`deno task format` + `deno task check` + `deno task lint` + `deno task test`
+pass. IDs never change, even when a task moves phases (e.g. P1.7 now lands in
+Phase 2). Within a phase, tasks are listed in rough dependency order, but
+anything without an explicit "needs" note can be picked up independently. Done
+items keep only a one-line summary plus any notes that still matter for future
+work (marked "Still open"); implementation detail lives in `CLAUDE.md`,
+`SERVER.md`, and the commit history.
 
 ## Phase 0 — Engine and tooling scaffolding
 
