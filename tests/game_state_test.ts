@@ -617,6 +617,53 @@ Deno.test("notification pushes evict the oldest entry past the 100 cap", () => {
   assertEquals(state.notifications.has("notif-100"), true);
 });
 
+Deno.test("subscribeToNotifications fires once per fresh push, never for a backlog", () => {
+  const state = new GameState();
+  const seen: string[] = [];
+  const unsubscribe = state.subscribeToNotifications((n) =>
+    seen.push(n.notificationId)
+  );
+
+  // load()'s backlog must not fire the listener (it would flood the toast
+  // layer for a returning player's unread feed).
+  state.load({
+    player: { id: "player-42", name: "Loaded Player" },
+    resources: ZERO_RESOURCES,
+    mapWindow: sampleWindow(),
+    motherships: [],
+    asteroids: [],
+    vessels: [],
+    modules: [],
+    notifications: [sampleNotification("notif-backlog")],
+    crew: { crew: 0, pendingHire: null },
+    deals: sampleDeals(),
+  });
+  assertEquals(seen, []);
+
+  // A fresh push fires the listener exactly once.
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-1"),
+  });
+  assertEquals(seen, ["notif-1"]);
+
+  // syncNotifications()'s backlog (mark_notifications_read) must not fire it
+  // either.
+  state.syncNotifications([
+    sampleNotification("notif-backlog", { read: true }),
+    sampleNotification("notif-1", { read: true }),
+  ]);
+  assertEquals(seen, ["notif-1"]);
+
+  // Unsubscribing stops further delivery.
+  unsubscribe();
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-2"),
+  });
+  assertEquals(seen, ["notif-1"]);
+});
+
 Deno.test("syncNotifications replaces the feed wholesale and notifies", () => {
   const state = new GameState();
   state.applyServerPush({

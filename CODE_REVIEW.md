@@ -111,15 +111,15 @@ describing what actually happened.
       sprite size. Fix: add the same comment convention to both constants (or
       derive one client-side from `SHIP_ROOM_GRID`'s `span` if that's ever
       intended to vary). Done: added the standard "Mirrors MODULE_SPAN in
-      `<other file>` — keep the two in sync" doc comment to both
-      `modules.rs`'s and `ship-modules.ts`'s `MODULE_SPAN` constants, matching
-      the convention used by every other cross-language constant. Comment-only
-      change, no behavior touched. `deno task format`/`check`/`lint`/`test` all
-      pass (120 TS + 76 Rust tests). No runtime `/verify` needed.
+      `<other file>` — keep the two in sync" doc comment to both `modules.rs`'s
+      and `ship-modules.ts`'s `MODULE_SPAN` constants, matching the convention
+      used by every other cross-language constant. Comment-only change, no
+      behavior touched. `deno task format`/`check`/`lint`/`test` all pass (120
+      TS + 76 Rust tests). No runtime `/verify` needed.
 
 ## Test-coverage additions
 
-- [ ] **CR3.1 [idea] — `GameState.subscribeToNotifications` (the P1.19
+- [x] **CR3.1 [idea] — `GameState.subscribeToNotifications` (the P1.19
       toast-on-every-notification listener) has no test assertions.**
       `tests/game_state_test.ts`'s
       `applyServerPush routes each variant to the
@@ -131,6 +131,18 @@ describing what actually happened.
       stopping, or firing for the initial snapshot's unread backlog and flooding
       the toast layer — would ship unnoticed by the test suite. Add a case
       alongside the existing `applyServerPush`/`unreadNotificationCount` tests.
+      Done: added
+      `subscribeToNotifications fires once per fresh push, never for a
+      backlog`
+      to `tests/game_state_test.ts`, asserting the listener stays silent through
+      a `load()` backlog and a `syncNotifications()` backlog, fires exactly once
+      (with the pushed notification's id) for a fresh
+      `applyServerPush({ type: "notification", ... })`, and stops firing after
+      the returned unsubscribe function is called.
+      `deno task
+      format`/`check`/`lint`/`test` all pass (121 TS + 76 Rust
+      tests). No runtime `/verify` needed — test-only addition, no source
+      behavior changed.
 
 ## Tools/pipeline housekeeping
 
