@@ -2,6 +2,12 @@
 """
 Sprite Extractor
 
+Status: not currently called by any art/gen_*.sh script. Kept on standby as
+available infrastructure for a future single-source-sheet pipeline (see
+sprite_merge.py's design-decisions comment, which already assumes sheets
+arrive pre-extracted this way) — wire it into a script or delete it if that
+need doesn't materialize.
+
 Reads a padded spritesheet whose sprites are arranged in a known rectangular
 grid, auto-detects each sprite's actual pixel content via alpha transparency,
 crops out the padding, and saves a compact output spritesheet where every cell

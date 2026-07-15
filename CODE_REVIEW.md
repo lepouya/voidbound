@@ -146,7 +146,7 @@ describing what actually happened.
 
 ## Tools/pipeline housekeeping
 
-- [ ] **CR4.1 [idea] — `tools/sprite_extract.py` has no caller in any
+- [x] **CR4.1 [idea] — `tools/sprite_extract.py` has no caller in any
       `art/gen_*.sh` script and no test file, unlike its three siblings.**
       `sprite_merge.py`, `sprite_transition.py`, and `svg_ui_gen.py` are all
       invoked from at least one `art/gen_*.sh` script and (for `svg_ui_gen.py`)
@@ -159,7 +159,15 @@ describing what actually happened.
       script, similar in spirit to `newEventId()`'s documented escape-hatch
       status — but unlike that function, nothing here says so explicitly. Either
       add a one- line comment stating it's intentionally on standby, wire it
-      into a script, or remove it next time someone is in this file.
+      into a script, or remove it next time someone is in this file. Done: user
+      chose the standby option. Added a "Status: not currently called by any
+      art/gen_*.sh script..." note to `sprite_extract.py`'s module docstring
+      (pointing at `sprite_merge.py`'s design-decisions comment, which already
+      assumes pre-extracted sheets) and appended "(standby — no caller yet)" to
+      its row in `.claude/skills/gen-art/SKILL.md`'s tool table. Comment/doc-only
+      change, no behavior touched. `python3 -m unittest discover -s tools` (10
+      tests) and `deno task format`/`check`/`lint`/`test` all pass (121 TS + 76
+      Rust tests). No runtime `/verify` needed.
 
 ## Fixed during the review pass
 

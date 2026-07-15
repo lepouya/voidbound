@@ -40,13 +40,13 @@ no venv or PATH workaround needed. If a script fails with
 Scripts are called from `art/gen_*.sh` — you usually don't invoke them directly
 except when writing a new generator.
 
-| Script                 | Purpose                                                                |
-| ---------------------- | ---------------------------------------------------------------------- |
-| `sprite_extract.py`    | Extract + uniform-resize sprites from a padded source sheet            |
-| `sprite_merge.py`      | Merge sprites from multiple source sheets into one output sheet        |
-| `sprite_transition.py` | Generate animated spritesheets with fade/roll/scale/rotate transitions |
-| `svg_ui_gen.py`        | Render SVG UI frames/icons to normal/active/disabled spritesheets      |
-| `tmj_to_tilemap.py`    | Convert a Tiled `.tmj` file → `TileMapData` JSON asset                 |
+| Script                 | Purpose                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------- |
+| `sprite_extract.py`    | Extract + uniform-resize sprites from a padded source sheet (standby — no caller yet) |
+| `sprite_merge.py`      | Merge sprites from multiple source sheets into one output sheet                       |
+| `sprite_transition.py` | Generate animated spritesheets with fade/roll/scale/rotate transitions                |
+| `svg_ui_gen.py`        | Render SVG UI frames/icons to normal/active/disabled spritesheets                     |
+| `tmj_to_tilemap.py`    | Convert a Tiled `.tmj` file → `TileMapData` JSON asset                                |
 
 ### `tmj_to_tilemap.py` flags
 
