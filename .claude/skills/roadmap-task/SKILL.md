@@ -11,12 +11,12 @@ that ritual.
 
 ## Ask, don't guess
 
-Stop and ask the user whenever something genuinely needs their call — scope
-that the task's entry doesn't settle, an unstated design choice, a pick between
-two reasonable approaches, anything the referenced `README.md`/`SERVER.md`
-sections leave open. This applies at every step below, not just step 1.
-Guessing past an ambiguity is how a task comes back rejected at review; a short
-clarifying question is cheap by comparison.
+Stop and ask the user whenever something genuinely needs their call — scope that
+the task's entry doesn't settle, an unstated design choice, a pick between two
+reasonable approaches, anything the referenced `README.md`/`SERVER.md` sections
+leave open. This applies at every step below, not just step 1. Guessing past an
+ambiguity is how a task comes back rejected at review; a short clarifying
+question is cheap by comparison.
 
 ## 1. Identify the task
 
@@ -58,13 +58,13 @@ Revert every `TEMP-VERIFY` hook (the `/verify` checklist enforces this).
 
 ## 6. Stop for the user's code review and playtest
 
-The gate passing and `/verify` succeeding mean the task is *implemented*, not
-*done*. **Never check off or commit until the user has reviewed the code and
+The gate passing and `/verify` succeeding mean the task is _implemented_, not
+_done_. **Never check off or commit until the user has reviewed the code and
 playtested it themselves and explicitly told you to proceed** — this holds
-unconditionally, not just when step 2's server-model pause applied. Report
-what landed and how you verified it, then stop and wait. Committing on the
-strength of your own gate/verify pass, without the user's sign-off, is a
-repeated failure mode this skill exists to close off.
+unconditionally, not just when step 2's server-model pause applied. Report what
+landed and how you verified it, then stop and wait. Committing on the strength
+of your own gate/verify pass, without the user's sign-off, is a repeated failure
+mode this skill exists to close off.
 
 ## 7. Check off, compact, and commit
 
@@ -72,16 +72,15 @@ Only once the user has given the go-ahead:
 
 - Tick the task's checkbox in `ROADMAP.md` in the same commit as the change.
 - **Compact the entry.** While a task is in flight its `ROADMAP.md` entry often
-  carries the implementation plan and design decisions an agent needed *to
-  build it* — that detail is exactly what the next session's agent doesn't need
-  and what clutters the document once the feature exists in code. Replace the
-  entry with a one- or two-line summary of what actually landed, plus a "Still
-  open" note listing only what a *future* task needs to know — each item
-  pointed at its target task (`→ P2.6`). Everything else (implementation
-  detail, superseded decisions, historical rationale, alternatives considered)
-  belongs in `CLAUDE.md`, `SERVER.md`, and the commit message, not the roadmap.
-  When a door has no target task yet, say "no task yet" rather than inventing
-  one.
+  carries the implementation plan and design decisions an agent needed _to build
+  it_ — that detail is exactly what the next session's agent doesn't need and
+  what clutters the document once the feature exists in code. Replace the entry
+  with a one- or two-line summary of what actually landed, plus a "Still open"
+  note listing only what a _future_ task needs to know — each item pointed at
+  its target task (`→ P2.6`). Everything else (implementation detail, superseded
+  decisions, historical rationale, alternatives considered) belongs in
+  `CLAUDE.md`, `SERVER.md`, and the commit message, not the roadmap. When a door
+  has no target task yet, say "no task yet" rather than inventing one.
 - Any per-task design doc written during step 2 is scaffolding, not a
   deliverable: don't commit it — roll its unfinished/deferred items into the
   roadmap (the target tasks' entries or the "Still open" note) and delete the

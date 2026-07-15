@@ -169,10 +169,10 @@ P1.22 are further additions from playtesting the closed phase (July 2026).
 - [x] **P1.20 — Ship module details dialog.** Extends the P1.16 details-panel
       pattern (`src/ship/ship-module-details.ts`) to every ship module: a
       Details button opens a read-only panel with level, a live build/upgrade
-      countdown, and per-type stats (production with crew-staffing damping,
-      crew berths/required, next-level cost); the Level Up/Hire/Trade actions
-      stay on the module's own map buttons rather than duplicating into the
-      dialog. (Playtest feedback, July 2026)
+      countdown, and per-type stats (production with crew-staffing damping, crew
+      berths/required, next-level cost); the Level Up/Hire/Trade actions stay on
+      the module's own map buttons rather than duplicating into the dialog.
+      (Playtest feedback, July 2026)
 - [x] **P1.21 — Notifications tab (Mail panel, part 1).** Real scrollable-list
       dialog (`src/scene/mail-dialog.ts`) over the P1.5 feed, replacing the
       console dump; the HUD's old "Events" button is now bottom-right "Mail"
