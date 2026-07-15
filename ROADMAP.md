@@ -13,15 +13,14 @@ commits can reference them — check off a task when it's committed and
 pass. IDs never change, even when a task moves phases (e.g. P1.7 now lands in
 Phase 2). Within a phase, tasks are listed in rough dependency order, but
 anything without an explicit "needs" note can be picked up independently. Done
-items keep only a one-line summary plus any notes that still matter for future
-work (marked "Still open"); implementation detail lives in `CLAUDE.md`,
-`SERVER.md`, and the commit history.
+items keep only a one-line summary; any follow-up work gets its own task ID
+(marked "split from P<phase>.<n>") in whichever phase it belongs to, rather than
+living on as a note on the finished task. Implementation detail lives in
+`CLAUDE.md`, `SERVER.md`, and the commit history.
 
 ## Phase 0 — Engine and tooling scaffolding
 
-Goal: the technical foundation everything else is built on. All done — captured
-retroactively from the code and git history, so task order doesn't imply build
-order. Current details live in CLAUDE.md §§ 2–4.
+Goal: the technical foundation everything else is built on.
 
 - [x] **P0.1 — Excalibur engine bootstrap + scene registration.** `main.ts`:
       portrait 390\*844 engine, shared loader, map/ship scenes, starts on ship.
@@ -58,145 +57,76 @@ order. Current details live in CLAUDE.md §§ 2–4.
 
 ## Phase 1 — Core gameplay loop
 
-Goal: a playable single-player loop, no persistence yet. Core loop done (P1.7
-moved to Phase 2 as P2.7): the loop runs end to end — build and level modules,
-hire crew, mine asteroids, trade at the NPC shop — all server-verified, streamed
-over the push channel, and windowed by interest area. Implementation detail:
-CLAUDE.md §4 and SERVER.md. P1.15/P1.16 are post-review polish additions (CR6.1,
-CR6.2). A full `/phase-review` followed the phase close (July 2026): 30 findings
-(CR1.1–CR9.7), all landed over commits `f18db73..e394ed1` — the full review
-document lives in git history (`CODE_REVIEW.md`, deleted after roll-up). P1.17–
-P1.22 are further additions from playtesting the closed phase (July 2026). A
-second `/phase-review` closed out the P1.17–P1.22 additions (July 2026): 5
-findings (CR1.1–CR4.1), all landed over commits `5065e6d..0fcb160` — again in
-git history under a since-deleted `CODE_REVIEW.md`.
+Goal: a playable single-player loop, no persistence yet.
 
 - [x] **P1.1 — Resource state + production tick.** The 4 resources as
-      server-side state with periodic production; Command Module baseline output
-      guarantees the player can never get stuck.
+      server-authoritative state with periodic production.
 - [x] **P1.2 — Resource bar HUD group.** Screen-top resource counts with live
-      label updates; later extended with caps (P1.11) and crew (P1.10).
-- [x] **P1.3 — Module placement + build timers.** `BuildModuleEvent` + the
-      empty-tile Build placement UI; its `completesAt` gives build timers for
-      free.
-- [x] **P1.4 — Module catalog.** Rust-authoritative `MODULE_CATALOG` with a
-      display-only TS mirror; level-ups reuse the build-timer machinery, capped
-      at the Command Module's level. Still open: per-level scaling is the
-      doubling stub (→ P2.6); per-type module art (→ P6.1).
+      label updates.
+- [x] **P1.3 — Module placement + build timers.** Empty-tile Build placement UI
+      backed by a server-verified build-timer event.
+- [x] **P1.4 — Module catalog.** Rust-authoritative `MODULE_CATALOG` (cost,
+      build time, production per type) with a display-only TS mirror.
 - [x] **P1.5 — Local notifications + server-push channel.** Server-owned
-      notification feed + the scheduler push channel — the in-process prototype
-      of P3.1's event bus. The feed's UI is P1.21's Mail panel; P6.3's later
-      curated-content Events panel is a different feature that reintroduces an
-      Events button of its own.
+      notification feed streamed to the client over a scheduler-driven push
+      channel.
 - [x] **P1.6 — Mining loop.** Server-seeded asteroids with single-slot mining
-      jobs, scheduler auto-recall at mine-out, proportional early harvests, dock
-      deposits. By design (confirmed in playtest, July 2026): harvested cargo
-      rides the vessel and only lands in the resource counts when it docks home
-      — never mid-mining or mid-return — which is what makes a mining/returning
-      vessel a meaningful looting target later (→ P5.5). Still open: deposit
-      bands and the mine rate are balancing stubs, and mixed deposits / multiple
-      miners on large asteroids stay open doors (→ P2.6); asteroid sprites are
-      placeholder vectors (→ P6.2).
+      jobs, scheduler auto-recall at mine-out, and dock-side deposits.
 - **P1.7 — Diminishing returns.** Moved to Phase 2 as P2.7 (July 2026) — a daily
   damping curve can't be experienced or tuned while restarts wipe state.
 - [x] **P1.8 — Zoom-at-cursor.** Wheel/pinch zoom anchored at the pointer/pinch
-      midpoint, clamped so the camera never drifts at min/max zoom
-      (`src/scene/camera-math.ts`).
+      midpoint, clamped so the camera never drifts at min/max zoom.
 - [x] **P1.9 — Minimap + full-size space map.** Geometry-only 1000\*1000 space
       map with minimap navigation (entity dots, viewport rect, tap-to-jump).
-      Still open: real starfield background (→ P6.2).
 - [x] **P1.10 — Crew Quarters + crew capacity.** Crew as the third catalog stat:
       berths, a pooled ship-wide staffing ratio damping producer output, timed
       hire recruitment, HUD surfacing (bar, hire buttons, understaffed badges);
-      players start at 0 crew. Full model: CLAUDE.md § IPC
-      (`request_hire_crew`). Still open: hire cost/time, the 50% floor, the
-      berth-vs-demand ratio, and optional per-crew biological upkeep are
-      balancing stubs (→ P2.6); vessel crews (→ P5.3), combat casualties (→
-      P5.5), and crew specialization / manual stationing were deliberately
-      deferred. Open idea, still half-baked (playtest feedback, July 2026):
-      richer understaffing UX (per-module indicators, crew prioritization,
-      temporary reassignment) plus a much lower floor once one of those exists —
-      no task ID yet, needs a design pass first.
+      players start at 0 crew. Crew specialization and manual stationing were
+      deliberately deferred.
 - [x] **P1.11 — Storage Bay capacity caps.** Per-resource caps as a catalog
-      `stores` field; production and mining deposits clamp server-side (overflow
-      is lost, and notified); the resource bar shows count/cap. Still open: cap
-      numbers are stubs (→ P2.6); the README's "boosts production" perk was
-      skipped; safe warehousing becomes meaningful with P5.5 combat. (The
-      Armory's weapon-storage half moved to P5.4.)
+      `stores` field, enforced server-side on production and mining deposits
+      (overflow is lost, and notified); the resource bar shows count/cap.
 - [x] **P1.12 — Trading Post + NPC shop.** Server-generated daily deal slots on
       the new Trading Post module (give ≠ get, rarity-boosted gets, a once-daily
       freebie, doubling-cost refreshes, slot count scaling with the post's
-      level) — credits' entry into the economy. Full model: CLAUDE.md § IPC.
-      Still open: every deal number is a balancing stub (→ P2.6); better
-      exchange ratios at higher post level, featured/limited-stock deals, and
-      credits' wider role (→ P4.6); per-type module art (→ P6.1).
+      level) — credits' entry into the economy.
 - [x] **P1.13 — Map interest area: windowed world streaming + minimap
       declutter.** The client only holds world entities inside a 100\*100-tile
-      AOI window, re-centered as the camera pans; pushes are footprint-filtered,
-      and the map view is capped so unloaded space never scrolls into sight.
-      Full model: SERVER.md § Interest management. Feeds P3.1 (per-connection
-      windows) and P4.3 (fog of war = this window shrunk to a radar radius).
-      Still open: asteroid deposit/rate balance (→ P2.6).
-- [x] **P1.14 — Modal dialog/overlay system.** Screen-space modal layer —
-      scrim + framed panel + row/cell content composed from the existing `ui/`
-      primitives — opened via `TiledScene.openDialog()`; one dialog at a time,
-      all pointer input captured, with `bindDialogRows` for state-bound
-      rerendering (the P1.12 shop is the reference consumer). Scrolling
-      (`DialogDef.scroll`/`headerRow`, drag or mouse wheel) and a pinned,
-      never-scrolling header row landed via P1.21, generic to any dialog.
+      AOI window (re-centered as the camera pans), with pushes footprint-
+      filtered and the map view capped so unloaded space never scrolls into
+      sight.
+- [x] **P1.14 — Modal dialog/overlay system.** Screen-space modal layer (scrim +
+      framed panel + row/cell content) opened via `TiledScene.openDialog()`,
+      with generic scrolling and a pinned header row.
 - [x] **P1.15 — Toast/snackbar notifications.** General transient-message
-      primitive (`src/ui/toast.ts` + `TiledScene.showToast()`): auto-fading
-      bottom-center snackbar stack, info/error kinds, rendered above the modal
-      layer; every rejected player-action request (8 call sites — the count had
-      grown past CR6.1's five) now surfaces an error toast. Background request
-      rejections (`request_map_window`, `mark_notifications_read`) stay
-      console-only deliberately. (CR6.1)
-- [x] **P1.16 — Entity details panel.** The four map "Details" stubs (own/enemy
-      mothership, vessel, asteroid) now open modal panels rendered live from
-      `gameState` (pattern: CLAUDE.md § UI library, `dialog.ts`); the own-ship
-      panel folds in the Command Module readout + Upgrade action, its "Enter"
-      enters the ship scene, and its "Move" button is renamed "Warp" (relocation
-      itself → P1.22). Still open: the enemy-ship Message and Attack buttons
-      stay stubs (→ P3.5 / P5.5). (CR6.2)
+      primitive: an auto-fading bottom-center snackbar stack for info/error
+      messages, rendered above the modal layer; every rejected player-action
+      request now surfaces an error toast (background request rejections stay
+      console-only by design).
+- [x] **P1.16 — Entity details panel.** The map's four "Details" stubs
+      (own/enemy mothership, vessel, asteroid) now open live modal panels
+      rendered from `gameState`.
 - [x] **P1.17 — Fix: vessel-recall cargo not reflected client-side.** Invalid —
       not reproducible (July 2026); closed without a code change.
-- [x] **P1.18 — One module per type.** `request_build_module` rejects a second
-      module of a type the player already owns (any level, pending or settled);
-      the ship-scene build-offer UI hides types already placed instead of
-      offering a button that would just error. (Playtest feedback, July 2026)
-- [x] **P1.19 — Toast on every notification.** Every `notification` server-push
-      now surfaces a toast on the active scene, not just rejected actions. Still
-      open: P2.5's offline catch-up could flash many completions past
-      `MAX_ACTIVE_TOASTS` at once on load (→ P2.5); the P1.21 feed is the full
-      record either way. (Playtest feedback, July 2026)
-- [x] **P1.20 — Ship module details dialog.** Extends the P1.16 details-panel
-      pattern (`src/ship/ship-module-details.ts`) to every ship module: a
-      Details button opens a read-only panel with level, a live build/upgrade
-      countdown, and per-type stats (production with crew-staffing damping, crew
-      berths/required, next-level cost); the Level Up/Hire/Trade actions stay on
-      the module's own map buttons rather than duplicating into the dialog.
+- [x] **P1.18 — One module per type.** Building rejects a second module of a
+      type the player already owns; the build-offer UI hides those types.
       (Playtest feedback, July 2026)
+- [x] **P1.19 — Toast on every notification.** Every server-push notification
+      now surfaces a toast on the active scene, not just rejected actions.
+      (Playtest feedback, July 2026)
+- [x] **P1.20 — Ship module details dialog.** Extends the P1.16 details-panel
+      pattern to every ship module: level, a live build/upgrade countdown, and
+      per-type stats (crew-staffing damped production, crew berths, next-level
+      cost). (Playtest feedback, July 2026)
 - [x] **P1.21 — Notifications tab (Mail panel, part 1).** Real scrollable-list
-      dialog (`src/scene/mail-dialog.ts`) over the P1.5 feed, replacing the
-      console dump; the HUD's old "Events" button is now bottom-right "Mail"
-      (top-right stays free for P6.3's future Events button). Added generic
-      scroll (drag or mouse wheel) and pinned-header-row support to
-      `DialogDef`/`DialogHandle` (dialog.ts) for any dialog to use, with Mail's
-      Notifications/Player Mail/System Mail tab strip as the first consumer.
-      Also trimmed vessel notifications to just mining-started and
-      vessel-returned (dropped the plain-arrival and mining-complete noise,
-      playtest feedback). Still open: P3.5 wires up the Player Mail/System Mail
-      tabs (already present here, disabled) on this same panel.
+      dialog over the P1.5 feed, replacing the console dump; the HUD's old
+      "Events" button is now bottom-right "Mail". Added generic scrolling and a
+      pinned header row to the dialog system for any panel to use.
 - [x] **P1.22 — Basic mothership warp/relocation.** Wires up the P1.16 Warp
-      button: a draggable 4\*4 footprint picker (red/yellow/green live
-      occupancy, a live fuel-cost readout) relocates the mothership instantly
-      via a server-verified `request_relocate_mothership` — no vessels may be
-      deployed, and occupancy/cost are re-verified against live state under the
-      same lock regardless of what the client's preview showed; a
-      "mothership-warped" notification lands in the feed. Still open: fuel cost
-      is a balancing stub (→ P2.6); warp-out/warp-in animation (→ P6.11); P4.7
-      later reframes the cost as a warp-core item; fuel as the broader "leaves
-      the system" currency stays an unscoped idea (no task yet).
+      button: a draggable 4\*4 footprint picker (live occupancy + fuel-cost
+      readout) relocates the mothership instantly via a server-verified command;
+      occupancy/cost are re-verified against live state regardless of what the
+      client's preview showed.
 
 ## Phase 2 — Persistence and balancing
 
@@ -232,22 +162,36 @@ progress persists — the reason P1.7 moved here.
       while the app was closed through the same settlement paths the scheduler
       uses live: production accrual is already lazy, but build completions,
       vessel arrivals/returns, and mine-outs must settle in timestamp order and
-      emit their notifications. Needs P2.1.
+      emit their notifications. Needs P2.1. Mind P1.19: a long-offline catch-up
+      emitting many notifications at once could flash more toasts than
+      `MAX_ACTIVE_TOASTS` on load — throttle or batch them.
 - [ ] **P2.6 — Balancing pass.** Replace the stubs with real curves: the
       `scale_for_level`/`scaleForLevel` doubling, `MINE_UNITS_PER_HOUR`,
       asteroid deposit bands and per-window density, and the P1.10 crew numbers
       (hire cost/time, the 50% output floor, the berth-vs-demand ratio, and
       whether crew consume biological upkeep — a good sink, but mind the death
-      spiral). README targets: small asteroids mine out in 15–60 min, medium 1–4
-      h, large 4–12 h. Also revisit the single-deposit / single-miner rules for
-      large asteroids (README leaves that door open). Needs P2.1 — tuning
-      requires persistent progress. `MAX_VESSELS` stays a flat stopgap until
-      P5.9 replaces it with real cap-scaling.
+      spiral). Also balancing stubs today: the P1.11 Storage Bay cap numbers,
+      the P1.12 Trading Post deal numbers, and the P1.22 warp fuel cost. README
+      targets: small asteroids mine out in 15–60 min, medium 1–4 h, large 4–12
+      h. Also revisit the single-deposit / single-miner rules for large
+      asteroids (README leaves that door open). Needs P2.1 — tuning requires
+      persistent progress. `MAX_VESSELS` stays a flat stopgap until P5.9
+      replaces it with real cap-scaling.
 - [ ] **P2.7 — Diminishing returns** _(moved from P1.7)_. Repeated actions yield
       less over the course of a day and reset at a fixed point — the README's
       alternative to hard energy caps. Local implementation first; the server
       re-verifies it in phase 3. Mining is the first action worth damping. Needs
       P2.1; lands naturally alongside P2.6.
+- [ ] **P2.8 — Crew understaffing UX pass** _(split from P1.10, playtest
+      feedback, July 2026)_. Richer understaffing UX — per-module indicators
+      (today's single ship-wide output-percent badge doesn't say which modules
+      are shorted), crew prioritization (choosing which modules get scarce crew
+      first), and temporary reassignment — plus a lower output floor than P2.6's
+      50% once one of those exists to soften the hit. Needs its own design pass
+      first. Needs P1.10, P2.6.
+- [ ] **P2.9 — Storage Bay production-boost perk** _(split from P1.11)_. The
+      README describes a Storage Bay perk that boosts production; P1.11 shipped
+      only the capacity-cap half. Needs P1.11.
 
 ## Phase 3 — Server-authoritative events
 
@@ -277,9 +221,10 @@ Goal: the event pattern goes live over the network, per `SERVER.md`.
       stub) and **System Mail** for server-composed announcements/GM messages.
       Split from the original "player-to-player mail" task (playtest feedback,
       July 2026) because these two need the networked event bus for real
-      cross-player delivery, unlike P1.21's Notifications tab. "Events" (P6.3)
-      is a separate, curated-content panel — not notifications. Needs P3.1,
-      P1.21.
+      cross-player delivery, unlike P1.21's Notifications tab. The tab strip UI
+      already exists in the Mail panel (P1.21), disabled — this task is the
+      wiring, not new UI. "Events" (P6.3) is a separate, curated-content panel —
+      not notifications. Needs P3.1, P1.21.
 - [ ] **P3.6 — Production hardening.** Set a real CSP in `tauri.conf.json`
       (currently `null`); drop the unused `withGlobalTauri: true`. Do before the
       first public/networked build.
@@ -314,9 +259,11 @@ Goal: the MMO layer.
       to a new system — the answer to server activity dying off. Enables world
       merging and ascension bonuses for players carrying over. Needs P4.4.
 - [ ] **P4.6 — Credits economy / player trade.** Flesh out the credits currency
-      beyond the P1.12 NPC shop: player-to-player and alliance-level trade.
-      Design is open — the README calls the currency's exact role "not fleshed
-      out yet" — so settle the design before building. Needs P1.12, P4.1.
+      beyond the P1.12 NPC shop: player-to-player and alliance-level trade. Also
+      open from P1.12: better exchange ratios at higher Trading Post levels, and
+      featured/limited-stock deals. Design is open — the README calls the
+      currency's exact role "not fleshed out yet" — so settle the design before
+      building. Needs P1.12, P4.1.
 - [ ] **P4.7 — Alliance-aware warp + warp core item.** Refines P1.22's basic
       warp once alliances exist: the main draw becomes repositioning near your
       alliance (P4.1), and the fuel cost is swapped for 1 "warp core" — a new
@@ -328,6 +275,15 @@ Goal: the MMO layer.
       — spends credits on general goods rather than the Trading Post's give/get
       resource deals. Needs P1.12, and design follows P4.6's credits economy
       work. (CR6.2)
+- [ ] **P4.9 — Fuel economy design pass** _(split from P1.22)_. Fuel's broader
+      role as the general "leaves the system" currency (vessel dispatch, future
+      "expeditions"), beyond P1.22's and P4.7's warp cost. Design is open — no
+      scope beyond those two usages exists yet — so settle it before building
+      further fuel sinks or sources. Needs P1.22, P4.7.
+- [ ] **P4.10 — Monetization model.** Whether and how real-money purchases fit
+      Voidbound at all — a business decision, not a design pass, and nothing is
+      committed yet. Blocks P5.9's premium vessel-cap-purchase idea until
+      resolved; likely also shapes P4.8's shop.
 
 ## Phase 5 — Technologies, combat, and defence
 
@@ -369,10 +325,9 @@ Goal: the README's Technologies, Combat, and Defence module categories.
 - [ ] **P5.9 — Vessel fleet cap scaling.** Replace CR1.5's flat `MAX_VESSELS`
       (20) stopgap with a real formula: a small base cap, +N from Hangar Bay
       (P5.7) and/or Armory (P5.4) levels, +N from a Research Lab (P5.1) unlock.
-      Open idea, not yet committed design: a further +1 via a premium
-      (real-money) shop purchase — track as a design question here, don't build
-      until the monetization model is actually settled. Needs P5.1, P5.4, P5.7.
-      (CR6.5)
+      A further +1 via a premium (real-money) shop purchase is a possible
+      extension, gated on P4.10's monetization decision — don't build until
+      that's settled. Needs P5.1, P5.4, P5.7. (CR6.5)
 
 ## Phase 6 — Presentation and platforms
 
