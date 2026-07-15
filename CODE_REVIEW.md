@@ -52,16 +52,16 @@ describing what actually happened.
       between what the player is shown and what actually accrues. Fix: call
       `crewScaledAmount(amount, gameState.crew, crewRequiredForModules(...))`
       per resource instead of re-deriving from the already-rounded percentage;
-      keep `staffPct` only for the "(N% staffed)" label text.
-      Done: `buildRows()` now computes `crewRequired` once and calls
+      keep `staffPct` only for the "(N% staffed)" label text. Done:
+      `buildRows()` now computes `crewRequired` once and calls
       `crewScaledAmount(amount, gameState.crew, crewRequired)` per resource for
       the displayed amount; `staffPct` is derived separately (still via
       `crewScaledAmount(100, ...)`) and used only for the "(N% staffed)" label.
       `deno task format`/`check`/`lint`/`test` all pass (119 TS + 76 Rust
-      tests). No runtime `/verify` needed — display-only arithmetic fix, no
-      new code path.
+      tests). No runtime `/verify` needed — display-only arithmetic fix, no new
+      code path.
 
-- [ ] **CR1.2 [hardening] — `gameState.notifications` has no local cap and only
+- [x] **CR1.2 [hardening] — `gameState.notifications` has no local cap and only
       reconciles against the server's authoritative (100-entry-capped) list when
       Mail is opened with an unread item.** The backend caps
       `ServerState.notifications` at `MAX_NOTIFICATIONS = 100`
@@ -82,7 +82,17 @@ describing what actually happened.
       save/load work has to reason about this table's size. Fix: cap client-side
       inserts at the same 100 (evict the oldest by `createdAt` on `set`), or
       note the asymmetry explicitly if a deliberate resync-on-next-load is
-      preferred instead.
+      preferred instead. Done: added `MAX_NOTIFICATIONS = 100` to
+      `src/state/game-state.ts` (a "keep in sync" mirror of the Rust constant)
+      and an `evictOldestNotifications()` helper called after every incremental
+      `"notification"` push insert, evicting the oldest entry by `createdAt`
+      once the table exceeds the cap. `load()`/`syncNotifications()` are
+      untouched — both already replace the table wholesale from an
+      already-capped server response, so no eviction is needed there. Added
+      `notification pushes evict the oldest entry past the 100 cap` to
+      `tests/game_state_test.ts`. `deno task format`/`check`/`lint`/`test` all
+      pass (120 TS + 76 Rust tests). No runtime `/verify` needed — the push path
+      and its table mutation are unchanged in shape, just capped.
 
 ## Backend/mirror hardening
 

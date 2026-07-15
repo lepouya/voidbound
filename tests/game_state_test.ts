@@ -591,6 +591,32 @@ Deno.test("unreadNotificationCount counts only unread entries", () => {
   assertEquals(state.unreadNotificationCount(), 1);
 });
 
+Deno.test("notification pushes evict the oldest entry past the 100 cap", () => {
+  const state = new GameState();
+
+  for (let i = 0; i < 100; i++) {
+    state.applyServerPush({
+      type: "notification",
+      data: sampleNotification(`notif-${i}`, { createdAt: 1_000 + i }),
+    });
+  }
+  assertEquals(state.notifications.size, 100);
+  assertEquals(state.notifications.has("notif-0"), true);
+
+  // One more push past the cap evicts the single oldest entry (by
+  // createdAt) — mirrors the backend's MAX_NOTIFICATIONS eviction
+  // (game_state/state.rs) since no removal push exists for notifications
+  // (CR1.2).
+  state.applyServerPush({
+    type: "notification",
+    data: sampleNotification("notif-100", { createdAt: 1_100 }),
+  });
+  assertEquals(state.notifications.size, 100);
+  assertEquals(state.notifications.has("notif-0"), false);
+  assertEquals(state.notifications.has("notif-1"), true);
+  assertEquals(state.notifications.has("notif-100"), true);
+});
+
 Deno.test("syncNotifications replaces the feed wholesale and notifies", () => {
   const state = new GameState();
   state.applyServerPush({

@@ -53,6 +53,31 @@ export function serverNow(): number {
   return Date.now();
 }
 
+/**
+ * Mirrors `MAX_NOTIFICATIONS` in src-tauri/src/game_state/state.rs — keep the
+ * two in sync. The backend evicts past this cap silently (no removal push),
+ * so the client must cap its own `notifications` table the same way or it
+ * grows unbounded over a long session that never opens Mail (CR1.2).
+ */
+const MAX_NOTIFICATIONS = 100;
+
+/**
+ * Evict the oldest entries (by createdAt) past MAX_NOTIFICATIONS, mutating
+ * the map in place — matches the backend's silent-eviction behavior since no
+ * removal push exists for notifications (CR1.2).
+ */
+function evictOldestNotifications(
+  notifications: Map<string, NotificationData>,
+): void {
+  const excess = notifications.size - MAX_NOTIFICATIONS;
+  if (excess <= 0) return;
+  const oldestIds = [...notifications.values()]
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .slice(0, excess)
+    .map((n) => n.notificationId);
+  for (const id of oldestIds) notifications.delete(id);
+}
+
 export class GameState {
   /**
    * True once load() has applied backend state. Until then every field below
@@ -371,6 +396,7 @@ export class GameState {
       case "notification":
         this.update((s) => {
           s.notifications.set(push.data.notificationId, push.data);
+          evictOldestNotifications(s.notifications);
         });
         for (const listener of [...this.notificationListeners]) {
           listener(push.data);
