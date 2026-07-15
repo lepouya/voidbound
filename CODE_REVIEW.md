@@ -96,7 +96,7 @@ describing what actually happened.
 
 ## Backend/mirror hardening
 
-- [ ] **CR2.1 [hardening] — `MODULE_SPAN = 4` is duplicated between Rust and TS
+- [x] **CR2.1 [hardening] — `MODULE_SPAN = 4` is duplicated between Rust and TS
       with no "keep in sync" tag, unlike every other mirrored constant in the
       codebase.** `src-tauri/src/game_state/modules.rs:262` and
       `src/ship/ship-modules.ts:40` both hardcode `4` independently — the Rust
@@ -110,7 +110,12 @@ describing what actually happened.
       size change) could silently desync the room-inset math from the rendered
       sprite size. Fix: add the same comment convention to both constants (or
       derive one client-side from `SHIP_ROOM_GRID`'s `span` if that's ever
-      intended to vary).
+      intended to vary). Done: added the standard "Mirrors MODULE_SPAN in
+      `<other file>` — keep the two in sync" doc comment to both
+      `modules.rs`'s and `ship-modules.ts`'s `MODULE_SPAN` constants, matching
+      the convention used by every other cross-language constant. Comment-only
+      change, no behavior touched. `deno task format`/`check`/`lint`/`test` all
+      pass (120 TS + 76 Rust tests). No runtime `/verify` needed.
 
 ## Test-coverage additions
 

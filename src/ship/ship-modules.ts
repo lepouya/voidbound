@@ -36,7 +36,10 @@ import {
   ToastDef,
 } from "../ui/index.ts";
 
-/** Modules occupy the 4*4 center of their 6*6 room. */
+/**
+ * Modules occupy the 4*4 center of their 6*6 room. Mirrors MODULE_SPAN in
+ * `src-tauri/src/game_state/modules.rs` — keep the two in sync.
+ */
 const MODULE_SPAN = 4;
 
 /**

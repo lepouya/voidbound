@@ -258,7 +258,8 @@ const ROOM_PITCH: i64 = 8;
 
 const ROOM_COUNT: i64 = 5;
 
-/// Modules occupy the 4*4 center of their 6*6 room.
+/// Modules occupy the 4*4 center of their 6*6 room. Mirrors MODULE_SPAN in
+/// `src/ship/ship-modules.ts` — keep the two in sync.
 const MODULE_SPAN: i64 = 4;
 
 /// Top-left tile of the room containing (col, row), or None when the
