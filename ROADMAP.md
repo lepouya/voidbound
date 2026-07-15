@@ -66,7 +66,10 @@ CLAUDE.md §4 and SERVER.md. P1.15/P1.16 are post-review polish additions (CR6.1
 CR6.2). A full `/phase-review` followed the phase close (July 2026): 30 findings
 (CR1.1–CR9.7), all landed over commits `f18db73..e394ed1` — the full review
 document lives in git history (`CODE_REVIEW.md`, deleted after roll-up). P1.17–
-P1.22 are further additions from playtesting the closed phase (July 2026).
+P1.22 are further additions from playtesting the closed phase (July 2026). A
+second `/phase-review` closed out the P1.17–P1.22 additions (July 2026): 5
+findings (CR1.1–CR4.1), all landed over commits `5065e6d..0fcb160` — again in
+git history under a since-deleted `CODE_REVIEW.md`.
 
 - [x] **P1.1 — Resource state + production tick.** The 4 resources as
       server-side state with periodic production; Command Module baseline output
