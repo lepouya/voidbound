@@ -35,7 +35,7 @@ describing what actually happened.
 
 ## Client bugs
 
-- [ ] **CR1.1 [fix] — Ship module details panel double-rounds the crew-staffing
+- [x] **CR1.1 [fix] — Ship module details panel double-rounds the crew-staffing
       percentage, occasionally under-reporting production by 1 unit.**
       `src/ship/ship-module-details.ts`'s `buildRows()` derives a display
       percentage `staffPct = crewScaledAmount(100, crew, required)` (one floor)
@@ -53,6 +53,13 @@ describing what actually happened.
       `crewScaledAmount(amount, gameState.crew, crewRequiredForModules(...))`
       per resource instead of re-deriving from the already-rounded percentage;
       keep `staffPct` only for the "(N% staffed)" label text.
+      Done: `buildRows()` now computes `crewRequired` once and calls
+      `crewScaledAmount(amount, gameState.crew, crewRequired)` per resource for
+      the displayed amount; `staffPct` is derived separately (still via
+      `crewScaledAmount(100, ...)`) and used only for the "(N% staffed)" label.
+      `deno task format`/`check`/`lint`/`test` all pass (119 TS + 76 Rust
+      tests). No runtime `/verify` needed — display-only arithmetic fix, no
+      new code path.
 
 - [ ] **CR1.2 [hardening] — `gameState.notifications` has no local cap and only
       reconciles against the server's authoritative (100-entry-capped) list when

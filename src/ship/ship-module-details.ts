@@ -126,20 +126,21 @@ export class ModuleDetailsDialog {
 
     // Ship-wide staffing ratio (ROADMAP P1.10) — same pooled calc as
     // ModuleSync.sync's understaffed badge — applied to this module's
-    // production only if it actually demands crew.
-    const staffPct = entry.crewRequiredPerLevel > 0
-      ? crewScaledAmount(
-        100,
-        gameState.crew,
-        crewRequiredForModules(gameState.modules.values()),
-      )
+    // production only if it actually demands crew. `staffPct` is derived
+    // separately from the scaled amount below (rather than driving it) so the
+    // amount readout doesn't double-floor.
+    const crewRequired = entry.crewRequiredPerLevel > 0
+      ? crewRequiredForModules(gameState.modules.values())
+      : 0;
+    const staffPct = crewRequired > 0
+      ? crewScaledAmount(100, gameState.crew, crewRequired)
       : 100;
     if (data.level >= 1) {
       const produced = productionAtLevel(entry, data.level);
       for (const [kind, amount] of Object.entries(produced)) {
         if (!amount) continue;
-        const scaled = staffPct < 100
-          ? Math.floor((amount * staffPct) / 100)
+        const scaled = crewRequired > 0
+          ? crewScaledAmount(amount, gameState.crew, crewRequired)
           : amount;
         rows.push({
           cells: [
