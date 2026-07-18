@@ -1,5 +1,5 @@
 #!/bin/bash
-# Dev-app lifecycle helper for runtime verification (see .claude/skills/verify).
+# Dev-app lifecycle helper for runtime verification (see .agents/skills/verify).
 #
 # Wraps the repeated launch / wait-for-build / log-tail / reload / shutdown
 # command chains behind one pre-approved entry point so verification sessions

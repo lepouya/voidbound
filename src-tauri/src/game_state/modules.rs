@@ -198,7 +198,7 @@ fn crew_scaled(amount: u64, staffed: u32, required: u32) -> u64 {
 /// Level 0 means the first build hasn't completed yet. `pending` carries the
 /// in-progress timer for either a first build (level 0 → 1) or a level-up
 /// (level N → N+1, during which the module keeps functioning at level N).
-/// Mirrors the TS `ModuleData` in `src/state/game-state.ts` — keep the two in sync.
+/// Mirrors the TS `ModuleData` in `src/state/game-state-types.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleData {
@@ -218,7 +218,7 @@ pub struct ModuleData {
     pub pending: Option<ModulePendingBuild>,
 }
 
-/// Mirrors the TS `ModulePendingBuild` in `src/state/game-state.ts` — keep the two
+/// Mirrors the TS `ModulePendingBuild` in `src/state/game-state-types.ts` — keep the two
 /// in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]

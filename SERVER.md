@@ -1,13 +1,14 @@
 # Voidbound — Server Architecture Sketch
 
 The intended server model behind the multiplayer-ready event pattern
-(`CLAUDE.md` § Conventions, `/add-game-event`). Nothing here is built yet — this
-exists so that every new `*Event` interface is written against the same model
-and stays compatible when ROADMAP.md phase 3 lands. `VesselMoveEvent` (in
-`src/state/game-state.ts`) / `applyVesselMoveEvent` in `src/map/map-level.ts` is
-the reference implementation of the client half, including the snapshot half:
-`load_game_state` returns the active-vessel event list, and
-`MapLevel.syncVessels()` reconciles scene actors from it.
+(`AGENTS.md` § Conventions, `/add-game-event`). The in-process authoritative
+state, snapshot, scheduler, and Tauri push channel are built; the durable event
+log and network transport remain phase-3 work. This document keeps new event
+shapes compatible with that destination. `VesselMoveEvent` (in
+`src/state/game-state-types.ts`) / `gameState.applyVesselEvent()` is the
+reference implementation of the client half, including the snapshot half:
+`load_game_state` returns the active-vessel event list, and `VesselSync.sync()`
+reconciles scene actors from it.
 
 ## Model in one paragraph
 
@@ -21,7 +22,7 @@ that initiated the action — applies events through the same public
 **snapshot** plus the log suffix since that snapshot, and replays it; because
 events carry `dispatchedAt` / `completesAt`-style timestamps, replaying an aged
 event lands the entity at its correct in-progress position (see the lerp in
-`applyVesselMoveEvent`).
+`VesselSync.sync()`).
 
 ## Request → event lifecycle
 
@@ -48,10 +49,11 @@ event lands the entity at its correct in-progress position (see the lerp in
    scheduler thread settles time-based state (production ticks, build
    completions, vessel arrivals) as it comes due and emits `ServerPush` messages
    that `gameState.applyServerPush()` routes into these same entry points — see
-   CLAUDE.md § IPC / Rust backend.
-5. **Clients apply** — `apply<Action>Event(event)` mutates scene state only. UI
-   housekeeping (deselect, close menus) stays in the local action method, so
-   server-pushed events never fight with local input state.
+   AGENTS.md § IPC / Rust backend.
+5. **Clients apply** — `apply<Action>Event(event)` mutates shared game state;
+   scene reconcilers render that state. UI housekeeping (deselect, close menus)
+   stays in the local action method, so server-pushed events never fight with
+   local input state.
 
 ## Time: clients never trust `Date.now()`
 
@@ -59,7 +61,7 @@ All event timestamps are server epoch ms. On connect, the client performs a
 **server-time-offset handshake** (a ping/pong measuring round-trip and clock
 delta) and maintains `serverNow() = Date.now() + offset`. Every place the client
 compares "now" against event timestamps — the late-join lerp in
-`applyVesselMoveEvent`, build-timer progress bars, cooldown displays — must use
+`VesselSync.sync()`, build-timer progress bars, cooldown displays — must use
 `serverNow()`. This is why events precompute `arrivalAt` / `completesAt` on the
 server instead of letting clients derive them: one authoritative clock, zero
 disputes about when something finishes.
@@ -92,14 +94,13 @@ progress, not fast-forwarded frame by frame.
   while holding the state lock, then release the lock before emitting — so two
   concurrent drains (a scheduler wake racing a command return) can have their
   emits interleave, letting an older push reach the client after a newer one.
-  Harmless in-process (there's one client and no transport reordering), but a
-  socket implementation must not inherit the assumption: give every push a
-  sequence number at drain time (not emit time) and have clients apply/drop by
-  sequence, the same discipline this section already describes for the log
-  itself.
+  The single-client prototype usually recovers on its next full snapshot, but it
+  provides no ordering guarantee. A socket implementation must not inherit the
+  assumption: give every push a sequence number at drain time (not emit time)
+  and have clients apply/drop by sequence, the same discipline this section
+  already describes for the log itself.
 - **Idempotency**: event IDs are unique; applying the same event twice must be a
-  no-op or a redirect (the existing-vessel redirect in `applyVesselMoveEvent` is
-  the pattern).
+  no-op or a keyed replacement (the `applyVesselEvent` merge is the pattern).
 - **Persistence** (ROADMAP phase 2) is a local prototype of the same idea: the
   save file is a snapshot, and the versioned format maps forward to the
   server-side snapshot schema.

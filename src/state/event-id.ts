@@ -1,6 +1,6 @@
 /**
  * Random unique id for locally-created events (see the multiplayer-ready
- * event pattern in CLAUDE.md). crypto.randomUUID requires a secure context
+ * event pattern in AGENTS.md). crypto.randomUUID requires a secure context
  * (always true under Tauri), so fall back to random hex when the vite dev
  * build is served over plain http to a LAN device.
  *

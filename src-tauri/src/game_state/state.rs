@@ -25,7 +25,7 @@ const MAX_NOTIFICATIONS: usize = 100;
 /// completing, a vessel arriving or returning. Rides the load_game_state
 /// snapshot (so the feed and its unread state survive a reload) and is also
 /// pushed live (`ServerPush::Notification`). Mirrors the TS
-/// `NotificationData` in `src/state/game-state.ts` — keep the two in sync.
+/// `NotificationData` in `src/state/game-state-types.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationData {
@@ -38,13 +38,13 @@ pub struct NotificationData {
     pub message: String,
     /// Server epoch ms when the notification was created.
     pub created_at: u64,
-    /// Cleared by the mark_notifications_read command; the Events HUD badge
+    /// Cleared by the mark_notifications_read command; the Mail HUD badge
     /// shows the unread count.
     pub read: bool,
 }
 
 /// The Tauri event channel carrying `ServerPush` messages to the webview.
-/// Mirrors SERVER_PUSH_EVENT in `src/state/game-state.ts` — keep the two in sync.
+/// Mirrors SERVER_PUSH_EVENT in `src/state/game-state-types.ts` — keep the two in sync.
 pub const SERVER_PUSH_EVENT: &str = "server-push";
 
 /// A server-initiated state push — the in-process stand-in for the phase-3
@@ -55,7 +55,7 @@ pub const SERVER_PUSH_EVENT: &str = "server-push";
 /// SERVER_PUSH_EVENT. The client routes every variant into the matching
 /// `gameState` apply/sync entry point (`applyServerPush` in
 /// `src/state/game-state.ts`) — the same entry points a phase-3 socket handler will
-/// call. Mirrors the TS `ServerPush` union in `src/state/game-state.ts` — keep the
+/// call. Mirrors the TS `ServerPush` union in `src/state/game-state-types.ts` — keep the
 /// two in sync.
 #[derive(Serialize, Clone, Debug)]
 #[serde(tag = "type", content = "data", rename_all = "camelCase")]
@@ -86,7 +86,7 @@ pub enum ServerPush {
 }
 
 /// Game state pushed to the client. Mirrors the TS `GameStateData` in
-/// `src/state/game-state.ts` — keep the two in sync.
+/// `src/state/game-state-types.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameStateData {
@@ -102,7 +102,7 @@ pub struct GameStateData {
     pub motherships: Vec<MothershipData>,
     /// Every vessel currently in flight or parked on the map, in dispatch
     /// order — the snapshot half of SERVER.md's snapshot + replay. The client
-    /// replays these through applyVesselMoveEvent, so vessels dispatched
+    /// reconciles these through `VesselSync.sync()`, so vessels dispatched
     /// before it connected (or while it was in another scene) land at their
     /// correct in-progress position.
     pub vessels: Vec<VesselMoveEventData>,
@@ -115,7 +115,7 @@ pub struct GameStateData {
     /// builds its actors from this list with no hardcoded layout.
     pub modules: Vec<ModuleData>,
     /// The player's event feed (ROADMAP P1.5), oldest first — restores the
-    /// Events badge unread count across reloads.
+    /// Mail badge unread count across reloads.
     pub notifications: Vec<NotificationData>,
     /// The ship's crew state (ROADMAP P1.10) — head count plus any
     /// recruitment in flight; capacity derives from the module list.
@@ -532,7 +532,7 @@ impl ServerState {
         pushes
     }
 
-    /// Mark the whole feed read (the player opened the Events feed) and
+    /// Mark the whole feed read (the player opened the Mail panel) and
     /// return the updated list.
     pub(super) fn mark_notifications_read(&mut self) -> Vec<NotificationData> {
         for notification in &mut self.notifications {

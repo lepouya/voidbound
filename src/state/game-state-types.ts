@@ -193,7 +193,7 @@ export interface NotificationData {
   message: string;
   /** Server epoch ms when the notification was created. */
   createdAt: number;
-  /** Cleared by the mark_notifications_read command; the Events HUD badge
+  /** Cleared by the mark_notifications_read command; the Mail HUD badge
    *  shows the unread count. */
   read: boolean;
 }
@@ -375,7 +375,7 @@ export interface GameStateData {
    *  Command Module — placement and level are server-owned. */
   modules: ModuleData[];
   /** The player's event feed (ROADMAP P1.5), oldest first — restores the
-   *  Events badge unread count across reloads. */
+   *  Mail badge unread count across reloads. */
   notifications: NotificationData[];
   /** The ship's crew state (ROADMAP P1.10) — head count plus any recruitment
    *  in flight; capacity derives from the module list. */

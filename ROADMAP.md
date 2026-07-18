@@ -4,7 +4,7 @@ Development phases for the game design described in `README.md`. Settled design
 principles live there; this file tracks the order features land in. Later phases
 build directly on earlier ones — in particular, everything in phase 3 assumes
 actions are already event-modeled (see the multiplayer-ready event pattern in
-`CLAUDE.md`; the server model is sketched in `SERVER.md`). Phase 0 is the
+`AGENTS.md`; the server model is sketched in `SERVER.md`). Phase 0 is the
 engine/tooling scaffolding all of that already sits on.
 
 **How to use this file:** tasks have stable IDs (`P<phase>.<n>`) so sessions and
@@ -16,7 +16,7 @@ anything without an explicit "needs" note can be picked up independently. Done
 items keep only a one-line summary; any follow-up work gets its own task ID
 (marked "split from P<phase>.<n>") in whichever phase it belongs to, rather than
 living on as a note on the finished task. Implementation detail lives in
-`CLAUDE.md`, `SERVER.md`, and the commit history.
+`AGENTS.md`, `SERVER.md`, and the commit history.
 
 ## Phase 0 — Engine and tooling scaffolding
 
@@ -50,7 +50,7 @@ Goal: the technical foundation everything else is built on.
 - [x] **P0.12 — Shared cross-scene game-state module.** The `gameState`
       singleton (subscribe/notify) both scenes import, synced from
       `load_game_state` during the loader phase; scenes tolerate slow/failed
-      loads (CLAUDE.md § Startup / loader phase).
+      loads (AGENTS.md § Startup / loader phase).
 - [x] **P0.13 — Dev-speed build/run target.** `deno task dev:fast` scales every
       scheduler timer (production, build/hire, mining, vessel travel) via
       `VOIDBOUND_TIME_SCALE`; normal `deno task tauri dev` is unaffected.
@@ -210,8 +210,8 @@ Goal: the event pattern goes live over the network, per `SERVER.md`.
       Needs P3.1.
 - [ ] **P3.3 — Snapshot + replay for late joiners.** Server side of the model:
       snapshot plus log suffix on join. The client half already works
-      (`applyVesselMoveEvent` interpolates aged events). Needs P3.1; builds on
-      the P2.3 versioned format.
+      (`VesselSync.sync()` interpolates aged events). Needs P3.1; builds on the
+      P2.3 versioned format.
 - **P3.4 — HTTP fallback for `generate_map`.** Moved to Phase 6, alongside P6.4
   (dependency audit, July 2026) — it has no actual dependency on Phase 3's
   networking work, only on the web-browser platform effort it unlocks.
@@ -230,7 +230,7 @@ Goal: the event pattern goes live over the network, per `SERVER.md`.
       first public/networked build.
 - [ ] **P3.7 — Login / player identity.** Accounts and authentication: the
       client learns who it is from the server instead of the local seed. Rides
-      the loader phase — the resilience rules in CLAUDE.md § Startup already
+      the loader phase — the resilience rules in AGENTS.md § Startup already
       reserve room for a login flow, and identity still never changes
       mid-session. Pairs with P3.1: the socket needs an authenticated player
       behind it.
@@ -360,7 +360,7 @@ art or missing panels start hurting playtests.
 - [ ] **P3.4 — HTTP fallback for `generate_map`** _(moved from Phase 3;
       dependency audit, July 2026)_. Fetch-based map source behind the same
       `buildTileMap` signature — unlocks the planned web-browser platform
-      (update the CLAUDE.md Platform line when done). No real dependency on
+      (update the AGENTS.md Platform line when done). No real dependency on
       Phase 3's networking; it only ever depended on wanting a web build, so it
       belongs alongside P6.4's other-platforms work instead.
 - [ ] **P6.5 — Items/inventory panel.** A real panel behind the HUD "Items"

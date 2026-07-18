@@ -186,9 +186,9 @@ pub(crate) fn request_refresh_deals(
     result
 }
 
-/// Mark the whole event feed read (the player opened the Events feed) and
+/// Mark the whole notification feed read (the player opened the Mail panel) and
 /// return the updated list — the client replaces its table with it, which
-/// clears the Events badge in every scene.
+/// clears the Mail badge in every scene.
 #[tauri::command]
 pub(crate) fn mark_notifications_read(
     app: tauri::AppHandle,

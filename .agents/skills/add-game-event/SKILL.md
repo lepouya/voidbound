@@ -19,8 +19,9 @@ action creates a future deadline):
 
 1. An **event interface** — plain data, everything a server would send.
 2. An `apply<Action>Event(event)` **method** — consumes the event and mutates
-   scene state. This is the entry point for both local actions and future
-   server-pushed events.
+   shared `gameState` (or local state for a truly scene-local action). This is
+   the entry point for both command responses and future server-pushed events;
+   scenes reconcile their actors from the resulting state.
 3. A **local action method** that obtains the event — from the backend for
    server-verified actions, or by constructing it directly for purely local ones
    — and routes it into `apply<Action>Event`.
@@ -49,15 +50,15 @@ snapshot returns the active list, the shared `gameState` holds the table and
 merges command responses into it (`applyVesselEvent`), and the owning scene
 reconciles its actors from the table on every notify plus a forced re-lerp in
 `onActivate` (see `gameState.vessels` + `VesselSync.sync()`, invoked from
-`MapLevel`). Such event interfaces live in `src/state/game-state.ts` (pure
-module) instead of the scene file.
+`MapLevel`). Such event interfaces live in `src/state/game-state-types.ts`
+(re-exported by the pure `game-state.ts` barrel) instead of the scene file.
 
 ## 1. Define the event interface
 
 Place the interface at the top of the scene file that owns the action — or in
-`src/state/game-state.ts` when the event rides the `load_game_state` snapshot
-(like `VesselMoveEvent`), since the pure shared-state module can't import from
-scenes.
+`src/state/game-state-types.ts` when the event rides the `load_game_state`
+snapshot (like `VesselMoveEvent`), since the pure shared-state module can't
+import from scenes.
 
 ```ts
 export interface <Action>Event {
@@ -90,25 +91,17 @@ export interface <Action>Event {
 ## 2. Write the `apply*Event` method
 
 - Must be **public** — the eventual server-push handler will call it directly.
-- Must be **idempotent / redirect-safe** where possible: check for an existing
-  entity first and update it rather than duplicating (see `applyVesselMoveEvent`
-  redirecting an existing vessel).
-- Only mutates scene state — does NOT deselect actors, suppress input, or do any
-  UI housekeeping. Those belong in the local action method (step 3), not here.
-  Server-pushed events must not fight with local input state.
+- Must be **idempotent / redirect-safe** where possible: merge keyed entities by
+  ID rather than appending duplicates (see `GameState.applyVesselEvent`).
+- Only mutates shared/local data — does NOT deselect actors, suppress input, or
+  do any UI housekeeping. Those belong in the local action method (step 3), not
+  here. Server-pushed events must not fight with local input state.
 
 ```ts
-applyVesselMoveEvent(event: VesselMoveEvent): void {
-  const existing = this.vessels.get(event.vesselId);
-  if (existing) {
-    existing.moveTo(event.destCol, event.destRow, event.speed);
-    return;
-  }
-
-  const vessel = new TileActor({ /* ... */ });
-  this.vessels.set(event.vesselId, vessel);
-  this.add(vessel);
-  vessel.moveTo(event.destCol, event.destRow, event.speed);
+applyVesselEvent(event: VesselMoveEvent): void {
+  this.update((state) => {
+    state.vessels.set(event.vesselId, event);
+  });
 }
 ```
 
@@ -123,14 +116,14 @@ responsible for:
   actions, or — for purely local ones — constructing it with `newEventId()`
   (src/state/event-id.ts) for new IDs, `Date.now()` for `dispatchedAt`, and any
   server-style derived fields (`arrivalAt`, …)
-- Routing the event into `apply<Action>Event` — NOT mutating scene state
+- Routing the event into `apply<Action>Event` — NOT mutating shared/scene state
   directly. Snapshot-riding events route via the shared-state merge
   (`gameState.applyVesselEvent`-style), which notifies the scene's reconciler
 - Handling post-action UI cleanup (deselect, suppress input, close menus)
 
 ```ts
 private async dispatchVessel(destCol: number, destRow: number): Promise<void> {
-  // UI housekeeping — local only, NOT in applyVesselMoveEvent:
+  // UI housekeeping — local only, NOT in applyVesselEvent:
   this.deselectActor();
   try {
     // The backend verifies the destination and derives dock, speed, and
@@ -142,6 +135,7 @@ private async dispatchVessel(destCol: number, destRow: number): Promise<void> {
     gameState.applyVesselEvent(event); // fans out to syncVessels → apply*Event
   } catch (err) {
     console.warn("request_dispatch_vessel rejected:", err);
+    this.showToast(errorToast(`Dispatch failed: ${err}`));
   }
 }
 ```
@@ -166,15 +160,15 @@ scheduler must settle the deadline later and broadcast the result. In
   releasing the lock and wakes the scheduler Condvar so a nearer deadline the
   command just created is picked up (e.g. a short vessel flight).
 - **New push shape**: add a `ServerPush` variant and mirror it in the TS
-  `ServerPush` union in `src/state/game-state.ts` (comments mark the pair — keep
-  in sync), then route it in `gameState.applyServerPush()` into the **same**
-  apply/sync entry point the command response uses (`applyVesselEvent`,
+  `ServerPush` union in `src/state/game-state-types.ts` (comments mark the pair
+  — keep in sync), then route it in `gameState.applyServerPush()` into the
+  **same** apply/sync entry point the command response uses (`applyVesselEvent`,
   `applyModuleEvent`, …) so pushed and locally-triggered changes are
   indistinguishable to scenes.
 - **Player-visible completions** get a
   `push_notification(kind, message,
   now_ms)` — it queues both the notification
-  push and the snapshot-riding feed entry (capped at 100); the Events HUD badge
+  push and the snapshot-riding feed entry (capped at 100); the Mail HUD badge
   updates automatically.
 - **Tests**: extend the `#[cfg(test)]` suite — at minimum that `next_deadline()`
   tracks the new deadline and that settling drains the expected pushes (see
@@ -186,13 +180,14 @@ auto-recall `ServerPush::Vessel`.
 
 ## Checklist before declaring done
 
-- [ ] Event interface is `export`ed (scene module, or game-state.ts if it rides
-      the snapshot).
+- [ ] Event interface is `export`ed (scene module, or game-state-types.ts if it
+      rides the snapshot).
 - [ ] All fields a server would return are present (IDs, positions, timing).
 - [ ] `apply*Event` is **public** and contains **zero** UI housekeeping.
 - [ ] `apply*Event` handles the "entity already exists" case.
 - [ ] Local action method obtains the event (invoke or local construction) and
-      routes it through `apply*Event`; does not touch scene state directly.
+      routes it through `apply*Event`; does not touch shared/scene state
+      directly.
 - [ ] Server-verified: Rust mirror struct + verifier on `ServerState` +
       `#[cfg(test)]` unit test; command registered in lib.rs.
 - [ ] Timed actions: deadline in `next_deadline()`, settlement queues outbox
@@ -215,18 +210,18 @@ auto-recall `ServerPush::Vessel`.
       (src/ship/trade-catalog.ts ↔ same name in game_state/deals.rs), and
       `HIRE_COST_BIOLOGICAL`/`HIRE_TIME_MS` (src/ship/module-catalog.ts ↔ same
       names in game_state/crew.rs).
-- [ ] `deno task format` and `deno task check` pass (formats and type-checks TS
-      and Rust).
+- [ ] `deno task format`, `deno task check`, and `deno task lint` pass.
 - [ ] Run **`/verify`** and drive the new action in the dev app — there is no
       scene-level test coverage, so the running app is the only end-to-end
       check.
 
 ## Reference
 
-See the canonical examples: `VesselMoveEvent` / `applyVesselEvent`
-(src/state/game-state.ts) + `VesselSync.sync` / `.dispatch` / `.recall`
-(src/map/map-vessels.ts) + `request_dispatch_vessel` / `request_recall_vessel`
-(src-tauri/src/game_state/world.rs, exposed via commands.rs); and, for a timed
-scheduler-settled action, `AsteroidSync.mine` (src/map/map-asteroids.ts) +
-`request_mine_asteroid` / `settle_mining` (game_state/world.rs). See `SERVER.md`
-for the architecture this pattern is written against.
+See the canonical examples: `VesselMoveEvent` (src/state/game-state-types.ts) /
+`applyVesselEvent` (src/state/game-state.ts) + `VesselSync.sync` / `.dispatch` /
+`.recall` (src/map/map-vessels.ts) + `request_dispatch_vessel` /
+`request_recall_vessel` (src-tauri/src/game_state/world.rs, exposed via
+commands.rs); and, for a timed scheduler-settled action, `AsteroidSync.mine`
+(src/map/map-asteroids.ts) + `request_mine_asteroid` / `settle_mining`
+(game_state/world.rs). See `SERVER.md` for the architecture this pattern is
+written against.

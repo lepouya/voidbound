@@ -1,5 +1,5 @@
 #!/bin/bash
-# Screenshot helper for runtime verification (see .claude/skills/verify).
+# Screenshot helper for runtime verification (see .agents/skills/verify).
 #
 # Finds the running Voidbound window (CGWindowList — AppleScript ids fail on
 # Tauri), captures it without stealing focus, and prints a wall-clock

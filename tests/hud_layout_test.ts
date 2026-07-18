@@ -39,7 +39,7 @@ Deno.test("inferDirection: bottom anchors grow up, everything else down", () => 
   assertEquals(inferDirection("middle-left"), "down");
 });
 
-Deno.test("top-right stacking down (the Shop/Events group)", () => {
+Deno.test("top-right stacking down (the Shop group)", () => {
   const centers = layoutButtonCenters(
     { anchor: "top-right", gap: 8 },
     [{ w: 48, h: 48 }, { w: 32, h: 32 }],

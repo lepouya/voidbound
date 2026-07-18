@@ -35,7 +35,7 @@ export interface AutoTilesetRule extends TilesetGridGeometry {
   prefix: string;
 }
 
-/** Canonical animated sheet spec (see CLAUDE.md): 6*6 grid, 32 frames @ 66 ms. */
+/** Canonical animated sheet spec (see AGENTS.md): 6*6 grid, 32 frames @ 66 ms. */
 export const CANONICAL_ANIM = {
   cols: 6,
   rows: 6,

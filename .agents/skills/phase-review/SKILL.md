@@ -5,11 +5,12 @@ description: Run a full-project code review at the close of a ROADMAP phase — 
 
 # End-of-phase full-project review
 
-A whole-repo review pass run once per ROADMAP phase, after its last task is
-checked off. The first one (Phase 1, July 2026, baseline `bc01266`) produced 25
-landed fixes and this process. The output is a top-level `CODE_REVIEW.md`
-tracker that later sessions work through item by item; when every item is done,
-the tracker is rolled up and **deleted** — its history lives in git.
+A whole-repo review pass run after a ROADMAP phase closes. Re-run it when a
+closed phase later receives material additions: each pass reviews the current
+repository from scratch rather than carrying forward the prior pass's
+point-in-time conclusions. The output is a top-level `CODE_REVIEW.md` tracker
+that later sessions work through item by item; when every item is done, the
+tracker is rolled up and **deleted** — its history lives in git.
 
 ## 1. Review pass
 
@@ -83,7 +84,8 @@ checkboxes — grep for the named symbols/tests, then run the full gates):
 - Add one line to the reviewed phase's ROADMAP header noting the review
   happened, with the commit range, so future sessions can find the full document
   in git history.
-- **Delete `CODE_REVIEW.md`.** The next phase's review starts fresh; stale
-  trackers that linger become the exact doc-drift this process exists to catch.
-  (The Phase 1 tracker's "verified-sound" facts were point-in-time and
-  intentionally not carried forward — re-verify, don't trust.)
+- **Delete `CODE_REVIEW.md`.** The next review pass starts fresh, whether it
+  follows another phase or later additions to the same one; stale trackers that
+  linger become the exact doc-drift this process exists to catch. A prior
+  tracker's "verified-sound" facts were point-in-time and are intentionally not
+  carried forward — re-verify, don't trust.

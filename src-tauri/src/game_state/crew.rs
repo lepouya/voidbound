@@ -5,7 +5,7 @@ use super::state::{scaled_ms, ServerPush, ServerState};
 
 /// A crew recruitment in flight (ROADMAP P1.10) — one at a time, same timer
 /// shape as a module's pending build. Mirrors the TS `PendingHire` in
-/// `src/state/game-state.ts` — keep the two in sync.
+/// `src/state/game-state-types.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingHire {
@@ -18,7 +18,7 @@ pub struct PendingHire {
 /// crew push carries the full current snapshot. Capacity is not on the wire:
 /// it derives from the module snapshot (crew_capacity / the TS
 /// crewCapacityForModules mirror). Mirrors the TS `CrewData` in
-/// `src/state/game-state.ts` — keep the two in sync.
+/// `src/state/game-state-types.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CrewData {

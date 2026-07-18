@@ -3,7 +3,7 @@ use serde::Serialize;
 /// One of the four material resources a module can produce, a build can
 /// cost, or an asteroid can yield. Excludes `credits`, which is trade-only
 /// and never produced by a module. Serializes to the TS `ResourceKind` key
-/// strings ("construction", "highTech", ...) in `src/state/game-state.ts` — keep
+/// strings ("construction", "highTech", ...) in `src/state/game-state-types.ts` — keep
 /// the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -26,7 +26,7 @@ pub(super) fn resource_display_name(kind: ResourceKind) -> &'static str {
 
 /// One of the five trade-eligible types a Trading Post deal can exchange
 /// (ROADMAP P1.12): the four material resources plus the trade currency.
-/// Serializes to the full TS `ResourceKind` key set in `src/state/game-state.ts`
+/// Serializes to the full TS `ResourceKind` key set in `src/state/game-state-types.ts`
 /// ("construction", ..., "credits") — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -69,7 +69,7 @@ pub(super) fn trade_display_name(kind: TradeKind) -> &'static str {
 
 /// The player's stock of the four material resources plus the generic trade
 /// currency ("credits" — placeholder term, renamed in the display layer if
-/// needed). Mirrors the TS `ResourceCounts` in `src/state/game-state.ts` — keep
+/// needed). Mirrors the TS `ResourceCounts` in `src/state/game-state-types.ts` — keep
 /// the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Copy, Debug)]
 #[serde(rename_all = "camelCase")]

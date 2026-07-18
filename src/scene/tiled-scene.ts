@@ -550,10 +550,10 @@ export abstract class TiledScene extends ex.Scene {
 
   /**
    * Spawn the standard HUD shared by every scene: the resource bar along the
-   * top-left, Shop/Events in the top-right, and the given scene-switch button
+   * top-left, Shop in the top-right, and the given scene-switch button
    * stacked above Mail/Items in the bottom-right. Call from onInitialize
    * after super.onInitialize(engine). Returns the group handles for runtime
-   * control (e.g. wiring the Events or Mail badges to real counts).
+   * control (e.g. wiring the Mail badge to the unread count).
    */
   protected addCommonHud(
     switchButton: HudButtonDef,

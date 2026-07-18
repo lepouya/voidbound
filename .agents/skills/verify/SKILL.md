@@ -105,7 +105,8 @@ of them:
 
 **Cleanup is part of the verification**: greping `src/` and `src-tauri/src/` for
 `TEMP-VERIFY` must come back empty, then `deno task format` +
-`deno task check` + `deno task test` must pass before reporting.
+`deno task check` + `deno task lint` + `deno task test` must pass before
+reporting.
 
 ## 4. Known-good sanity checks and traps
 

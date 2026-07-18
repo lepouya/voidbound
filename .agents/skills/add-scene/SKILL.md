@@ -28,7 +28,7 @@ export class <Name>Level extends TiledScene {
 
     // Optional: this.backgroundColor = ex.Color.Black;
 
-    // Standard HUD (resource bar top-left, Shop/Events top-right, Mail/Items
+    // Standard HUD (resource bar top-left, Shop top-right, switch/Mail/Items
     // bottom-right) plus the scene-switch button back to wherever players
     // come from. Returns { resourceBar, topRight, bottomRight }
     // HudGroupHandles for badge/visibility control.
@@ -90,8 +90,8 @@ export class <Name>Level extends TiledScene {
 - `super.onInitialize(engine)` must be called **before** any `addCommonHud` /
   `addHudGroup` call — both depend on `engineRef` which `super` sets.
 - Use `addCommonHud(switchButton)` for the standard HUD instead of redefining
-  the Shop/Events and Mail/Items groups; only the scene-switch button def is
-  scene-specific. Reserve `addHudGroup` for groups unique to the scene.
+  the Shop and scene-switch/Mail/Items groups; only the scene-switch button def
+  is scene-specific. Reserve `addHudGroup` for groups unique to the scene.
 - Every `TileActor` you create in `setupActors` should receive
   `onPressed: onTilePressed` and
   `edgeFallthrough: this.supportsEmptyTileActor()` so taps route correctly
@@ -165,8 +165,8 @@ scene-specific `addHudGroup` group.
 
 ## 5. Finalize
 
-Run `deno task format` then `deno task check` per `AGENTS.md` and fix any type
-errors before declaring the task complete.
+Run `deno task format`, `deno task check`, then `deno task lint` per `AGENTS.md`
+and fix any failures before declaring the task complete.
 
 ## Reference: existing scenes
 

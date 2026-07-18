@@ -152,7 +152,7 @@ export class GameState {
    * The player's event feed (ROADMAP P1.5), keyed by notificationId in
    * server (chronological) order. Replaced wholesale by each load() snapshot
    * and by syncNotifications(), merged per-entry by notification pushes. The
-   * Events HUD badge renders unreadNotificationCount() from it.
+   * Mail HUD badge renders unreadNotificationCount() from it.
    */
   notifications = new Map<string, NotificationData>();
 
@@ -208,7 +208,7 @@ export class GameState {
    * syncNotifications() (mark_notifications_read) applies, so a returning
    * player's unread feed doesn't flood the toast layer. Returns an
    * unsubscribe function. The notification itself still lands in
-   * `notifications` (and the Events badge) via applyServerPush regardless of
+   * `notifications` (and the Mail badge) via applyServerPush regardless of
    * whether anyone is listening here.
    */
   subscribeToNotifications(listener: NotificationListener): () => void {
@@ -251,7 +251,7 @@ export class GameState {
 
   /**
    * Apply a single authorized module event (build or level-up) from a
-   * command response, notifying subscribers — the CLAUDE.md multiplayer-
+   * command response, notifying subscribers — the AGENTS.md multiplayer-
    * ready event pattern's `apply<Action>Event` entry point for module
    * actions, matching applyVesselEvent's shape: idempotent (merges by
    * moduleId, so a redirect/replay just overwrites), zero UI housekeeping.
@@ -342,7 +342,7 @@ export class GameState {
     });
   }
 
-  /** Number of unread event-feed entries — the Events HUD badge count. */
+  /** Number of unread event-feed entries — the Mail HUD badge count. */
   unreadNotificationCount(): number {
     let count = 0;
     for (const n of this.notifications.values()) if (!n.read) count++;
@@ -352,7 +352,7 @@ export class GameState {
   /**
    * Replace the notification feed with an authoritative list — the
    * mark_notifications_read response — notifying subscribers (which clears
-   * the Events badge in every scene).
+   * the Mail badge in every scene).
    */
   syncNotifications(notifications: NotificationData[]): void {
     this.update((s) => {
@@ -413,7 +413,7 @@ export class GameState {
 
   /**
    * Replace this state with backend-loaded data, notifying subscribers.
-   * Routed through update() so a re-sync at any time (the periodic poll, a
+   * Routed through update() so a re-sync at any time (a fresh snapshot, a
    * post-login refresh, a phase-3 server snapshot) refreshes live scenes the
    * same way a local mutation would.
    */

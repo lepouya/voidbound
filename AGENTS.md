@@ -123,11 +123,12 @@ interface + public `apply<Action>Event` + local action method) so local and
 networked code paths stay identical. The canonical examples are all
 **server-verified**: the local action method sends a request to the backend,
 which verifies it and returns the authorized event — required for any action
-that touches resources or shared world state. The reference implementations live
-in [src/state/game-state.ts](src/state/game-state.ts): `VesselMoveEvent`
-(`applyVesselEvent()`) and `ModuleData` (`applyModuleEvent()` — covers both
-`request_build_module` and `request_levelup_module`). Both ride the
-`load_game_state` snapshot — the snapshot + replay model that keeps progress
+that touches resources or shared world state. The wire types live in
+[src/state/game-state-types.ts](src/state/game-state-types.ts), with their apply
+entry points in [src/state/game-state.ts](src/state/game-state.ts):
+`VesselMoveEvent` (`applyVesselEvent()`) and `ModuleData` (`applyModuleEvent()`
+— covers both `request_build_module` and `request_levelup_module`). Both ride
+the `load_game_state` snapshot — the snapshot + replay model that keeps progress
 correct across scene switches and, later, late joins — and scenes reconcile
 their actors from the applied state via the `sync*` methods (see § IPC). A
 `ModuleData` event doubles as the entity's full current snapshot rather than a
@@ -225,17 +226,17 @@ Useful protected members: `grid`, `tilemap` (null in geometry-only scenes),
 `handleTilePressed`, `pendingActor`, `suppressNextPointerUp`, `deselectActor()`,
 `panCameraTo(x, y)`, `registerHudTarget(target)` — enrolls a custom screen-space
 widget (e.g. the minimap) into HUD tap dispatch and resize relayout —
-`addHudGroup(def)`, `addCommonHud(switchButton)` — spawns the standard
-Shop/Events + Mail/Items HUD around the given scene-switch button; prefer it
-over redefining those groups per scene — `openDialog(def)` / `closeDialog()` —
-the modal layer (ROADMAP P1.14): one dialog at a time, all pointer input
-captured while open (dialog buttons run the confirmed-tap logic; camera pan/zoom
-and everything underneath is blocked; a tap on the scrim outside the panel
-dismisses it), closed automatically on scene switch — and `showToast(toast)` —
-transient snackbar messages (ROADMAP P1.15): a bottom-center stack of
-auto-fading pills that never capture input, cleared on scene switch; pass a
-string for info or an `errorToast(message)` for rejections. Call the HUD
-helpers, `openDialog`, and `showToast` from `onInitialize` (or later) **after**
+`addHudGroup(def)`, `addCommonHud(switchButton)` — spawns the standard Shop +
+scene-switch/Mail/Items HUD around the given scene-switch button; prefer it over
+redefining those groups per scene — `openDialog(def)` / `closeDialog()` — the
+modal layer (ROADMAP P1.14): one dialog at a time, all pointer input captured
+while open (dialog buttons run the confirmed-tap logic; camera pan/zoom and
+everything underneath is blocked; a tap on the scrim outside the panel dismisses
+it), closed automatically on scene switch — and `showToast(toast)` — transient
+snackbar messages (ROADMAP P1.15): a bottom-center stack of auto-fading pills
+that never capture input, cleared on scene switch; pass a string for info or an
+`errorToast(message)` for rejections. Call the HUD helpers, `openDialog`, and
+`showToast` from `onInitialize` (or later) **after**
 `super.onInitialize(engine)`.
 
 **Adding a new scene:** use the `/add-scene` skill — it handles Rust map-arm
@@ -427,12 +428,12 @@ tampered with. The client renders what commands return and asks for actions:
   `gameState.applyServerPush()` — the same apply/sync entry points command
   responses use. Notifications (build/level-up completions, vessel
   arrivals/returns) are server state riding the snapshot, capped at 100 entries;
-  the Events HUD badge (tiled-scene.ts `addCommonHud`) shows the live unread
+  the Mail HUD badge (tiled-scene.ts `addCommonHud`) shows the live unread
   count.
 - `mark_notifications_read` — marks the whole feed read and returns the updated
-  list (applied via `gameState.syncNotifications`), clearing the Events badge in
-  every scene. Pressing Events currently dumps the feed to the console — the
-  real panel is P1.21, which also renames that button to Mail.
+  list (applied via `gameState.syncNotifications`), clearing the Mail badge in
+  every scene. Opening P1.21's Mail panel invokes it after rendering the live,
+  scrollable Notifications tab.
 - `request_build_module(col, row, module_type)` — verifies the catalog type, its
   Command-Module-level unlock, placement (room grid), and level-1 cost, deducts
   resources, returns the new `ModuleData` (level 0, pending its first
@@ -453,7 +454,7 @@ tampered with. The client renders what commands return and asks for actions:
   is never damped (the anti-stuck guarantee: a new player can progress at 0
   crew). Hire cost/time and the 50% floor are balancing stubs (→ P2.6); richer
   understaffing UX (per-module indicators, crew prioritization, temporary
-  reassignment) is an open idea with no task yet (ROADMAP P1.10).
+  reassignment) is tracked by ROADMAP P2.8.
 - `request_dispatch_vessel(dest_col, dest_row)` /
   `request_recall_vessel(vessel_id)` — verify the move, derive dock, speed, and
   arrival time (recalls depart from the server-lerped current position), record

@@ -2,7 +2,7 @@
 """
 SVG UI Generator
 
-Reads SVG vector files for UI button chrome (frames) and iconography (icons),
+Reads an SVG vector file for UI button chrome (frames) or iconography (icons),
 replaces placeholder color variables (#COLOR1 and #COLOR2) with user-configurable
 hex colors for normal, active, and disabled states, renders them to precise
 target pixel dimensions, and outputs compact spritesheets.
@@ -15,7 +15,7 @@ Usage:
         --color1 "#FFFFFF" --color2 "#00d2ff"
 
 Arguments:
-    -s / --source           Path to source SVG file or directory of SVGs
+    -s / --source           Path to a source SVG file
     -c / --cols             Number of columns in output sheet (default: 3 for normal, active, disabled)
     -r / --rows             Number of rows in output sheet (default: 1)
     -z / --size             Side length (px) of each sprite tile (square, default: 64)

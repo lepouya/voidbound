@@ -107,9 +107,9 @@ standard server-verified action shape (`/add-game-event` step 3): `invoke` the
 Tauri command, apply the returned resources via `gameState.syncResources`, and
 apply the returned self-snapshot event via its `apply<Entity>Event`/
 `gameState.apply<Entity>Event`. Reject explicitly rather than clamping —
-`console.warn` on `catch`, matching every other action (ROADMAP P1.15 is the
-toast task that replaces this with real UI feedback). Reference:
-`acceptDeal`/`refreshDeals` in src/ship/ship-shop.ts.
+`console.warn` plus `showToast(errorToast(...))` on `catch`, matching every
+other player action. Reference: `acceptDeal`/`refreshDeals` in
+src/ship/ship-shop.ts.
 
 ## 6. Open the panel from somewhere
 
@@ -132,7 +132,7 @@ more tabs on that same panel rather than a new button.
       `onClose`.
 - [ ] Action methods are server-verified: `invoke` → `syncResources` +
       `apply*Event`; rejections caught and logged, never clamped client-side.
-- [ ] `deno task format` and `deno task check` pass.
+- [ ] `deno task format`, `deno task check`, and `deno task lint` pass.
 - [ ] Run **`/verify`** and drive the panel in the dev app — open it, trigger an
       action, and confirm the rows update live with no console errors.
 
