@@ -36,7 +36,7 @@ event (for resource-touching actions, plus updated `ResourceCounts`, applied via
 gains a Rust mirror struct (serde `rename_all = "camelCase"`) and the game rule
 gets a `#[cfg(test)]` unit test. Canonical examples: `ModuleData` /
 `request_build_module` / `request_levelup_module` (the self-snapshot payload
-pattern — CLAUDE.md § Multiplayer-ready event pattern) and `VesselMoveEvent` /
+pattern — AGENTS.md § Multiplayer-ready event pattern) and `VesselMoveEvent` /
 `request_dispatch_vessel` / `request_recall_vessel`. Constructing the event
 locally (with `newEventId()` from `src/state/event-id.ts`) remains valid only
 for actions with nothing to verify. No current action does this — every shipped

@@ -23,7 +23,7 @@ haven't used dialogs before.
 Mirror the Rust command response struct(s) as a TS interface, same as any
 server-verified action (`/add-game-event` step 3): the entity list itself should
 already ride the `load_game_state` snapshot as a self-snapshot payload
-(`ModuleData`/`DealsData`-style — see CLAUDE.md § Multiplayer-ready event
+(`ModuleData`/`DealsData`-style — see AGENTS.md § Multiplayer-ready event
 pattern), and each action command additionally returns updated `ResourceCounts`
 when it touches resources. Reference: `DealActionResponse`/`DealsData` in
 src/ship/ship-shop.ts and src-tauri/src/game_state/deals.rs.

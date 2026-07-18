@@ -15,12 +15,12 @@ the tracker is rolled up and **deleted** — its history lives in git.
 
 Read in this order, taking notes but changing nothing behavioral yet:
 
-1. **Design docs first** — README.md, SERVER.md, ROADMAP.md, CLAUDE.md — so
+1. **Design docs first** — README.md, SERVER.md, ROADMAP.md, AGENTS.md — so
    every code observation is judged against the stated design, not taste.
 2. **Every source file in full, in dependency order**: Rust backend (game rules
    first — it is authoritative), then TS core (state, scenes, actors), then
    `src/ui/`, then `tests/`, then `tools/` + `art/gen_*.sh`, then
-   `.claude/skills/`.
+   `.agents/skills/`.
 3. **Cross-check every "keep the two in sync" mirror pair** field by field —
    Rust struct ↔ TS interface, Rust constant ↔ TS display mirror, and any
    invariant whose halves live on opposite sides of the language boundary.
@@ -78,7 +78,7 @@ When every box is ticked (verify each claim against the code, not just the
 checkboxes — grep for the named symbols/tests, then run the full gates):
 
 - Confirm every durable fact from the "Done:" notes already lives in its
-  permanent home: ROADMAP tasks, CLAUDE.md/SERVER.md notes, skill updates, code
+  permanent home: ROADMAP tasks, AGENTS.md/SERVER.md notes, skill updates, code
   comments. Anything homeless gets moved now.
 - Add one line to the reviewed phase's ROADMAP header noting the review
   happened, with the commit range, so future sessions can find the full document

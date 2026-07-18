@@ -79,7 +79,7 @@ Only once the user has given the go-ahead:
   note listing only what a _future_ task needs to know — each item pointed at
   its target task (`→ P2.6`). Everything else (implementation detail, superseded
   decisions, historical rationale, alternatives considered) belongs in
-  `CLAUDE.md`, `SERVER.md`, and the commit message, not the roadmap. When a door
+  `AGENTS.md`, `SERVER.md`, and the commit message, not the roadmap. When a door
   has no target task yet, say "no task yet" rather than inventing one.
 - Any per-task design doc written during step 2 is scaffolding, not a
   deliverable: don't commit it — roll its unfinished/deferred items into the

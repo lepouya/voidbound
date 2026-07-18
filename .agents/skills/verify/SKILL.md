@@ -6,7 +6,7 @@ description: Launch the Voidbound Tauri dev app and verify a change by observing
 # Verifying Voidbound at runtime
 
 There is no runtime/scene test coverage — the running app is the safety net
-(CLAUDE.md § Testing). Verification here means: launch the dev app, drive the
+(AGENTS.md § Testing). Verification here means: launch the dev app, drive the
 changed code path, and capture what the window and the client console show. On
 this machine there are **no accessibility permissions**, so taps/drags cannot be
 scripted — flows are driven with temporary code hooks and observed via
@@ -14,23 +14,12 @@ screenshots.
 
 **Model:** the checklist below is mechanical (launch, screenshot, tail logs,
 grep for leftover hooks, run the gate) and doesn't need extra reasoning weight.
-If the current conversation is running on a heavier model than Sonnet (e.g.
-Fable), don't run these steps inline — delegate the whole run to a subagent
-pinned to Sonnet instead:
-
-```
-Agent({
-  description: "Runtime verify",
-  subagent_type: "general-purpose",
-  model: "sonnet",
-  prompt: "<the change under test, the code path to drive, and what a pass
-           looks like — the subagent starts cold and follows the /verify
-           skill's steps itself>",
-})
-```
-
-If the session is already on Sonnet or another default-weight model, just follow
-the steps below directly — no need to spawn a subagent for its own sake.
+If the active model is materially more capable or costly than a routine
+verification run requires, and the agent environment supports delegation,
+delegate the whole run to a standard-capability subagent. Give it the change
+under test, the code path to drive, the pass criteria, and these skill steps.
+Otherwise follow the steps below directly — no need to delegate for its own
+sake.
 
 ## 1. Launch — `tools/verify_dev.sh`
 

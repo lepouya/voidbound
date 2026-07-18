@@ -165,7 +165,7 @@ scene-specific `addHudGroup` group.
 
 ## 5. Finalize
 
-Run `deno task format` then `deno task check` per `CLAUDE.md` and fix any type
+Run `deno task format` then `deno task check` per `AGENTS.md` and fix any type
 errors before declaring the task complete.
 
 ## Reference: existing scenes
