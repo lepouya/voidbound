@@ -9,8 +9,9 @@
 #
 # usage: tools/verify_dev.sh <subcommand>
 #   status               stale-instance check: dev task, app process, window id
-#   start [-t SECS]      launch `deno task tauri dev` in background, then wait
-#                        for the app (refuses if an instance already exists)
+#   start                launch `deno task tauri dev` in the foreground
+#                        (keep its exec session open; refuses if an instance
+#                        already exists)
 #   wait [-t SECS]       wait for the app process + window to (re)appear
 #                        (e.g. after a src-tauri/ edit relaunches the backend)
 #   log [-n LINES] [-g PATTERN] [-s HH:MM:SS]
@@ -32,7 +33,7 @@ app_pattern="target/debug/voidbound"
 app_ps() { ps -eo pid,lstart,command | grep "$app_pattern" | grep -v grep || true; }
 
 dev_task_pid() {
-    # The recorded pid is the log-stamping subshell; alive means dev task alive.
+    # The recorded pid is the foreground helper; alive means dev task alive.
     if [ -f "$pid_file" ]; then
         local pid
         pid=$(cat "$pid_file")
@@ -102,11 +103,7 @@ status)
     ;;
 
 start)
-    timeout=300
-    while [ $# -gt 0 ]; do case "$1" in
-        -t) timeout="$2"; shift 2 ;;
-        *) echo "unknown flag: $1" >&2; exit 2 ;;
-    esac done
+    [ $# -eq 0 ] || { echo "start takes no flags" >&2; exit 2; }
     if [ -n "$(dev_task_pid)" ] || [ -n "$(app_ps)" ]; then
         echo "an instance is already running — 'tools/verify_dev.sh stop' first:" >&2
         app_ps >&2
@@ -114,15 +111,24 @@ start)
     fi
     [ -f "$log_file" ] && mv "$log_file" "$log_file.prev"
     cd "$root"
+    echo $$ >"$pid_file"
+    cleanup_pid_file() {
+        if [ -f "$pid_file" ] && [ "$(cat "$pid_file")" = "$$" ]; then
+            rm -f "$pid_file"
+        fi
+    }
+    trap cleanup_pid_file EXIT
+    echo "dev task running in foreground (pid $$), log: $log_file"
     # Timestamp every log line as it arrives so screenshots (which also print
-    # wall-clock times) can be correlated with client console output.
-    nohup bash -c '
-        deno task tauri dev 2>&1 | while IFS= read -r line; do
-            printf "%s %s\n" "$(date +%H:%M:%S)" "$line"
-        done' >"$log_file" 2>&1 &
-    echo $! >"$pid_file"
-    echo "dev task launched (pid $(cat "$pid_file")), log: $log_file"
-    wait_for_app "$timeout"
+    # wall-clock times) can be correlated with client console output. Keep the
+    # process attached to the caller's live exec session: the command runner
+    # cleans up background descendants when a tool call returns, even if they
+    # were launched through nohup.
+    deno task tauri dev 2>&1 | while IFS= read -r line; do
+        stamped="$(date +%H:%M:%S) $line"
+        printf "%s\n" "$stamped" >>"$log_file"
+        printf "%s\n" "$stamped"
+    done
     ;;
 
 wait)
@@ -183,7 +189,7 @@ stop)
     ;;
 
 *)
-    sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+    awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
     exit 2
     ;;
 esac

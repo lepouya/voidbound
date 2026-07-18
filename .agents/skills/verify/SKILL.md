@@ -30,18 +30,24 @@ approval:
 
 ```bash
 tools/verify_dev.sh status     # stale-instance check: dev task, app, window id
-tools/verify_dev.sh start      # launch `deno task tauri dev` in background,
-                               # wait for the app process + window (refuses to
-                               # start over an existing instance); first build
-                               # takes minutes — give the call a large timeout
+tools/verify_dev.sh start      # launch `deno task tauri dev` in the foreground;
+                               # keep the returned exec session open
 tools/verify_dev.sh wait       # wait for app + window to (re)appear, e.g.
-                               # after a src-tauri/ edit relaunches the backend
+                               # after start or a backend relaunch; first build
+                               # can take minutes, so use a large timeout
 tools/verify_dev.sh log -n 40                  # timestamped dev-task log tail
 tools/verify_dev.sh log -s 17:26:37 -g vite    # lines since a time / matching
 tools/verify_dev.sh reload     # touch src/main.ts -> Vite full page reload;
                                # prints the reload time + the log it produced
 tools/verify_dev.sh stop       # kill app + dev task tree, confirm none remain
 ```
+
+Run `start` as a long-lived exec call with a TTY and a short initial yield. It
+must return a live session ID rather than exit; retain that ID for the whole
+verification. In a separate call, run `wait`, then capture screenshots and read
+logs while the start session remains open. Do not background or `nohup` the dev
+task: the command runner cleans up background descendants when their launching
+tool call returns, which makes the first window disappear before capture.
 
 A stale instance from a previous session runs pre-edit JS and falsifies
 screenshots — `start` enforces the zero-instance precondition and errors out if
@@ -126,6 +132,8 @@ reporting.
 
 ## 5. Shut down
 
-`tools/verify_dev.sh stop` when done — it kills the app and the whole dev-task
-tree and confirms nothing is left, so the next session's stale-instance check
-starts clean.
+Send Ctrl-C to the retained start session when done and poll it until it reports
+completion, then run `tools/verify_dev.sh stop` as a cleanup confirmation and
+fallback. This lets Tauri exit through its attached terminal first; `stop` kills
+any surviving app/dev-task processes and confirms nothing is left, so the next
+session's stale-instance check starts clean.
