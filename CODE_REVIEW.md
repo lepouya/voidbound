@@ -193,7 +193,7 @@ tracker.
 
 ## 4. Refactor and reuse
 
-- [ ] **CR4.1 [hardening] — Tauri action-response wire types are scattered
+- [x] **CR4.1 [hardening] — Tauri action-response wire types are scattered
       through feature/runtime modules.** `ModuleActionResponse` lives in and is
       exported from `ship-modules.ts` solely so `map-details.ts` can import it;
       `CrewActionResponse`, `DealActionResponse`, and `MothershipActionResponse`
@@ -203,6 +203,11 @@ tracker.
       `src/state/game-state-types.ts`, re-export them through `game-state.ts`,
       and update `/add-game-event` and `/add-server-panel` examples to make that
       the default home for command-response shapes.
+
+      **Done:** Moved all four action-response interfaces into the pure wire
+      catalog, consumed them through `game-state.ts`, and removed the map
+      details panel's ship-runtime type import. Updated both action/panel
+      skills and runtime-verified the cleaned import graph at app startup.
 
 ## 5. Test-coverage additions
 

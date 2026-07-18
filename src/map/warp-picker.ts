@@ -4,8 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import {
   gameState,
-  MothershipData,
-  ResourceCounts,
+  MothershipActionResponse,
   Revisioned,
 } from "../state/game-state.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
@@ -27,13 +26,6 @@ import {
   squareButton,
   ToastDef,
 } from "../ui/index.ts";
-
-/** Mirrors the Rust `MothershipActionResponse` in
- *  src-tauri/src/game_state/world.rs — keep in sync. */
-interface MothershipActionResponse {
-  mothership: MothershipData;
-  resources: ResourceCounts;
-}
 
 const CELL_FILL: Record<FootprintCellState, string> = {
   green: "rgba(60, 200, 100, 0.45)",

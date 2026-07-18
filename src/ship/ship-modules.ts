@@ -3,10 +3,10 @@ import * as ex from "excalibur";
 import { invoke } from "@tauri-apps/api/core";
 
 import {
-  CrewData,
+  CrewActionResponse,
   gameState,
+  ModuleActionResponse,
   ModuleData,
-  ResourceCounts,
   Revisioned,
   serverNow,
 } from "../state/game-state.ts";
@@ -50,31 +50,11 @@ const MODULE_SPAN = 4;
  */
 const MODULE_ART_TYPE = "base";
 
-/** Wire shape of the `request_build_module` / `request_levelup_module` Tauri
- *  commands' result. Mirrors the Rust `ModuleActionResponse` in
- *  src-tauri/src/game_state/modules.rs — keep in sync. Exported for the map
- *  scene's own-mothership details panel, whose Upgrade action levels the
- *  Command Module through the same command (ROADMAP P1.16). */
-export interface ModuleActionResponse {
-  module: ModuleData;
-  /** Authoritative counts after the cost was deducted. */
-  resources: ResourceCounts;
-}
-
 /** Result of levelUpStatus(): whether/why a module's Level Up button would
  *  currently be enabled. "capped" (blocked by the Command Module's own
  *  level) is kept distinct from "unaffordable" so the UI can say which one
  *  it is. */
 type LevelUpStatus = "unavailable" | "capped" | "unaffordable" | "ready";
-
-/** Wire shape of the `request_hire_crew` Tauri command's result. Mirrors the
- *  Rust `CrewActionResponse` in src-tauri/src/game_state/crew.rs — keep in
- *  sync. */
-interface CrewActionResponse {
-  crew: CrewData;
-  /** Authoritative counts after the cost was deducted. */
-  resources: ResourceCounts;
-}
 
 /** Result of hireStatus(): whether/why the Command Module's Hire Crew button
  *  would currently be enabled (ROADMAP P1.10). "full" (no berths free — the

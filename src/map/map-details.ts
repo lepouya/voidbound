@@ -6,21 +6,20 @@ import { asteroidDisplayName, mineDurationMs } from "./asteroid-catalog.ts";
 import {
   AsteroidData,
   gameState,
+  ModuleActionResponse,
   ModuleData,
   Revisioned,
   serverNow,
   VesselMoveEvent,
 } from "../state/game-state.ts";
 // Same deliberate cross-domain exception as tiled-scene.ts: the
-// own-mothership panel reads out and upgrades the Command Module, which is
-// ship-module data, so the map scene reaches into ship/'s catalog and wire
-// types for this one panel.
+// own-mothership panel reads out and upgrades the Command Module, so the map
+// scene reaches into ship/'s catalog for this one panel.
 import {
   COMMAND_MODULE_TYPE,
   costAtLevel,
   moduleCatalogEntry,
 } from "../ship/module-catalog.ts";
-import { ModuleActionResponse } from "../ship/ship-modules.ts";
 import { RESOURCE_ICON_TILESET } from "../scene/tiled-scene.ts";
 import {
   bindDialogRows,

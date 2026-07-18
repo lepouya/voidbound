@@ -3,10 +3,9 @@ import * as ex from "excalibur";
 import { invoke } from "@tauri-apps/api/core";
 
 import {
+  DealActionResponse,
   DealData,
-  DealsData,
   gameState,
-  ResourceCounts,
   ResourceKind,
   Revisioned,
 } from "../state/game-state.ts";
@@ -28,15 +27,6 @@ import {
   squareButton,
   ToastDef,
 } from "../ui/index.ts";
-
-/** Wire shape of the `request_accept_deal` / `request_refresh_deals` Tauri
- *  commands' result (ROADMAP P1.12). Mirrors the Rust `DealActionResponse`
- *  in src-tauri/src/game_state/deals.rs — keep in sync. */
-interface DealActionResponse {
-  deals: DealsData;
-  /** Authoritative counts after the exchange/cost was applied. */
-  resources: ResourceCounts;
-}
 
 /** Styling for the daily freebie's give cell — a gift, not a price. */
 const GIFT_LABEL_COLOR = ex.Color.fromHex("#ffcc4d");

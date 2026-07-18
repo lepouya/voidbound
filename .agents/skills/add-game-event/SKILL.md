@@ -44,6 +44,13 @@ for actions with nothing to verify. No current action does this — every shippe
 action is server-verified — but `newEventId()` is kept intentionally as the
 escape hatch for the day one does; it is not dead code to remove.
 
+**Every command-response interface** belongs in `src/state/game-state-types.ts`
+as well, even when it only wraps a snapshot payload plus `ResourceCounts`;
+import it through the `game-state.ts` re-export. This keeps Rust-mirrored wire
+shapes pure and prevents one runtime feature module from becoming another
+feature's type dependency. Examples: `ModuleActionResponse`,
+`CrewActionResponse`, `DealActionResponse`, and `MothershipActionResponse`.
+
 **Events that must survive scene switches or late joins** should also ride the
 `load_game_state` snapshot: the backend records them in `ServerState`, the
 snapshot returns the active list, the shared `gameState` holds the table and

@@ -20,13 +20,14 @@ haven't used dialogs before.
 
 ## 1. Wire types
 
-Mirror the Rust command response struct(s) as a TS interface, same as any
-server-verified action (`/add-game-event` step 3): the entity list itself should
-already ride the `load_game_state` snapshot as a self-snapshot payload
+Mirror the Rust command response struct(s) in `src/state/game-state-types.ts`
+(and import through the `game-state.ts` re-export), same as any server-verified
+action (`/add-game-event` step 3): the entity list itself should already ride
+the `load_game_state` snapshot as a self-snapshot payload
 (`ModuleData`/`DealsData`-style — see AGENTS.md § Multiplayer-ready event
 pattern), and each action command additionally returns updated `ResourceCounts`
 when it touches resources. Reference: `DealActionResponse`/`DealsData` in
-src/ship/ship-shop.ts and src-tauri/src/game_state/deals.rs.
+src/state/game-state-types.ts and src-tauri/src/game_state/deals.rs.
 
 ## 2. Define a status enum per row-level decision
 

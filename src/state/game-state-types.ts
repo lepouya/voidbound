@@ -336,6 +336,50 @@ export interface ModuleData {
 }
 
 /**
+ * Wire shape of the `request_build_module` / `request_levelup_module` Tauri
+ * commands' result. Mirrors the Rust `ModuleActionResponse` in
+ * src-tauri/src/game_state/modules.rs — keep the two in sync.
+ */
+export interface ModuleActionResponse {
+  module: ModuleData;
+  /** Authoritative counts after the cost was deducted. */
+  resources: ResourceCounts;
+}
+
+/**
+ * Wire shape of the `request_hire_crew` Tauri command's result. Mirrors the
+ * Rust `CrewActionResponse` in src-tauri/src/game_state/crew.rs — keep the
+ * two in sync.
+ */
+export interface CrewActionResponse {
+  crew: CrewData;
+  /** Authoritative counts after the cost was deducted. */
+  resources: ResourceCounts;
+}
+
+/**
+ * Wire shape of the `request_accept_deal` / `request_refresh_deals` Tauri
+ * commands' result (ROADMAP P1.12). Mirrors the Rust `DealActionResponse` in
+ * src-tauri/src/game_state/deals.rs — keep the two in sync.
+ */
+export interface DealActionResponse {
+  deals: DealsData;
+  /** Authoritative counts after the exchange/cost was applied. */
+  resources: ResourceCounts;
+}
+
+/**
+ * Wire shape of the `request_relocate_mothership` Tauri command's result
+ * (ROADMAP P1.22). Mirrors the Rust `MothershipActionResponse` in
+ * src-tauri/src/game_state/world.rs — keep the two in sync.
+ */
+export interface MothershipActionResponse {
+  mothership: MothershipData;
+  /** Authoritative counts after the fuel cost was deducted. */
+  resources: ResourceCounts;
+}
+
+/**
  * The client's interest-area window (ROADMAP P1.13): the span*span-tile
  * region, centered on (centerCol, centerRow), inside which the backend
  * streams world entities. Snapshots and entity pushes are filtered to it
