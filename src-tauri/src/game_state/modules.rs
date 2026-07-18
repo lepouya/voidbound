@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use super::resources::{ResourceCounts, ResourceKind};
-use super::state::{player_identity, scaled_ms, ServerPush, ServerState};
+use super::state::{deadline_after, player_identity, scaled_ms, ServerPush, ServerState};
 
 /// One entry in the module catalog (ROADMAP P1.4): production, storage,
 /// cost, build time, and unlock prerequisite for a module type.
@@ -462,20 +462,20 @@ impl ServerState {
             let (damp_staffed, damp_required) = if damped { (staffed, required) } else { (0, 0) };
             if old_level > 0 && old_ticks > 0 {
                 for &(kind, base) in entry.produces {
-                    let amount = scale_for_level(base, old_level) * old_ticks;
+                    let amount = scale_for_level(base, old_level).saturating_mul(old_ticks);
                     let amount = crew_scaled(amount, damp_staffed, damp_required);
                     self.resources.add_capped(kind, amount, caps.get(kind));
                 }
             }
             if new_level > 0 && new_ticks > 0 {
                 for &(kind, base) in entry.produces {
-                    let amount = scale_for_level(base, new_level) * new_ticks;
+                    let amount = scale_for_level(base, new_level).saturating_mul(new_ticks);
                     let amount = crew_scaled(amount, damp_staffed, damp_required);
                     self.resources.add_capped(kind, amount, caps.get(kind));
                 }
             }
         }
-        self.last_production_at += ticks * tick_ms;
+        self.last_production_at = deadline_after(interval_start, ticks.saturating_mul(tick_ms));
         self.settle_modules(now_ms);
     }
 
@@ -536,7 +536,10 @@ impl ServerState {
             pending: Some(ModulePendingBuild {
                 level: 1,
                 dispatched_at: now_ms,
-                completes_at: now_ms + scaled_ms(scale_for_level(entry.base_build_time_ms, 1)),
+                completes_at: deadline_after(
+                    now_ms,
+                    scaled_ms(scale_for_level(entry.base_build_time_ms, 1)),
+                ),
             }),
         };
         self.modules
@@ -593,8 +596,10 @@ impl ServerState {
         let cost = scale_for_level(entry.base_cost_construction, next_level);
         self.resources.spend(ResourceKind::Construction, cost)?;
         self.resources_dirty = true;
-        let completes_at =
-            now_ms + scaled_ms(scale_for_level(entry.base_build_time_ms, next_level));
+        let completes_at = deadline_after(
+            now_ms,
+            scaled_ms(scale_for_level(entry.base_build_time_ms, next_level)),
+        );
         let module = self
             .modules
             .get_mut(module_id)
@@ -685,6 +690,17 @@ mod tests {
     }
 
     #[test]
+    fn production_saturates_over_a_maximum_offline_window() {
+        let mut s = ServerState::new(0);
+        s.modules.get_mut("module-command").unwrap().level = 64;
+
+        s.accrue_production(u64::MAX);
+
+        assert_eq!(s.resources.construction, u64::MAX);
+        assert_eq!(s.last_production_at, (u64::MAX / TICK) * TICK);
+    }
+
+    #[test]
     fn production_stops_at_the_storage_cap() {
         let mut s = ServerState::new(0);
         // Command Module baseline (level 1): 1000 per material resource.
@@ -733,6 +749,20 @@ mod tests {
         assert_eq!(pending.level, 1);
         assert_eq!(pending.dispatched_at, 1_000);
         assert_eq!(pending.completes_at, 1_000 + ore_refinery_build_time());
+    }
+
+    #[test]
+    fn build_deadline_near_the_timestamp_limit_does_not_wrap() {
+        let now = u64::MAX - 1;
+        let mut s = funded_state(1, now);
+
+        let response = s
+            .build_module(2, 2, "ore-refinery".to_string(), now)
+            .unwrap();
+
+        let pending = response.module.pending.unwrap();
+        assert_eq!(pending.dispatched_at, now);
+        assert_eq!(pending.completes_at, u64::MAX);
     }
 
     #[test]

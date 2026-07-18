@@ -166,8 +166,16 @@ pub(super) fn player_identity() -> PlayerIdentity {
 pub(crate) fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
+        .map(|d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
         .unwrap_or(0)
+}
+
+/// Convert a duration into an absolute timestamp without wrapping. This is
+/// the single path for authoritative timer construction: a valid timestamp
+/// near `u64::MAX` (including one restored from a future save) clamps at the
+/// largest representable epoch instead of becoming an already-due deadline.
+pub(crate) fn deadline_after(start_ms: u64, duration_ms: u64) -> u64 {
+    start_ms.saturating_add(duration_ms)
 }
 
 static TIME_SCALE: OnceLock<f64> = OnceLock::new();
@@ -398,7 +406,49 @@ impl ServerState {
         // whether or not a Trading Post exists yet, so the shop is stocked
         // the moment one settles; deterministic like the asteroid field.
         state.regenerate_deals(state.deals_day_index, 0, true);
+        debug_assert!(state.validate_timestamps().is_ok());
         state
+    }
+
+    /// Reject timer pairs that could only come from a corrupt/unsupported
+    /// persisted snapshot. Past deadlines are valid — offline catch-up must
+    /// settle them — and saturated timers may have equal endpoints at
+    /// `u64::MAX`; only a deadline earlier than its start is invalid. P2.1's
+    /// load path must call this before accepting a deserialized state.
+    pub(crate) fn validate_timestamps(&self) -> Result<(), String> {
+        if let Some(pending) = &self.pending_hire {
+            validate_timestamp_pair(
+                "pending crew hire",
+                pending.dispatched_at,
+                pending.completes_at,
+            )?;
+        }
+        for module in self.modules.values() {
+            if let Some(pending) = &module.pending {
+                validate_timestamp_pair(
+                    &format!("module {:?}", module.module_id),
+                    pending.dispatched_at,
+                    pending.completes_at,
+                )?;
+            }
+        }
+        for vessel in self.vessels.values() {
+            validate_timestamp_pair(
+                &format!("vessel {:?}", vessel.vessel_id),
+                vessel.dispatched_at,
+                vessel.arrival_at,
+            )?;
+        }
+        for asteroid in self.asteroids.values() {
+            if let Some(mining) = &asteroid.mining {
+                validate_timestamp_pair(
+                    &format!("asteroid {:?} mining job", asteroid.asteroid_id),
+                    mining.started_at,
+                    mining.completes_at,
+                )?;
+            }
+        }
+        Ok(())
     }
 
     /// Center the interest area on the player's mothership — the camera's
@@ -505,7 +555,7 @@ impl ServerState {
     /// or until a command wakes it early because it created a nearer
     /// deadline.
     pub(super) fn next_deadline(&self) -> u64 {
-        let mut deadline = self.last_production_at + scaled_ms(PRODUCTION_TICK_MS);
+        let mut deadline = deadline_after(self.last_production_at, scaled_ms(PRODUCTION_TICK_MS));
         if let Some(pending) = &self.pending_hire {
             deadline = deadline.min(pending.completes_at);
         }
@@ -527,7 +577,11 @@ impl ServerState {
         // The daily deal reset (ROADMAP P1.12). Redundant while the
         // production tick wakes the scheduler every few seconds anyway, but
         // correct by construction if that cadence ever changes.
-        deadline.min((self.deals_day_index + 1).saturating_mul(DAY_MS))
+        deadline.min(
+            self.deals_day_index
+                .saturating_add(1)
+                .saturating_mul(DAY_MS),
+        )
     }
 
     /// Hand off every queued push for emission — dropping entity pushes
@@ -579,6 +633,15 @@ impl ServerState {
         }
         self.notifications.clone()
     }
+}
+
+fn validate_timestamp_pair(label: &str, start_ms: u64, deadline_ms: u64) -> Result<(), String> {
+    if deadline_ms < start_ms {
+        return Err(format!(
+            "invalid {label} timestamps: deadline {deadline_ms} precedes start {start_ms}"
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -805,5 +868,28 @@ mod tests {
         // must hold the deadline at the next UTC midnight.
         s.last_production_at = 2 * DAY_MS;
         assert_eq!(s.next_deadline(), DAY_MS);
+    }
+
+    #[test]
+    fn deadline_math_saturates_at_the_timestamp_boundary() {
+        assert_eq!(deadline_after(u64::MAX - 5, 10), u64::MAX);
+
+        let mut s = ServerState::new(u64::MAX);
+        s.deals_day_index = u64::MAX;
+        assert_eq!(s.next_deadline(), u64::MAX);
+    }
+
+    #[test]
+    fn persisted_timer_validation_rejects_wrapped_deadlines() {
+        let mut s = ServerState::new(0);
+        s.pending_hire = Some(PendingHire {
+            dispatched_at: u64::MAX,
+            completes_at: 0,
+        });
+
+        let error = s.validate_timestamps().unwrap_err();
+
+        assert!(error.contains("pending crew hire"), "{error}");
+        assert!(error.contains("precedes start"), "{error}");
     }
 }

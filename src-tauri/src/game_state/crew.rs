@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use super::resources::{ResourceCounts, ResourceKind};
-use super::state::{scaled_ms, ServerPush, ServerState};
+use super::state::{deadline_after, scaled_ms, ServerPush, ServerState};
 
 /// A crew recruitment in flight (ROADMAP P1.10) — one at a time, same timer
 /// shape as a module's pending build. Mirrors the TS `PendingHire` in
@@ -82,7 +82,7 @@ impl ServerState {
         self.resources_dirty = true;
         self.pending_hire = Some(PendingHire {
             dispatched_at: now_ms,
-            completes_at: now_ms + scaled_ms(HIRE_TIME_MS),
+            completes_at: deadline_after(now_ms, scaled_ms(HIRE_TIME_MS)),
         });
         Ok(CrewActionResponse {
             crew: self.crew_data(),
@@ -141,6 +141,19 @@ mod tests {
         assert_eq!(response.resources.biological, 0);
         let err = s.hire_crew(1).unwrap_err();
         assert!(err.contains("already being recruited"), "{err}");
+    }
+
+    #[test]
+    fn hire_deadline_near_the_timestamp_limit_does_not_wrap() {
+        let now = u64::MAX - 1;
+        let mut s = ServerState::new(now);
+        s.resources.biological = HIRE_COST_BIOLOGICAL;
+
+        let response = s.hire_crew(now).unwrap();
+
+        let pending = response.crew.pending_hire.unwrap();
+        assert_eq!(pending.dispatched_at, now);
+        assert_eq!(pending.completes_at, u64::MAX);
     }
 
     #[test]

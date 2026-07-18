@@ -4,8 +4,8 @@ use serde::Serialize;
 
 use super::resources::{resource_display_name, ResourceCounts, ResourceKind};
 use super::state::{
-    player_identity, scaled_ms, time_scale, unscaled_ms, SeedRng, ServerPush, ServerState,
-    MAP_COLS, MAP_ROWS, MAP_TILE_PX,
+    deadline_after, player_identity, scaled_ms, time_scale, unscaled_ms, SeedRng, ServerPush,
+    ServerState, MAP_COLS, MAP_ROWS, MAP_TILE_PX,
 };
 
 /// Response to request_map_window (ROADMAP P1.13): the re-centered interest
@@ -716,7 +716,7 @@ impl ServerState {
         asteroid.mining = Some(AsteroidMining {
             vessel_id: event.vessel_id.clone(),
             started_at: event.arrival_at,
-            completes_at: event.arrival_at + mine_duration_ms(remaining),
+            completes_at: deadline_after(event.arrival_at, mine_duration_ms(remaining)),
         });
         let snapshot = asteroid.clone();
         self.queue_entity_push(
@@ -858,14 +858,16 @@ impl ServerState {
             dest_col: dock_col,
             dest_row: dock_row,
             dispatched_at: at_ms,
-            arrival_at: at_ms
-                + travel_time_ms(
+            arrival_at: deadline_after(
+                at_ms,
+                travel_time_ms(
                     src_col,
                     src_row,
                     dock_col as f64,
                     dock_row as f64,
                     vessel.speed,
                 ),
+            ),
             returning: true,
             mining_asteroid_id: None,
             ..vessel.clone()
@@ -903,8 +905,10 @@ impl ServerState {
             dest_row,
             speed,
             dispatched_at: now_ms,
-            arrival_at: now_ms
-                + travel_time_ms(src_col, src_row, dest_col as f64, dest_row as f64, speed),
+            arrival_at: deadline_after(
+                now_ms,
+                travel_time_ms(src_col, src_row, dest_col as f64, dest_row as f64, speed),
+            ),
             returning: false,
             mining_asteroid_id,
             cargo: None,
@@ -1376,6 +1380,20 @@ mod tests {
         assert!(err.contains("already has a vessel"), "{err}");
         let err = s.mine_asteroid("asteroid-gone", 2_000).unwrap_err();
         assert!(err.contains("unknown asteroid"), "{err}");
+    }
+
+    #[test]
+    fn travel_and_mining_deadlines_near_the_timestamp_limit_do_not_wrap() {
+        let now = u64::MAX - 1;
+        let mut s = mining_state(240);
+
+        let out = s.mine_asteroid("asteroid-x", now).unwrap();
+
+        assert_eq!(out.dispatched_at, now);
+        assert_eq!(out.arrival_at, u64::MAX);
+        let mining = s.asteroids["asteroid-x"].mining.as_ref().unwrap();
+        assert_eq!(mining.started_at, u64::MAX);
+        assert_eq!(mining.completes_at, u64::MAX);
     }
 
     #[test]

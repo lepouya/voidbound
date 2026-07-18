@@ -144,7 +144,9 @@ progress persists — the reason P1.7 moved here.
       `notified_arrivals`, `resources_dirty`, and `aoi` are runtime/session
       state, not persisted progress — they need `#[serde(skip)]` (or an
       equivalent reconstruct-on-load default) so a save doesn't serialize stale
-      in-flight pushes or window state.
+      in-flight pushes or window state. Call `ServerState::validate_timestamps`
+      before accepting a deserialized save so wrapped/corrupt timer pairs fall
+      through to the existing new-player recovery path.
 - [ ] **P2.2 — Notification message structure.** Switch
       `NotificationData.message` from server-composed English prose to a `kind`
       enum + structured params, with the client composing the display string

@@ -63,7 +63,7 @@ tracker.
       protocol/steering/skill docs, and runtime-verified the initial snapshot
       followed by a live production push.
 
-- [ ] **CR1.2 [hardening] — Long elapsed intervals and extreme timestamps can
+- [x] **CR1.2 [hardening] — Long elapsed intervals and extreme timestamps can
       overflow authoritative arithmetic.** `ServerState::accrue_production()`
       multiplies `scale_for_level(...) * ticks` and advances
       `last_production_at += ticks * tick_ms` without checked/saturating
@@ -74,6 +74,14 @@ tracker.
       panic and release builds can wrap. Use checked/saturating helpers
       consistently, validate persisted timestamps, and add boundary tests near
       `u64::MAX` plus a very long offline-production window.
+
+      **Done:** Added one saturating deadline helper for build, hire, travel,
+      mining, production-tick, and daily-reset timestamps; saturated production
+      output/boundary arithmetic and system-time conversion; and added
+      save-load timer-pair validation for P2.1. Boundary tests cover every timer
+      family, a wrapped persisted deadline, the scheduler at `u64::MAX`, and a
+      maximum-length offline-production window. Runtime verification confirmed
+      normal startup and two correctly paced live production settlements.
 
 ## 2. Client bugs
 
