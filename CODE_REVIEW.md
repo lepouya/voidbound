@@ -28,9 +28,11 @@ tracker.
 - IDs are stable and must never be renumbered.
 - **[fix]** is a current defect, **[hardening]** is defensive work or debt, and
   **[idea]** is optional.
-- Work one ID per commit (or a tightly coupled pair), titled with the ID.
-- Check an item only after the change is committed and the gates in
-  `/phase-review` pass. Append a `Done:` note describing the landed result.
+- Work one ID at a time (or a tightly coupled pair). After the gates and agent
+  runtime verification pass, leave it unchecked and uncommitted for the user's
+  code review and in-app playtest.
+- Only after the user explicitly approves may an agent append the `Done:` note,
+  check the item, and commit it with the ID in the title.
 - When every item is checked, roll durable facts into their permanent docs,
   record the review range in the Phase 1 roadmap header, and delete this file.
 

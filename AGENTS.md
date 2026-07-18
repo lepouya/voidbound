@@ -5,6 +5,29 @@ Rust), `deno task check` (type-checks TS and Rust), then `deno task lint` (lints
 TS and Rust). Never run `tsc`, `prettier`, `cargo fmt`, `cargo check`, or
 `cargo clippy` directly.
 
+## User review and playtest gate
+
+Passing the automated gates and the agent's own `/verify` run means a change is
+**implemented**, not finished. For every app-affecting task — roadmap work,
+code-review findings, bug fixes, refactors, and ad hoc changes alike:
+
+1. Implement the change, run the required gates, and runtime-verify it.
+2. Leave the worktree uncommitted and leave any `ROADMAP.md` or `CODE_REVIEW.md`
+   checkbox unchecked.
+3. Report what changed, what was verified, and what the user should exercise;
+   then stop for the user's code review and in-app playtest.
+4. Only after the user has reviewed and playtested the current implementation
+   and explicitly told the agent to proceed may the agent mark the task done,
+   update its checkbox/Done note, and commit it.
+
+Never treat an agent-driven runtime verification as a substitute for the user's
+playtest, and never commit first with the expectation that the user can review
+the commit afterward. Documentation/steering-only changes still require the
+user's review before commit; an in-app playtest is not applicable unless they
+affect runtime behavior. The user may explicitly waive a playtest, but an agent
+must not infer that waiver from silence or from a general request to implement a
+task.
+
 ## 1. Project Overview
 
 Voidbound is a mobile-first MMORTS set in space. Players colonize a star system,

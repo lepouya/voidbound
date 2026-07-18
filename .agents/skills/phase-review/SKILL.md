@@ -60,23 +60,29 @@ Each item states the problem, the evidence (file/function), and a suggested fix
 
 ## 3. Work the items (later sessions)
 
-- Pick items by ID ("do CR1.1 and CR5.5"); one commit per item (or tightly
+- Pick items by ID ("do CR1.1 and CR5.5"). Implement one item (or a tightly
+  coupled pair), then run `deno task format` + `deno task check` +
+  `deno task lint` + `deno task test`, plus `/verify` when runtime behavior
+  changed.
+- **Stop with the item unchecked and the worktree uncommitted.** Report the
+  implementation and verification evidence, give the user focused in-app
+  playtest steps, and wait for their code review, playtest, and explicit
+  approval. The agent's `/verify` run is preparation for this gate, not a
+  substitute for it.
+- Only after approval, **append a "Done:" note** saying what actually happened
+  (especially when it deviates from the suggestion), check the item, rerun any
+  gate affected by final edits, and commit. Use one commit per item (or tightly
   coupled pair), titled `<Short description> (CR<id>)` — matching how ROADMAP
   commits carry `(P<id>)`.
-- Check an item off only when committed and `deno task format` +
-  `deno task check` + `deno task lint` + `deno task test` pass, plus `/verify`
-  when runtime behavior changed.
-- **Append a "Done:" note to the item** saying what actually happened —
-  especially when it deviates from the suggestion (fix turned out unnecessary,
-  kept-as-is with documentation, folded into a ROADMAP task). These notes are
-  the input to step 4's roll-up.
 - Items that grow into real features graduate to `ROADMAP.md` tasks; check them
   off here with a pointer to the task ID.
 
 ## 4. Roll up and delete
 
 When every box is ticked (verify each claim against the code, not just the
-checkboxes — grep for the named symbols/tests, then run the full gates):
+checkboxes — grep for the named symbols/tests, then run the full gates), prepare
+the roll-up below but leave it uncommitted for the user's final review before
+landing it:
 
 - Confirm every durable fact from the "Done:" notes already lives in its
   permanent home: ROADMAP tasks, AGENTS.md/SERVER.md notes, skill updates, code
