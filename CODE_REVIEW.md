@@ -104,7 +104,7 @@ tracker.
       module, covered it with a Deno regression test, and runtime-verified a
       normal initial snapshot followed by live production pushes.
 
-- [ ] **CR2.2 [fix] — An open warp picker does not react to live occupancy or
+- [x] **CR2.2 [fix] — An open warp picker does not react to live occupancy or
       resource changes unless the camera crosses a tile boundary.**
       `WarpPicker.tick()` returns when `(col,row)` matches `lastComputed`, while
       `recompute()` reads `gameState.motherships`, `asteroids`, and fuel. An AOI
@@ -115,6 +115,12 @@ tracker.
       active (and unsubscribe on close), or pass a relevant state revision into
       `tick()`; add a focused test for same-position state changes and
       runtime-verify the overlay.
+
+      **Done:** Added the authoritative GameState revision to the warp preview
+      cache key, so an unchanged camera tile is recomputed after live fuel or
+      occupancy updates. Added a pure same-position revision regression test
+      and runtime-verified an injected occupancy update recoloring the open
+      overlay red and disabling Confirm.
 
 - [ ] **CR2.3 [fix] — `labelPosition: "center"` still applies the below-button
       label's upward offset.** `spawnDialog()` places a centered label at

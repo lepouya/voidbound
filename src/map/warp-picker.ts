@@ -17,6 +17,10 @@ import {
   footprintIsClear,
 } from "./warp-footprint.ts";
 import {
+  shouldRecomputeWarpPreview,
+  WarpPickerPreviewKey,
+} from "./warp-picker-refresh.ts";
+import {
   errorToast,
   HudGroupDef,
   HudGroupHandle,
@@ -99,9 +103,11 @@ export class WarpPicker {
   private hud: HudGroupHandle | null = null;
   private destCol = 0;
   private destRow = 0;
-  /** The (col, row) recompute() last ran for — null before the first tick,
-   *  so an open() that happens to land on (0, 0) still recomputes once. */
-  private lastComputed: { col: number; row: number } | null = null;
+  /** The camera tile and authoritative state revision recompute() last used.
+   * Null before the first tick, so an open() at (0, 0) still recomputes once.
+   * The revision is part of the key because recompute() reads live occupancy
+   * and fuel as well as the camera position. */
+  private lastComputed: WarpPickerPreviewKey | null = null;
 
   constructor(private readonly host: WarpPickerHost) {}
 
@@ -165,10 +171,11 @@ export class WarpPicker {
 
   /**
    * Re-derives the destination footprint from the current camera center and
-   * recolors it if it moved — called every frame the picker is open
-   * (MapLevel.onPreUpdate), reading the same camera position the P1.13 AOI
-   * hysteresis already does, so dragging/zooming the map re-centers both
-   * together with no separate tracking needed.
+   * recolors it if either the destination or the authoritative state it reads
+   * changed — called every frame the picker is open (MapLevel.onPreUpdate),
+   * reading the same camera position the P1.13 AOI hysteresis already does,
+   * so dragging/zooming the map re-centers both together with no separate
+   * tracking needed.
    */
   tick(cameraPos: ex.Vector): void {
     if (!this.isActive() || !this.grid) return;
@@ -182,13 +189,9 @@ export class WarpPicker {
       0,
       this.grid.rows - this.span,
     );
-    if (
-      this.lastComputed && this.lastComputed.col === col &&
-      this.lastComputed.row === row
-    ) {
-      return;
-    }
-    this.lastComputed = { col, row };
+    const next = { col, row, stateRevision: gameState.latestRevision };
+    if (!shouldRecomputeWarpPreview(this.lastComputed, next)) return;
+    this.lastComputed = next;
     this.destCol = col;
     this.destRow = row;
     this.recompute();
