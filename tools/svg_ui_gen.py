@@ -36,7 +36,9 @@ Design decisions:
   - Generates 3 states by default (Normal, Active, Disabled) into a cols*rows grid;
     pass --states to render fewer when the sheet won't use all of them.
   - Auto-computes active (brightened) and disabled (desaturated/darkened) colors if explicit overrides are not provided.
-  - Multi-backend SVG rendering: checks for macOS `sips`, Linux `rsvg-convert`, or `cairosvg` for 100% crisp vector rasterization without external dependencies.
+  - SVG rendering uses `rsvg-convert` from librsvg. Install it with
+    `brew install librsvg` on macOS or your distribution's librsvg package on
+    Linux.
 """
 
 import argparse
@@ -91,10 +93,15 @@ def compute_disabled_color(hex_str: str) -> str:
     return rgb_to_hex((int(r_new * 255), int(g_new * 255), int(b_new * 255)))
 
 
+def find_rsvg_convert() -> str | None:
+    """Return the explicitly supported SVG renderer, if it is installed."""
+    return shutil.which("rsvg-convert")
+
+
 def render_svg_to_image(svg_content: str, width: int, height: int, work_dir: str) -> Image.Image:
     """
     Render SVG XML string to a Pillow Image of size (width, height).
-    Uses system tools (sips on macOS, rsvg-convert on Linux) or cairosvg.
+    Uses the explicitly supported librsvg `rsvg-convert` command.
     """
     unique_id = uuid.uuid4().hex
     tmp_svg = os.path.join(work_dir, f"temp_render_{unique_id}.svg")
@@ -104,43 +111,26 @@ def render_svg_to_image(svg_content: str, width: int, height: int, work_dir: str
         with open(tmp_svg, "w", encoding="utf-8") as f:
             f.write(svg_content)
 
-        sips_bin = shutil.which("sips")
-        rsvg_bin = shutil.which("rsvg-convert")
-
-        if sips_bin:
-            # macOS native sips
-            res = subprocess.run(
-                [sips_bin, "--resampleHeightWidth", str(height), str(width), "-s", "format", "png", tmp_svg, "--out", tmp_png],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+        rsvg_bin = find_rsvg_convert()
+        if not rsvg_bin:
+            raise RuntimeError(
+                "SVG rendering requires rsvg-convert from librsvg; install it with "
+                "`brew install librsvg` on macOS."
             )
-            if res.returncode == 0 and os.path.exists(tmp_png):
-                im = Image.open(tmp_png).convert("RGBA")
-                # Ensure exact target size if sips preserved aspect ratio
-                if im.size != (width, height):
-                    im = im.resize((width, height), Image.LANCZOS)
-                return im
 
-        if rsvg_bin:
-            # Linux rsvg-convert
-            res = subprocess.run(
-                [rsvg_bin, "-w", str(width), "-h", str(height), tmp_svg, "-o", tmp_png],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+        result = subprocess.run(
+            [rsvg_bin, "-w", str(width), "-h", str(height), tmp_svg, "-o", tmp_png],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            diagnostics = result.stderr.strip() or result.stdout.strip() or "no diagnostic output"
+            raise RuntimeError(
+                f"rsvg-convert failed with exit code {result.returncode}: {diagnostics}"
             )
-            if res.returncode == 0 and os.path.exists(tmp_png):
-                return Image.open(tmp_png).convert("RGBA")
-
-        try:
-            # pyrefly: ignore [missing-import]
-            import cairosvg
-            cairosvg.svg2png(bytestring=svg_content.encode("utf-8"), write_to=tmp_png, output_width=width, output_height=height)
-            if os.path.exists(tmp_png):
-                return Image.open(tmp_png).convert("RGBA")
-        except ImportError:
-            pass
-
-        raise RuntimeError("No SVG rasterizer found (checked sips, rsvg-convert, cairosvg).")
+        if not os.path.exists(tmp_png):
+            raise RuntimeError("rsvg-convert exited successfully but did not produce a PNG output file.")
+        return Image.open(tmp_png).convert("RGBA")
     finally:
         if os.path.exists(tmp_svg):
             os.remove(tmp_svg)

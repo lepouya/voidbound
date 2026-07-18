@@ -172,7 +172,7 @@ tracker.
       map reproduces its checked-in JSON byte-for-byte, and documented the
       unsupported-transform limitation in `/gen-art`.
 
-- [ ] **CR3.2 [fix] — The documented dependency-free macOS SVG rasterizer does
+- [x] **CR3.2 [fix] — The documented dependency-free macOS SVG rasterizer does
       not work on the current development machine.** `svg_ui_gen.py` selects
       `/usr/bin/sips` first and suppresses its diagnostics, but `sips` exits
       with “Cannot extract image from file” for the checked-in SVGs. With no
@@ -184,6 +184,12 @@ tracker.
       limit it to systems where it is proven, preserve actionable subprocess
       stderr, and make the test suite skip only when the dependency is
       intentionally absent rather than failing ambiguously.
+
+      **Done:** Standardized SVG rendering on librsvg's `rsvg-convert`, removed
+      the broken `sips` and optional CairoSVG fallbacks, preserved renderer
+      diagnostics, and documented `brew install pillow librsvg`. Added missing-
+      dependency and stderr regression coverage, regenerated all SVG-derived UI
+      and asteroid sheets, and runtime-verified the refreshed HUD icons.
 
 ## 4. Refactor and reuse
 

@@ -32,10 +32,12 @@ If the argument `$ARGUMENTS` is a script short-name (e.g. `cs1`), run
 
 ## Python tools (in `tools/`)
 
-All require Pillow. System default is Homebrew's `python@3.14`
-(`/opt/homebrew/bin/python3`), with Pillow installed via `brew install pillow` —
-no venv or PATH workaround needed. If a script fails with
-`ModuleNotFoundError: No module named 'PIL'`, run `brew install pillow`.
+All require Pillow. `svg_ui_gen.py` also requires librsvg's `rsvg-convert`
+renderer; the deliberately unsupported macOS `sips` fallback must not be used.
+On macOS, install both with `brew install pillow librsvg`. The system default is
+Homebrew's `python@3.14` (`/opt/homebrew/bin/python3`), so no venv or PATH
+workaround is needed. If a script reports a missing Pillow or renderer
+dependency, run that command before retrying.
 
 Scripts are called from `art/gen_*.sh` — you usually don't invoke them directly
 except when writing a new generator.
