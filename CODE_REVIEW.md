@@ -122,7 +122,7 @@ tracker.
       and runtime-verified an injected occupancy update recoloring the open
       overlay red and disabling Confirm.
 
-- [ ] **CR2.3 [fix] — `labelPosition: "center"` still applies the below-button
+- [x] **CR2.3 [fix] — `labelPosition: "center"` still applies the below-button
       label's upward offset.** `spawnDialog()` places a centered label at
       `(0,0)` but first calls `resolveButtonLabel()`, whose default
       `labelOffset` is `(0,-1)` font sizes. P1.21's Mail tabs are therefore not
@@ -130,6 +130,13 @@ tracker.
       labels a zero default offset while preserving an explicitly supplied
       `LabelDef.labelOffset`. Extract the placement/default resolver into pure
       logic if needed for a Deno regression test, then runtime-verify the tab
+      strip.
+
+      **Done:** Centered labels now default to zero offset and use a middle
+      anchor, so their glyphs truly center on the button face. Added the public
+      `labelVerticalAlign` (`top`/`middle`/`bottom`) control for face labels,
+      set Mail tabs explicitly to `middle`, and covered default/placement
+      behavior with pure Deno tests. Runtime-verified the centered Mail tab
       strip.
 
 - [ ] **CR2.4 [hardening] — Replayed notification pushes duplicate toasts even

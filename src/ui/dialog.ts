@@ -66,6 +66,7 @@
 import * as ex from "excalibur";
 
 import { makeBadgeActor } from "./badge.ts";
+import { buttonLabelPlacement } from "./button-label-defaults.ts";
 import { makeButtonGraphic, squareButton } from "./button.ts";
 import {
   computeScrollWindow,
@@ -384,11 +385,16 @@ export function spawnDialog(
     // buttons (button center is (0,0) in local space) — unless the button
     // opts into centering the label on its own face (ROADMAP P1.21's
     // icon-less tab buttons, where the label *is* the button).
+    const labelPlacement = buttonLabelPlacement(
+      btn.labelPosition,
+      btn.labelVerticalAlign,
+      h,
+      LABEL_PAD,
+    );
     const label = makeLabelActor(
-      resolveButtonLabel(btn.label),
-      btn.labelPosition === "center"
-        ? ex.vec(0, 0)
-        : ex.vec(0, h / 2 + LABEL_PAD),
+      resolveButtonLabel(btn.label, btn.labelPosition),
+      ex.vec(0, labelPlacement.y),
+      { anchor: labelPlacement.anchor },
     );
     if (label) actor.addChild(label);
     if (btn.badge !== undefined) {

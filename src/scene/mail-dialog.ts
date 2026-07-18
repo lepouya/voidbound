@@ -80,6 +80,7 @@ export class MailDialog {
         disabled,
         label,
         labelPosition: "center",
+        labelVerticalAlign: "middle",
         width: TAB_WIDTH,
         height: TAB_HEIGHT,
         onPressed: () => {},

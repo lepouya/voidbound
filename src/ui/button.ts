@@ -36,8 +36,9 @@ export interface ButtonDef {
   badge?: BadgeDef;
   /**
    * Optional label rendered below the button. Button labels default to
-   * borderless with labelOffset (0, -1) (see resolveButtonLabel) — pass a
-   * plain string unless you need to override those.
+   * borderless with labelOffset (0, -1) below the button, or (0, 0) when
+   * centered on its face (see resolveButtonLabel) — pass a plain string
+   * unless you need to override those.
    */
   label?: string | LabelDef;
   /**
@@ -47,6 +48,12 @@ export interface ButtonDef {
    * P1.21) where the label *is* the button face.
    */
   labelPosition?: "below" | "center";
+  /**
+   * Vertical alignment for a label centered on the button face. Default:
+   * "middle". "top" and "bottom" keep the label inside the corresponding
+   * face edge. Ignored unless labelPosition is "center".
+   */
+  labelVerticalAlign?: "top" | "middle" | "bottom";
   onPressed: () => void;
 }
 

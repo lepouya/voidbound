@@ -1,6 +1,7 @@
 import * as ex from "excalibur";
 
 import { anchorFractions, AnchorPlacement } from "./anchor.ts";
+import { defaultButtonLabelOffset } from "./button-label-defaults.ts";
 
 export const LABEL_FONT_SIZE = 10;
 export const LABEL_PAD = 3;
@@ -41,15 +42,18 @@ export function resolveLabel(
 /**
  * Normalizes a button label (ButtonDef.label) to a LabelDef with button
  * defaults applied: borderless, nudged one font-size up toward the button
- * (labelOffset (0, -1)). Explicit LabelDef fields override the defaults, so
- * callers only spell out what deviates.
+ * when placed below it (labelOffset (0, -1)), or unshifted when centered on
+ * its face. Explicit LabelDef fields override the defaults, so callers only
+ * spell out what deviates.
  */
 export function resolveButtonLabel(
   label: string | LabelDef | undefined,
+  position?: "below" | "center",
 ): LabelDef | undefined {
   if (label === undefined) return undefined;
   const def = typeof label === "string" ? { text: label } : label;
-  return { bordered: false, labelOffset: ex.vec(0, -1), ...def };
+  const offset = defaultButtonLabelOffset(position);
+  return { bordered: false, labelOffset: ex.vec(offset.x, offset.y), ...def };
 }
 
 // ---------------------------------------------------------------------------

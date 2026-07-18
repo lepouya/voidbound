@@ -10,6 +10,7 @@ import {
   makeLabelActor,
   resolveButtonLabel,
 } from "./label.ts";
+import { buttonLabelPlacement } from "./button-label-defaults.ts";
 
 // Layout math (anchor placement + button stacking) lives in hud-layout.ts —
 // a pure module testable under plain `deno test`. Re-export its direction
@@ -179,9 +180,16 @@ export function spawnHudGroup(
     // a second path through ScreenElement pointer events would double-fire.
 
     // Label below the button. Button center is at (0,0) in local space.
+    const labelPlacement = buttonLabelPlacement(
+      btn.labelPosition,
+      btn.labelVerticalAlign,
+      h,
+      LABEL_PAD,
+    );
     const labelActor = makeLabelActor(
-      resolveButtonLabel(btn.label),
-      ex.vec(0, h / 2 + LABEL_PAD),
+      resolveButtonLabel(btn.label, btn.labelPosition),
+      ex.vec(0, labelPlacement.y),
+      { anchor: labelPlacement.anchor },
     );
     if (labelActor) el.addChild(labelActor);
 
