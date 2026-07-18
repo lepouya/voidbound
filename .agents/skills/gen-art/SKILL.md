@@ -59,7 +59,10 @@ except when writing a new generator.
 ```
 
 Only **single-tileset** TMJ maps are supported — the script errors out on
-multi-tileset maps.
+multi-tileset maps. Horizontal, vertical, diagonal, and hexagonal-rotation Tiled
+transforms are also rejected with the affected layer/cell and flag:
+`TileMapData` stores string `TileRef`s and cannot preserve per-layer transforms.
+Remove those transforms in Tiled before regenerating the map.
 
 **`-W`/`-H` trick:** To store 32 px world tiles while the source sprites are 64
 px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at

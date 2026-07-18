@@ -2,10 +2,12 @@
 """Tests for tmj_to_tilemap.py — run with: python3 -m unittest discover -s tools"""
 
 import json
+import io
 import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -91,6 +93,35 @@ class TmjToTilemapTest(unittest.TestCase):
         with self.assertRaises(SystemExit) as ctx:
             self.run_convert(tmj)
         self.assertEqual(ctx.exception.code, 1)
+
+    def test_normal_gid_is_converted(self):
+        out = json.loads(self.run_convert(make_tmj()))
+        self.assertEqual(out["tiles"][0], "ship-tiles:0")
+
+    def test_transformed_gids_are_rejected_before_writing_output(self):
+        cases = (
+            (0x80000000, "horizontal flip"),
+            (0x40000000, "vertical flip"),
+            (0x20000000, "diagonal flip/rotation"),
+            (0x10000000, "hexagonal 120-degree rotation"),
+        )
+        for flag, flag_name in cases:
+            with self.subTest(flag=flag_name):
+                tmj = make_tmj(
+                    layers=[{"type": "tilelayer", "data": [5 | flag, 0, 0, 0, 0, 0]}],
+                )
+                source = os.path.join(self.tmp.name, "map.tmj")
+                dest = os.path.join(self.tmp.name, "out", "map.json")
+                with open(source, "w", encoding="utf-8") as f:
+                    json.dump(tmj, f)
+
+                stderr = io.StringIO()
+                with redirect_stderr(stderr), self.assertRaises(SystemExit) as ctx:
+                    convert(source, dest, "ship-tiles", None, None)
+                self.assertEqual(ctx.exception.code, 1)
+                self.assertIn("tile layer 1, cell (0, 0)", stderr.getvalue())
+                self.assertIn(flag_name, stderr.getvalue())
+                self.assertFalse(os.path.exists(dest))
 
 
 if __name__ == "__main__":

@@ -157,7 +157,7 @@ tracker.
 
 ## 3. Tools and pipeline
 
-- [ ] **CR3.1 [hardening] — The TMJ converter silently treats Tiled transform
+- [x] **CR3.1 [hardening] — The TMJ converter silently treats Tiled transform
       flags as part of the tile ID.** Tiled stores horizontal/vertical/diagonal
       transform bits in the high bits of a layer GID. `tmj_to_tilemap.convert()`
       subtracts `firstgid` from the raw integer, producing a huge invalid
@@ -165,6 +165,12 @@ tracker.
       has no flagged GIDs, so either decode them into a supported TileLayerDef
       representation or reject them with a precise error before writing output.
       Add fixtures for each flag and for a normal GID.
+
+      **Done:** The converter now rejects every Tiled transform bit before
+      output, identifying the tile-layer cell, named flag, and raw GID. Added
+      normal-GID and per-flag regression coverage, confirmed the current ship
+      map reproduces its checked-in JSON byte-for-byte, and documented the
+      unsupported-transform limitation in `/gen-art`.
 
 - [ ] **CR3.2 [fix] — The documented dependency-free macOS SVG rasterizer does
       not work on the current development machine.** `svg_ui_gen.py` selects

@@ -19,6 +19,38 @@ import os
 import sys
 
 
+# Tiled stores these transform bits alongside the tileset-global tile ID.
+# The simplified TileMapData format only accepts string TileRefs, which cannot
+# preserve per-layer transforms, so reject them instead of emitting an invalid
+# (very large) tile ID.
+HORIZONTAL_FLIP_FLAG = 0x80000000
+VERTICAL_FLIP_FLAG = 0x40000000
+DIAGONAL_FLIP_FLAG = 0x20000000
+HEXAGONAL_ROTATION_FLAG = 0x10000000
+TRANSFORM_FLAGS = {
+    HORIZONTAL_FLIP_FLAG: "horizontal flip",
+    VERTICAL_FLIP_FLAG: "vertical flip",
+    DIAGONAL_FLIP_FLAG: "diagonal flip/rotation",
+    HEXAGONAL_ROTATION_FLAG: "hexagonal 120-degree rotation",
+}
+
+
+def reject_transform_flags(gid: int, layer_index: int, cell_index: int, cols: int) -> None:
+    """Exit before output when a Tiled GID needs an unsupported transform."""
+    flags = [name for bit, name in TRANSFORM_FLAGS.items() if gid & bit]
+    if not flags:
+        return
+
+    row, col = divmod(cell_index, cols)
+    print(
+        f"error: tile layer {layer_index + 1}, cell ({col}, {row}) has unsupported "
+        f"Tiled transform flag(s): {', '.join(flags)} (raw GID 0x{gid:08x}); "
+        "remove the transform before converting this map",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def convert(source: str, dest: str, tileset: str, tile_width: int | None, tile_height: int | None) -> None:
     with open(source, encoding="utf-8") as f:
         tmj = json.load(f)
@@ -45,9 +77,10 @@ def convert(source: str, dest: str, tileset: str, tile_width: int | None, tile_h
     tiles: list[str] = []
     for i in range(cols * rows):
         parts: list[str] = []
-        for layer in layers:
+        for layer_index, layer in enumerate(layers):
             gid = layer[i] if i < len(layer) else 0
             if gid != 0:
+                reject_transform_flags(gid, layer_index, i, cols)
                 parts.append(f"{tileset}:{gid - firstgid}")
         tiles.append(",".join(parts))
 
