@@ -695,7 +695,7 @@ Deno.test("notification pushes evict the oldest entry past the 100 cap", () => {
   assertEquals(state.notifications.has("notif-100"), true);
 });
 
-Deno.test("subscribeToNotifications fires once per fresh push, never for a backlog", () => {
+Deno.test("subscribeToNotifications fires once per fresh push, never for a replay or backlog", () => {
   const state = new GameState();
   const seen: string[] = [];
   const unsubscribe = state.subscribeToNotifications((n) =>
@@ -723,6 +723,14 @@ Deno.test("subscribeToNotifications fires once per fresh push, never for a backl
     type: "notification",
     data: sampleNotification("notif-1"),
   }, 2));
+  assertEquals(seen, ["notif-1"]);
+
+  // A replay still updates the feed but must not surface a duplicate toast.
+  state.applyServerPush(serverPush({
+    type: "notification",
+    data: sampleNotification("notif-1", { read: true }),
+  }, 2));
+  assertEquals(state.notifications.get("notif-1")?.read, true);
   assertEquals(seen, ["notif-1"]);
 
   // syncNotifications()'s backlog (mark_notifications_read) must not fire it

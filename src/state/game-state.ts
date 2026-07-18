@@ -306,9 +306,9 @@ export class GameState {
 
   /**
    * Register a listener fired once per freshly-arrived `notification` server
-   * push (ROADMAP P1.19) — never for the backlog a load() snapshot or
-   * syncNotifications() (mark_notifications_read) applies, so a returning
-   * player's unread feed doesn't flood the toast layer. Returns an
+   * push (ROADMAP P1.19) — never for a replay, the backlog a load() snapshot,
+   * or syncNotifications() (mark_notifications_read), so a returning player's
+   * unread feed and replayed messages do not flood the toast layer. Returns an
    * unsubscribe function. The notification itself still lands in
    * `notifications` (and the Mail badge) via applyServerPush regardless of
    * whether anyone is listening here.
@@ -588,7 +588,11 @@ export class GameState {
           s.asteroids.delete(push.data.asteroidId);
         });
         break;
-      case "notification":
+      case "notification": {
+        // A replay can carry the same notification at the same or a newer
+        // revision. Keep its feed data current, but only surface a toast when
+        // this notification ID first enters the client-side feed.
+        const newlyArrived = !this.notifications.has(push.data.notificationId);
         if (
           !this.mergeEntity(
             this.notifications,
@@ -601,10 +605,13 @@ export class GameState {
           s.notifications.set(push.data.notificationId, push.data);
           evictOldestNotifications(s.notifications);
         });
-        for (const listener of [...this.notificationListeners]) {
-          listener(push.data);
+        if (newlyArrived) {
+          for (const listener of [...this.notificationListeners]) {
+            listener(push.data);
+          }
         }
         break;
+      }
       case "crew":
         this.applyCrewEvent({ revision, data: push.data });
         break;

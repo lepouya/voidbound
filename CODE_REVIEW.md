@@ -139,7 +139,7 @@ tracker.
       behavior with pure Deno tests. Runtime-verified the centered Mail tab
       strip.
 
-- [ ] **CR2.4 [hardening] — Replayed notification pushes duplicate toasts even
+- [x] **CR2.4 [hardening] — Replayed notification pushes duplicate toasts even
       though the feed merge is idempotent.** In `GameState.applyServerPush()`,
       the notification is merged by ID, but every application calls all
       `notificationListeners`. A duplicate/replayed push therefore leaves one
@@ -149,6 +149,11 @@ tracker.
       side-channel listeners (while still allowing the table entry to update),
       and extend the existing notification-listener test with duplicate/replay
       coverage.
+
+      **Done:** Notification listeners now fire only when a notification ID
+      first enters the client-side feed; replayed pushes still update that
+      entry. Added regression coverage for the replay path and runtime-verified
+      a single toast alongside an updated replayed feed entry.
 
 ## 3. Tools and pipeline
 
