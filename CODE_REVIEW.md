@@ -211,7 +211,7 @@ tracker.
 
 ## 5. Test-coverage additions
 
-- [ ] **CR5.1 [hardening] — The active merge/transition art generators have no
+- [x] **CR5.1 [hardening] — The active merge/transition art generators have no
       unit coverage.** The Python suite covers `svg_ui_gen.py` and
       `tmj_to_tilemap.py`, while `sprite_merge.py` and `sprite_transition.py`
       are used by the vessel, mothership, and module generation scripts without
@@ -220,6 +220,11 @@ tracker.
       resize/padding, grid layout, frame-range validation, transition endpoints,
       compositing order, and oversized-scale cropping; keep CLI-exit validation
       separate from pure helper tests.
+
+      **Done:** Added in-memory Pillow coverage for sprite crop/padding, empty
+      cells, merge-grid ordering, transition resize/endpoints/compositing,
+      oversized scale cropping, plus separate subprocess validation for invalid
+      merge grids and transition frame ranges.
 
 ## 6. ROADMAP additions to consider
 
