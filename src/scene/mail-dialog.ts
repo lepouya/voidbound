@@ -9,7 +9,12 @@ import {
   DialogRowDef,
   formatTimeAgo,
 } from "../ui/index.ts";
-import { gameState, NotificationData, serverNow } from "../state/game-state.ts";
+import {
+  gameState,
+  NotificationData,
+  Revisioned,
+  serverNow,
+} from "../state/game-state.ts";
 
 const NOTIFICATION_ROW_HEIGHT = 36;
 const VISIBLE_ROWS = 10;
@@ -121,7 +126,7 @@ export class MailDialog {
   private async markAllRead(): Promise<void> {
     if (gameState.unreadNotificationCount() === 0) return;
     try {
-      const notifications = await invoke<NotificationData[]>(
+      const notifications = await invoke<Revisioned<NotificationData[]>>(
         "mark_notifications_read",
       );
       gameState.syncNotifications(notifications);

@@ -7,6 +7,7 @@ import { reconcileActors } from "../scene/actor-sync.ts";
 import {
   AsteroidData,
   gameState,
+  Revisioned,
   VesselMoveEvent,
 } from "../state/game-state.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
@@ -128,9 +129,10 @@ export class AsteroidSync {
   private async mine(asteroidId: string): Promise<void> {
     this.host.deselectActor();
     try {
-      const event = await invoke<VesselMoveEvent>("request_mine_asteroid", {
-        asteroidId,
-      });
+      const event = await invoke<Revisioned<VesselMoveEvent>>(
+        "request_mine_asteroid",
+        { asteroidId },
+      );
       gameState.applyVesselEvent(event);
     } catch (err) {
       // The Mine button is disabled while the slot is taken, so this is a

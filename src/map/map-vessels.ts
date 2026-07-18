@@ -2,7 +2,12 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { gameState, serverNow, VesselMoveEvent } from "../state/game-state.ts";
+import {
+  gameState,
+  Revisioned,
+  serverNow,
+  VesselMoveEvent,
+} from "../state/game-state.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
 import { TileActor } from "../scene/tile-actor.ts";
 import { errorToast, roundButton, ToastDef } from "../ui/index.ts";
@@ -156,10 +161,10 @@ export class VesselSync {
   async dispatch(destCol: number, destRow: number): Promise<void> {
     this.host.deselectActor(); // clear the destination empty tile actor
     try {
-      const event = await invoke<VesselMoveEvent>("request_dispatch_vessel", {
-        destCol,
-        destRow,
-      });
+      const event = await invoke<Revisioned<VesselMoveEvent>>(
+        "request_dispatch_vessel",
+        { destCol, destRow },
+      );
       gameState.applyVesselEvent(event);
     } catch (err) {
       // The Deploy button only appears on empty tiles, so this is a race
@@ -178,9 +183,10 @@ export class VesselSync {
    */
   private async recall(vesselId: string): Promise<void> {
     try {
-      const event = await invoke<VesselMoveEvent>("request_recall_vessel", {
-        vesselId,
-      });
+      const event = await invoke<Revisioned<VesselMoveEvent>>(
+        "request_recall_vessel",
+        { vesselId },
+      );
       gameState.applyVesselEvent(event);
     } catch (err) {
       // Double-recalls are legal redirects, so a rejection here means the

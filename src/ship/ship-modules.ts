@@ -7,6 +7,7 @@ import {
   gameState,
   ModuleData,
   ResourceCounts,
+  Revisioned,
   serverNow,
 } from "../state/game-state.ts";
 import {
@@ -531,12 +532,18 @@ export class ModuleSync {
   ): Promise<void> {
     this.host.deselectActor(); // clear the placement preview actor
     try {
-      const { module, resources } = await invoke<ModuleActionResponse>(
+      const response = await invoke<Revisioned<ModuleActionResponse>>(
         "request_build_module",
         { col, row, moduleType },
       );
-      gameState.syncResources(resources);
-      gameState.applyModuleEvent(module);
+      gameState.syncResources({
+        revision: response.revision,
+        data: response.data.resources,
+      });
+      gameState.applyModuleEvent({
+        revision: response.revision,
+        data: response.data.module,
+      });
     } catch (err) {
       // The Build button is disabled when unaffordable, so this is a race
       // (or a bug). Surface it; state stays untouched.
@@ -558,12 +565,18 @@ export class ModuleSync {
     // the selection forward) once the response lands and the module shows
     // `pending`.
     try {
-      const { module, resources } = await invoke<ModuleActionResponse>(
+      const response = await invoke<Revisioned<ModuleActionResponse>>(
         "request_levelup_module",
         { moduleId },
       );
-      gameState.syncResources(resources);
-      gameState.applyModuleEvent(module);
+      gameState.syncResources({
+        revision: response.revision,
+        data: response.data.resources,
+      });
+      gameState.applyModuleEvent({
+        revision: response.revision,
+        data: response.data.module,
+      });
     } catch (err) {
       console.warn("request_levelup_module rejected:", err);
       this.host.showToast(errorToast(`Level up failed: ${err}`));
@@ -582,11 +595,17 @@ export class ModuleSync {
     // actor — leave the selection alone; sync() rebuilds it (carrying the
     // selection over) when the response flips the status.
     try {
-      const { crew, resources } = await invoke<CrewActionResponse>(
+      const response = await invoke<Revisioned<CrewActionResponse>>(
         "request_hire_crew",
       );
-      gameState.syncResources(resources);
-      gameState.applyCrewEvent(crew);
+      gameState.syncResources({
+        revision: response.revision,
+        data: response.data.resources,
+      });
+      gameState.applyCrewEvent({
+        revision: response.revision,
+        data: response.data.crew,
+      });
     } catch (err) {
       console.warn("request_hire_crew rejected:", err);
       this.host.showToast(errorToast(`Hire failed: ${err}`));

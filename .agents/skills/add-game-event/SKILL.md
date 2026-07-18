@@ -98,7 +98,9 @@ export interface <Action>Event {
   here. Server-pushed events must not fight with local input state.
 
 ```ts
-applyVesselEvent(event: VesselMoveEvent): void {
+applyVesselEvent(message: Revisioned<VesselMoveEvent>): void {
+  const event = message.data;
+  // GameState first rejects an older revision for this vesselId; then:
   this.update((state) => {
     state.vessels.set(event.vesselId, event);
   });
@@ -128,10 +130,10 @@ private async dispatchVessel(destCol: number, destRow: number): Promise<void> {
   try {
     // The backend verifies the destination and derives dock, speed, and
     // arrival time; the returned event is authoritative.
-    const event = await invoke<VesselMoveEvent>("request_dispatch_vessel", {
-      destCol,
-      destRow,
-    });
+    const event = await invoke<Revisioned<VesselMoveEvent>>(
+      "request_dispatch_vessel",
+      { destCol, destRow },
+    );
     gameState.applyVesselEvent(event); // fans out to syncVessels → apply*Event
   } catch (err) {
     console.warn("request_dispatch_vessel rejected:", err);
@@ -155,16 +157,17 @@ scheduler must settle the deadline later and broadcast the result. In
   `ServerState` outbox (`self.outbox.push(ServerPush::...)`) — never emit
   directly. The boundaries (scheduler wake, `finish_command`) drain + emit, so
   every settlement path broadcasts identically.
-- **Command epilogue**: every command ends with
-  `finish_command(&app, server.inner(), s)` — it drains the outbox after
-  releasing the lock and wakes the scheduler Condvar so a nearer deadline the
-  command just created is picked up (e.g. a short vessel flight).
+- **Command epilogue**: every command gets the revision returned by
+  `finish_command(&app, server.inner(), s)` and wraps its success payload in
+  `Revisioned::new(revision, data)`. The epilogue stamps/drains the outbox,
+  releases the lock, emits, and wakes the scheduler Condvar so a nearer deadline
+  the command just created is picked up (e.g. a short vessel flight).
 - **New push shape**: add a `ServerPush` variant and mirror it in the TS
   `ServerPush` union in `src/state/game-state-types.ts` (comments mark the pair
-  — keep in sync), then route it in `gameState.applyServerPush()` into the
-  **same** apply/sync entry point the command response uses (`applyVesselEvent`,
-  `applyModuleEvent`, …) so pushed and locally-triggered changes are
-  indistinguishable to scenes.
+  — keep in sync). Pushes already ride `Revisioned<ServerPush>`; route the
+  variant in `gameState.applyServerPush()` into the **same** apply/sync entry
+  point the command response uses (`applyVesselEvent`, `applyModuleEvent`, …) so
+  pushed and locally-triggered changes are indistinguishable to scenes.
 - **Player-visible completions** get a
   `push_notification(kind, message,
   now_ms)` — it queues both the notification

@@ -88,17 +88,15 @@ progress, not fast-forwarded frame by frame.
   later use separate narrower channels; game-state events stay on the system
   log.
 - **Ordering** is total per log: sequence numbers, assigned at append time.
-  Clients apply in sequence order; a gap means "resync from snapshot". **The
-  in-process prototype does not honor this today**: both `run_scheduler` and
-  `finish_command` (`src-tauri/src/game_state/scheduler.rs`) drain the outbox
-  while holding the state lock, then release the lock before emitting — so two
-  concurrent drains (a scheduler wake racing a command return) can have their
-  emits interleave, letting an older push reach the client after a newer one.
-  The single-client prototype usually recovers on its next full snapshot, but it
-  provides no ordering guarantee. A socket implementation must not inherit the
-  assumption: give every push a sequence number at drain time (not emit time)
-  and have clients apply/drop by sequence, the same discipline this section
-  already describes for the log itself.
+  Clients apply in sequence order; a gap means "resync from snapshot". The
+  in-process prototype stamps every snapshot, command response, and scheduler
+  push batch with a global monotonic `revision` while holding the state lock
+  (`Revisioned<T>` in `game_state/state.rs`). Emits may still interleave after
+  the lock is released, so `GameState` compares that token per state slice and
+  per entity, retaining newer entity updates/removal tombstones when an older
+  full response arrives. A socket implementation should preserve the same
+  append-time ordering token and add gap detection/resync once delivery is a
+  real stream; do not replace it with emit-time ordering.
 - **Idempotency**: event IDs are unique; applying the same event twice must be a
   no-op or a keyed replacement (the `applyVesselEvent` merge is the pattern).
 - **Persistence** (ROADMAP phase 2) is a local prototype of the same idea: the

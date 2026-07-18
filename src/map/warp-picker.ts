@@ -6,6 +6,7 @@ import {
   gameState,
   MothershipData,
   ResourceCounts,
+  Revisioned,
 } from "../state/game-state.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
 import {
@@ -252,12 +253,18 @@ export class WarpPicker {
     const destCol = this.destCol;
     const destRow = this.destRow;
     try {
-      const { mothership, resources } = await invoke<MothershipActionResponse>(
+      const response = await invoke<Revisioned<MothershipActionResponse>>(
         "request_relocate_mothership",
         { destCol, destRow },
       );
-      gameState.syncResources(resources);
-      gameState.applyMothershipEvent(mothership);
+      gameState.syncResources({
+        revision: response.revision,
+        data: response.data.resources,
+      });
+      gameState.applyMothershipEvent({
+        revision: response.revision,
+        data: response.data.mothership,
+      });
     } catch (err) {
       // The Confirm button only enables on an all-green footprint, so a
       // rejection here means a race (someone/something else took the spot,

@@ -6,6 +6,7 @@ import { listen } from "@tauri-apps/api/event";
 import {
   gameState,
   GameStateData,
+  Revisioned,
   SERVER_PUSH_EVENT,
   ServerPush,
 } from "./game-state.ts";
@@ -26,13 +27,14 @@ import {
  * Excalibur/Tauri imports and unit-testable under Deno (same split as
  * map-loader.ts vs. the pure grid/tile modules).
  */
-export class GameStateResource implements ex.Loadable<GameStateData | null> {
-  data: GameStateData | null = null;
+export class GameStateResource
+  implements ex.Loadable<Revisioned<GameStateData> | null> {
+  data: Revisioned<GameStateData> | null = null;
   private attempted = false;
 
-  async load(): Promise<GameStateData | null> {
+  async load(): Promise<Revisioned<GameStateData> | null> {
     try {
-      this.data = await invoke<GameStateData>("load_game_state");
+      this.data = await invoke<Revisioned<GameStateData>>("load_game_state");
       gameState.load(this.data);
     } catch (err) {
       console.error(
@@ -63,7 +65,7 @@ export class GameStateResource implements ex.Loadable<GameStateData | null> {
  * initial snapshot and command responses — just without live pushes.
  */
 export function startServerPushListener(): void {
-  listen<ServerPush>(SERVER_PUSH_EVENT, (event) => {
+  listen<Revisioned<ServerPush>>(SERVER_PUSH_EVENT, (event) => {
     gameState.applyServerPush(event.payload);
   }).catch((err) => {
     console.error(

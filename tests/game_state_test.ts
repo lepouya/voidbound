@@ -10,8 +10,18 @@ import {
   MothershipData,
   NotificationData,
   ResourceCounts,
+  Revisioned,
+  ServerPush,
   VesselMoveEvent,
 } from "../src/state/game-state.ts";
+
+function revisioned<T>(data: T, revision = 1): Revisioned<T> {
+  return { revision, data };
+}
+
+function serverPush(data: ServerPush, revision = 1): Revisioned<ServerPush> {
+  return revisioned(data, revision);
+}
 
 const ZERO_RESOURCES: ResourceCounts = {
   construction: 0,
@@ -204,7 +214,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
   state.subscribe(() => notified++);
   assert(!state.loaded);
 
-  state.load({
+  state.load(revisioned({
     player: { id: "player-42", name: "Loaded Player" },
     resources: {
       construction: 5,
@@ -221,7 +231,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     notifications: [sampleNotification("notif-1")],
     crew: { crew: 3, pendingHire: { dispatchedAt: 500, completesAt: 30_500 } },
     deals: sampleDeals(),
-  });
+  }));
 
   assertEquals(state.player, { id: "player-42", name: "Loaded Player" });
   assertEquals(state.resources, {
@@ -261,7 +271,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
 
 Deno.test("applyMapWindow replaces the world tables and window, notifies", () => {
   const state = new GameState();
-  state.load({
+  state.load(revisioned({
     player: { id: "player-1", name: "Player 1" },
     resources: { ...ZERO_RESOURCES, construction: 7 },
     mapWindow: sampleWindow(),
@@ -272,13 +282,13 @@ Deno.test("applyMapWindow replaces the world tables and window, notifies", () =>
     notifications: [sampleNotification("notif-1")],
     crew: { crew: 2, pendingHire: null },
     deals: sampleDeals(),
-  });
+  }));
   let notified = 0;
   state.subscribe(() => notified++);
 
   // The camera panned: a re-centered window response replaces the world
   // tables wholesale — entities that left the window unload.
-  state.applyMapWindow({
+  state.applyMapWindow(revisioned({
     window: sampleWindow({ centerCol: 500, centerRow: 500 }),
     motherships: [
       sampleMothership("player-1"),
@@ -286,7 +296,7 @@ Deno.test("applyMapWindow replaces the world tables and window, notifies", () =>
     ],
     asteroids: [sampleAsteroid("asteroid-new", { col: 480, row: 520 })],
     vessels: [sampleVessel("vessel-own")],
-  });
+  }, 2));
 
   assertEquals(
     state.mapWindow,
@@ -310,8 +320,8 @@ Deno.test("applyVesselEvent merges by vesselId and notifies", () => {
   let notified = 0;
   state.subscribe(() => notified++);
 
-  state.applyVesselEvent(sampleVessel("vessel-a"));
-  state.applyVesselEvent(sampleVessel("vessel-b"));
+  state.applyVesselEvent(revisioned(sampleVessel("vessel-a")));
+  state.applyVesselEvent(revisioned(sampleVessel("vessel-b")));
   // A recall re-stamps the same vessel with a new move: replace, not append.
   const recall = sampleVessel("vessel-a", {
     srcCol: 50,
@@ -322,7 +332,7 @@ Deno.test("applyVesselEvent merges by vesselId and notifies", () => {
     arrivalAt: 11_000,
     returning: true,
   });
-  state.applyVesselEvent(recall);
+  state.applyVesselEvent(revisioned(recall));
 
   assertEquals(state.vessels.size, 2);
   assertEquals(state.vessels.get("vessel-a"), recall);
@@ -334,14 +344,14 @@ Deno.test("applyModuleEvent merges by moduleId and notifies", () => {
   let notified = 0;
   state.subscribe(() => notified++);
 
-  state.applyModuleEvent(sampleModule("module-command"));
-  state.applyModuleEvent(sampleModule("module-a"));
+  state.applyModuleEvent(revisioned(sampleModule("module-command")));
+  state.applyModuleEvent(revisioned(sampleModule("module-a")));
   // A level-up re-stamps the same module with a pending build: replace, not
   // append.
   const leveledUp = sampleModule("module-a", {
     pending: { level: 2, dispatchedAt: 1_000, completesAt: 6_000 },
   });
-  state.applyModuleEvent(leveledUp);
+  state.applyModuleEvent(revisioned(leveledUp));
 
   assertEquals(state.modules.size, 2);
   assertEquals(state.modules.get("module-a"), leveledUp);
@@ -350,8 +360,8 @@ Deno.test("applyModuleEvent merges by moduleId and notifies", () => {
 
 Deno.test("load replaces the vessel, mothership, and module tables wholesale", () => {
   const state = new GameState();
-  state.applyVesselEvent(sampleVessel("vessel-docked"));
-  state.load({
+  state.applyVesselEvent(revisioned(sampleVessel("vessel-docked"), 0));
+  state.load(revisioned({
     player: { id: "player-1", name: "Player 1" },
     resources: ZERO_RESOURCES,
     mapWindow: sampleWindow(),
@@ -362,9 +372,9 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     notifications: [sampleNotification("notif-old")],
     crew: { crew: 2, pendingHire: null },
     deals: sampleDeals(),
-  });
+  }, 1));
 
-  state.load({
+  state.load(revisioned({
     player: { id: "player-1", name: "Player 1" },
     resources: ZERO_RESOURCES,
     mapWindow: sampleWindow({ centerCol: 12, centerRow: 14 }),
@@ -375,7 +385,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     notifications: [],
     crew: { crew: 2, pendingHire: null },
     deals: sampleDeals({ refreshesUsed: 0 }),
-  });
+  }, 2));
 
   // The docked vessel was pruned by the backend and player-1's ship left the
   // world; only the latest snapshot survives.
@@ -418,7 +428,7 @@ Deno.test("syncResources replaces the counts with the snapshot, notifies", () =>
     fuel: 5,
     credits: 6,
   };
-  state.syncResources(snapshot);
+  state.syncResources(revisioned(snapshot));
 
   assertEquals(state.resources, snapshot);
   assertEquals(notified, 1);
@@ -434,26 +444,29 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
   let notified = 0;
   state.subscribe(() => notified++);
 
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "resources",
     data: { construction: 7, highTech: 1, biological: 2, fuel: 3, credits: 4 },
-  });
+  }));
   assertEquals(state.resources.construction, 7);
 
-  state.applyServerPush({ type: "module", data: sampleModule("module-a") });
+  state.applyServerPush(serverPush({
+    type: "module",
+    data: sampleModule("module-a"),
+  }));
   assertEquals(state.modules.get("module-a"), sampleModule("module-a"));
 
-  state.applyVesselEvent(sampleVessel("vessel-a"));
-  state.applyServerPush({
+  state.applyVesselEvent(revisioned(sampleVessel("vessel-a")));
+  state.applyServerPush(serverPush({
     type: "vesselRemoved",
     data: { vesselId: "vessel-a" },
-  });
+  }));
   assertEquals(state.vessels.size, 0);
   // Removing an unknown vessel (already gone locally) is a harmless no-op.
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "vesselRemoved",
     data: { vesselId: "vessel-a" },
-  });
+  }));
 
   // A server-initiated vessel move (the mining auto-return) merges like a
   // command response.
@@ -461,47 +474,112 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
     returning: true,
     cargo: { resource: "biological", amount: 120 },
   });
-  state.applyServerPush({ type: "vessel", data: returning });
+  state.applyServerPush(serverPush({ type: "vessel", data: returning }));
   assertEquals(state.vessels.get("vessel-b"), returning);
 
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "asteroid",
     data: sampleAsteroid("asteroid-1", {
       remaining: 120,
       mining: { vesselId: "vessel-b", startedAt: 1_000, completesAt: 5_000 },
     }),
-  });
+  }));
   assertEquals(state.asteroids.get("asteroid-1")?.remaining, 120);
 
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "asteroidRemoved",
     data: { asteroidId: "asteroid-1" },
-  });
+  }));
   assertEquals(state.asteroids.size, 0);
 
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-1"),
-  });
+  }));
   assertEquals(
     state.notifications.get("notif-1"),
     sampleNotification("notif-1"),
   );
 
   // A recruitment completing lands crew state like a command response.
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "crew",
     data: { crew: 3, pendingHire: null },
-  });
+  }));
   assertEquals(state.crew, 3);
   assertEquals(state.pendingHire, null);
 
   // The daily deal reset replaces the shop wholesale (ROADMAP P1.12).
-  state.applyServerPush({ type: "deals", data: sampleDeals() });
+  state.applyServerPush(serverPush({ type: "deals", data: sampleDeals() }));
   assertEquals(state.deals, sampleDeals());
 
   // One notify per push, plus one for the applyVesselEvent merge.
   assertEquals(notified, 11);
+});
+
+Deno.test("older pushes cannot roll back a newer authoritative slice", () => {
+  const state = new GameState();
+  let notified = 0;
+  state.subscribe(() => notified++);
+
+  state.applyServerPush(serverPush({
+    type: "resources",
+    data: { ...ZERO_RESOURCES, construction: 20 },
+  }, 20));
+  state.applyServerPush(serverPush({
+    type: "resources",
+    data: { ...ZERO_RESOURCES, construction: 10 },
+  }, 10));
+
+  assertEquals(state.resources.construction, 20);
+  assertEquals(state.latestRevision, 20);
+  assertEquals(notified, 1);
+});
+
+Deno.test("late responses preserve newer pushes without losing unrelated data", () => {
+  const state = new GameState();
+
+  // A completion push wins over the older command response for that entity.
+  const completed = sampleModule("module-a", { level: 2, pending: null });
+  state.applyServerPush(serverPush({ type: "module", data: completed }, 12));
+  state.applyModuleEvent(revisioned(
+    sampleModule("module-a", {
+      level: 1,
+      pending: { level: 2, dispatchedAt: 1_000, completesAt: 2_000 },
+    }),
+    11,
+  ));
+  assertEquals(state.modules.get("module-a"), completed);
+
+  // A newer, unrelated resource push does not suppress useful vessel data
+  // from an older response: revisions are compared per slice/entity.
+  state.applyServerPush(serverPush({
+    type: "resources",
+    data: { ...ZERO_RESOURCES, fuel: 90 },
+  }, 14));
+  state.applyVesselEvent(revisioned(sampleVessel("vessel-a"), 13));
+  assertEquals(state.vessels.get("vessel-a"), sampleVessel("vessel-a"));
+
+  // A newer removal tombstone survives a late whole-window response, while
+  // the response still supplies its window and unrelated entities.
+  state.applyServerPush(serverPush({
+    type: "asteroidRemoved",
+    data: { asteroidId: "asteroid-gone" },
+  }, 16));
+  state.applyMapWindow(revisioned({
+    window: sampleWindow({ centerCol: 500, centerRow: 500 }),
+    motherships: [sampleMothership("player-2")],
+    asteroids: [
+      sampleAsteroid("asteroid-gone"),
+      sampleAsteroid("asteroid-live"),
+    ],
+    vessels: [],
+  }, 15));
+  assertEquals(state.asteroids.has("asteroid-gone"), false);
+  assertEquals(state.asteroids.has("asteroid-live"), true);
+  assertEquals(state.motherships.has("player-2"), true);
+  assertEquals(state.mapWindow?.centerCol, 500);
+  assertEquals(state.latestRevision, 16);
 });
 
 Deno.test("applyDealsEvent replaces the shop state and notifies", () => {
@@ -510,10 +588,10 @@ Deno.test("applyDealsEvent replaces the shop state and notifies", () => {
   state.subscribe(() => notified++);
 
   // An accept response: the same batch with one deal flipped to accepted.
-  state.applyDealsEvent(sampleDeals());
+  state.applyDealsEvent(revisioned(sampleDeals()));
   const accepted = sampleDeals();
   accepted.deals[0].accepted = true;
-  state.applyDealsEvent(accepted);
+  state.applyDealsEvent(revisioned(accepted));
 
   assertEquals(state.deals.deals[0].accepted, true);
   assertEquals(state.deals.deals[1].accepted, true);
@@ -527,18 +605,18 @@ Deno.test("applyCrewEvent replaces the crew state and notifies", () => {
   state.subscribe(() => notified++);
 
   // A hire response: the head count is unchanged, a recruitment pends.
-  state.applyCrewEvent({
+  state.applyCrewEvent(revisioned({
     crew: 2,
     pendingHire: { dispatchedAt: 1_000, completesAt: 31_000 },
-  });
+  }));
   assertEquals(state.crew, 2);
   assertEquals(state.pendingHire?.completesAt, 31_000);
 
   // The completion push: one more head, nothing pending — re-applying the
   // full-snapshot payload is idempotent.
   const completed = { crew: 3, pendingHire: null };
-  state.applyCrewEvent(completed);
-  state.applyCrewEvent(completed);
+  state.applyCrewEvent(revisioned(completed));
+  state.applyCrewEvent(revisioned(completed));
   assertEquals(state.crew, 3);
   assertEquals(state.pendingHire, null);
   assertEquals(notified, 3);
@@ -549,12 +627,12 @@ Deno.test("applyAsteroidEvent merges by asteroidId and notifies", () => {
   let notified = 0;
   state.subscribe(() => notified++);
 
-  state.applyAsteroidEvent(sampleAsteroid("asteroid-1"));
-  state.applyAsteroidEvent(sampleAsteroid("asteroid-2"));
+  state.applyAsteroidEvent(revisioned(sampleAsteroid("asteroid-1")));
+  state.applyAsteroidEvent(revisioned(sampleAsteroid("asteroid-2")));
   // A harvest re-stamps the same asteroid with a reduced deposit: replace,
   // not append.
   const harvested = sampleAsteroid("asteroid-1", { remaining: 60 });
-  state.applyAsteroidEvent(harvested);
+  state.applyAsteroidEvent(revisioned(harvested));
 
   assertEquals(state.asteroids.size, 2);
   assertEquals(state.asteroids.get("asteroid-1"), harvested);
@@ -565,28 +643,28 @@ Deno.test("unreadNotificationCount counts only unread entries", () => {
   const state = new GameState();
   assertEquals(state.unreadNotificationCount(), 0);
 
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-1"),
-  });
-  state.applyServerPush({
+  }));
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-2", {
       kind: "vessel-arrived",
       message: "Vessel arrived at (50, 60)",
     }),
-  });
-  state.applyServerPush({
+  }));
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-3", { read: true }),
-  });
+  }));
   assertEquals(state.unreadNotificationCount(), 2);
 
   // A re-pushed entry replaces by id — never a duplicate feed line.
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-1", { read: true }),
-  });
+  }));
   assertEquals(state.notifications.size, 3);
   assertEquals(state.unreadNotificationCount(), 1);
 });
@@ -595,10 +673,10 @@ Deno.test("notification pushes evict the oldest entry past the 100 cap", () => {
   const state = new GameState();
 
   for (let i = 0; i < 100; i++) {
-    state.applyServerPush({
+    state.applyServerPush(serverPush({
       type: "notification",
       data: sampleNotification(`notif-${i}`, { createdAt: 1_000 + i }),
-    });
+    }));
   }
   assertEquals(state.notifications.size, 100);
   assertEquals(state.notifications.has("notif-0"), true);
@@ -607,10 +685,10 @@ Deno.test("notification pushes evict the oldest entry past the 100 cap", () => {
   // createdAt) — mirrors the backend's MAX_NOTIFICATIONS eviction
   // (game_state/state.rs) since no removal push exists for notifications
   // (CR1.2).
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-100", { createdAt: 1_100 }),
-  });
+  }));
   assertEquals(state.notifications.size, 100);
   assertEquals(state.notifications.has("notif-0"), false);
   assertEquals(state.notifications.has("notif-1"), true);
@@ -626,7 +704,7 @@ Deno.test("subscribeToNotifications fires once per fresh push, never for a backl
 
   // load()'s backlog must not fire the listener (it would flood the toast
   // layer for a returning player's unread feed).
-  state.load({
+  state.load(revisioned({
     player: { id: "player-42", name: "Loaded Player" },
     resources: ZERO_RESOURCES,
     mapWindow: sampleWindow(),
@@ -637,47 +715,47 @@ Deno.test("subscribeToNotifications fires once per fresh push, never for a backl
     notifications: [sampleNotification("notif-backlog")],
     crew: { crew: 0, pendingHire: null },
     deals: sampleDeals(),
-  });
+  }));
   assertEquals(seen, []);
 
   // A fresh push fires the listener exactly once.
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-1"),
-  });
+  }, 2));
   assertEquals(seen, ["notif-1"]);
 
   // syncNotifications()'s backlog (mark_notifications_read) must not fire it
   // either.
-  state.syncNotifications([
+  state.syncNotifications(revisioned([
     sampleNotification("notif-backlog", { read: true }),
     sampleNotification("notif-1", { read: true }),
-  ]);
+  ], 3));
   assertEquals(seen, ["notif-1"]);
 
   // Unsubscribing stops further delivery.
   unsubscribe();
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-2"),
-  });
+  }, 4));
   assertEquals(seen, ["notif-1"]);
 });
 
 Deno.test("syncNotifications replaces the feed wholesale and notifies", () => {
   const state = new GameState();
-  state.applyServerPush({
+  state.applyServerPush(serverPush({
     type: "notification",
     data: sampleNotification("notif-1"),
-  });
+  }));
   let notified = 0;
   state.subscribe(() => notified++);
 
   // The mark_notifications_read response: everything read.
-  state.syncNotifications([
+  state.syncNotifications(revisioned([
     sampleNotification("notif-1", { read: true }),
     sampleNotification("notif-2", { read: true }),
-  ]);
+  ], 2));
 
   assertEquals(state.notifications.size, 2);
   assertEquals(state.unreadNotificationCount(), 0);

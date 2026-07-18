@@ -386,6 +386,13 @@ mothership placement, the module table, and the vessel table (positions implicit
 in event timestamps) live Rust-side, never in TS, because the client can be
 tampered with. The client renders what commands return and asks for actions:
 
+Every authoritative snapshot, command response, and push is wrapped in
+`Revisioned<T>` (`revision` + `data`). The server assigns the global monotonic
+revision while holding the state lock; `GameState` compares it per state slice
+and entity (including removal tombstones), so out-of-order IPC responses and
+push emissions cannot roll newer client state back. Preserve this envelope on
+new commands and push variants.
+
 - `load_game_state` — identity + resource counts (production lazily accrued on
   read, summed per settled module level) + mothership placements + the asteroid
   field (`AsteroidData` — tier, resource class, remaining deposit, active mining
@@ -418,18 +425,18 @@ tampered with. The client renders what commands return and asks for actions:
   bus: a scheduler thread (`run_scheduler` in game_state/scheduler.rs) sleeps
   until the next deadline — production tick, build `completesAt`, vessel
   `arrivalAt`, mining `completesAt`, the 00:00 UTC deal reset — settles state,
-  and emits `ServerPush` messages (`resources`, `module`, `vesselRemoved`,
-  `vessel`, `asteroid`, `asteroidRemoved`, `notification`, `crew`, `deals`); a
-  Condvar wakes it early when a command creates a nearer deadline (e.g. a short
-  vessel flight). Mutations queue pushes into a `ServerState` outbox and the
-  boundaries (scheduler wake, command return via `finish_command`) drain + emit,
-  so every settlement path broadcasts identically. Client side,
-  `startServerPushListener` (game-state-loader.ts) routes each push into
-  `gameState.applyServerPush()` — the same apply/sync entry points command
-  responses use. Notifications (build/level-up completions, vessel
-  arrivals/returns) are server state riding the snapshot, capped at 100 entries;
-  the Mail HUD badge (tiled-scene.ts `addCommonHud`) shows the live unread
-  count.
+  and emits revisioned `ServerPush` messages (`resources`, `module`,
+  `vesselRemoved`, `vessel`, `asteroid`, `asteroidRemoved`, `notification`,
+  `crew`, `deals`); a Condvar wakes it early when a command creates a nearer
+  deadline (e.g. a short vessel flight). Mutations queue pushes into a
+  `ServerState` outbox and the boundaries (scheduler wake, command return via
+  `finish_command`) drain + emit, so every settlement path broadcasts
+  identically. Client side, `startServerPushListener` (game-state-loader.ts)
+  routes each push into `gameState.applyServerPush()` — the same apply/sync
+  entry points command responses use. Notifications (build/level-up completions,
+  vessel arrivals/returns) are server state riding the snapshot, capped at 100
+  entries; the Mail HUD badge (tiled-scene.ts `addCommonHud`) shows the live
+  unread count.
 - `mark_notifications_read` — marks the whole feed read and returns the updated
   list (applied via `gameState.syncNotifications`), clearing the Mail badge in
   every scene. Opening P1.21's Mail panel invokes it after rendering the live,

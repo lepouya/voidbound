@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import { AOI_REQUERY_TILES, MAP_VIEW_TILES_CAP } from "./aoi-config.ts";
 import { tileViewCapZoom } from "../scene/camera-math.ts";
-import { gameState, MapWindowData } from "../state/game-state.ts";
+import { gameState, MapWindowData, Revisioned } from "../state/game-state.ts";
 import { fetchGridGeometry } from "../scene/map-loader.ts";
 import { AsteroidSync } from "./map-asteroids.ts";
 import { DetailsDialog } from "./map-details.ts";
@@ -219,10 +219,13 @@ export class MapLevel extends TiledScene {
     this.lastWindowRequest = { col, row };
     this.windowRequestInFlight = true;
     try {
-      const data = await invoke<MapWindowData>("request_map_window", {
-        centerCol: col,
-        centerRow: row,
-      });
+      const data = await invoke<Revisioned<MapWindowData>>(
+        "request_map_window",
+        {
+          centerCol: col,
+          centerRow: row,
+        },
+      );
       gameState.applyMapWindow(data);
     } catch (err) {
       // Leave lastWindowRequest standing: the failed center stays the

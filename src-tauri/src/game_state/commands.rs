@@ -2,7 +2,7 @@ use super::crew::CrewActionResponse;
 use super::deals::DealActionResponse;
 use super::modules::ModuleActionResponse;
 use super::scheduler::{finish_command, GameServer};
-use super::state::{now_ms, GameStateData, NotificationData};
+use super::state::{now_ms, GameStateData, NotificationData, Revisioned};
 use super::world::{MapWindowData, MothershipActionResponse, VesselMoveEventData};
 
 /// Load the player's current game state, first settling anything that has
@@ -12,11 +12,11 @@ use super::world::{MapWindowData, MothershipActionResponse, VesselMoveEventData}
 pub(crate) fn load_game_state(
     app: tauri::AppHandle,
     server: tauri::State<'_, GameServer>,
-) -> Result<GameStateData, String> {
+) -> Result<Revisioned<GameStateData>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let data = s.snapshot(now_ms());
-    finish_command(&app, server.inner(), s);
-    Ok(data)
+    let revision = finish_command(&app, server.inner(), s);
+    Ok(Revisioned::new(revision, data))
 }
 
 /// Re-center the client's interest-area window on the given tile as the
@@ -30,11 +30,11 @@ pub(crate) fn request_map_window(
     server: tauri::State<'_, GameServer>,
     center_col: i64,
     center_row: i64,
-) -> Result<MapWindowData, String> {
+) -> Result<Revisioned<MapWindowData>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.map_window(center_col, center_row, now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Request dispatch of a vessel from the player's mothership to the given
@@ -47,11 +47,11 @@ pub(crate) fn request_dispatch_vessel(
     server: tauri::State<'_, GameServer>,
     dest_col: i64,
     dest_row: i64,
-) -> Result<VesselMoveEventData, String> {
+) -> Result<Revisioned<VesselMoveEventData>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.dispatch_vessel(dest_col, dest_row, now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Request dispatch of a vessel from the player's mothership to mine the
@@ -63,11 +63,11 @@ pub(crate) fn request_mine_asteroid(
     app: tauri::AppHandle,
     server: tauri::State<'_, GameServer>,
     asteroid_id: String,
-) -> Result<VesselMoveEventData, String> {
+) -> Result<Revisioned<VesselMoveEventData>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.mine_asteroid(&asteroid_id, now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Request recall of an in-flight or parked vessel back to the mothership.
@@ -79,11 +79,11 @@ pub(crate) fn request_recall_vessel(
     app: tauri::AppHandle,
     server: tauri::State<'_, GameServer>,
     vessel_id: String,
-) -> Result<VesselMoveEventData, String> {
+) -> Result<Revisioned<VesselMoveEventData>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.recall_vessel(&vessel_id, now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Request relocation of the player's mothership to the given 4*4 footprint
@@ -97,11 +97,11 @@ pub(crate) fn request_relocate_mothership(
     server: tauri::State<'_, GameServer>,
     dest_col: i64,
     dest_row: i64,
-) -> Result<MothershipActionResponse, String> {
+) -> Result<Revisioned<MothershipActionResponse>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.relocate_mothership(dest_col, dest_row, now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Request construction of a new module at the given anchor tile. Catalog
@@ -115,11 +115,11 @@ pub(crate) fn request_build_module(
     col: i64,
     row: i64,
     module_type: String,
-) -> Result<ModuleActionResponse, String> {
+) -> Result<Revisioned<ModuleActionResponse>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.build_module(col, row, module_type, now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Request a level-up of an existing module. Ownership, pending state, and
@@ -131,11 +131,11 @@ pub(crate) fn request_levelup_module(
     app: tauri::AppHandle,
     server: tauri::State<'_, GameServer>,
     module_id: String,
-) -> Result<ModuleActionResponse, String> {
+) -> Result<Revisioned<ModuleActionResponse>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.levelup_module(&module_id, now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Request recruitment of one crew member (ROADMAP P1.10). Berth room, the
@@ -147,11 +147,11 @@ pub(crate) fn request_levelup_module(
 pub(crate) fn request_hire_crew(
     app: tauri::AppHandle,
     server: tauri::State<'_, GameServer>,
-) -> Result<CrewActionResponse, String> {
+) -> Result<Revisioned<CrewActionResponse>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.hire_crew(now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Accept a Trading Post deal (ROADMAP P1.12). The settled-post requirement,
@@ -164,11 +164,11 @@ pub(crate) fn request_accept_deal(
     app: tauri::AppHandle,
     server: tauri::State<'_, GameServer>,
     deal_id: String,
-) -> Result<DealActionResponse, String> {
+) -> Result<Revisioned<DealActionResponse>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.accept_deal(&deal_id, now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Refresh the Trading Post deal slots (ROADMAP P1.12). The settled-post
@@ -179,11 +179,11 @@ pub(crate) fn request_accept_deal(
 pub(crate) fn request_refresh_deals(
     app: tauri::AppHandle,
     server: tauri::State<'_, GameServer>,
-) -> Result<DealActionResponse, String> {
+) -> Result<Revisioned<DealActionResponse>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.refresh_deals(now_ms());
-    finish_command(&app, server.inner(), s);
-    result
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
 }
 
 /// Mark the whole notification feed read (the player opened the Mail panel) and
@@ -193,9 +193,9 @@ pub(crate) fn request_refresh_deals(
 pub(crate) fn mark_notifications_read(
     app: tauri::AppHandle,
     server: tauri::State<'_, GameServer>,
-) -> Result<Vec<NotificationData>, String> {
+) -> Result<Revisioned<Vec<NotificationData>>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let notifications = s.mark_notifications_read();
-    finish_command(&app, server.inner(), s);
-    Ok(notifications)
+    let revision = finish_command(&app, server.inner(), s);
+    Ok(Revisioned::new(revision, notifications))
 }

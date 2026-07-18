@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use tauri::{Emitter, Manager};
 
-use super::state::{now_ms, ServerPush, ServerState, SERVER_PUSH_EVENT};
+use super::state::{now_ms, Revisioned, ServerPush, ServerState, SERVER_PUSH_EVENT};
 
 /// The managed Tauri state: the authoritative ServerState behind a mutex,
 /// plus the condvar that wakes the scheduler thread early when a command
@@ -27,7 +27,7 @@ impl GameServer {
 /// Emit every drained push on the SERVER_PUSH_EVENT channel. Failures are
 /// logged and dropped — a push is advisory (the client could recover from a
 /// fresh snapshot), never something to crash over.
-fn emit_pushes(app: &tauri::AppHandle, pushes: Vec<ServerPush>) {
+fn emit_pushes(app: &tauri::AppHandle, pushes: Vec<Revisioned<ServerPush>>) {
     for push in pushes {
         if let Err(err) = app.emit(SERVER_PUSH_EVENT, &push) {
             eprintln!("failed to emit {SERVER_PUSH_EVENT}: {err}");
@@ -50,6 +50,11 @@ pub fn run_scheduler(app: tauri::AppHandle) {
         state.settle(now_ms());
         let pushes = state.drain_pushes();
         if !pushes.is_empty() {
+            let revision = state.advance_revision();
+            let pushes = pushes
+                .into_iter()
+                .map(|push| Revisioned::new(revision, push))
+                .collect();
             // Emit without holding the lock, then re-settle: time passed and
             // commands may have run while it was released.
             drop(state);
@@ -77,9 +82,11 @@ pub(super) fn finish_command(
     app: &tauri::AppHandle,
     server: &GameServer,
     mut state: MutexGuard<'_, ServerState>,
-) {
-    let pushes = state.drain_pushes();
+) -> u64 {
+    let revision = state.advance_revision();
+    let pushes = state.drain_revisioned_pushes(revision);
     drop(state);
     emit_pushes(app, pushes);
     server.wake.notify_all();
+    revision
 }

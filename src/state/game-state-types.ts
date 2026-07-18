@@ -14,6 +14,18 @@ export interface PlayerIdentity {
 }
 
 /**
+ * Authoritative wire envelope shared by snapshots, command responses, and
+ * pushes. The Rust server advances one global revision at each state-lock
+ * boundary. GameState compares it per state slice/entity, preventing late
+ * messages from rolling back newer data without discarding unrelated fields.
+ * Mirrors `Revisioned<T>` in src-tauri/src/game_state/state.rs.
+ */
+export interface Revisioned<T> {
+  revision: number;
+  data: T;
+}
+
+/**
  * The four material resources (README § Design principles) plus a generic
  * currency for the trade economy. "credits" is a placeholder term — the
  * player-facing name settles later in the display layer (likely with the

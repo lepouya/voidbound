@@ -36,7 +36,7 @@ tracker.
 
 ## 1. Backend bugs
 
-- [ ] **CR1.1 [hardening] — Authoritative updates have no revision, so an older
+- [x] **CR1.1 [hardening] — Authoritative updates have no revision, so an older
       response or push can overwrite newer client state.** `run_scheduler()` and
       `finish_command()` drain under the state lock but emit after releasing it;
       `SERVER.md` already notes that their pushes can arrive out of order.
@@ -51,6 +51,15 @@ tracker.
       serialize every outbound message through one ordered dispatcher; make
       `GameState` reject stale applications. Cover push/push and response/push
       inversions before P3.1 turns these shapes into network protocol.
+
+      **Done:** Added a global, lock-assigned `Revisioned<T>` envelope to every
+      game-state snapshot, command response, and push batch. `GameState` applies
+      the token per whole-state slice and per entity, preserving newer entity
+      updates/removal tombstones across late wholesale responses without
+      discarding unrelated older response data. Added Rust batch-stamping and
+      TypeScript push/push plus response/push inversion tests, updated the
+      protocol/steering/skill docs, and runtime-verified the initial snapshot
+      followed by a live production push.
 
 - [ ] **CR1.2 [hardening] — Long elapsed intervals and extreme timestamps can
       overflow authoritative arithmetic.** `ServerState::accrue_production()`

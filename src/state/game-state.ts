@@ -37,6 +37,7 @@ import type {
   PendingHire,
   PlayerIdentity,
   ResourceCounts,
+  Revisioned,
   ServerPush,
   VesselMoveEvent,
 } from "./game-state-types.ts";
@@ -61,6 +62,17 @@ export function serverNow(): number {
  */
 const MAX_NOTIFICATIONS = 100;
 
+interface EntityRevisionTracker {
+  /** Revision of the newest authoritative whole-table replacement. */
+  floor: number;
+  /** Newer per-entity updates and removal tombstones above the floor. */
+  entities: Map<string, number>;
+}
+
+function revisionTracker(): EntityRevisionTracker {
+  return { floor: -1, entities: new Map() };
+}
+
 /**
  * Evict the oldest entries (by createdAt) past MAX_NOTIFICATIONS, mutating
  * the map in place — matches the backend's silent-eviction behavior since no
@@ -79,6 +91,9 @@ function evictOldestNotifications(
 }
 
 export class GameState {
+  /** Highest authoritative revision observed on any incoming message. */
+  latestRevision = -1;
+
   /**
    * True once load() has applied backend state. Until then every field below
    * holds its new-player default — scenes must render sensibly either way,
@@ -189,6 +204,93 @@ export class GameState {
 
   private listeners = new Set<GameStateListener>();
   private notificationListeners = new Set<NotificationListener>();
+  private playerRevision = -1;
+  private resourcesRevision = -1;
+  private mapWindowRevision = -1;
+  private crewRevision = -1;
+  private dealsRevision = -1;
+  private mothershipRevisions = revisionTracker();
+  private vesselRevisions = revisionTracker();
+  private asteroidRevisions = revisionTracker();
+  private moduleRevisions = revisionTracker();
+  private notificationRevisions = revisionTracker();
+
+  private observeRevision(revision: number): void {
+    this.latestRevision = Math.max(this.latestRevision, revision);
+  }
+
+  private entityRevision(
+    tracker: EntityRevisionTracker,
+    id: string,
+  ): number {
+    return Math.max(tracker.floor, tracker.entities.get(id) ?? -1);
+  }
+
+  private mergeEntity<T>(
+    table: Map<string, T>,
+    tracker: EntityRevisionTracker,
+    message: Revisioned<T>,
+    id: string,
+  ): boolean {
+    this.observeRevision(message.revision);
+    if (message.revision < this.entityRevision(tracker, id)) return false;
+    table.set(id, message.data);
+    if (message.revision > tracker.floor) {
+      tracker.entities.set(id, message.revision);
+    } else {
+      tracker.entities.delete(id);
+    }
+    return true;
+  }
+
+  private removeEntity<T>(
+    table: Map<string, T>,
+    tracker: EntityRevisionTracker,
+    revision: number,
+    id: string,
+  ): boolean {
+    this.observeRevision(revision);
+    if (revision < this.entityRevision(tracker, id)) return false;
+    table.delete(id);
+    if (revision > tracker.floor) tracker.entities.set(id, revision);
+    else tracker.entities.delete(id);
+    return true;
+  }
+
+  /**
+   * Replace a table at `revision`, retaining only newer per-entity updates or
+   * tombstones. This is the important distinction from one global last-write
+   * gate: a newer resource push must not suppress an older-but-still-useful
+   * map response, while a newer asteroid push must survive that response.
+   */
+  private replaceEntities<T>(
+    current: Map<string, T>,
+    tracker: EntityRevisionTracker,
+    message: Revisioned<T[]>,
+    idOf: (value: T) => string,
+  ): Map<string, T> {
+    this.observeRevision(message.revision);
+    if (message.revision < tracker.floor) return current;
+
+    const next = new Map<string, T>();
+    for (const value of message.data) {
+      const id = idOf(value);
+      if (this.entityRevision(tracker, id) <= message.revision) {
+        next.set(id, value);
+      }
+    }
+    for (const [id, value] of current) {
+      if ((tracker.entities.get(id) ?? -1) > message.revision) {
+        next.set(id, value);
+      }
+    }
+
+    tracker.floor = message.revision;
+    for (const [id, revision] of tracker.entities) {
+      if (revision <= tracker.floor) tracker.entities.delete(id);
+    }
+    return next;
+  }
 
   /**
    * Register a listener called after every update(). Returns an unsubscribe
@@ -231,9 +333,12 @@ export class GameState {
    * backend command response (e.g. request_build_module returns the counts
    * after the cost deduction), notifying subscribers.
    */
-  syncResources(resources: ResourceCounts): void {
+  syncResources(message: Revisioned<ResourceCounts>): void {
+    this.observeRevision(message.revision);
+    if (message.revision < this.resourcesRevision) return;
+    this.resourcesRevision = message.revision;
     this.update((s) => {
-      s.resources = { ...resources };
+      s.resources = { ...message.data };
     });
   }
 
@@ -243,7 +348,16 @@ export class GameState {
    * supersedes it — the backend records every event it authorizes, so the
    * snapshot already contains it.
    */
-  applyVesselEvent(event: VesselMoveEvent): void {
+  applyVesselEvent(message: Revisioned<VesselMoveEvent>): void {
+    const event = message.data;
+    if (
+      !this.mergeEntity(
+        this.vessels,
+        this.vesselRevisions,
+        message,
+        event.vesselId,
+      )
+    ) return;
     this.update((s) => {
       s.vessels.set(event.vesselId, event);
     });
@@ -262,7 +376,16 @@ export class GameState {
    * snapshot supersedes it — the backend records every module it mutates, so
    * the snapshot already contains it.
    */
-  applyModuleEvent(module: ModuleData): void {
+  applyModuleEvent(message: Revisioned<ModuleData>): void {
+    const module = message.data;
+    if (
+      !this.mergeEntity(
+        this.modules,
+        this.moduleRevisions,
+        message,
+        module.moduleId,
+      )
+    ) return;
     this.update((s) => {
       s.modules.set(module.moduleId, module);
     });
@@ -275,7 +398,16 @@ export class GameState {
    * MothershipData is the entity's full current snapshot, so merging by
    * mothershipId is idempotent. The next load()/applyMapWindow supersedes it.
    */
-  applyMothershipEvent(ship: MothershipData): void {
+  applyMothershipEvent(message: Revisioned<MothershipData>): void {
+    const ship = message.data;
+    if (
+      !this.mergeEntity(
+        this.motherships,
+        this.mothershipRevisions,
+        message,
+        ship.mothershipId,
+      )
+    ) return;
     this.update((s) => {
       s.motherships.set(ship.mothershipId, ship);
     });
@@ -289,7 +421,16 @@ export class GameState {
    * current snapshot, so merging by asteroidId is idempotent. The next
    * load() snapshot supersedes it.
    */
-  applyAsteroidEvent(asteroid: AsteroidData): void {
+  applyAsteroidEvent(message: Revisioned<AsteroidData>): void {
+    const asteroid = message.data;
+    if (
+      !this.mergeEntity(
+        this.asteroids,
+        this.asteroidRevisions,
+        message,
+        asteroid.asteroidId,
+      )
+    ) return;
     this.update((s) => {
       s.asteroids.set(asteroid.asteroidId, asteroid);
     });
@@ -302,7 +443,11 @@ export class GameState {
    * ModuleData pattern: the CrewData payload is the full current snapshot,
    * so re-applying is idempotent. The next load() snapshot supersedes it.
    */
-  applyCrewEvent(data: CrewData): void {
+  applyCrewEvent(message: Revisioned<CrewData>): void {
+    this.observeRevision(message.revision);
+    if (message.revision < this.crewRevision) return;
+    this.crewRevision = message.revision;
+    const data = message.data;
     this.update((s) => {
       s.crew = data.crew;
       s.pendingHire = data.pendingHire;
@@ -317,7 +462,11 @@ export class GameState {
    * snapshot, so re-applying is idempotent. The next load() snapshot
    * supersedes it.
    */
-  applyDealsEvent(data: DealsData): void {
+  applyDealsEvent(message: Revisioned<DealsData>): void {
+    this.observeRevision(message.revision);
+    if (message.revision < this.dealsRevision) return;
+    this.dealsRevision = message.revision;
+    const data = message.data;
     this.update((s) => {
       s.deals = data;
     });
@@ -331,14 +480,38 @@ export class GameState {
    * mining slots and deposits resolve on window re-entry. Modules,
    * resources, and notifications are untouched: they stay global.
    */
-  applyMapWindow(data: MapWindowData): void {
+  applyMapWindow(message: Revisioned<MapWindowData>): void {
+    const { revision, data } = message;
+    this.observeRevision(revision);
+    const windowAccepted = revision >= this.mapWindowRevision;
+    const motherships = this.replaceEntities(
+      this.motherships,
+      this.mothershipRevisions,
+      { revision, data: data.motherships },
+      (m) => m.mothershipId,
+    );
+    const asteroids = this.replaceEntities(
+      this.asteroids,
+      this.asteroidRevisions,
+      { revision, data: data.asteroids },
+      (a) => a.asteroidId,
+    );
+    const vessels = this.replaceEntities(
+      this.vessels,
+      this.vesselRevisions,
+      { revision, data: data.vessels },
+      (v) => v.vesselId,
+    );
+    if (
+      !windowAccepted && motherships === this.motherships &&
+      asteroids === this.asteroids && vessels === this.vessels
+    ) return;
+    if (windowAccepted) this.mapWindowRevision = revision;
     this.update((s) => {
-      s.mapWindow = data.window;
-      s.motherships = new Map(
-        data.motherships.map((m) => [m.mothershipId, m]),
-      );
-      s.asteroids = new Map(data.asteroids.map((a) => [a.asteroidId, a]));
-      s.vessels = new Map(data.vessels.map((e) => [e.vesselId, e]));
+      if (windowAccepted) s.mapWindow = data.window;
+      s.motherships = motherships;
+      s.asteroids = asteroids;
+      s.vessels = vessels;
     });
   }
 
@@ -354,11 +527,16 @@ export class GameState {
    * mark_notifications_read response — notifying subscribers (which clears
    * the Mail badge in every scene).
    */
-  syncNotifications(notifications: NotificationData[]): void {
+  syncNotifications(message: Revisioned<NotificationData[]>): void {
+    const notifications = this.replaceEntities(
+      this.notifications,
+      this.notificationRevisions,
+      message,
+      (n) => n.notificationId,
+    );
+    if (notifications === this.notifications) return;
     this.update((s) => {
-      s.notifications = new Map(
-        notifications.map((n) => [n.notificationId, n]),
-      );
+      s.notifications = notifications;
     });
   }
 
@@ -369,31 +547,56 @@ export class GameState {
    * Idempotent like everything it dispatches to: replaying a push (or
    * receiving one already reflected in a snapshot) merges by id.
    */
-  applyServerPush(push: ServerPush): void {
+  applyServerPush(message: Revisioned<ServerPush>): void {
+    const { revision, data: push } = message;
     switch (push.type) {
       case "resources":
-        this.syncResources(push.data);
+        this.syncResources({ revision, data: push.data });
         break;
       case "module":
-        this.applyModuleEvent(push.data);
+        this.applyModuleEvent({ revision, data: push.data });
         break;
       case "vesselRemoved":
+        if (
+          !this.removeEntity(
+            this.vessels,
+            this.vesselRevisions,
+            revision,
+            push.data.vesselId,
+          )
+        ) break;
         this.update((s) => {
           s.vessels.delete(push.data.vesselId);
         });
         break;
       case "vessel":
-        this.applyVesselEvent(push.data);
+        this.applyVesselEvent({ revision, data: push.data });
         break;
       case "asteroid":
-        this.applyAsteroidEvent(push.data);
+        this.applyAsteroidEvent({ revision, data: push.data });
         break;
       case "asteroidRemoved":
+        if (
+          !this.removeEntity(
+            this.asteroids,
+            this.asteroidRevisions,
+            revision,
+            push.data.asteroidId,
+          )
+        ) break;
         this.update((s) => {
           s.asteroids.delete(push.data.asteroidId);
         });
         break;
       case "notification":
+        if (
+          !this.mergeEntity(
+            this.notifications,
+            this.notificationRevisions,
+            { revision, data: push.data },
+            push.data.notificationId,
+          )
+        ) break;
         this.update((s) => {
           s.notifications.set(push.data.notificationId, push.data);
           evictOldestNotifications(s.notifications);
@@ -403,10 +606,10 @@ export class GameState {
         }
         break;
       case "crew":
-        this.applyCrewEvent(push.data);
+        this.applyCrewEvent({ revision, data: push.data });
         break;
       case "deals":
-        this.applyDealsEvent(push.data);
+        this.applyDealsEvent({ revision, data: push.data });
         break;
     }
   }
@@ -417,23 +620,63 @@ export class GameState {
    * post-login refresh, a phase-3 server snapshot) refreshes live scenes the
    * same way a local mutation would.
    */
-  load(data: GameStateData): void {
+  load(message: Revisioned<GameStateData>): void {
+    const { revision, data } = message;
+    this.observeRevision(revision);
+    const playerAccepted = revision >= this.playerRevision;
+    const resourcesAccepted = revision >= this.resourcesRevision;
+    const windowAccepted = revision >= this.mapWindowRevision;
+    const crewAccepted = revision >= this.crewRevision;
+    const dealsAccepted = revision >= this.dealsRevision;
+    const motherships = this.replaceEntities(
+      this.motherships,
+      this.mothershipRevisions,
+      { revision, data: data.motherships },
+      (m) => m.mothershipId,
+    );
+    const vessels = this.replaceEntities(
+      this.vessels,
+      this.vesselRevisions,
+      { revision, data: data.vessels },
+      (v) => v.vesselId,
+    );
+    const asteroids = this.replaceEntities(
+      this.asteroids,
+      this.asteroidRevisions,
+      { revision, data: data.asteroids },
+      (a) => a.asteroidId,
+    );
+    const modules = this.replaceEntities(
+      this.modules,
+      this.moduleRevisions,
+      { revision, data: data.modules },
+      (m) => m.moduleId,
+    );
+    const notifications = this.replaceEntities(
+      this.notifications,
+      this.notificationRevisions,
+      { revision, data: data.notifications },
+      (n) => n.notificationId,
+    );
+    if (playerAccepted) this.playerRevision = revision;
+    if (resourcesAccepted) this.resourcesRevision = revision;
+    if (windowAccepted) this.mapWindowRevision = revision;
+    if (crewAccepted) this.crewRevision = revision;
+    if (dealsAccepted) this.dealsRevision = revision;
     this.update((s) => {
-      s.player = data.player;
-      s.resources = { ...data.resources };
-      s.motherships = new Map(
-        data.motherships.map((m) => [m.mothershipId, m]),
-      );
-      s.vessels = new Map(data.vessels.map((e) => [e.vesselId, e]));
-      s.asteroids = new Map(data.asteroids.map((a) => [a.asteroidId, a]));
-      s.modules = new Map(data.modules.map((m) => [m.moduleId, m]));
-      s.notifications = new Map(
-        data.notifications.map((n) => [n.notificationId, n]),
-      );
-      s.crew = data.crew.crew;
-      s.pendingHire = data.crew.pendingHire;
-      s.deals = data.deals;
-      s.mapWindow = data.mapWindow;
+      if (playerAccepted) s.player = data.player;
+      if (resourcesAccepted) s.resources = { ...data.resources };
+      s.motherships = motherships;
+      s.vessels = vessels;
+      s.asteroids = asteroids;
+      s.modules = modules;
+      s.notifications = notifications;
+      if (crewAccepted) {
+        s.crew = data.crew.crew;
+        s.pendingHire = data.crew.pendingHire;
+      }
+      if (dealsAccepted) s.deals = data.deals;
+      if (windowAccepted) s.mapWindow = data.mapWindow;
       s.loaded = true;
     });
   }

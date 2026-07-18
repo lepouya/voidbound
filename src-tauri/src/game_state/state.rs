@@ -47,6 +47,24 @@ pub struct NotificationData {
 /// Mirrors SERVER_PUSH_EVENT in `src/state/game-state-types.ts` — keep the two in sync.
 pub const SERVER_PUSH_EVENT: &str = "server-push";
 
+/// An authoritative payload stamped at the state-lock boundary that produced
+/// it. Revisions are global and monotonically increasing; clients use them per
+/// state slice/entity so a late response cannot overwrite a newer push while
+/// unrelated newer pushes do not suppress still-useful response data.
+/// Mirrors `Revisioned<T>` in `src/state/game-state-types.ts`.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Revisioned<T> {
+    pub revision: u64,
+    pub data: T,
+}
+
+impl<T> Revisioned<T> {
+    pub(super) fn new(revision: u64, data: T) -> Self {
+        Self { revision, data }
+    }
+}
+
 /// A server-initiated state push — the in-process stand-in for the phase-3
 /// WebSocket event bus (SERVER.md § append + broadcast). Mutations queue
 /// pushes into the ServerState outbox; whichever boundary ran the mutation —
@@ -220,6 +238,9 @@ pub(super) struct OutboxEntry {
 /// Authoritative per-player state, held in memory for the app's lifetime.
 /// Phase 2 serializes it to a save file; the phase-3 server owns it remotely.
 pub struct ServerState {
+    /// Global authoritative ordering token. It advances once per command
+    /// boundary and once per scheduler batch that emits pushes.
+    pub(super) revision: u64,
     pub(super) resources: ResourceCounts,
     /// Epoch ms of the last applied production-interval boundary. Production
     /// accrues lazily in whole intervals whenever state is read or mutated,
@@ -343,6 +364,7 @@ impl ServerState {
         // Persistence (P2) / the real server (P3) will load this instead.
         let asteroids = seed_asteroids(&motherships);
         let mut state = Self {
+            revision: 0,
             resources: ResourceCounts {
                 construction: 0,
                 high_tech: 0,
@@ -532,6 +554,23 @@ impl ServerState {
         pushes
     }
 
+    /// Advance the global authoritative ordering token. Saturation is
+    /// deliberate: reaching u64::MAX would require centuries at absurd event
+    /// rates, and holding at MAX remains safer than wrapping stale data to 0.
+    pub(super) fn advance_revision(&mut self) -> u64 {
+        self.revision = self.revision.saturating_add(1);
+        self.revision
+    }
+
+    /// Drain and stamp every push in one boundary with the same revision, so
+    /// related resource/entity updates remain one authoritative batch.
+    pub(super) fn drain_revisioned_pushes(&mut self, revision: u64) -> Vec<Revisioned<ServerPush>> {
+        self.drain_pushes()
+            .into_iter()
+            .map(|push| Revisioned::new(revision, push))
+            .collect()
+    }
+
     /// Mark the whole feed read (the player opened the Mail panel) and
     /// return the updated list.
     pub(super) fn mark_notifications_read(&mut self) -> Vec<NotificationData> {
@@ -624,6 +663,25 @@ mod tests {
             .drain_pushes()
             .iter()
             .any(|p| matches!(p, ServerPush::Asteroid(_))));
+    }
+
+    #[test]
+    fn authoritative_push_batches_share_monotonic_revisions() {
+        let mut s = ServerState::new(0);
+        s.queue_push(ServerPush::Crew(s.crew_data()));
+        s.resources_dirty = true;
+
+        let first_revision = s.advance_revision();
+        let first = s.drain_revisioned_pushes(first_revision);
+        assert_eq!(first_revision, 1);
+        assert_eq!(first.len(), 2);
+        assert!(first.iter().all(|message| message.revision == 1));
+
+        s.queue_push(ServerPush::Crew(s.crew_data()));
+        let second_revision = s.advance_revision();
+        let second = s.drain_revisioned_pushes(second_revision);
+        assert_eq!(second_revision, 2);
+        assert!(second.iter().all(|message| message.revision == 2));
     }
 
     #[test]

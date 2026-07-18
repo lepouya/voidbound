@@ -7,6 +7,7 @@ import {
   AsteroidData,
   gameState,
   ModuleData,
+  Revisioned,
   serverNow,
   VesselMoveEvent,
 } from "../state/game-state.ts";
@@ -244,12 +245,18 @@ export class DetailsDialog {
    */
   private async upgradeCommandModule(moduleId: string): Promise<void> {
     try {
-      const { module, resources } = await invoke<ModuleActionResponse>(
+      const response = await invoke<Revisioned<ModuleActionResponse>>(
         "request_levelup_module",
         { moduleId },
       );
-      gameState.syncResources(resources);
-      gameState.applyModuleEvent(module);
+      gameState.syncResources({
+        revision: response.revision,
+        data: response.data.resources,
+      });
+      gameState.applyModuleEvent({
+        revision: response.revision,
+        data: response.data.module,
+      });
     } catch (err) {
       console.warn("request_levelup_module rejected:", err);
       this.host.showToast(errorToast(`Upgrade failed: ${err}`));

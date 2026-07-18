@@ -104,9 +104,9 @@ Mail tab strip.
 
 Each row button's `onPressed` calls a private `async` method following the
 standard server-verified action shape (`/add-game-event` step 3): `invoke` the
-Tauri command, apply the returned resources via `gameState.syncResources`, and
-apply the returned self-snapshot event via its `apply<Entity>Event`/
-`gameState.apply<Entity>Event`. Reject explicitly rather than clamping —
+Tauri command as `Revisioned<ActionResponse>`, then pass its revision with both
+the returned resources (`gameState.syncResources`) and self-snapshot event
+(`gameState.apply<Entity>Event`). Reject explicitly rather than clamping —
 `console.warn` plus `showToast(errorToast(...))` on `catch`, matching every
 other player action. Reference: `acceptDeal`/`refreshDeals` in
 src/ship/ship-shop.ts.

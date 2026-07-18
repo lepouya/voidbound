@@ -8,6 +8,7 @@ import {
   gameState,
   ResourceCounts,
   ResourceKind,
+  Revisioned,
 } from "../state/game-state.ts";
 import { storageCapsForModules } from "./module-catalog.ts";
 import { RESOURCE_ICON_TILESET } from "../scene/tiled-scene.ts";
@@ -185,12 +186,18 @@ export class ShopDialog {
    */
   private async acceptDeal(dealId: string): Promise<void> {
     try {
-      const { deals, resources } = await invoke<DealActionResponse>(
+      const response = await invoke<Revisioned<DealActionResponse>>(
         "request_accept_deal",
         { dealId },
       );
-      gameState.syncResources(resources);
-      gameState.applyDealsEvent(deals);
+      gameState.syncResources({
+        revision: response.revision,
+        data: response.data.resources,
+      });
+      gameState.applyDealsEvent({
+        revision: response.revision,
+        data: response.data.deals,
+      });
     } catch (err) {
       console.warn("request_accept_deal rejected:", err);
       this.host.showToast(errorToast(`Trade failed: ${err}`));
@@ -204,11 +211,17 @@ export class ShopDialog {
    */
   private async refreshDeals(): Promise<void> {
     try {
-      const { deals, resources } = await invoke<DealActionResponse>(
+      const response = await invoke<Revisioned<DealActionResponse>>(
         "request_refresh_deals",
       );
-      gameState.syncResources(resources);
-      gameState.applyDealsEvent(deals);
+      gameState.syncResources({
+        revision: response.revision,
+        data: response.data.resources,
+      });
+      gameState.applyDealsEvent({
+        revision: response.revision,
+        data: response.data.deals,
+      });
     } catch (err) {
       console.warn("request_refresh_deals rejected:", err);
       this.host.showToast(errorToast(`Refresh failed: ${err}`));
