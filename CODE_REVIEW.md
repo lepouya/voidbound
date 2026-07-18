@@ -85,7 +85,7 @@ tracker.
 
 ## 2. Client bugs
 
-- [ ] **CR2.1 [fix] — Startup does not actually guarantee the push listener is
+- [x] **CR2.1 [fix] — Startup does not actually guarantee the push listener is
       ready before the initial snapshot.** `startServerPushListener()` starts
       the asynchronous `listen()` registration but returns `void`; `main.ts`
       immediately starts the loader while claiming the up-front call prevents
@@ -96,6 +96,13 @@ tracker.
       while preserving the current catch-and-continue resilience if subscription
       fails. Add a dependency-injected ordering test for listener registration
       versus snapshot invocation.
+
+      **Done:** Cached the push subscription as a shared readiness promise and
+      made the initial game-state load await it before invoking the snapshot
+      command; subscription failures still resolve readiness so startup can
+      continue. Extracted the dependency-injected ordering seam into a pure
+      module, covered it with a Deno regression test, and runtime-verified a
+      normal initial snapshot followed by live production pushes.
 
 - [ ] **CR2.2 [fix] — An open warp picker does not react to live occupancy or
       resource changes unless the camera crosses a tile boundary.**

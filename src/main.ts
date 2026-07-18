@@ -26,7 +26,9 @@ loader.addResource(new GameStateResource());
 
 // Server-side changes — production ticks, build completions, vessel
 // arrivals, feed notifications — arrive over the backend push channel;
-// subscribe up front so nothing is missed while scenes initialize.
+// begin subscribing up front. GameStateResource awaits this same shared
+// readiness promise before requesting the initial snapshot, so no update can
+// fall into a registration gap.
 startServerPushListener();
 
 game

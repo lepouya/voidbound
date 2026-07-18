@@ -10,6 +10,7 @@ import {
   SERVER_PUSH_EVENT,
   ServerPush,
 } from "./game-state.ts";
+import { loadAfterListenerReady } from "./game-state-loader-order.ts";
 
 /**
  * Excalibur loader resource that fetches the initial game state from the
@@ -34,7 +35,10 @@ export class GameStateResource
 
   async load(): Promise<Revisioned<GameStateData> | null> {
     try {
-      this.data = await invoke<Revisioned<GameStateData>>("load_game_state");
+      this.data = await loadAfterListenerReady(
+        startServerPushListener,
+        () => invoke<Revisioned<GameStateData>>("load_game_state"),
+      );
       gameState.load(this.data);
     } catch (err) {
       console.error(
@@ -64,13 +68,19 @@ export class GameStateResource
  * plain-browser dev tab with no Tauri backend), the game still runs on the
  * initial snapshot and command responses — just without live pushes.
  */
-export function startServerPushListener(): void {
-  listen<Revisioned<ServerPush>>(SERVER_PUSH_EVENT, (event) => {
-    gameState.applyServerPush(event.payload);
-  }).catch((err) => {
+let serverPushListenerReady: Promise<void> | null = null;
+
+export function startServerPushListener(): Promise<void> {
+  serverPushListenerReady ??= listen<Revisioned<ServerPush>>(
+    SERVER_PUSH_EVENT,
+    (event) => {
+      gameState.applyServerPush(event.payload);
+    },
+  ).then(() => undefined).catch((err) => {
     console.error(
       "server-push subscription failed; live updates disabled:",
       err,
     );
   });
+  return serverPushListenerReady;
 }
