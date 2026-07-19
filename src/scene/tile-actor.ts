@@ -169,6 +169,30 @@ export class TileActor extends ex.Actor {
     this.graphics.use(graphic);
   }
 
+  private resolveSelectionTileRef(ref: TileRef): TileRef {
+    const span = Math.max(1, Math.min(4, Math.max(this.colSpan, this.rowSpan)));
+    if (typeof ref === "string") {
+      if (ref === "ui-selection" || ref.startsWith("ui-selection:")) {
+        const id = ref.includes(":") ? ref.split(":")[1] : "0";
+        return `ui-selection-${span}x${span}:${id}`;
+      }
+      if (ref === "ui-selection-2" || ref.startsWith("ui-selection-2:")) {
+        const id = ref.includes(":") ? ref.split(":")[1] : "0";
+        return `ui-selection-mod-${span}x${span}:${id}`;
+      }
+      return ref;
+    }
+    if (typeof ref === "object" && ref !== null) {
+      if (ref.tile === "ui-selection") {
+        return { ...ref, tile: `ui-selection-${span}x${span}` };
+      }
+      if (ref.tile === "ui-selection-2") {
+        return { ...ref, tile: `ui-selection-mod-${span}x${span}` };
+      }
+    }
+    return ref;
+  }
+
   private setSelectionVisible(visible: boolean): void {
     for (const v of this.selectionVisuals) {
       v.graphics.isVisible = visible;
@@ -302,7 +326,8 @@ export class TileActor extends ex.Actor {
     });
 
     if (this.selectionTile !== null) {
-      const selGraphic = parseTileRef(this.selectionTile);
+      const resolvedRef = this.resolveSelectionTileRef(this.selectionTile);
+      const selGraphic = parseTileRef(resolvedRef);
       const selActor = new ex.Actor({
         anchor: ex.vec(0.5, 0.5),
         scale: ex.vec(

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"
+  viewBox="0 0 256 256">
+  <!-- Outer secondary tech guide ring -->
+  <circle
+    cx="128"
+    cy="128"
+    r="102"
+    fill="none"
+    stroke="#COLOR2"
+    stroke-width="1.6"
+    stroke-opacity="0.6"
+  />
+  <!-- Main inner selection circle -->
+  <circle
+    cx="128"
+    cy="128"
+    r="94"
+    fill="none"
+    stroke="#COLOR1"
+    stroke-width="2.2"
+  />
+  <!-- Inner dashed accent ring -->
+  <circle
+    cx="128"
+    cy="128"
+    r="86"
+    fill="none"
+    stroke="#COLOR2"
+    stroke-width="1.6"
+    stroke-dasharray="8 8"
+    stroke-opacity="0.8"
+  />
+  <!-- Symmetric 4-fold corner accents at 45, 135, 225, 315 deg -->
+  <g stroke="#COLOR2" stroke-width="2.2" stroke-linecap="round">
+    <!-- Top-Right (45 deg) -->
+    <path d="M188,68 L200,56 L200,68" />
+    <!-- Bottom-Right (135 deg) -->
+    <path d="M188,188 L200,200 L200,188" />
+    <!-- Bottom-Left (225 deg) -->
+    <path d="M68,188 L56,200 L56,188" />
+    <!-- Top-Left (315 deg) -->
+    <path d="M68,68 L56,56 L56,68" />
+  </g>
+  <!-- Cardinal alignment dots at 12, 3, 6, 9 o'clock -->
+  <circle cx="128" cy="24" r="3" fill="#COLOR2" />
+  <circle cx="232" cy="128" r="3" fill="#COLOR2" />
+  <circle cx="128" cy="232" r="3" fill="#COLOR2" />
+  <circle cx="24" cy="128" r="3" fill="#COLOR2" />
+</svg>

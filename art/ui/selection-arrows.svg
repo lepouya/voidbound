@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"
+  viewBox="0 0 256 256">
+  <!-- Inward-pointing sci-fi corner chevrons, perfectly symmetrical across all axes -->
+  <g fill="#COLOR1" stroke="#COLOR2" stroke-width="2.2" stroke-linejoin="round"
+    stroke-linecap="round">
+    <!-- Top-Left -->
+    <path d="M54,54 L20,54 L16,60 L16,36 L26,26 L36,16 L60,16 L54,20 Z" />
+    <!-- Top-Right -->
+    <path
+      d="M202,54 L236,54 L240,60 L240,36 L230,26 L220,16 L196,16 L202,20 Z" />
+    <!-- Bottom-Right -->
+    <path
+      d="M202,202 L236,202 L240,196 L240,220 L230,230 L220,240 L196,240 L202,236 Z" />
+    <!-- Bottom-Left -->
+    <path
+      d="M54,202 L20,202 L16,196 L16,220 L26,230 L36,240 L60,240 L54,236 Z" />
+  </g>
+</svg>

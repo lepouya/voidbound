@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"
+  viewBox="0 0 256 256">
+  <!-- Inner targeting rings, thin and crisp -->
+  <circle
+    cx="128"
+    cy="128"
+    r="52"
+    fill="none"
+    stroke="#COLOR2"
+    stroke-width="2.2"
+  />
+  <circle
+    cx="128"
+    cy="128"
+    r="46"
+    fill="none"
+    stroke="#COLOR1"
+    stroke-width="2.0"
+    stroke-opacity="0.75"
+  />
+  <circle
+    cx="128"
+    cy="128"
+    r="38"
+    fill="none"
+    stroke="#COLOR2"
+    stroke-width="1.6"
+    stroke-dasharray="6 6"
+  />
+  <!-- Central target dot -->
+  <circle
+    cx="128"
+    cy="128"
+    r="5"
+    fill="#COLOR1"
+    stroke="#COLOR2"
+    stroke-width="1.6"
+  />
+  <!-- Crosshair ticks at 12, 3, 6, 9 o'clock -->
+  <g stroke="#COLOR2" stroke-width="2.2" stroke-linecap="round">
+    <path d="M128,34 L128,62" />
+    <path d="M128,194 L128,222" />
+    <path d="M34,128 L62,128" />
+    <path d="M194,128 L222,128" />
+  </g>
+</svg>

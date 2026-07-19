@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"
+  viewBox="0 0 256 256">
+  <!-- Subtle circular guide rails -->
+  <circle cx="128" cy="128" r="106" fill="none" stroke="#COLOR2"
+    stroke-width="1.4" stroke-opacity="0.35" />
+  <circle cx="128" cy="128" r="86" fill="none" stroke="#COLOR2"
+    stroke-width="1.4" stroke-opacity="0.25" stroke-dasharray="6 12" />
+
+  <!-- 4-fold rotationally symmetrical notched brackets -->
+  <defs>
+    <g id="outline-bracket">
+      <!-- Outer notched arc from -35 deg to +35 deg -->
+      <path
+        d="M68.35,42.81 A104,104 0 0,1 187.65,42.81 L184.21,47.73 A98,98 0 0,0 71.79,47.73 Z"
+        fill="#COLOR1" fill-opacity="0.25" stroke="#COLOR2" stroke-width="2.2"
+        stroke-linejoin="round" />
+      <!-- Inner tech arc from -22 deg to +22 deg -->
+      <path d="M93.54,42.7 A92,92 0 0,1 162.46,42.7" fill="none"
+        stroke="#COLOR1" stroke-width="2.2" stroke-linecap="round" />
+      <!-- Center alignment marker at 0 deg (Top) -->
+      <path d="M128,24 L128,30" stroke="#COLOR2" stroke-width="2.2"
+        stroke-linecap="round" />
+    </g>
+  </defs>
+
+  <use href="#outline-bracket" transform="rotate(0 128 128)" />
+  <use href="#outline-bracket" transform="rotate(90 128 128)" />
+  <use href="#outline-bracket" transform="rotate(180 128 128)" />
+  <use href="#outline-bracket" transform="rotate(270 128 128)" />
+</svg>
