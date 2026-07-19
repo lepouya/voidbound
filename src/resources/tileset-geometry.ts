@@ -43,6 +43,14 @@ export const CANONICAL_ANIM = {
   frameDuration: 66,
 } as const;
 
+/** Asteroid animated sheet spec: 8*8 grid, 64 frames @ 66 ms (~4.2s loop) for serene zero-G motion. */
+export const ASTEROID_ANIM = {
+  cols: 8,
+  rows: 8,
+  frames: 64,
+  frameDuration: 66,
+} as const;
+
 export const TILESET_GEOMETRY: TilesetGeometry[] = [
   { name: "test-tileset", cols: 4, rows: 1, tileSize: 32 },
   { name: "ship-tiles", cols: 6, rows: 6, tileSize: 64 },
@@ -60,13 +68,14 @@ export const TILESET_GEOMETRY: TilesetGeometry[] = [
   { name: "ss1-damaged", tileSize: 256, ...CANONICAL_ANIM },
   { name: "cs1-base", tileSize: 64, ...CANONICAL_ANIM },
   { name: "cs1-moving", tileSize: 64, ...CANONICAL_ANIM },
-  // Placeholder asteroid sprites (ROADMAP P1.6): grayscale single-sprite
-  // sheets tinted per resource kind at render time (art/gen_asteroids.sh,
-  // ASTEROID_TINTS in src/map/asteroid-catalog.ts). Map tiles are 32 px world
-  // with 2x sprite resolution, so span 1/2/3 is 64/128/192 px.
-  { name: "asteroid-small", cols: 1, rows: 1, tileSize: 64 },
-  { name: "asteroid-medium", cols: 1, rows: 1, tileSize: 128 },
-  { name: "asteroid-large", cols: 1, rows: 1, tileSize: 192 },
+  // Asteroid sprites (ROADMAP P1.6): 64-frame animated 8x8 sheets featuring
+  // 3D anisotropic tumbling, zero-G Lissajous drift, and serene debris fields.
+  // Grayscale vector base tinted per resource kind at render time (`ASTEROID_TINTS`
+  // in src/map/asteroid-catalog.ts). Map tiles are 32 px world with 2x resolution,
+  // so span 1/2/3 renders at 64/128/192 px tile size.
+  { name: "asteroid-small", tileSize: 64, ...ASTEROID_ANIM },
+  { name: "asteroid-medium", tileSize: 128, ...ASTEROID_ANIM },
+  { name: "asteroid-large", tileSize: 192, ...ASTEROID_ANIM },
 ];
 
 export const AUTO_TILESET_RULES: AutoTilesetRule[] = [
