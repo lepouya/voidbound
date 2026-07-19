@@ -200,7 +200,8 @@ export class MapLevel extends TiledScene {
     void this.requestMapWindow(col, row);
   }
 
-  override onPostUpdate(): void {
+  override onPostUpdate(engine: ex.Engine, delta: number): void {
+    super.onPostUpdate(engine, delta);
     // Details-panel countdowns (ROADMAP P1.16), same shape as
     // ModuleSync.tick in ShipLevel: re-renders at most once a second.
     this.details.tick();

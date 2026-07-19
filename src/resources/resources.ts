@@ -11,7 +11,7 @@ import {
 // All PNG assets under src/assets/, including any future subdirectories.
 // The leading "/" makes this project-root-absolute rather than relative to
 // this file, so it keeps resolving correctly if resources.ts moves again.
-// Keys are paths like "/src/assets/cs1-base.png" or
+// Keys are paths like "/src/assets/vessel-1-base-self.png" or
 // "/src/assets/weapons/sword.png". Values are Vite-resolved URLs.
 const allPngs = import.meta.glob<string>("/src/assets/**/*.png", {
   eager: true,
@@ -20,7 +20,7 @@ const allPngs = import.meta.glob<string>("/src/assets/**/*.png", {
 });
 
 // Look up a PNG by its path relative to src/assets/ (without extension).
-// E.g., png("cs1-base") or png("subdir/foo"). Throws at startup if the file
+// E.g., png("vessel-1-base-self") or png("subdir/foo"). Throws at startup if the file
 // is missing, giving an early and clear error rather than a silent undefined.
 const png = (name: string): string => {
   const key = `/src/assets/${name}.png`;

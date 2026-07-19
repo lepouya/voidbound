@@ -43,8 +43,8 @@ fn effective_vessel_speed_px_s() -> f64 {
     VESSEL_SPEED_PX_S * time_scale()
 }
 
-/// Sprite/capability type of the only vessel class so far.
-const VESSEL_TYPE: &str = "cs1";
+/// Sprite/capability type of the only vessel class so far (`vessel-1`).
+const VESSEL_TYPE: &str = "vessel-1";
 
 /// Cheap stopgap fleet cap (review finding CR1.5): dispatch is otherwise free
 /// and uncapped today, so nothing stops an unbounded vessel table. Superseded

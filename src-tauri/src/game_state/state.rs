@@ -345,8 +345,8 @@ impl ServerState {
                 player.id.clone(),
                 MothershipData {
                     mothership_id: player.id.clone(),
-                    owner_id: player.id,
-                    owner_name: player.name,
+                    owner_id: player.id.clone(),
+                    owner_name: player.name.clone(),
                     ship_type: "ss1".to_string(),
                     damaged: false,
                     col: 498,

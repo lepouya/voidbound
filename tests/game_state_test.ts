@@ -61,7 +61,7 @@ function sampleVessel(
     ownerId: "player-1",
     ownerName: "Player 1",
     mothershipId: "player-1",
-    vesselType: "cs1",
+    vesselType: "vessel-1",
     srcCol: 50,
     srcRow: 50,
     destCol: 50,

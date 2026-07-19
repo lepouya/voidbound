@@ -13,6 +13,14 @@ import { TileActor } from "../scene/tile-actor.ts";
 import { errorToast, roundButton, ToastDef } from "../ui/index.ts";
 import { vesselWorldPos } from "./vessel-math.ts";
 
+function resolveVesselRelation(
+  ownerId: string | undefined,
+): "self" | "allies" | "neutral" | "enemy" {
+  if (!ownerId || ownerId === "neutral") return "neutral";
+  if (ownerId === gameState.player.id) return "self";
+  return "enemy";
+}
+
 /** Scene services VesselSync needs — kept narrow so it doesn't reach back
  *  into MapLevel for anything beyond spawning actors, routing taps, clearing
  *  the selection when a dispatch is sent, opening the details panel, and
@@ -110,8 +118,14 @@ export class VesselSync {
     );
     const currentPos = ex.vec(worldPos.x, worldPos.y);
 
+    const relation = resolveVesselRelation(event.ownerId);
+    const baseRef = `${event.vesselType}-base-${relation}:0`;
+    const movingRef = `${event.vesselType}-moving-${relation}:0`;
+    const idleRef = `${event.vesselType}-idle-${relation}:0`;
+
     const existing = this.vessels.get(event.vesselId);
     if (existing) {
+      existing.setTiles(baseRef, movingRef, idleRef);
       existing.pos = currentPos;
       existing.moveTo(event.destCol, event.destRow, event.speed, onArrival);
       return;
@@ -119,8 +133,9 @@ export class VesselSync {
 
     const vessel = new TileActor({
       grid,
-      tile: `${event.vesselType}-base:0`,
-      movingTile: `${event.vesselType}-moving:0`,
+      tile: baseRef,
+      movingTile: movingRef,
+      idleTile: idleRef,
       col: event.srcCol,
       row: event.srcRow,
       width: 1,

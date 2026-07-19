@@ -66,8 +66,20 @@ export const TILESET_GEOMETRY: TilesetGeometry[] = [
   { name: "ui-selection-mod-4x4", tileSize: 256, ...CANONICAL_ANIM },
   { name: "ss1-base", tileSize: 256, ...CANONICAL_ANIM },
   { name: "ss1-damaged", tileSize: 256, ...CANONICAL_ANIM },
-  { name: "cs1-base", tileSize: 64, ...CANONICAL_ANIM },
-  { name: "cs1-moving", tileSize: 64, ...CANONICAL_ANIM },
+  // Vessel sprites (ROADMAP P1.8 / P5.3): 32-frame animated 6x6 sheets featuring
+  // idle zero-G float, anisotropic thruster plasma plumes, and 15s flourish tricks.
+  { name: "vessel-1-base-self", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-moving-self", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-idle-self", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-base-allies", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-moving-allies", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-idle-allies", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-base-neutral", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-moving-neutral", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-idle-neutral", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-base-enemy", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-moving-enemy", tileSize: 64, ...CANONICAL_ANIM },
+  { name: "vessel-1-idle-enemy", tileSize: 64, ...CANONICAL_ANIM },
   // Asteroid sprites (ROADMAP P1.6): 64-frame animated 8x8 sheets featuring
   // 3D anisotropic tumbling, zero-G Lissajous drift, and serene debris fields.
   // Grayscale vector base tinted per resource kind at render time (`ASTEROID_TINTS`

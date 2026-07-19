@@ -100,7 +100,7 @@ export interface VesselMoveEvent {
   ownerName: string;
   /** Which mothership dispatched or will receive this vessel. */
   mothershipId: string;
-  /** Sprite/capability type, e.g. "cs1". */
+  /** Sprite/capability type, e.g. "vessel-1". */
   vesselType: string;
   srcCol: number;
   srcRow: number;

@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64"
+  height="64">
+  <defs>
+    <!-- Engine Core Glow Gradient -->
+    <radialGradient id="engineGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="{ACCENT_COLOR}" stop-opacity="1.0" />
+      <stop offset="60%" stop-color="{ACCENT_COLOR}" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="{ACCENT_COLOR}" stop-opacity="0.0" />
+    </radialGradient>
+
+    <!-- Cockpit Canopy Glass Gradient -->
+    <linearGradient id="canopyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="{ACCENT_COLOR}" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#121822" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="{ACCENT_COLOR}" stop-opacity="0.4" />
+    </linearGradient>
+
+    <!-- Hull Metallic Shading Gradient -->
+    <linearGradient id="hullShade" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="{HULL_PRIMARY}" />
+      <stop offset="100%" stop-color="{HULL_SECONDARY}" />
+    </linearGradient>
+  </defs>
+
+  <!-- Main Vessel Group (supports periodic roll/wobble transforms or zero-G float) -->
+  <g id="vessel_hull" transform="{HULL_TRANSFORM}">
+    <!-- Thruster Exhaust Plumes (Active in moving state, hidden or faint in base/idle) -->
+    <g id="thruster_plumes" opacity="{PLUME_OPACITY}">
+      <!-- Left Plume -->
+      <path d="M 23 53 Q 26 {PLUME_TIP_Y} 29 53 Z" fill="{ACCENT_COLOR}"
+        opacity="0.9" />
+      <path d="M 24.5 53 Q 26 {PLUME_INNER_TIP_Y} 27.5 53 Z" fill="#ffffff"
+        opacity="0.95" />
+      <!-- Right Plume -->
+      <path d="M 35 53 Q 38 {PLUME_TIP_Y} 41 53 Z" fill="{ACCENT_COLOR}"
+        opacity="0.9" />
+      <path d="M 36.5 53 Q 38 {PLUME_INNER_TIP_Y} 39.5 53 Z" fill="#ffffff"
+        opacity="0.95" />
+    </g>
+
+    <!-- Outer Wing Extensions & Trim -->
+    <path d="M 32 6 L 56 42 L 44 48 L 32 40 L 20 48 L 8 42 Z"
+      fill="url(#hullShade)" stroke="#0e141d" stroke-width="1.2"
+      stroke-linejoin="round" />
+
+    <!-- Faction Accent Wing Trim Panels -->
+    <path d="M 32 10 L 52 41 L 44 45 L 32 37 Z" fill="{HULL_SECONDARY}"
+      stroke="{ACCENT_COLOR}" stroke-width="0.8" stroke-opacity="0.6" />
+    <path d="M 32 10 L 12 41 L 20 45 L 32 37 Z" fill="{HULL_SECONDARY}"
+      stroke="{ACCENT_COLOR}" stroke-width="0.8" stroke-opacity="0.6" />
+
+    <!-- Outer Wingtip Faction Stripes -->
+    <path d="M 48 39 L 54 41 L 45 46 Z" fill="{ACCENT_COLOR}" opacity="0.85" />
+    <path d="M 16 39 L 10 41 L 19 46 Z" fill="{ACCENT_COLOR}" opacity="0.85" />
+
+    <!-- Chiseled Upper Fuselage / Center Spine -->
+    <path d="M 32 6 L 40 32 L 38 50 L 26 50 L 24 32 Z" fill="{HULL_PRIMARY}"
+      stroke="#16202c" stroke-width="1" />
+    <path d="M 32 6 L 36 32 L 32 48 L 28 32 Z" fill="#324458" opacity="0.5" />
+
+    <!-- Dual Aft Thruster Housing & Nozzles -->
+    <rect x="22" y="48" width="8" height="5" rx="1" fill="#121820"
+      stroke="#2a3848" stroke-width="0.8" />
+    <rect x="34" y="48" width="8" height="5" rx="1" fill="#121820"
+      stroke="#2a3848" stroke-width="0.8" />
+    <line x1="26" y1="48" x2="26" y2="53" stroke="{ACCENT_COLOR}"
+      stroke-width="0.8" opacity="0.7" />
+    <line x1="38" y1="48" x2="38" y2="53" stroke="{ACCENT_COLOR}"
+      stroke-width="0.8" opacity="0.7" />
+
+    <!-- Engine Core Inner Glow Circles -->
+    <circle cx="26" cy="50" r="2.5" fill="url(#engineGlow)"
+      opacity="{CORE_GLOW_OPACITY}" />
+    <circle cx="38" cy="50" r="2.5" fill="url(#engineGlow)"
+      opacity="{CORE_GLOW_OPACITY}" />
+
+    <!-- Cockpit Canopy -->
+    <path d="M 32 14 L 37 28 L 34 38 L 30 38 L 27 28 Z"
+      fill="url(#canopyGradient)" stroke="{ACCENT_COLOR}" stroke-width="0.8" />
+    <path d="M 32 15 L 35 27 L 32 36 L 29 27 Z" fill="#ffffff" opacity="0.15" />
+
+    <!-- Animated Cockpit Scanner Beam (Active during idle flourish / scanning) -->
+    <line x1="28" y1="{SCANNER_Y}" x2="36" y2="{SCANNER_Y}"
+      stroke="{ACCENT_COLOR}" stroke-width="1.5" stroke-linecap="round"
+      opacity="{SCANNER_OPACITY}" />
+
+    <!-- Wingtip Navigation Strobes (Port / Starboard) -->
+    <circle cx="10" cy="42" r="1.5" fill="{ACCENT_COLOR}"
+      opacity="{NAV_PORT_OPACITY}" />
+    <circle cx="10" cy="42" r="3" fill="{ACCENT_COLOR}"
+      opacity="{NAV_PORT_GLOW}" />
+    <circle cx="54" cy="42" r="1.5" fill="{ACCENT_COLOR}"
+      opacity="{NAV_STBD_OPACITY}" />
+    <circle cx="54" cy="42" r="3" fill="{ACCENT_COLOR}"
+      opacity="{NAV_STBD_GLOW}" />
+  </g>
+</svg>

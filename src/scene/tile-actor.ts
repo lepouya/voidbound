@@ -28,6 +28,11 @@ export interface TileActorOptions {
    * Falls back to the base tile graphic on arrival.
    */
   movingTile?: TileRef | TileRef[] | null;
+  /**
+   * Sprite to display periodically while the actor is stationary/idle (e.g. 15s flourish).
+   * Same format as tile. Falls back to base tile graphic after one loop.
+   */
+  idleTile?: TileRef | TileRef[] | null;
   /** The scene's grid geometry — only the tile size is read. An ex.TileMap
    *  satisfies this structurally (TiledScene passes its `grid` either way). */
   grid: TileGridGeometry;
@@ -63,7 +68,11 @@ export class TileActor extends ex.Actor {
   /** Actor height in tiles. */
   readonly rowSpan: number;
   private baseGraphic: ex.Graphic;
-  private readonly movingGraphic: ex.Graphic | null;
+  private movingGraphic: ex.Graphic | null;
+  private idleGraphic: ex.Graphic | null;
+  private idleTimerMs = 0;
+  private isIdleFlourishing = false;
+  private idleFlourishTimerMs = 0;
   private readonly selectionTile: TileRef | null;
   private readonly onPressed: ((actor: TileActor) => void) | undefined;
   private readonly actionButtons: ButtonDef[];
@@ -109,6 +118,7 @@ export class TileActor extends ex.Actor {
     grid,
     tile,
     movingTile,
+    idleTile,
     col = 0,
     row = 0,
     width,
@@ -157,6 +167,7 @@ export class TileActor extends ex.Actor {
     this.movingGraphic = movingTile != null
       ? resolveGraphicLayers(movingTile)
       : null;
+    this.idleGraphic = idleTile != null ? resolveGraphicLayers(idleTile) : null;
     this.ownerName = ownerName;
     this.ownerId = ownerId;
     this.selectionTile = selection === undefined ? "ui-selection:0" : selection;
@@ -237,7 +248,31 @@ export class TileActor extends ex.Actor {
    */
   setTile(tile: TileRef | TileRef[]): void {
     this.baseGraphic = resolveGraphicLayers(tile);
-    if (this.graphics.current !== this.movingGraphic) {
+    if (
+      this.graphics.current !== this.movingGraphic &&
+      this.graphics.current !== this.idleGraphic
+    ) {
+      this.graphics.use(this.baseGraphic);
+    }
+  }
+
+  /**
+   * Update all three tile graphics (base, moving, idle) for an existing actor.
+   */
+  setTiles(
+    tile: TileRef | TileRef[],
+    movingTile?: TileRef | TileRef[] | null,
+    idleTile?: TileRef | TileRef[] | null,
+  ): void {
+    this.baseGraphic = resolveGraphicLayers(tile);
+    this.movingGraphic = movingTile != null
+      ? resolveGraphicLayers(movingTile)
+      : null;
+    this.idleGraphic = idleTile != null ? resolveGraphicLayers(idleTile) : null;
+    if (
+      this.graphics.current !== this.movingGraphic &&
+      this.graphics.current !== this.idleGraphic
+    ) {
       this.graphics.use(this.baseGraphic);
     }
   }
@@ -282,11 +317,24 @@ export class TileActor extends ex.Actor {
     // sprite's frame (0 = up).
     const dx = worldX - this.pos.x;
     const dy = worldY - this.pos.y;
+    if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
+      this.pos = ex.vec(worldX, worldY);
+      if (this.movingGraphic !== null) {
+        this.graphics.use(this.baseGraphic);
+      }
+      onComplete?.();
+      return;
+    }
     if (dx !== 0 || dy !== 0) {
       this.setFacing(Math.atan2(dy, dx) + Math.PI / 2);
       const pathLine = makePathLine(this.pos, ex.vec(worldX, worldY));
       this.scene?.add(pathLine);
       this.pathLine = pathLine;
+    }
+    if (this.isIdleFlourishing) {
+      this.isIdleFlourishing = false;
+      this.idleTimerMs = 0;
+      this.idleFlourishTimerMs = 0;
     }
     if (this.movingGraphic !== null) {
       this.graphics.use(this.movingGraphic);
@@ -429,8 +477,46 @@ export class TileActor extends ex.Actor {
     super.kill();
   }
 
-  override onPostUpdate(): void {
+  override onPostUpdate(engine: ex.Engine, delta: number): void {
+    super.onPostUpdate(engine, delta);
     this.repositionUprightChildren();
+
+    const isMoving = this.actions.getQueue().getActions().length > 0 ||
+      (this.movingGraphic !== null &&
+        this.graphics.current === this.movingGraphic);
+
+    if (isMoving) {
+      this.idleTimerMs = 0;
+      if (this.isIdleFlourishing) {
+        this.isIdleFlourishing = false;
+        this.idleFlourishTimerMs = 0;
+        this.graphics.use(this.movingGraphic ?? this.baseGraphic);
+      }
+      return;
+    }
+
+    if (this.idleGraphic !== null) {
+      if (!this.isIdleFlourishing) {
+        this.idleTimerMs += delta;
+        if (this.idleTimerMs >= 15_000) {
+          this.isIdleFlourishing = true;
+          this.idleFlourishTimerMs = 0;
+          this.graphics.use(this.idleGraphic);
+          if (this.idleGraphic instanceof ex.Animation) {
+            this.idleGraphic.reset();
+          }
+        }
+      } else {
+        this.idleFlourishTimerMs += delta;
+        // 32 frames @ 66ms = 2112ms loop duration
+        if (this.idleFlourishTimerMs >= 2112) {
+          this.isIdleFlourishing = false;
+          this.idleTimerMs = 0;
+          this.idleFlourishTimerMs = 0;
+          this.graphics.use(this.baseGraphic);
+        }
+      }
+    }
   }
 
   private setupBadges(): void {

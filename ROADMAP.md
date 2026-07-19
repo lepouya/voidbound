@@ -41,8 +41,10 @@ Goal: the technical foundation everything else is built on.
 - [x] **P0.8 — Vessel-move event pattern reference implementation.** The
       concrete instance of the multiplayer-ready event pattern that
       `/add-game-event` and `SERVER.md` generalize from.
-- [x] **P0.9 — Art pipeline tooling.** Python Pillow CLIs + `art/gen_*.sh`
-      orchestrators producing everything under `src/assets/`.
+- [x] **P0.9 — Art pipeline tooling.** Python Pillow/librsvg CLIs +
+      `art/gen_*.sh` orchestrators producing vector-rendered animated sheets
+      (`vessel-1` multi-faction 3-state system, vector asteroids) and UI assets
+      under `src/assets/`.
 - [x] **P0.10 — Testing + CI infrastructure.** Deno pure-logic suite, Rust
       game-rule tests, Python pipeline tests, GitHub Actions workflow.
 - [x] **P0.11 — Tooling/build setup.** Deno task runner, Vite config, Tauri
@@ -297,11 +299,15 @@ Goal: the README's Technologies, Combat, and Defence module categories.
 - [ ] **P5.2 — Fabrication Bay, Assembly Line, Data Archive.** Speed/cost
       multipliers applied respectively to module builds (P1.3), weapon
       production (P5.4), and research (P5.1). Needs P5.1.
-- [ ] **P5.3 — Vessel Shipyard + vessel stats.** Durability, damage, cargo
-      capacity, and weapons capacity as per-vessel upgradeable stats, replacing
-      the flat `vesselSpeed` constant with a real stat block. P1.10's open door
-      lands here too: vessel crews — dispatching/mining requiring crew aboard,
-      tying fleet size to the crew pool. Needs P1.6.
+- [ ] **P5.3 — Vessel Shipyard + vessel stats & multi-tier progression.**
+      Durability, damage, cargo capacity, and weapons capacity as per-vessel
+      upgradeable stats, replacing the flat `vesselSpeed` constant with a real
+      stat block. Upgrades, research (P5.1), purchases, and cosmetics will
+      unlock higher vessel tiers (`vessel-2`, `vessel-3`) or specialized custom
+      vector hulls alongside our multi-faction (`self`, `allies`, `neutral`,
+      `enemy`) and 3-state (`base`, `moving`, `idle`) animation system. P1.10's
+      open door lands here too: vessel crews — dispatching/mining requiring crew
+      aboard, tying fleet size to the crew pool. Needs P1.6.
 - [ ] **P5.4 — Weapons Factory, Drone Factory, Plasma Factory + Armory.** Three
       weapon-type production lines (kinetic, drone, plasma) feeding the vessel
       weapons capacity from P5.3, plus the Armory's weapon-storage caps (moved

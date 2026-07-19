@@ -13,7 +13,10 @@ Deno.test("parseSegment: bare name means tile 0", () => {
 
 Deno.test("parseSegment: name:id selects the tile index", () => {
   assertEquals(parseSegment("ship-tiles:7"), { name: "ship-tiles", tileId: 7 });
-  assertEquals(parseSegment("cs1-base:31"), { name: "cs1-base", tileId: 31 });
+  assertEquals(parseSegment("vessel-1-base-self:31"), {
+    name: "vessel-1-base-self",
+    tileId: 31,
+  });
 });
 
 Deno.test("parseSegment: only the first colon splits name from id", () => {
