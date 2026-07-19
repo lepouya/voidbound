@@ -8,7 +8,7 @@ for span in 1 2 3 4; do
     size=$((span * 64))
     for src in selection-arrows selection-outline selection-reticle selection-2; do
         python3 ../tools/svg_reticle_gen.py \
-            -s "ui/${src}.svg" \
+            -s "ui/selection/${src}.svg" \
             -z "$size" \
             -d "ui/rendered/${src}-${size}.png" \
             --color1 "#ff3232" \
