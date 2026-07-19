@@ -105,6 +105,57 @@ def extract_sprite(cell: Image.Image, size: int) -> Image.Image:
 # -- Source sheet loading ------------------------------------------------------
 
 
+def is_built_in_keyword(spec: str) -> bool:
+    spec_lower = spec.strip().lower()
+    if spec_lower in ("transparent", "blank", "none"):
+        return True
+    if spec_lower.startswith("color(") and spec_lower.endswith(")"):
+        return True
+    if spec_lower.startswith("color="):
+        return True
+    if spec_lower.startswith("#") and len(spec_lower) in (4, 5, 7, 9):
+        return True
+    return False
+
+
+def resolve_source_image(spec: str, size: int) -> Image.Image:
+    spec_lower = spec.strip().lower()
+    if spec_lower in ("transparent", "blank", "none"):
+        return Image.new("RGBA", (size, size), (0, 0, 0, 0))
+
+    color_str = None
+    if spec_lower.startswith("color(") and spec_lower.endswith(")"):
+        color_str = spec.strip()[6:-1].strip()
+    elif spec_lower.startswith("color="):
+        color_str = spec.strip()[6:].strip()
+    elif spec_lower.startswith("#"):
+        color_str = spec.strip()
+
+    if color_str is not None:
+        from PIL import ImageColor
+
+        try:
+            rgba = ImageColor.getcolor(color_str, "RGBA")
+        except ValueError:
+            try:
+                rgb = ImageColor.getrgb(color_str)
+                rgba = rgb if len(rgb) == 4 else rgb + (255,)
+            except ValueError as e:
+                print(
+                    f"Error: invalid color specification '{color_str}' in '{spec}': {e}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        return Image.new("RGBA", (size, size), rgba)
+
+    try:
+        img = Image.open(spec).convert("RGBA")
+    except Exception as e:
+        print(f"Error opening image '{spec}': {e}", file=sys.stderr)
+        sys.exit(1)
+    return pad_to_square(img).resize((size, size), Image.LANCZOS)
+
+
 def load_sprites_from_sheet(
     path: str, cols: int, rows: int, size: int
 ) -> tuple[list[Image.Image], int]:
@@ -112,6 +163,12 @@ def load_sprites_from_sheet(
     Open a source spritesheet, extract every cell, and resize each sprite to
     size*size.  Returns (sprites, empty_count).
     """
+    if is_built_in_keyword(path):
+        tile = resolve_source_image(path, size)
+        total = cols * rows
+        empty_count = total if alpha_bbox(tile) is None else 0
+        return [tile.copy() for _ in range(total)], empty_count
+
     sheet = Image.open(path).convert("RGBA")
     sheet_w, sheet_h = sheet.size
     cell_w = sheet_w // cols
@@ -162,11 +219,26 @@ def build_spritesheet(sprites: list[Image.Image], size: int) -> Image.Image:
 
 
 def parse_sheet_spec(spec: str) -> tuple[str, int, int]:
-    """Parse a PATH:COLS:ROWS spec and return (path, cols, rows)."""
+    """Parse a PATH:COLS:ROWS or keyword spec and return (path, cols, rows)."""
     parts = spec.rsplit(":", 2)
+    if is_built_in_keyword(spec):
+        return spec, 1, 1
+    if len(parts) == 2 and is_built_in_keyword(parts[0]):
+        try:
+            count = int(parts[1])
+            return parts[0], count, 1
+        except ValueError:
+            pass
+    if len(parts) == 3 and is_built_in_keyword(parts[0]):
+        try:
+            cols, rows = int(parts[1]), int(parts[2])
+            return parts[0], cols, rows
+        except ValueError:
+            pass
+
     if len(parts) != 3:
         print(
-            f"Error: --sheet must be PATH:COLS:ROWS, got '{spec}'",
+            f"Error: --sheet must be PATH:COLS:ROWS (or KEYWORD[:COUNT]), got '{spec}'",
             file=sys.stderr,
         )
         sys.exit(1)

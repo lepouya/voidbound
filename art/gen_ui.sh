@@ -16,7 +16,7 @@ for span in 1 2 3 4; do
     done
 
     python3 ../tools/sprite_transition.py \
-        -s ui/blank.png \
+        -s transparent \
         -d "../src/assets/ui-selection-${span}x${span}.png" \
         -n 32 \
         -z "$size" \
@@ -30,7 +30,7 @@ for span in 1 2 3 4; do
         -t "scale:ui/rendered/selection-reticle-${size}.png:24:31:0.8:1"
 
     python3 ../tools/sprite_transition.py \
-        -s ui/blank.png \
+        -s transparent \
         -d "../src/assets/ui-selection-mod-${span}x${span}.png" \
         -n 32 \
         -z "$size" \

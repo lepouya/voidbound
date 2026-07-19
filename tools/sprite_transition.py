@@ -175,6 +175,53 @@ OVERLAY_GENERATORS = {
 }
 
 
+def resolve_source_image(spec: str, size: int) -> Image.Image:
+    """
+    Resolve an image specification into an RGBA Image of size*size pixels.
+    Supports built-in keywords:
+      - 'transparent', 'blank', 'none' -> empty transparent canvas
+      - 'color(...)', 'color=...', 'color:...', or '#HEX' -> solid/translucent color canvas
+    Otherwise treats spec as a file path, opening and resizing to square.
+    """
+    spec_lower = spec.strip().lower()
+    if spec_lower in ("transparent", "blank", "none"):
+        return Image.new("RGBA", (size, size), (0, 0, 0, 0))
+
+    color_str = None
+    if spec_lower.startswith("color(") and spec_lower.endswith(")"):
+        color_str = spec.strip()[6:-1].strip()
+    elif spec_lower.startswith("color="):
+        color_str = spec.strip()[6:].strip()
+    elif spec_lower.startswith("color:") and len(spec.strip()) > 6:
+        color_str = spec.strip()[6:].strip()
+    elif spec_lower.startswith("#"):
+        color_str = spec.strip()
+
+    if color_str is not None:
+        from PIL import ImageColor
+
+        try:
+            rgba = ImageColor.getcolor(color_str, "RGBA")
+        except ValueError:
+            try:
+                rgb = ImageColor.getrgb(color_str)
+                rgba = rgb if len(rgb) == 4 else rgb + (255,)
+            except ValueError as e:
+                print(
+                    f"Error: invalid color specification '{color_str}' in '{spec}': {e}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        return Image.new("RGBA", (size, size), rgba)
+
+    try:
+        img = Image.open(spec).convert("RGBA")
+    except Exception as e:
+        print(f"Error opening image '{spec}': {e}", file=sys.stderr)
+        sys.exit(1)
+    return resize_to_square(img, size)
+
+
 # -- Transition spec -----------------------------------------------------------
 
 
@@ -194,6 +241,9 @@ def parse_transition(spec: str, sprite_size: int) -> TransitionSpec:
     The alt image is resized (with square padding if needed) to sprite_size*sprite_size.
     """
     parts = spec.split(":")
+    if len(parts) >= 5 and parts[1].lower() == "color":
+        parts = [parts[0], f"{parts[1]}:{parts[2]}"] + parts[3:]
+
     if len(parts) < 4:
         print(
             f"Error: transition must be TYPE:IMAGE:START:END[...], got '{spec}'",
@@ -235,8 +285,7 @@ def parse_transition(spec: str, sprite_size: int) -> TransitionSpec:
         )
         sys.exit(1)
 
-    alt = Image.open(img_path).convert("RGBA")
-    alt = resize_to_square(alt, sprite_size)
+    alt = resolve_source_image(img_path, sprite_size)
 
     start, end = int(start_str), int(end_str)
     if start >= end:
@@ -307,7 +356,11 @@ def main():
         "The scale type requires two extra fields: scale:IMAGE:START:END:SCALE_FROM:SCALE_TO.",
     )
     parser.add_argument(
-        "-s", "--base", required=True, help="Path to the base PNG image"
+        "-s",
+        "--base",
+        required=False,
+        default="transparent",
+        help="Path to the base PNG image, or keywords 'transparent'/'blank'/'none'/'color(...)'/'#HEX' (default: transparent)",
     )
     parser.add_argument(
         "-n", "--frames", type=int, required=True, help="Total number of frames"
@@ -341,8 +394,7 @@ def main():
         print("Error: --size must be at least 1", file=sys.stderr)
         sys.exit(1)
 
-    base = Image.open(args.base).convert("RGBA")
-    base = resize_to_square(base, args.size)
+    base = resolve_source_image(args.base, args.size)
 
     transitions = [parse_transition(spec, args.size) for spec in args.transitions]
 

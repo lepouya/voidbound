@@ -73,6 +73,24 @@ class SpriteMergeCliValidationTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("COLS and ROWS must be at least 1", result.stderr)
 
+    def test_parse_sheet_spec_built_in_keywords(self):
+        path, cols, rows = sprite_merge.parse_sheet_spec("transparent:4")
+        self.assertEqual((path, cols, rows), ("transparent", 4, 1))
+
+        path, cols, rows = sprite_merge.parse_sheet_spec("color(#ff0000)")
+        self.assertEqual((path, cols, rows), ("color(#ff0000)", 1, 1))
+
+    def test_load_sprites_from_sheet_built_in_keywords(self):
+        sprites, empty_count = sprite_merge.load_sprites_from_sheet("transparent", 3, 1, 16)
+        self.assertEqual(len(sprites), 3)
+        self.assertEqual(empty_count, 3)
+        self.assertEqual(sprites[0].getpixel((0, 0)), (0, 0, 0, 0))
+
+        sprites, empty_count = sprite_merge.load_sprites_from_sheet("color(#00ff00)", 2, 1, 16)
+        self.assertEqual(len(sprites), 2)
+        self.assertEqual(empty_count, 0)
+        self.assertEqual(sprites[0].getpixel((0, 0)), (0, 255, 0, 255))
+
 
 if __name__ == "__main__":
     unittest.main()

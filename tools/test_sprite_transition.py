@@ -103,6 +103,48 @@ class SpriteTransitionCliValidationTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("transition end frame 2 exceeds --frames 2", result.stderr)
 
+    def test_resolve_source_image_built_in_keywords(self):
+        transparent = sprite_transition.resolve_source_image("transparent", 16)
+        self.assertEqual(transparent.size, (16, 16))
+        self.assertEqual(transparent.getpixel((0, 0)), (0, 0, 0, 0))
+
+        red = sprite_transition.resolve_source_image("color(#ff0000)", 16)
+        self.assertEqual(red.getpixel((0, 0)), (255, 0, 0, 255))
+
+        green = sprite_transition.resolve_source_image("#00ff00", 16)
+        self.assertEqual(green.getpixel((0, 0)), (0, 255, 0, 255))
+
+    def test_parse_transition_auto_rejoins_color_hex(self):
+        spec = sprite_transition.parse_transition("fade:color:#0000ff:0:5:0:1", 8)
+        self.assertEqual(spec.kind, "fade")
+        self.assertEqual(spec.start, 0)
+        self.assertEqual(spec.end, 5)
+        self.assertEqual(spec.alt.getpixel((0, 0)), (0, 0, 255, 255))
+
+    def test_cli_optional_base_and_keyword_transition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = os.path.join(directory, "output.png")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    os.path.join(os.path.dirname(__file__), "sprite_transition.py"),
+                    "--frames",
+                    "2",
+                    "--size",
+                    "4",
+                    "--transition",
+                    "fade:color(#ff0000):0:1:1:1",
+                    "--dest",
+                    output,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            out_img = Image.open(output)
+            self.assertEqual(out_img.getpixel((0, 0)), (255, 0, 0, 255))
+
 
 if __name__ == "__main__":
     unittest.main()
