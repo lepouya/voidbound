@@ -92,6 +92,43 @@ def render_svg_string_to_image(svg_content: str, width: int, height: int, work_d
     return img
 
 
+def compute_anisotropic_plume(
+    cx: float,
+    base_y: float,
+    l_outer: float,
+    mid_w: float,
+    shear_x: float,
+    pulse_fast: float,
+    pulse: float,
+) -> tuple[str, str, str]:
+    w_outer = 3.0
+    tip_x = cx + shear_x
+    outer_d = (
+        f"M {cx - w_outer:.2f} {base_y:.2f} "
+        f"C {cx - mid_w - 0.5:.2f} {base_y + l_outer * 0.35:.2f}, {tip_x - 0.8:.2f} {base_y + l_outer * 0.85:.2f}, {tip_x:.2f} {base_y + l_outer:.2f} "
+        f"C {tip_x + 0.8:.2f} {base_y + l_outer * 0.85:.2f}, {cx + mid_w + 0.5:.2f} {base_y + l_outer * 0.35:.2f}, {cx + w_outer:.2f} {base_y:.2f} Z"
+    )
+    diamond_y = base_y + l_outer * 0.45 + 0.5 * pulse_fast
+    diamond_h = 2.5 + 0.8 * pulse
+    diamond_w = 1.8 - 0.4 * pulse
+    mid_x = cx + shear_x * 0.45
+    mid_d = (
+        f"M {mid_x:.2f} {diamond_y - diamond_h:.2f} "
+        f"L {mid_x + diamond_w:.2f} {diamond_y:.2f} "
+        f"L {mid_x:.2f} {diamond_y + diamond_h:.2f} "
+        f"L {mid_x - diamond_w:.2f} {diamond_y:.2f} Z"
+    )
+    w_inner = 1.5
+    l_inner = l_outer * 0.55
+    tip_inner_x = cx + shear_x * 0.5
+    inner_d = (
+        f"M {cx - w_inner:.2f} {base_y:.2f} "
+        f"Q {tip_inner_x:.2f} {base_y + l_inner * 0.7:.2f} {tip_inner_x:.2f} {base_y + l_inner:.2f} "
+        f"Q {tip_inner_x:.2f} {base_y + l_inner * 0.7:.2f} {cx + w_inner:.2f} {base_y:.2f} Z"
+    )
+    return outer_d, mid_d, inner_d
+
+
 def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float) -> str:
     svg = raw_svg
     for key, val in palette.items():
@@ -101,8 +138,9 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         float_y = math.sin(t * 2 * math.pi) * 1.5
         hull_transform = f"translate(0, {float_y:.2f})"
         plume_opacity = 0.0
-        plume_tip_y = 53.0
-        plume_inner_tip_y = 53.0
+        plume_mid_opacity = 0.0
+        l_outer, l_mid, l_inner = compute_anisotropic_plume(26.0, 53.0, 4.0, 2.2, 0.0, 0.0, 0.0)
+        r_outer, r_mid, r_inner = compute_anisotropic_plume(38.0, 53.0, 4.0, 2.2, 0.0, 0.0, 0.0)
         core_glow = 0.2 + 0.1 * math.sin(t * 2 * math.pi)
         scanner_opacity = 0.0
         scanner_y = 20.0
@@ -115,8 +153,21 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         surge_y = math.sin(t * 8 * math.pi) * 0.5
         hull_transform = f"translate(0, {surge_y:.2f})"
         plume_opacity = 0.9 + 0.1 * math.sin(t * 8 * math.pi)
-        plume_tip_y = 61.0 + 3.0 * math.sin(t * 8 * math.pi)
-        plume_inner_tip_y = 58.0 + 2.0 * math.sin(t * 8 * math.pi + 0.5)
+        pulse_l = math.sin(t * 8 * math.pi)
+        pulse_fast_l = math.sin(t * 16 * math.pi)
+        shear_l = 1.2 * math.sin(t * 6 * math.pi)
+        l_outer_len = 9.0 + 3.0 * pulse_l + 1.0 * pulse_fast_l
+        mid_w_l = 2.2 - 0.7 * pulse_l
+
+        pulse_r = math.sin(t * 8 * math.pi + 0.6)
+        pulse_fast_r = math.sin(t * 16 * math.pi + 0.6)
+        shear_r = 1.2 * math.sin(t * 6 * math.pi + 0.9)
+        r_outer_len = 9.0 + 3.0 * pulse_r + 1.0 * pulse_fast_r
+        mid_w_r = 2.2 - 0.7 * pulse_r
+
+        plume_mid_opacity = 0.5 + 0.25 * math.sin(t * 16 * math.pi + 0.3)
+        l_outer, l_mid, l_inner = compute_anisotropic_plume(26.0, 53.0, l_outer_len, mid_w_l, shear_l, pulse_fast_l, pulse_l)
+        r_outer, r_mid, r_inner = compute_anisotropic_plume(38.0, 53.0, r_outer_len, mid_w_r, shear_r, pulse_fast_r, pulse_r)
         core_glow = 0.9 + 0.1 * math.sin(t * 8 * math.pi)
         scanner_opacity = 0.0
         scanner_y = 20.0
@@ -130,8 +181,13 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         angle = math.sin(t * 2 * math.pi) * 8.0
         hull_transform = f"rotate({angle:.2f}, 32, 32)"
         plume_opacity = 0.15 + 0.1 * math.sin(t * 4 * math.pi)
-        plume_tip_y = 55.0
-        plume_inner_tip_y = 54.0
+        plume_mid_opacity = 0.0
+        pulse_l = math.sin(t * 4 * math.pi)
+        pulse_r = math.sin(t * 4 * math.pi + 0.5)
+        shear_l = 0.4 * math.sin(t * 2 * math.pi)
+        shear_r = 0.4 * math.sin(t * 2 * math.pi)
+        l_outer, l_mid, l_inner = compute_anisotropic_plume(26.0, 53.0, 4.0 + 1.0 * pulse_l, 2.2, shear_l, 0.0, pulse_l)
+        r_outer, r_mid, r_inner = compute_anisotropic_plume(38.0, 53.0, 4.0 + 1.0 * pulse_r, 2.2, shear_r, 0.0, pulse_r)
         core_glow = 0.4 + 0.3 * math.sin(t * 4 * math.pi)
         scanner_opacity = 0.95
         # Scanner sweeps smoothly from y=16 down to y=34 and back up
@@ -146,8 +202,13 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
 
     svg = svg.replace("{HULL_TRANSFORM}", hull_transform)
     svg = svg.replace("{PLUME_OPACITY}", f"{plume_opacity:.2f}")
-    svg = svg.replace("{PLUME_TIP_Y}", f"{plume_tip_y:.2f}")
-    svg = svg.replace("{PLUME_INNER_TIP_Y}", f"{plume_inner_tip_y:.2f}")
+    svg = svg.replace("{PLUME_MID_OPACITY}", f"{plume_mid_opacity:.2f}")
+    svg = svg.replace("{PLUME_L_OUTER}", l_outer)
+    svg = svg.replace("{PLUME_L_MID}", l_mid)
+    svg = svg.replace("{PLUME_L_INNER}", l_inner)
+    svg = svg.replace("{PLUME_R_OUTER}", r_outer)
+    svg = svg.replace("{PLUME_R_MID}", r_mid)
+    svg = svg.replace("{PLUME_R_INNER}", r_inner)
     svg = svg.replace("{CORE_GLOW_OPACITY}", f"{core_glow:.2f}")
     svg = svg.replace("{SCANNER_OPACITY}", f"{scanner_opacity:.2f}")
     svg = svg.replace("{SCANNER_Y}", f"{scanner_y:.2f}")

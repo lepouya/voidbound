@@ -26,16 +26,14 @@
   <g id="vessel_hull" transform="{HULL_TRANSFORM}">
     <!-- Thruster Exhaust Plumes (Active in moving state, hidden or faint in base/idle) -->
     <g id="thruster_plumes" opacity="{PLUME_OPACITY}">
-      <!-- Left Plume -->
-      <path d="M 23 53 Q 26 {PLUME_TIP_Y} 29 53 Z" fill="{ACCENT_COLOR}"
-        opacity="0.9" />
-      <path d="M 24.5 53 Q 26 {PLUME_INNER_TIP_Y} 27.5 53 Z" fill="#ffffff"
-        opacity="0.95" />
-      <!-- Right Plume -->
-      <path d="M 35 53 Q 38 {PLUME_TIP_Y} 41 53 Z" fill="{ACCENT_COLOR}"
-        opacity="0.9" />
-      <path d="M 36.5 53 Q 38 {PLUME_INNER_TIP_Y} 39.5 53 Z" fill="#ffffff"
-        opacity="0.95" />
+      <!-- Left Plume (Outer Anisotropic Cone, Mid Mach Diamond, Inner High-Velocity Core) -->
+      <path d="{PLUME_L_OUTER}" fill="{ACCENT_COLOR}" opacity="0.88" />
+      <path d="{PLUME_L_MID}" fill="#ffffff" opacity="{PLUME_MID_OPACITY}" />
+      <path d="{PLUME_L_INNER}" fill="#ffffff" opacity="0.95" />
+      <!-- Right Plume (Outer Anisotropic Cone, Mid Mach Diamond, Inner High-Velocity Core) -->
+      <path d="{PLUME_R_OUTER}" fill="{ACCENT_COLOR}" opacity="0.88" />
+      <path d="{PLUME_R_MID}" fill="#ffffff" opacity="{PLUME_MID_OPACITY}" />
+      <path d="{PLUME_R_INNER}" fill="#ffffff" opacity="0.95" />
     </g>
 
     <!-- Outer Wing Extensions & Trim -->
