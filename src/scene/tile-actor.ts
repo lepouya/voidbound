@@ -73,6 +73,7 @@ export class TileActor extends ex.Actor {
   private idleTimerMs = 0;
   private isIdleFlourishing = false;
   private idleFlourishTimerMs = 0;
+  private currentAnimState: "base" | "moving" | "idle" = "base";
   private readonly selectionTile: TileRef | null;
   private readonly onPressed: ((actor: TileActor) => void) | undefined;
   private readonly actionButtons: ButtonDef[];
@@ -239,6 +240,18 @@ export class TileActor extends ex.Actor {
     return btn;
   }
 
+  private setAnimState(newState: "base" | "moving" | "idle"): void {
+    if (newState === "idle" && this.idleGraphic !== null) {
+      this.graphics.use(this.idleGraphic);
+    } else if (newState === "moving" && this.movingGraphic !== null) {
+      this.graphics.use(this.movingGraphic);
+    } else {
+      this.graphics.use(this.baseGraphic);
+      newState = "base";
+    }
+    this.currentAnimState = newState;
+  }
+
   /**
    * Replace the base tile graphic after construction — e.g. swapping an
    * under-construction ghost for the finished module sprite. The replacement
@@ -248,11 +261,13 @@ export class TileActor extends ex.Actor {
    */
   setTile(tile: TileRef | TileRef[]): void {
     this.baseGraphic = resolveGraphicLayers(tile);
-    if (
-      this.graphics.current !== this.movingGraphic &&
-      this.graphics.current !== this.idleGraphic
+    if (this.isIdleFlourishing && this.idleGraphic !== null) {
+      this.graphics.use(this.idleGraphic);
+    } else if (
+      this.currentAnimState !== "moving" &&
+      this.currentAnimState !== "idle"
     ) {
-      this.graphics.use(this.baseGraphic);
+      this.setAnimState("base");
     }
   }
 
@@ -264,16 +279,19 @@ export class TileActor extends ex.Actor {
     movingTile?: TileRef | TileRef[] | null,
     idleTile?: TileRef | TileRef[] | null,
   ): void {
+    const wasFlourishing = this.isIdleFlourishing;
     this.baseGraphic = resolveGraphicLayers(tile);
     this.movingGraphic = movingTile != null
       ? resolveGraphicLayers(movingTile)
       : null;
     this.idleGraphic = idleTile != null ? resolveGraphicLayers(idleTile) : null;
-    if (
-      this.graphics.current !== this.movingGraphic &&
-      this.graphics.current !== this.idleGraphic
+    if (wasFlourishing && this.idleGraphic !== null) {
+      this.graphics.use(this.idleGraphic);
+    } else if (
+      this.currentAnimState !== "moving" &&
+      this.currentAnimState !== "idle"
     ) {
-      this.graphics.use(this.baseGraphic);
+      this.setAnimState("base");
     }
   }
 
@@ -319,8 +337,8 @@ export class TileActor extends ex.Actor {
     const dy = worldY - this.pos.y;
     if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
       this.pos = ex.vec(worldX, worldY);
-      if (this.movingGraphic !== null) {
-        this.graphics.use(this.baseGraphic);
+      if (!this.isIdleFlourishing && this.movingGraphic !== null) {
+        this.setAnimState("base");
       }
       onComplete?.();
       return;
@@ -337,11 +355,11 @@ export class TileActor extends ex.Actor {
       this.idleFlourishTimerMs = 0;
     }
     if (this.movingGraphic !== null) {
-      this.graphics.use(this.movingGraphic);
+      this.setAnimState("moving");
     }
     this.actions.moveTo(worldX, worldY, speed).callMethod(() => {
       if (this.movingGraphic !== null) {
-        this.graphics.use(this.baseGraphic);
+        this.setAnimState("base");
       }
       this.pathLine?.kill();
       this.pathLine = null;
@@ -481,16 +499,14 @@ export class TileActor extends ex.Actor {
     super.onPostUpdate(engine, delta);
     this.repositionUprightChildren();
 
-    const isMoving = this.actions.getQueue().getActions().length > 0 ||
-      (this.movingGraphic !== null &&
-        this.graphics.current === this.movingGraphic);
+    const isMoving = this.currentAnimState === "moving";
 
     if (isMoving) {
       this.idleTimerMs = 0;
       if (this.isIdleFlourishing) {
         this.isIdleFlourishing = false;
         this.idleFlourishTimerMs = 0;
-        this.graphics.use(this.movingGraphic ?? this.baseGraphic);
+        this.setAnimState(this.movingGraphic !== null ? "moving" : "base");
       }
       return;
     }
@@ -501,7 +517,7 @@ export class TileActor extends ex.Actor {
         if (this.idleTimerMs >= 15_000) {
           this.isIdleFlourishing = true;
           this.idleFlourishTimerMs = 0;
-          this.graphics.use(this.idleGraphic);
+          this.setAnimState("idle");
           if (this.idleGraphic instanceof ex.Animation) {
             this.idleGraphic.reset();
           }
@@ -513,7 +529,7 @@ export class TileActor extends ex.Actor {
           this.isIdleFlourishing = false;
           this.idleTimerMs = 0;
           this.idleFlourishTimerMs = 0;
-          this.graphics.use(this.baseGraphic);
+          this.setAnimState("base");
         }
       }
     }
