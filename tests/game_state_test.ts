@@ -43,7 +43,7 @@ function sampleMothership(
     mothershipId: id,
     ownerId: id,
     ownerName: `Owner of ${id}`,
-    shipType: "ss1",
+    shipType: "mothership-1",
     damaged: false,
     col: 48,
     row: 48,

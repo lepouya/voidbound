@@ -64,8 +64,20 @@ export const TILESET_GEOMETRY: TilesetGeometry[] = [
   { name: "ui-selection-mod-2x2", tileSize: 128, ...CANONICAL_ANIM },
   { name: "ui-selection-mod-3x3", tileSize: 192, ...CANONICAL_ANIM },
   { name: "ui-selection-mod-4x4", tileSize: 256, ...CANONICAL_ANIM },
-  { name: "ss1-base", tileSize: 256, ...CANONICAL_ANIM },
-  { name: "ss1-damaged", tileSize: 256, ...CANONICAL_ANIM },
+  // Mothership sprites (ROADMAP P1.8 / P6.11): 32-frame animated 6x6 sheets featuring
+  // base rotation/float, 7-cycle scanner flourish idle tricks, and damaged states.
+  { name: "mothership-1-base-self", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-idle-self", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-damaged-self", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-base-allies", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-idle-allies", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-damaged-allies", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-base-neutral", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-idle-neutral", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-damaged-neutral", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-base-enemy", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-idle-enemy", tileSize: 256, ...CANONICAL_ANIM },
+  { name: "mothership-1-damaged-enemy", tileSize: 256, ...CANONICAL_ANIM },
   // Vessel sprites (ROADMAP P1.8 / P5.3): 32-frame animated 6x6 sheets featuring
   // idle zero-G float, anisotropic thruster plasma plumes, and 15s flourish tricks.
   { name: "vessel-1-base-self", tileSize: 64, ...CANONICAL_ANIM },

@@ -1,0 +1,289 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256"
+  height="256">
+  <defs>
+    <!-- Engine Core Inner Glow -->
+    <radialGradient id="engineGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1.0" />
+      <stop offset="35%" stop-color="{ACCENT_COLOR}" stop-opacity="0.95" />
+      <stop offset="70%" stop-color="{ACCENT_COLOR}" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="{ACCENT_COLOR}" stop-opacity="0.0" />
+    </radialGradient>
+
+    <!-- Observation Canopy Glass Gradient -->
+    <linearGradient id="canopyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="{ACCENT_COLOR}" stop-opacity="0.9" />
+      <stop offset="45%" stop-color="#121a28" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="{ACCENT_COLOR}" stop-opacity="0.45" />
+    </linearGradient>
+
+    <!-- Metallic Hull Shading Gradients (Primary and Beveled Secondary) -->
+    <linearGradient id="hullPrimaryShade" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="{HULL_PRIMARY}" />
+      <stop offset="100%" stop-color="{HULL_SECONDARY}" />
+    </linearGradient>
+
+    <linearGradient id="hullSecondaryShade" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="{HULL_SECONDARY}" />
+      <stop offset="100%" stop-color="#0b1118" />
+    </linearGradient>
+
+    <linearGradient id="armorBevelHighlight" x1="0%" y1="0%" x2="100%"
+      y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.03" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.3" />
+    </linearGradient>
+
+    <!-- Hangar Bay Recessed Launch Deck Gradient -->
+    <linearGradient id="hangarBayGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#080c14" />
+      <stop offset="50%" stop-color="#152236" />
+      <stop offset="100%" stop-color="#080c14" />
+    </linearGradient>
+
+    <!-- Scanner Radar Sweep Beam -->
+    <radialGradient id="scannerBeam" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="{ACCENT_COLOR}" stop-opacity="0.85" />
+      <stop offset="65%" stop-color="{ACCENT_COLOR}" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="{ACCENT_COLOR}" stop-opacity="0.0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Main Capital Ship Assembly (Sleek directional sci-fi mothership facing -y at rotation 0) -->
+  <g id="ship_root" transform="{SHIP_TRANSFORM}">
+    <!-- Forward Sector Scanner Sweep Beams (Active only during 'idle' scanning flourish) -->
+    <g id="sector_scanner" opacity="{SCANNER_OPACITY}"
+      transform="{SCANNER_TRANSFORM}">
+      <path d="M 128 62 L 14 6 A 180 180 0 0 1 242 6 Z" fill="url(#scannerBeam)"
+        opacity="0.65" />
+      <line x1="128" y1="62" x2="14" y2="6" stroke="{ACCENT_COLOR}"
+        stroke-width="2" opacity="0.85" />
+      <line x1="128" y1="62" x2="242" y2="6" stroke="{ACCENT_COLOR}"
+        stroke-width="2" opacity="0.85" />
+      <path d="M 44 24 A 120 120 0 0 1 212 24" fill="none"
+        stroke="{ACCENT_COLOR}" stroke-width="1.5" stroke-dasharray="10 6"
+        opacity="0.75" />
+      <path d="M 74 44 A 80 80 0 0 1 182 44" fill="none" stroke="{ACCENT_COLOR}"
+        stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6" />
+    </g>
+
+    <!-- Anisotropic Multi-Layered Thruster Plasma Plumes (4 Main Heavy + 2 Auxiliary) -->
+    <g id="thruster_plumes" opacity="{THRUSTER_OPACITY}">
+      <!-- Port Outer Main Engine (cx=70, base_y=222) -->
+      <path d="{PLUME_P1_OUTER}" fill="{ACCENT_COLOR}" opacity="0.88" />
+      <path d="{PLUME_P1_MID}" fill="#ffffff" opacity="{PLUME_MID_OPACITY}" />
+      <path d="{PLUME_P1_INNER}" fill="#ffffff" opacity="0.95" />
+      <!-- Port Inner Main Engine (cx=88, base_y=222) -->
+      <path d="{PLUME_P2_OUTER}" fill="{ACCENT_COLOR}" opacity="0.88" />
+      <path d="{PLUME_P2_MID}" fill="#ffffff" opacity="{PLUME_MID_OPACITY}" />
+      <path d="{PLUME_P2_INNER}" fill="#ffffff" opacity="0.95" />
+
+      <!-- Starboard Inner Main Engine (cx=168, base_y=222) -->
+      <path d="{PLUME_S1_OUTER}" fill="{ACCENT_COLOR}" opacity="0.88" />
+      <path d="{PLUME_S1_MID}" fill="#ffffff" opacity="{PLUME_MID_OPACITY}" />
+      <path d="{PLUME_S1_INNER}" fill="#ffffff" opacity="0.95" />
+      <!-- Starboard Outer Main Engine (cx=186, base_y=222) -->
+      <path d="{PLUME_S2_OUTER}" fill="{ACCENT_COLOR}" opacity="0.88" />
+      <path d="{PLUME_S2_MID}" fill="#ffffff" opacity="{PLUME_MID_OPACITY}" />
+      <path d="{PLUME_S2_INNER}" fill="#ffffff" opacity="0.95" />
+
+      <!-- Auxiliary Center Maneuvering Plumes (cx=114 & cx=142, base_y=216) -->
+      <path d="{PLUME_A1_OUTER}" fill="{ACCENT_COLOR}" opacity="0.75" />
+      <path d="{PLUME_A1_INNER}" fill="#ffffff" opacity="0.9" />
+      <path d="{PLUME_A2_OUTER}" fill="{ACCENT_COLOR}" opacity="0.75" />
+      <path d="{PLUME_A2_INNER}" fill="#ffffff" opacity="0.9" />
+    </g>
+
+    <!-- Outer Sweeping Swept-Back Armor Wings & Lateral Docking/Hangar Decks -->
+    <g id="outer_wings_and_hangars">
+      <!-- Port Outer Swept Wing Structure -->
+      <path d="M 128 16 L 36 78 L 16 150 L 46 198 L 98 198 L 128 164 Z"
+        fill="url(#hullPrimaryShade)" stroke="#0e141e" stroke-width="2"
+        stroke-linejoin="round" />
+      <!-- Port Beveled Highlight Overlay -->
+      <path d="M 128 18 L 40 80 L 22 148 L 48 194 L 94 194 L 128 164 Z"
+        fill="url(#armorBevelHighlight)" />
+      <!-- Port Faction Trim Stripes -->
+      <path d="M 38 88 L 64 104 L 64 168 L 30 156 Z" fill="{HULL_SECONDARY}"
+        stroke="{ACCENT_COLOR}" stroke-width="1.2" stroke-opacity="0.6" />
+      <path d="M 20 148 L 44 194 L 28 194 Z" fill="{ACCENT_COLOR}"
+        opacity="0.85" />
+
+      <!-- Starboard Outer Swept Wing Structure -->
+      <path d="M 128 16 L 220 78 L 240 150 L 210 198 L 158 198 L 128 164 Z"
+        fill="url(#hullPrimaryShade)" stroke="#0e141e" stroke-width="2"
+        stroke-linejoin="round" />
+      <!-- Starboard Beveled Highlight Overlay -->
+      <path d="M 128 18 L 216 80 L 234 148 L 208 194 L 162 194 L 128 164 Z"
+        fill="url(#armorBevelHighlight)" />
+      <!-- Starboard Faction Trim Stripes -->
+      <path d="M 218 88 L 192 104 L 192 168 L 226 156 Z" fill="{HULL_SECONDARY}"
+        stroke="{ACCENT_COLOR}" stroke-width="1.2" stroke-opacity="0.6" />
+      <path d="M 236 148 L 212 194 L 228 194 Z" fill="{ACCENT_COLOR}"
+        opacity="0.85" />
+
+      <!-- Port Lateral Hangar Launch Deck (High-tech recessed bay where vessels deploy) -->
+      <rect x="34" y="108" width="28" height="58" rx="2"
+        fill="url(#hangarBayGradient)" stroke="{ACCENT_COLOR}"
+        stroke-width="1.5" opacity="0.92" />
+      <line x1="48" y1="110" x2="48" y2="164" stroke="{ACCENT_COLOR}"
+        stroke-width="1.5" stroke-dasharray="8 6" opacity="0.8" />
+      <circle cx="48" cy="116" r="3" fill="url(#engineGlow)" opacity="0.85" />
+      <circle cx="48" cy="156" r="3" fill="url(#engineGlow)" opacity="0.85" />
+
+      <!-- Starboard Lateral Hangar Launch Deck -->
+      <rect x="194" y="108" width="28" height="58" rx="2"
+        fill="url(#hangarBayGradient)" stroke="{ACCENT_COLOR}"
+        stroke-width="1.5" opacity="0.92" />
+      <line x1="208" y1="110" x2="208" y2="164" stroke="{ACCENT_COLOR}"
+        stroke-width="1.5" stroke-dasharray="8 6" opacity="0.8" />
+      <circle cx="208" cy="116" r="3" fill="url(#engineGlow)" opacity="0.85" />
+      <circle cx="208" cy="156" r="3" fill="url(#engineGlow)" opacity="0.85" />
+    </g>
+
+    <!-- Heavy Twin Aft Engine Nacelles / Drive Housings -->
+    <g id="engine_nacelles">
+      <!-- Port Nacelle Housing -->
+      <path d="M 58 142 L 98 142 L 100 220 L 56 220 Z"
+        fill="url(#hullSecondaryShade)" stroke="#0e141e" stroke-width="2" />
+      <path d="M 64 150 L 92 150 L 94 212 L 62 212 Z" fill="{HULL_PRIMARY}"
+        stroke="{ACCENT_COLOR}" stroke-width="1" stroke-opacity="0.7" />
+      <!-- Port Dual Precision Exhaust Nozzle Bezel -->
+      <rect x="62" y="218" width="16" height="6" rx="1.5" fill="#0d121a"
+        stroke="#2a3848" stroke-width="1.2" />
+      <rect x="80" y="218" width="16" height="6" rx="1.5" fill="#0d121a"
+        stroke="#2a3848" stroke-width="1.2" />
+      <circle cx="70" cy="220" r="4.5" fill="url(#engineGlow)"
+        opacity="{CORE_GLOW_OPACITY}" />
+      <circle cx="88" cy="220" r="4.5" fill="url(#engineGlow)"
+        opacity="{CORE_GLOW_OPACITY}" />
+
+      <!-- Starboard Nacelle Housing -->
+      <path d="M 158 142 L 198 142 L 200 220 L 156 220 Z"
+        fill="url(#hullSecondaryShade)" stroke="#0e141e" stroke-width="2" />
+      <path d="M 164 150 L 192 150 L 194 212 L 162 212 Z" fill="{HULL_PRIMARY}"
+        stroke="{ACCENT_COLOR}" stroke-width="1" stroke-opacity="0.7" />
+      <!-- Starboard Dual Precision Exhaust Nozzle Bezel -->
+      <rect x="160" y="218" width="16" height="6" rx="1.5" fill="#0d121a"
+        stroke="#2a3848" stroke-width="1.2" />
+      <rect x="178" y="218" width="16" height="6" rx="1.5" fill="#0d121a"
+        stroke="#2a3848" stroke-width="1.2" />
+      <circle cx="168" cy="220" r="4.5" fill="url(#engineGlow)"
+        opacity="{CORE_GLOW_OPACITY}" />
+      <circle cx="186" cy="220" r="4.5" fill="url(#engineGlow)"
+        opacity="{CORE_GLOW_OPACITY}" />
+    </g>
+
+    <!-- Raised Chiseled Dorsal Citadel & Command Spine -->
+    <g id="central_citadel">
+      <!-- Central Armored Spine Structure -->
+      <path
+        d="M 128 14 L 92 56 L 94 180 L 108 216 L 148 216 L 162 180 L 164 56 Z"
+        fill="url(#hullPrimaryShade)" stroke="#0e141e" stroke-width="2"
+        stroke-linejoin="round" />
+      <!-- Chiseled Center Bevel Plates -->
+      <path d="M 128 18 L 98 58 L 100 176 L 112 212 L 128 212 Z" fill="#ffffff"
+        opacity="0.07" />
+      <path d="M 128 18 L 158 58 L 156 176 L 144 212 L 128 212 Z" fill="#000000"
+        opacity="0.25" />
+
+      <!-- Dorsal Reactor Matrix & Power Grid -->
+      <circle cx="128" cy="120" r="30" fill="{HULL_SECONDARY}" stroke="#0e141e"
+        stroke-width="2" />
+      <circle cx="128" cy="120" r="23" fill="none" stroke="{ACCENT_COLOR}"
+        stroke-width="2" stroke-dasharray="16 8" opacity="{CONDUIT_OPACITY}" />
+      <circle cx="128" cy="120" r="14" fill="url(#engineGlow)"
+        opacity="{CONDUIT_OPACITY}" />
+      <circle cx="128" cy="120" r="7" fill="#ffffff" opacity="0.9" />
+
+      <!-- Glowing Power Feed Conduits leading across Citadel -->
+      <line x1="128" y1="90" x2="128" y2="52" stroke="{ACCENT_COLOR}"
+        stroke-width="3" stroke-linecap="round" opacity="{CONDUIT_OPACITY}" />
+      <line x1="105" y1="138" x2="74" y2="164" stroke="{ACCENT_COLOR}"
+        stroke-width="2.5" stroke-linecap="round" opacity="{CONDUIT_OPACITY}" />
+      <line x1="151" y1="138" x2="182" y2="164" stroke="{ACCENT_COLOR}"
+        stroke-width="2.5" stroke-linecap="round" opacity="{CONDUIT_OPACITY}" />
+
+      <!-- Forward Command Bridge / Razor Delta Bow Wedge -->
+      <path d="M 128 14 L 102 48 L 154 48 Z" fill="{HULL_SECONDARY}"
+        stroke="{ACCENT_COLOR}" stroke-width="1.8" />
+      <!-- Cockpit Glass Canopy with Specular Highlight Overlay -->
+      <path d="M 128 22 L 112 44 L 144 44 Z" fill="url(#canopyGradient)"
+        stroke="{ACCENT_COLOR}" stroke-width="1" />
+      <path d="M 128 23 L 116 42 L 128 42 Z" fill="#ffffff" opacity="0.18" />
+    </g>
+
+    <!-- High-Tech Elevated Sensor & Radar Array Assembly -->
+    <g id="radar_array" transform="{RADAR_TRANSFORM}">
+      <ellipse cx="128" cy="66" rx="16" ry="8" fill="{HULL_SECONDARY}"
+        stroke="{ACCENT_COLOR}" stroke-width="1.5" />
+      <line x1="128" y1="66" x2="128" y2="50" stroke="{ACCENT_COLOR}"
+        stroke-width="2.2" stroke-linecap="round" />
+      <circle cx="128" cy="50" r="3" fill="#ffffff" stroke="{ACCENT_COLOR}"
+        stroke-width="1" />
+    </g>
+
+    <!-- Navigation Beacons / Running Lights (Point + Glowing Aura Circle) -->
+    <g id="navigation_beacons">
+      <!-- Bow Apex Beacon -->
+      <circle cx="128" cy="14" r="2.5" fill="#ffffff"
+        opacity="{BEACON_OPACITY}" />
+      <circle cx="128" cy="14" r="5" fill="{ACCENT_COLOR}"
+        opacity="{BEACON_GLOW}" />
+      <!-- Port Wingtip Beacon -->
+      <circle cx="18" cy="150" r="2.5" fill="#ffffff"
+        opacity="{BEACON_OPACITY}" />
+      <circle cx="18" cy="150" r="5" fill="{ACCENT_COLOR}"
+        opacity="{BEACON_GLOW}" />
+      <!-- Starboard Wingtip Beacon -->
+      <circle cx="238" cy="150" r="2.5" fill="#ffffff"
+        opacity="{BEACON_OPACITY}" />
+      <circle cx="238" cy="150" r="5" fill="{ACCENT_COLOR}"
+        opacity="{BEACON_GLOW}" />
+      <!-- Aft Port Nacelle Beacon -->
+      <circle cx="60" cy="220" r="2.5" fill="#ffffff"
+        opacity="{BEACON_OPACITY}" />
+      <circle cx="60" cy="220" r="5" fill="{ACCENT_COLOR}"
+        opacity="{BEACON_GLOW}" />
+      <!-- Aft Starboard Nacelle Beacon -->
+      <circle cx="196" cy="220" r="2.5" fill="#ffffff"
+        opacity="{BEACON_OPACITY}" />
+      <circle cx="196" cy="220" r="5" fill="{ACCENT_COLOR}"
+        opacity="{BEACON_GLOW}" />
+    </g>
+
+    <!-- Battle Damage Breaches & Emergency Hazard Warning Systems (Active only when damaged == true) -->
+    <g id="damage_breaches" opacity="{DAMAGE_OPACITY}">
+      <!-- Jagged Hull Breaches on Port Wing, Dorsal Citadel, and Starboard Nacelle -->
+      <path d="M 60 126 L 76 140 L 68 152 L 52 138 Z" fill="#0d0404"
+        stroke="#ff3232" stroke-width="1.8" />
+      <path d="M 142 94 L 158 102 L 152 118 L 138 108 Z" fill="#0d0404"
+        stroke="#ff3232" stroke-width="1.8" />
+      <path d="M 172 168 L 188 174 L 182 192 L 166 182 Z" fill="#0d0404"
+        stroke="#ff3232" stroke-width="1.8" />
+
+      <!-- Exposed Sparking Internal Structural Ribs -->
+      <line x1="64" y1="130" x2="72" y2="148" stroke="#ff3232"
+        stroke-width="1.5" />
+      <line x1="146" y1="98" x2="154" y2="114" stroke="#ff3232"
+        stroke-width="1.5" />
+      <line x1="176" y1="172" x2="184" y2="188" stroke="#ff3232"
+        stroke-width="1.5" />
+
+      <!-- Emergency Red Hazard Warning Strobes (Inner bright point + outer crimson aura) -->
+      <g opacity="{HAZARD_STROBE}">
+        <circle cx="68" cy="138" r="4" fill="#ffffff" />
+        <circle cx="68" cy="138" r="9" fill="#ff3232" opacity="0.85" />
+
+        <circle cx="148" cy="106" r="4" fill="#ffffff" />
+        <circle cx="148" cy="106" r="9" fill="#ff3232" opacity="0.85" />
+
+        <circle cx="178" cy="180" r="4" fill="#ffffff" />
+        <circle cx="178" cy="180" r="9" fill="#ff3232" opacity="0.85" />
+
+        <circle cx="128" cy="80" r="4" fill="#ffffff" />
+        <circle cx="128" cy="80" r="9" fill="#ff3232" opacity="0.85" />
+      </g>
+    </g>
+  </g>
+</svg>

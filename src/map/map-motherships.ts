@@ -3,6 +3,7 @@ import { TileGridGeometry } from "../scene/grid-math.ts";
 import { reconcileActors } from "../scene/actor-sync.ts";
 import { TileActor } from "../scene/tile-actor.ts";
 import { roundButton } from "../ui/index.ts";
+import { resolveActorRelation } from "./map-vessels.ts";
 
 /** True when two snapshots describe an identical ship — placement, art, and
  *  ownership — so the reconciler can skip rebuilding its actor. */
@@ -85,9 +86,14 @@ export class MothershipSync {
     data: MothershipData,
   ): TileActor {
     const own = data.ownerId === gameState.player.id;
+    const relation = resolveActorRelation(data.ownerId);
+    const baseRef = `${data.shipType}-base-${relation}:0`;
+    const idleRef = `${data.shipType}-idle-${relation}:0`;
+    const damagedRef = `${data.shipType}-damaged-${relation}:0`;
     return new TileActor({
       grid,
-      tile: `${data.shipType}-${data.damaged ? "damaged" : "base"}:0`,
+      tile: data.damaged ? damagedRef : baseRef,
+      idleTile: data.damaged ? null : idleRef,
       col: data.col,
       row: data.row,
       width: data.span,

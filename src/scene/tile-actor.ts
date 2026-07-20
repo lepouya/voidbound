@@ -514,7 +514,11 @@ export class TileActor extends ex.Actor {
     if (this.idleGraphic !== null) {
       if (!this.isIdleFlourishing) {
         this.idleTimerMs += delta;
-        if (this.idleTimerMs >= 15_000) {
+        // Synchronized to exact multiples of the 32-frame animation loop duration
+        // (32 frames @ 66ms = 2112ms). Waiting exactly 7 cycles (7 * 2112ms = 14,784ms)
+        // ensures both vessels and motherships complete their base animation loops
+        // cleanly on frame boundaries before swapping to the idle flourish state.
+        if (this.idleTimerMs >= 14_784) {
           this.isIdleFlourishing = true;
           this.idleFlourishTimerMs = 0;
           this.setAnimState("idle");

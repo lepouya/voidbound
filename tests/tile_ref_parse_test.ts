@@ -26,7 +26,9 @@ Deno.test("parseSegment: only the first colon splits name from id", () => {
 });
 
 Deno.test("splitRefLayers: single segment passes through", () => {
-  assertEquals(splitRefLayers("ss1-base:0"), ["ss1-base:0"]);
+  assertEquals(splitRefLayers("mothership-1-base-self:0"), [
+    "mothership-1-base-self:0",
+  ]);
 });
 
 Deno.test("splitRefLayers: comma list splits in painter's order", () => {

@@ -72,8 +72,7 @@ export interface MothershipData {
   ownerId: string;
   /** Display name shown below the ship sprite. */
   ownerName: string;
-  /** Sprite/capability type, e.g. "ss1" — resolves art as `<type>-base` /
-   *  `<type>-damaged`. */
+  /** Sprite/capability type, e.g. "mothership-1" — resolves art as `<type>-<state>-<relation>`. */
   shipType: string;
   /** Renders the `-damaged` sprite variant when true. */
   damaged: boolean;

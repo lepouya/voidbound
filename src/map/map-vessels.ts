@@ -13,7 +13,7 @@ import { TileActor } from "../scene/tile-actor.ts";
 import { errorToast, roundButton, ToastDef } from "../ui/index.ts";
 import { vesselWorldPos } from "./vessel-math.ts";
 
-function resolveVesselRelation(
+export function resolveActorRelation(
   ownerId: string | undefined,
 ): "self" | "allies" | "neutral" | "enemy" {
   if (!ownerId || ownerId === "neutral") return "neutral";
@@ -118,7 +118,7 @@ export class VesselSync {
     );
     const currentPos = ex.vec(worldPos.x, worldPos.y);
 
-    const relation = resolveVesselRelation(event.ownerId);
+    const relation = resolveActorRelation(event.ownerId);
     const baseRef = `${event.vesselType}-base-${relation}:0`;
     const movingRef = `${event.vesselType}-moving-${relation}:0`;
     const idleRef = `${event.vesselType}-idle-${relation}:0`;

@@ -121,9 +121,9 @@ tools/                # Python art pipeline (Pillow); called from art/gen_*.sh
 
 ### Naming
 
-- **mothership** — large ships (`ss-*` sprites, 4*4 tiles). Also "space
+- **mothership** — large ships (`mothership-*` sprites, 4*4 tiles). Also "space
   station".
-- **vessel** — small ship dispatched by a mothership (`cs-*` sprites, 1*1
+- **vessel** — small ship dispatched by a mothership (`vessel-*` sprites, 1*1
   tiles). Never "cargo ship" — their role is broader.
 - Tileset names: lowercase-kebab, stable, used directly in `TileRef` strings.
 

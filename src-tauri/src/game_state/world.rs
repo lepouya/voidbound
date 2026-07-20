@@ -65,8 +65,7 @@ pub struct MothershipData {
     pub mothership_id: String,
     pub owner_id: String,
     pub owner_name: String,
-    /// Sprite/capability type, e.g. "ss1" — resolves art as `<type>-base` /
-    /// `<type>-damaged`.
+    /// Sprite/capability type, e.g. "mothership-1" — resolves art as `<type>-<state>-<relation>`.
     pub ship_type: String,
     /// Renders the `-damaged` sprite variant when true.
     pub damaged: bool,
