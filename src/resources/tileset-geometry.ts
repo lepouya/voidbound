@@ -52,7 +52,6 @@ export const ANIM_64_FRAMES = {
 } as const;
 
 export const TILESET_GEOMETRY: TilesetGeometry[] = [
-  { name: "test-tileset", cols: 4, rows: 1, tileSize: 32 },
   { name: "ship-tiles", cols: 6, rows: 6, tileSize: 64 },
   { name: "ui-selection", tileSize: 256, ...ANIM_32_FRAMES },
   { name: "ui-selection-1x1", tileSize: 64, ...ANIM_32_FRAMES },
@@ -64,39 +63,7 @@ export const TILESET_GEOMETRY: TilesetGeometry[] = [
   { name: "ui-selection-mod-2x2", tileSize: 128, ...ANIM_32_FRAMES },
   { name: "ui-selection-mod-3x3", tileSize: 192, ...ANIM_32_FRAMES },
   { name: "ui-selection-mod-4x4", tileSize: 256, ...ANIM_32_FRAMES },
-  // Mothership sprites (ROADMAP P1.8 / P6.11): 32-frame animated 6x6 sheets featuring
-  // base rotation/float, 7-cycle scanner flourish idle tricks, and damaged states.
-  { name: "mothership-1-base-self", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-idle-self", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-damaged-self", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-base-allies", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-idle-allies", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-damaged-allies", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-base-neutral", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-idle-neutral", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-damaged-neutral", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-base-enemy", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-idle-enemy", tileSize: 256, ...ANIM_32_FRAMES },
-  { name: "mothership-1-damaged-enemy", tileSize: 256, ...ANIM_32_FRAMES },
-  // Vessel sprites (ROADMAP P1.8 / P5.3): 32-frame animated 6x6 sheets featuring
-  // idle zero-G float, anisotropic thruster plasma plumes, and 15s flourish tricks.
-  { name: "vessel-1-base-self", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-moving-self", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-idle-self", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-base-allies", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-moving-allies", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-idle-allies", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-base-neutral", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-moving-neutral", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-idle-neutral", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-base-enemy", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-moving-enemy", tileSize: 64, ...ANIM_32_FRAMES },
-  { name: "vessel-1-idle-enemy", tileSize: 64, ...ANIM_32_FRAMES },
-  // Asteroid sprites (ROADMAP P1.6): 64-frame animated 8x8 sheets featuring
-  // 3D anisotropic tumbling, zero-G Lissajous drift, and serene debris fields.
-  // Grayscale vector base tinted per resource kind at render time (`ASTEROID_TINTS`
-  // in src/map/asteroid-catalog.ts). Map tiles are 32 px world with 2x resolution,
-  // so span 1/2/3 renders at 64/128/192 px tile size.
+  // Asteroid sprites: 64-frame animated 8*8 sheets across spans 1/2/3 (64/128/192 px cell size).
   { name: "asteroid-small", tileSize: 64, ...ANIM_64_FRAMES },
   { name: "asteroid-medium", tileSize: 128, ...ANIM_64_FRAMES },
   { name: "asteroid-large", tileSize: 192, ...ANIM_64_FRAMES },
@@ -106,6 +73,10 @@ export const AUTO_TILESET_RULES: AutoTilesetRule[] = [
   // UI button frames and icons: static 3*1 sheet (normal, active, disabled).
   { prefix: "ui-frame-", cols: 3, rows: 1, tileSize: 64 },
   { prefix: "ui-icon-", cols: 3, rows: 1, tileSize: 64 },
+  // Mothership sprites: 32-frame animated 6*6 sheets at 256x256 cell size (4*4 world tiles).
+  { prefix: "mothership-", tileSize: 256, ...ANIM_32_FRAMES },
+  // Vessel sprites: 32-frame animated 6*6 sheets at 64x64 cell size (1*1 world tile).
+  { prefix: "vessel-", tileSize: 64, ...ANIM_32_FRAMES },
   // Command module tiers: 64-frame animated 8*8 sheets at 384x384 cell size (6*6 tiles @ 64px).
   { prefix: "module-command-", tileSize: 384, ...ANIM_64_FRAMES },
   // Other mothership modules: canonical animated sheet.
