@@ -138,9 +138,9 @@
     <!-- Floor Plating -->
     <rect x="128" y="0" width="384" height="384" fill="url(#floor-grid)" />
     <!-- Blast Walls (Bottom & Left) -->
-    <polygon points="0,384 128,384 128,0 0,0" fill="url(#wall-left-grad)"
+    <polygon points="0,0 128,0 128,384 0,512" fill="url(#wall-left-grad)"
       stroke="#334155" stroke-width="2" />
-    <polygon points="0,512 512,512 512,384 128,384"
+    <polygon points="0,512 128,384 512,384 512,512"
       fill="url(#wall-bottom-grad)" stroke="#334155" stroke-width="2" />
     <line x1="0" y1="512" x2="128" y2="384" stroke="#00d2ff" stroke-width="3"
       stroke-opacity="0.6" />
@@ -167,9 +167,9 @@
     <!-- Floor Plating -->
     <rect x="0" y="0" width="384" height="384" fill="url(#floor-grid)" />
     <!-- Blast Walls (Bottom & Right) -->
-    <polygon points="384,0 512,0 512,384 384,384" fill="url(#wall-right-grad)"
+    <polygon points="384,0 512,0 512,512 384,384" fill="url(#wall-right-grad)"
       stroke="#334155" stroke-width="2" />
-    <polygon points="0,384 512,384 512,512 384,512"
+    <polygon points="0,384 384,384 512,512 0,512"
       fill="url(#wall-bottom-grad)" stroke="#334155" stroke-width="2" />
     <line x1="512" y1="512" x2="384" y2="384" stroke="#00d2ff" stroke-width="3"
       stroke-opacity="0.6" />
