@@ -103,7 +103,8 @@ export class <Name>Level extends TiledScene {
   handled outside the button flow.
 - To give an actor a custom selection ring, pass `selection: "ui-selection-2"`
   (or any other `ui-selection*` tileset) in its `TileActorOptions`. Default is
-  `ui-selection`. See `ShipLevel.createModuleActor` for an example.
+  `ui-selection`. See `ModuleSync.createActor` (src/ship/ship-modules.ts) for an
+  example.
 
 **Rendering server state:** scenes must not hardcode world content the backend
 owns. Entities that ride the `load_game_state` snapshot (motherships, vessels,
@@ -115,10 +116,10 @@ and server pushes all land the same way. Subscriptions stay live across scene
 switches (scenes never unsubscribe), so changes made while the scene is inactive
 arrive on their own — an `onActivate` forced re-sync is only needed for entities
 whose current position is lerped from event timestamps (see
-`MapLevel.onActivate` → `syncVessels(true)`). See
-`MapLevel.syncMotherships()`/`syncAsteroids()`/`syncVessels()` and
-`ShipLevel.syncModules()`; for a new server-owned entity type, follow
-`/add-game-event`.
+`MapLevel.onActivate` → `vesselSync.sync(grid, true)`). See
+`MothershipSync`/`AsteroidSync`/`VesselSync` (src/map/) and `ModuleSync`
+(src/ship/ship-modules.ts), each a small class wrapping one `sync()` method; for
+a new server-owned entity type, follow `/add-game-event`.
 
 ## 2. Register the scene in `src/main.ts`
 

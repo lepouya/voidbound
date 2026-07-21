@@ -48,7 +48,7 @@ Reference: `LevelUpStatus`
 (`"recruiting" | "full" | "unaffordable" | "ready"`) in src/ship/ship-modules.ts
 — both documented inline with why the non-obvious blocker variant exists.
 Compute the status in its own method (`levelUpStatus()`, `hireStatus()`) so both
-row-building and any reconciler diff-check (`syncModules`'s
+row-building and the reconciler diff-check (`ModuleSync.sync()`'s
 `appliedLevelUpStatus`) call the same logic.
 
 ## 3. Write `build<Panel>Rows()`
@@ -89,7 +89,7 @@ private open<Panel>Dialog(): void {
 action response, a resource change flipping affordability, a server push — so
 the dialog is always a pure render of the latest state. Always unbind in
 `onClose`, or a closed dialog keeps rebuilding rows in the background.
-Reference: `openShopDialog` in src/ship/ship-shop.ts.
+Reference: `ShopDialog.open()` in src/ship/ship-shop.ts.
 
 If the list can grow past what fits on screen (a feed/mail/research panel is
 exactly this shape, unlike the shop's small fixed slot count), pass
@@ -141,11 +141,12 @@ more tabs on that same panel rather than a new button.
 
 The P1.12 Trading Post shop is the canonical implementation for the base
 pattern, split across src/ship/ship-modules.ts (`LevelUpStatus`/`HireStatus`
-status enums) and src/ship/ship-shop.ts (`openShopDialog`/`buildShopRows`/
-`buildDealRow`/`buildRefreshRow` panel + rows, `acceptDeal`/`refreshDeals`
-actions). For a scrollable, tabbed list panel, src/scene/mail-dialog.ts
-(`MailDialog`, P1.21) is the reference: `scroll` windowing a live notification
-feed and `headerRow` as a tab strip. The modal layer itself (`DialogDef`,
-`DialogRowDef`, `bindDialogRows`, `DialogDef.scroll`/`headerRow`,
-`TiledScene.openDialog`) lives in src/ui/dialog.ts — read its header comment for
-the full input-capture, scrolling, and z-ordering model.
+status enums) and src/ship/ship-shop.ts's `ShopDialog` class
+(`open`/`buildRows`/ `buildDealRow`/`buildRefreshRow` panel + rows,
+`acceptDeal`/`refreshDeals` actions). For a scrollable, tabbed list panel,
+src/scene/mail-dialog.ts (`MailDialog`, P1.21) is the reference: `scroll`
+windowing a live notification feed and `headerRow` as a tab strip. The modal
+layer itself (`DialogDef`, `DialogRowDef`, `bindDialogRows`,
+`DialogDef.scroll`/`headerRow`, `TiledScene.openDialog`) lives in
+src/ui/dialog.ts — read its header comment for the full input-capture,
+scrolling, and z-ordering model.

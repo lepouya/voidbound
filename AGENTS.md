@@ -213,9 +213,14 @@ need.
 
 - **Never edit `src/assets/` PNGs or generated JSON by hand** — re-run the
   matching `art/gen_*.sh` script instead.
-- **Canonical animated sheet spec:** 6*6 grid, 32 frames @ 66 ms per frame (cell
-  size varies per asset). Every animated tileset in the catalog uses this shape
-  — match it for new animated assets unless there's a specific reason not to.
+- **Canonical animated sheet specs:** the default is 6*6 grid, 32 frames @ 66 ms
+  per frame (`ANIM_32_FRAMES` in
+  [tileset-geometry.ts](src/resources/tileset-geometry.ts); cell size varies per
+  asset) — match it for new animated assets unless there's a specific reason not
+  to. Higher-detail assets (asteroids, per-tier Command Module interiors) use
+  the 8*8, 64-frame `ANIM_64_FRAMES` spec instead, established by P1.23 — reach
+  for it only when 32 frames is visibly insufficient (slow, large-footprint
+  loops), not by default.
 - **Never `import` a PNG directly** — wrap with the `png("name")` helper in
   [src/resources/resources.ts](src/resources/resources.ts) instead.
 - Generated files under `src/assets/` are excluded from `deno fmt`
@@ -425,14 +430,15 @@ new commands and push variants.
   half of SERVER.md's snapshot + replay). Fetched once during the loader phase
   (`GameStateResource`); after that the client never polls — server-side changes
   arrive over the push channel below. The map/ship scenes hardcode no world
-  content: `MapLevel.syncMotherships()`/`syncAsteroids()`/`syncVessels()` and
-  `ShipLevel.syncModules()` reconcile actors from the snapshot, so server-side
-  changes (a moved mothership, a new player, a module leveling up) reach the
-  client through the same path. **World slices are interest-area windowed**
-  (ROADMAP P1.13, SERVER.md § Interest management): only asteroids and foreign
-  ships/vessels inside a 100\*100-tile `MapWindow` (`ServerState::aoi`,
-  re-centered on the player's mothership at load) are sent; everything the
-  player owns is always sent regardless of window.
+  content: `MothershipSync`/`AsteroidSync`/`VesselSync` (src/map/) and
+  `ModuleSync` (src/ship/ship-modules.ts) reconcile actors from the snapshot via
+  their `sync()` methods, so server-side changes (a moved mothership, a new
+  player, a module leveling up) reach the client through the same path. **World
+  slices are interest-area windowed** (ROADMAP P1.13, SERVER.md § Interest
+  management): only asteroids and foreign ships/vessels inside a 100\*100-tile
+  `MapWindow` (`ServerState::aoi`, re-centered on the player's mothership at
+  load) are sent; everything the player owns is always sent regardless of
+  window.
 - `request_map_window(center_col, center_row)` — re-centers the interest area as
   the map camera pans and returns the window's entities; `MapLevel.onPreUpdate`
   calls it with hysteresis (camera drift > 8 tiles from the window center, never
@@ -500,7 +506,7 @@ new commands and push variants.
   event; `request_recall_vessel` earlier harvests proportionally to extraction
   time (mid-outbound recalls just free the slot). Asteroid changes reach the
   client as `asteroid`/`asteroidRemoved` pushes into `gameState.asteroids`,
-  reconciled by `MapLevel.syncAsteroids()`.
+  reconciled by `AsteroidSync.sync()` (src/map/map-asteroids.ts).
 - `request_accept_deal(deal_id)` / `request_refresh_deals()` — the Trading Post
   NPC deal shop (ROADMAP P1.12). Deals are server-generated, deterministic per
   (player, UTC day, slot, generation) like `seed_asteroids`, and ride the

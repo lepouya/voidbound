@@ -57,8 +57,13 @@ static:
 // static: sheet of independent sprites
 { name: "my-atlas", cols: 4, rows: 4, tileSize: 32 },
 
-// animated: prefer the canonical 6*6 / 32 frames @ 66 ms spec
-{ name: "my-fx", tileSize: 128, ...CANONICAL_ANIM },
+// animated: prefer the default 6*6 / 32 frames @ 66 ms spec
+{ name: "my-fx", tileSize: 128, ...ANIM_32_FRAMES },
+
+// animated, higher detail: 8*8 / 64 frames @ 66 ms — reach for this only
+// when 32 frames is visibly insufficient (asteroids, Command Module tiers
+// use it; it is not the default)
+{ name: "my-hero-fx", tileSize: 256, ...ANIM_64_FRAMES },
 ```
 
 **Important:**
