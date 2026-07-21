@@ -57,7 +57,7 @@ type LevelUpStatus = "unavailable" | "capped" | "unaffordable" | "ready";
 type HireStatus = "recruiting" | "full" | "unaffordable" | "ready";
 
 interface ModuleVisuals {
-  /** Tileset name (`module-command-t1`, `module-lit`, etc.) */
+  /** Tileset name (`module-command-t1`, `module-base`, etc.) */
   tileset: string;
   /** Width in grid tiles */
   cols: number;

@@ -48,8 +48,8 @@ Deno.test("visibleLayers: single ref normalizes to a one-element array", () => {
 
 Deno.test("visibleLayers: object layers with visible:false are excluded", () => {
   const base: TileRef = { tile: "module-base" };
-  const hidden: TileRef = { tile: "module-lights", visible: false };
-  const shown: TileRef = { tile: "module-glow", visible: true };
+  const hidden: TileRef = { tile: "module-command-t1", visible: false };
+  const shown: TileRef = { tile: "module-command-t2", visible: true };
   assertEquals(visibleLayers([base, hidden, shown]), [base, shown]);
 });
 
