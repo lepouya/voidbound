@@ -131,8 +131,9 @@ specific reason to need the root-relative one.
       nondeterminism) even when visually unchanged — after a regen,
       `git checkout --` the semantically untouched PNGs so the diff only shows
       real changes.
-- [ ] If a `tools/*.py` script changed, run
-      `python3 -m unittest discover -s tools`.
+- [ ] If a `tools/*.py` script changed, run `deno task format`/`lint`/`test`
+      (their `:py` halves cover `ruff format`/`ruff check`/
+      `python3 -m unittest discover -s tools`).
 - [ ] If the dev server is running, Vite HMR picks up regenerated **PNGs**
       (force a browser reload if you don't see it). Map JSON like
       `ship-level.json` is embedded in the Rust binary via `include_str!` and

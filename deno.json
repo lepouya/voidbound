@@ -1,17 +1,20 @@
 {
   "tasks": {
-    "format": "deno task format:ts && deno task format:rs",
+    "format": "deno task format:ts && deno task format:rs && deno task format:py",
     "format:ts": "deno fmt",
     "format:rs": "cd src-tauri && cargo fmt",
+    "format:py": "ruff format tools/",
     "check": "deno task check:ts && deno task check:rs",
     "check:ts": "deno check src/**/*.ts tests/*.ts",
     "check:rs": "cd src-tauri && cargo check",
-    "lint": "deno task lint:ts && deno task lint:rs",
+    "lint": "deno task lint:ts && deno task lint:rs && deno task lint:py",
     "lint:ts": "deno lint",
     "lint:rs": "cd src-tauri && cargo clippy",
-    "test": "deno task test:ts && deno task test:rs",
+    "lint:py": "ruff check tools/",
+    "test": "deno task test:ts && deno task test:rs && deno task test:py",
     "test:ts": "deno test --allow-read tests/",
     "test:rs": "cd src-tauri && cargo test",
+    "test:py": "python3 -m unittest discover -s tools",
     "dev:app": "deno task tauri dev",
     "dev:fast": "VOIDBOUND_TIME_SCALE=5 deno task tauri dev",
     "gen-art": "bash -c 'for f in art/gen_*.sh; do \"$f\"; done'"

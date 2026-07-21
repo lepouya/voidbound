@@ -1,9 +1,11 @@
 # Voidbound — AI Agent Steering Document
 
-**Before considering any task complete**, run `deno task format` (formats TS and
-Rust), `deno task check` (type-checks TS and Rust), then `deno task lint` (lints
-TS and Rust). Never run `tsc`, `prettier`, `cargo fmt`, `cargo check`, or
-`cargo clippy` directly.
+**Before considering any task complete**, run `deno task format` (formats TS,
+Rust, and Python), `deno task check` (type-checks TS and Rust — there is no
+Python type checker configured), then `deno task lint` (lints TS, Rust, and
+Python). Never run `tsc`, `prettier`, `cargo fmt`, `cargo check`,
+`cargo
+clippy`, `ruff format`, or `ruff check` directly.
 
 ## User review and playtest gate
 
@@ -44,25 +46,34 @@ task list that tracks what's built vs. planned.
   use: `tauri-plugin-opener`.
 - **Toolchain:** [Deno](https://deno.land/) runs scripts (`deno task tauri dev`,
   `deno task build`) that delegate to `package.json`. The Deno-native tasks —
-  `format`, `check`, `lint`, `test` — live in `deno.json`; each is split into a
-  `:ts` and `:rs` half (e.g. `format:ts` runs `deno fmt`, `format:rs` runs
-  `cargo fmt`) and the bare task runs both halves in sequence.
+  `format`, `check`, `lint`, `test` — live in `deno.json`; each is split into
+  per-language halves (e.g. `format:ts` runs `deno fmt`, `format:rs` runs
+  `cargo fmt`, `format:py` runs `ruff format tools/`) and the bare task runs
+  every half in sequence. `format`/`lint`/`test` have `:ts`/`:rs`/`:py` halves;
+  `check` has only `:ts`/`:rs` — no Python type checker is configured.
 - **Bundler:** Vite. `vite.config.ts` sets `assetsInlineLimit: 0` — required so
   Excalibur can load image assets in production builds. HMR on port 1421 when
   running under Tauri dev.
-- **Testing:** `deno task test` runs both halves: the pure-logic TS suite in
+- **Testing:** `deno task test` runs three halves: the pure-logic TS suite in
   `tests/` (e.g. anchor/camera/dialog/HUD/minimap/grid math, TileRef parsing, a
   PNG-dimensions-vs-catalog cross-check, the `GameState` apply/sync entry
-  points, and the module/asteroid/trade catalog mirrors) and the Rust game-rule
-  tests via cargo. `deno task test:ts` / `deno task test:rs` run one half alone;
-  `python3 -m unittest discover -s tools` covers the art-pipeline converter. CI
+  points, and the module/asteroid/trade catalog mirrors), the Rust game-rule
+  tests via cargo, and the Python art-pipeline suite
+  (`python3 -m unittest
+  discover -s tools`, covering `tmj_to_tilemap.py`,
+  `sprite_merge.py`/`sprite_transition.py`, and the shared `svg_rasterize.py`
+  rasterizer every `svg_*_gen.py` script imports). `deno task test:ts` /
+  `test:rs` / `test:py` run one half alone. `deno task format`/`lint` similarly
+  run TS + Rust + Python (`ruff format`/`ruff check tools/`); `deno task check`
+  stays TS + Rust only — no Python type checker is configured. CI
   (`.github/workflows/ci.yml`) runs format/check/lint/test/cargo checks on push
-  and PR (the frontend job runs `test:ts`; the rust job runs cargo test itself).
-  Logic that should be unit-tested lives in pure modules with no runtime
-  Excalibur/Vite imports (`src/resources/tileset-geometry.ts`,
-  `src/scene/grid-math.ts`, `src/state/game-state.ts`,
-  `src/state/game-state-types.ts`, `src/scene/camera-math.ts`,
-  `src/map/minimap-math.ts`, `src/map/vessel-math.ts`, `src/map/aoi-config.ts`,
+  and PR (the frontend job runs `test:ts`; the rust job runs cargo test itself)
+  — it does not yet run the Python suite or `ruff`. Logic that should be
+  unit-tested lives in pure modules with no runtime Excalibur/Vite imports
+  (`src/resources/tileset-geometry.ts`, `src/scene/grid-math.ts`,
+  `src/state/game-state.ts`, `src/state/game-state-types.ts`,
+  `src/scene/camera-math.ts`, `src/map/minimap-math.ts`,
+  `src/map/vessel-math.ts`, `src/map/aoi-config.ts`,
   `src/map/warp-footprint.ts`, `src/map/asteroid-catalog.ts`,
   `src/ship/module-catalog.ts`, `src/ship/trade-catalog.ts`,
   `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`, `src/ui/dialog-layout.ts`,

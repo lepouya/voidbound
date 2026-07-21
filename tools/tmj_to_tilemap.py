@@ -35,7 +35,9 @@ TRANSFORM_FLAGS = {
 }
 
 
-def reject_transform_flags(gid: int, layer_index: int, cell_index: int, cols: int) -> None:
+def reject_transform_flags(
+    gid: int, layer_index: int, cell_index: int, cols: int
+) -> None:
     """Exit before output when a Tiled GID needs an unsupported transform."""
     flags = [name for bit, name in TRANSFORM_FLAGS.items() if gid & bit]
     if not flags:
@@ -51,15 +53,24 @@ def reject_transform_flags(gid: int, layer_index: int, cell_index: int, cols: in
     sys.exit(1)
 
 
-def convert(source: str, dest: str, tileset: str, tile_width: int | None, tile_height: int | None) -> None:
+def convert(
+    source: str,
+    dest: str,
+    tileset: str,
+    tile_width: int | None,
+    tile_height: int | None,
+) -> None:
     with open(source, encoding="utf-8") as f:
         tmj = json.load(f)
 
     tilesets = tmj.get("tilesets", [])
     if len(tilesets) > 1:
         names = [ts.get("source", ts.get("name", "?")) for ts in tilesets]
-        print(f"error: map uses {len(tilesets)} tilesets ({', '.join(names)}); "
-              "only single-tileset maps are supported", file=sys.stderr)
+        print(
+            f"error: map uses {len(tilesets)} tilesets ({', '.join(names)}); "
+            "only single-tileset maps are supported",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     cols: int = tmj["width"]
@@ -106,12 +117,26 @@ def main() -> None:
     )
     parser.add_argument("-s", "--source", required=True, help="Input .tmj file")
     parser.add_argument("-d", "--dest", required=True, help="Output .json file")
-    parser.add_argument("-t", "--tileset", required=True,
-                        help="Tileset name to use in TileRef output (e.g. ship-tiles)")
-    parser.add_argument("-W", "--tile-width", type=int, default=None,
-                        help="Override tile width in output (default: from TMJ)")
-    parser.add_argument("-H", "--tile-height", type=int, default=None,
-                        help="Override tile height in output (default: from TMJ)")
+    parser.add_argument(
+        "-t",
+        "--tileset",
+        required=True,
+        help="Tileset name to use in TileRef output (e.g. ship-tiles)",
+    )
+    parser.add_argument(
+        "-W",
+        "--tile-width",
+        type=int,
+        default=None,
+        help="Override tile width in output (default: from TMJ)",
+    )
+    parser.add_argument(
+        "-H",
+        "--tile-height",
+        type=int,
+        default=None,
+        help="Override tile height in output (default: from TMJ)",
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.source):

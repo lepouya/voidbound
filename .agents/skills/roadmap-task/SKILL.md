@@ -47,8 +47,10 @@ for anything else that comes up mid-design.
 ## 4. Gate
 
 `deno task format`, then `deno task check`, then `deno task lint`, then
-`deno task test` — all four are ROADMAP.md's definition of done. If `tools/*.py`
-changed, also run `python3 -m unittest discover -s tools`.
+`deno task test` — all four are ROADMAP.md's definition of done. `format`/
+`lint`/`test` already cover `tools/*.py` (via `ruff` and
+`python3 -m unittest discover -s tools`); `check` stays TS + Rust only, since no
+Python type checker is configured.
 
 ## 5. Verify at runtime
 

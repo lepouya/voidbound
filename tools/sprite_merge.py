@@ -205,9 +205,7 @@ def build_spritesheet(sprites: list[Image.Image], size: int) -> Image.Image:
     Unused trailing cells are left transparent.
     """
     grid_side = math.ceil(math.sqrt(len(sprites)))
-    sheet = Image.new(
-        "RGBA", (grid_side * size, grid_side * size), (0, 0, 0, 0)
-    )
+    sheet = Image.new("RGBA", (grid_side * size, grid_side * size), (0, 0, 0, 0))
     for idx, sprite in enumerate(sprites):
         col = idx % grid_side
         row = idx // grid_side
@@ -315,7 +313,10 @@ def main():
         )
 
     if not all_sprites:
-        print("Error: no sprites collected — check your --sheet arguments", file=sys.stderr)
+        print(
+            "Error: no sprites collected — check your --sheet arguments",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     output = build_spritesheet(all_sprites, args.size)
