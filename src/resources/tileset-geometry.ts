@@ -52,7 +52,9 @@ export const ANIM_64_FRAMES = {
 } as const;
 
 export const TILESET_GEOMETRY: TilesetGeometry[] = [
+  // Mothership interior map tiles: static 6*6 sheet at 64x64 cell size.
   { name: "ship-tiles", cols: 6, rows: 6, tileSize: 64 },
+  // UI selection rings and brackets: 32-frame animated 6*6 sheets across spans 1x1 through 4x4.
   { name: "ui-selection", tileSize: 256, ...ANIM_32_FRAMES },
   { name: "ui-selection-1x1", tileSize: 64, ...ANIM_32_FRAMES },
   { name: "ui-selection-2x2", tileSize: 128, ...ANIM_32_FRAMES },
@@ -67,6 +69,10 @@ export const TILESET_GEOMETRY: TilesetGeometry[] = [
   { name: "asteroid-small", tileSize: 64, ...ANIM_64_FRAMES },
   { name: "asteroid-medium", tileSize: 128, ...ANIM_64_FRAMES },
   { name: "asteroid-large", tileSize: 192, ...ANIM_64_FRAMES },
+  // Command module tiers: 64-frame animated 8*8 sheets across spans 4/5/6 (256/320/384 px cell size).
+  { name: "module-command-t1", tileSize: 256, ...ANIM_64_FRAMES },
+  { name: "module-command-t2", tileSize: 320, ...ANIM_64_FRAMES },
+  { name: "module-command-t3", tileSize: 384, ...ANIM_64_FRAMES },
 ];
 
 export const AUTO_TILESET_RULES: AutoTilesetRule[] = [
@@ -77,8 +83,6 @@ export const AUTO_TILESET_RULES: AutoTilesetRule[] = [
   { prefix: "mothership-", tileSize: 256, ...ANIM_32_FRAMES },
   // Vessel sprites: 32-frame animated 6*6 sheets at 64x64 cell size (1*1 world tile).
   { prefix: "vessel-", tileSize: 64, ...ANIM_32_FRAMES },
-  // Command module tiers: 64-frame animated 8*8 sheets at 384x384 cell size (6*6 tiles @ 64px).
-  { prefix: "module-command-", tileSize: 384, ...ANIM_64_FRAMES },
-  // Other mothership modules: canonical animated sheet.
+  // Mothership modules (e.g. module-base): canonical animated sheet across 4*4 world tiles (256px cell size).
   { prefix: "module-", tileSize: 256, ...ANIM_32_FRAMES },
 ];

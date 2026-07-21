@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 384" width="384"
-  height="384">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256"
+  height="256">
   <defs>
     <!-- Screen Gradients -->
     <linearGradient id="screen-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -68,43 +68,38 @@
     </g>
   </defs>
 
-  <!-- Foundation Void & Outer Deck -->
-  <rect width="384" height="384" fill="#090d16" />
-  <rect width="384" height="384" fill="none" stroke="#1e293b" stroke-width="2"
-    opacity="0.4" />
-
-  <!-- Tier 1 Inner Room Architecture (Bounds 64..320, Inner 4x4 area) -->
+  <!-- Tier 1 Inner Room Architecture (Bounds 0..256, Inner 4x4 area) -->
   <!-- Thick Beveled Blast Walls with Cut Corners -->
   <path
-    d="M 88 64 L 296 64 L 320 88 L 320 296 L 296 320 L 88 320 L 64 296 L 64 88 Z"
+    d="M 24 0 L 232 0 L 256 24 L 256 232 L 232 256 L 24 256 L 0 232 L 0 24 Z"
     fill="#111827" stroke="#334155" stroke-width="16" />
   <path
-    d="M 88 64 L 296 64 L 320 88 L 320 296 L 296 320 L 88 320 L 64 296 L 64 88 Z"
+    d="M 24 0 L 232 0 L 256 24 L 256 232 L 232 256 L 24 256 L 0 232 L 0 24 Z"
     fill="none" stroke="#00d2ff" stroke-width="1.5" opacity="0.3" />
 
   <!-- Floor Plating Grid inside the Inner Room -->
-  <line x1="128" y1="64" x2="128" y2="320" stroke="#1e293b" stroke-width="2"
+  <line x1="64" y1="0" x2="64" y2="256" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="192" y1="64" x2="192" y2="320" stroke="#1e293b" stroke-width="2"
+  <line x1="128" y1="0" x2="128" y2="256" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="256" y1="64" x2="256" y2="320" stroke="#1e293b" stroke-width="2"
+  <line x1="192" y1="0" x2="192" y2="256" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="64" y1="128" x2="320" y2="128" stroke="#1e293b" stroke-width="2"
+  <line x1="0" y1="64" x2="256" y2="64" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="64" y1="192" x2="320" y2="192" stroke="#1e293b" stroke-width="2"
+  <line x1="0" y1="128" x2="256" y2="128" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="64" y1="256" x2="320" y2="256" stroke="#1e293b" stroke-width="2"
+  <line x1="0" y1="192" x2="256" y2="192" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
 
   <!-- Airlock Pressure Door & Threshold (Bottom Center) -->
-  <rect x="168" y="304" width="48" height="18" rx="4" fill="#1e293b"
+  <rect x="104" y="240" width="48" height="16" rx="4" fill="#1e293b"
     stroke="#475569" stroke-width="2" />
-  <line x1="172" y1="302" x2="178" y2="322" stroke="#eab308" stroke-width="3" />
-  <line x1="180" y1="302" x2="186" y2="322" stroke="#eab308" stroke-width="3" />
-  <line x1="188" y1="302" x2="194" y2="322" stroke="#eab308" stroke-width="3" />
-  <line x1="196" y1="302" x2="202" y2="322" stroke="#eab308" stroke-width="3" />
-  <line x1="204" y1="302" x2="210" y2="322" stroke="#eab308" stroke-width="3" />
-  <rect x="186" y="306" width="12" height="14" rx="2" fill="#334155"
+  <line x1="108" y1="238" x2="114" y2="256" stroke="#eab308" stroke-width="3" />
+  <line x1="116" y1="238" x2="122" y2="256" stroke="#eab308" stroke-width="3" />
+  <line x1="124" y1="238" x2="130" y2="256" stroke="#eab308" stroke-width="3" />
+  <line x1="132" y1="238" x2="138" y2="256" stroke="#eab308" stroke-width="3" />
+  <line x1="140" y1="238" x2="146" y2="256" stroke="#eab308" stroke-width="3" />
+  <rect x="122" y="242" width="12" height="14" rx="2" fill="#334155"
     stroke="#64748b" stroke-width="1.5" />
 
   <!-- COMMAND CENTER CONSOLES & WORKSTATIONS -->
@@ -112,86 +107,86 @@
   <!-- 1. Captain's Master Console & Executive Seat (Facing North toward Table) -->
   <g id="captain-station">
     <!-- Large curved command desk facing north -->
-    <path d="M 152 230 Q 192 222 232 230 L 226 244 Q 192 238 158 244 Z"
+    <path d="M 88 166 Q 128 158 168 166 L 162 180 Q 128 174 94 180 Z"
       fill="#1e293b" stroke="#64748b" stroke-width="2" />
     <!-- Master Monitor Screens with glowing interfaces -->
-    <rect id="screen-pulse-1" data-anim="pulse-1" x="168" y="224" width="48"
+    <rect id="screen-pulse-1" data-anim="pulse-1" x="104" y="160" width="48"
       height="6" rx="2" fill="url(#screen-cyan)" stroke="#00ffff"
       stroke-width="1" opacity="0.85" />
-    <rect x="156" y="226" width="10" height="5" rx="1" fill="#10b981"
+    <rect x="92" y="162" width="10" height="5" rx="1" fill="#10b981"
       opacity="0.8" />
-    <rect x="218" y="226" width="10" height="5" rx="1" fill="#ffcc00"
+    <rect x="154" y="162" width="10" height="5" rx="1" fill="#ffcc00"
       opacity="0.8" />
     <!-- Captain's Office Chair right in front of desk -->
-    <use href="#chair-north" x="192" y="260" />
+    <use href="#chair-north" x="128" y="196" />
   </g>
 
   <!-- 2. Left Operations Console & Chair (Facing East toward center) -->
   <g id="left-station">
     <!-- Curved side desk -->
-    <path d="M 92 160 Q 100 192 92 224 L 106 218 Q 112 192 106 166 Z"
+    <path d="M 28 96 Q 36 128 28 160 L 42 154 Q 48 128 42 102 Z"
       fill="#1e293b" stroke="#475569" stroke-width="2" />
     <!-- Vertical monitor array -->
-    <rect id="screen-pulse-2" data-anim="pulse-2" x="104" y="174" width="5"
+    <rect id="screen-pulse-2" data-anim="pulse-2" x="40" y="110" width="5"
       height="36" rx="1.5" fill="url(#screen-cyan)" stroke="#00d2ff"
       stroke-width="1" opacity="0.8" />
     <!-- Operator Office Chair -->
-    <use href="#chair-east" x="80" y="192" />
+    <use href="#chair-east" x="16" y="128" />
   </g>
 
   <!-- 3. Right Telemetry Console & Chair (Facing West toward center) -->
   <g id="right-station">
     <!-- Curved side desk -->
-    <path d="M 292 160 Q 284 192 292 224 L 278 218 Q 272 192 278 166 Z"
+    <path d="M 228 96 Q 220 128 228 160 L 214 154 Q 208 128 214 102 Z"
       fill="#1e293b" stroke="#475569" stroke-width="2" />
     <!-- Vertical monitor array -->
-    <rect id="screen-pulse-3" data-anim="pulse-1" x="275" y="174" width="5"
+    <rect id="screen-pulse-3" data-anim="pulse-1" x="211" y="110" width="5"
       height="36" rx="1.5" fill="url(#screen-amber)" stroke="#ffb400"
       stroke-width="1" opacity="0.8" />
     <!-- Operator Office Chair -->
-    <use href="#chair-west" x="304" y="192" />
+    <use href="#chair-west" x="240" y="128" />
   </g>
 
   <!-- 4. Forward Auxiliary Computer Bank (Top Wall) -->
   <g id="forward-banks">
-    <rect x="140" y="78" width="104" height="16" rx="3" fill="#1e293b"
+    <rect x="76" y="14" width="104" height="16" rx="3" fill="#1e293b"
       stroke="#475569" stroke-width="2" />
-    <rect x="146" y="82" width="22" height="8" rx="1" fill="#10b981"
+    <rect x="82" y="18" width="22" height="8" rx="1" fill="#10b981"
       opacity="0.7" />
-    <rect x="174" y="82" width="36" height="8" rx="1" fill="#00d2ff"
+    <rect x="110" y="18" width="36" height="8" rx="1" fill="#00d2ff"
       opacity="0.8" />
-    <rect x="216" y="82" width="22" height="8" rx="1" fill="#f43f5e"
+    <rect x="152" y="18" width="22" height="8" rx="1" fill="#f43f5e"
       opacity="0.7" />
   </g>
 
   <!-- CENTRAL TACTICAL TABLE & HOLOGRAM -->
   <!-- Circular Tactical Table Base (Not just a spinning core, a physical table structure!) -->
-  <circle cx="192" cy="160" r="38" fill="#1e293b" stroke="#64748b"
+  <circle cx="128" cy="96" r="38" fill="#1e293b" stroke="#64748b"
     stroke-width="3" />
-  <circle cx="192" cy="160" r="32" fill="#0f172a" stroke="#00d2ff"
+  <circle cx="128" cy="96" r="32" fill="#0f172a" stroke="#00d2ff"
     stroke-width="1.5" opacity="0.6" />
 
   <!-- Rotating Holographic Projection above Table -->
-  <g id="anim-ring-1" data-anim="rotate-1" transform="rotate(0, 192, 160)">
+  <g id="anim-ring-1" data-anim="rotate-1" transform="rotate(0, 128, 96)">
     <!-- Outer tactical grid ring -->
-    <circle cx="192" cy="160" r="26" fill="none" stroke="#00d2ff"
+    <circle cx="128" cy="96" r="26" fill="none" stroke="#00d2ff"
       stroke-width="2" stroke-dasharray="10 6 4 6" opacity="0.9" />
     <!-- North projection chevron -->
-    <polygon points="192,132 188,138 196,138" fill="#00ffff" />
-    <polygon points="192,188 188,182 196,182" fill="#00ffff" opacity="0.7" />
+    <polygon points="128,68 124,74 132,74" fill="#00ffff" />
+    <polygon points="128,124 124,118 132,118" fill="#00ffff" opacity="0.7" />
   </g>
 
-  <g id="anim-ring-2" data-anim="rotate-2" transform="rotate(0, 192, 160)">
+  <g id="anim-ring-2" data-anim="rotate-2" transform="rotate(0, 128, 96)">
     <!-- Counter-rotating inner ring -->
-    <circle cx="192" cy="160" r="18" fill="none" stroke="#3b82f6"
+    <circle cx="128" cy="96" r="18" fill="none" stroke="#3b82f6"
       stroke-width="1.5" stroke-dasharray="8 6" />
     <!-- Orbiting marker -->
-    <circle cx="210" cy="160" r="2.5" fill="#00ffff" />
+    <circle cx="146" cy="96" r="2.5" fill="#00ffff" />
   </g>
 
   <!-- Pulsing Planetoid / Core Center -->
-  <circle id="anim-core-star" data-anim="core-scale" cx="192" cy="160" r="10"
+  <circle id="anim-core-star" data-anim="core-scale" cx="128" cy="96" r="10"
     fill="none" stroke="#00ffff" stroke-width="2.5" opacity="0.7" />
-  <circle cx="192" cy="160" r="6" fill="#00d2ff" opacity="0.9" />
-  <circle cx="192" cy="160" r="2.5" fill="#ffffff" />
+  <circle cx="128" cy="96" r="6" fill="#00d2ff" opacity="0.9" />
+  <circle cx="128" cy="96" r="2.5" fill="#ffffff" />
 </svg>

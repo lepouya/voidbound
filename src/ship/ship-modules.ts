@@ -69,7 +69,8 @@ interface ModuleVisuals {
 function moduleVisuals(data?: ModuleData): ModuleVisuals {
   if (data?.moduleType === COMMAND_MODULE_TYPE) {
     const tier = data.level >= 10 ? 3 : data.level >= 5 ? 2 : 1;
-    return { tileset: `module-command-t${tier}`, cols: 6, rows: 6 };
+    const span = tier === 3 ? 6 : tier === 2 ? 5 : 4;
+    return { tileset: `module-command-t${tier}`, cols: span, rows: span };
   }
   return {
     tileset: `module-${MODULE_ART_TYPE}`,

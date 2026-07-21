@@ -17,9 +17,6 @@
   </defs>
 
   <!-- Outer Deck & Foundation Void -->
-  <rect width="256" height="256" fill="#090d16" />
-  <rect width="256" height="256" fill="none" stroke="#1e293b" stroke-width="2"
-    opacity="0.4" />
 
   <!-- Thick Beveled Blast Walls with Cut Corners (4x4 room perimeter) -->
   <path

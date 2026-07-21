@@ -61,7 +61,9 @@ Deno.test("explicit catalog rows match their PNG dimensions", () => {
 });
 
 Deno.test("auto-registered PNGs match their rule's dimensions", async () => {
+  const explicit = new Set(TILESET_GEOMETRY.map((g) => `${g.name}.png`));
   for (const relPath of await listAssetPngs()) {
+    if (explicit.has(relPath)) continue;
     const basename = relPath.split("/").pop()!;
     const rule = AUTO_TILESET_RULES.find((r) => basename.startsWith(r.prefix));
     if (rule) checkGeometry(relPath, rule, relPath);

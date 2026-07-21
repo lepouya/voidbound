@@ -106,10 +106,10 @@ def animate_svg_frame(base_svg: str, frame_idx: int, total_frames: int, tier: in
 
     # Center coordinates of the tactical table vary by tier
     if tier == 1:
-        cx, cy = 192, 160
+        cx, cy = 128, 96
         base_core_r = 10.0
     elif tier == 2:
-        cx, cy = 192, 180
+        cx, cy = 160, 148
         base_core_r = 13.0
     else:
         cx, cy = 192, 192
@@ -146,8 +146,11 @@ def main():
     parser.add_argument("--frames", type=int, default=64, help="Number of animation frames (default: 64)")
     parser.add_argument("--cols", type=int, default=8, help="Number of columns in output grid (default: 8)")
     parser.add_argument("--rows", type=int, default=8, help="Number of rows in output grid (default: 8)")
-    parser.add_argument("--size", type=int, default=384, help="Tile size in px (default: 384 for 6*6 tiles @ 64px)")
+    parser.add_argument("--size", type=int, default=None, help="Tile size in px (defaults by tier: 1:256, 2:320, 3:384)")
     args = parser.parse_args()
+
+    if args.size is None:
+        args.size = {1: 256, 2: 320, 3: 384}[args.tier]
 
     assert args.frames <= args.cols * args.rows, "Frames must fit within cols * rows"
 

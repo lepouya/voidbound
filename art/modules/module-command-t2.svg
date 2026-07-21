@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 384" width="384"
-  height="384">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320"
+  height="320">
   <defs>
     <linearGradient id="screen-cyan-2" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#00ffff" stop-opacity="0.95" />
@@ -79,150 +79,145 @@
     </g>
   </defs>
 
-  <!-- Foundation Void & Outer Deck -->
-  <rect width="384" height="384" fill="#090d16" />
-  <rect width="384" height="384" fill="none" stroke="#1e293b" stroke-width="2"
-    opacity="0.4" />
-
-  <!-- Tier 2 Expanded Room Architecture (Bounds 32..352, Inner 5x5 area) -->
+  <!-- Tier 2 Expanded Room Architecture (Bounds 0..320, Inner 5x5 area) -->
   <path
-    d="M 64 32 L 320 32 L 352 64 L 352 320 L 320 352 L 64 352 L 32 320 L 32 64 Z"
+    d="M 32 0 L 288 0 L 320 32 L 320 288 L 288 320 L 32 320 L 0 288 L 0 32 Z"
     fill="#111827" stroke="#334155" stroke-width="20" />
   <path
-    d="M 64 32 L 320 32 L 352 64 L 352 320 L 320 352 L 64 352 L 32 320 L 32 64 Z"
+    d="M 32 0 L 288 0 L 320 32 L 320 288 L 288 320 L 32 320 L 0 288 L 0 32 Z"
     fill="none" stroke="#00d2ff" stroke-width="1.5" opacity="0.35" />
 
   <!-- Floor Plating Grid inside the 5x5 Room -->
-  <line x1="96" y1="32" x2="96" y2="352" stroke="#1e293b" stroke-width="2"
+  <line x1="64" y1="0" x2="64" y2="320" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="160" y1="32" x2="160" y2="352" stroke="#1e293b" stroke-width="2"
+  <line x1="128" y1="0" x2="128" y2="320" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="224" y1="32" x2="224" y2="352" stroke="#1e293b" stroke-width="2"
+  <line x1="192" y1="0" x2="192" y2="320" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="288" y1="32" x2="288" y2="352" stroke="#1e293b" stroke-width="2"
+  <line x1="256" y1="0" x2="256" y2="320" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="32" y1="96" x2="352" y2="96" stroke="#1e293b" stroke-width="2"
+  <line x1="0" y1="64" x2="320" y2="64" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="32" y1="160" x2="352" y2="160" stroke="#1e293b" stroke-width="2"
+  <line x1="0" y1="128" x2="320" y2="128" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="32" y1="224" x2="352" y2="224" stroke="#1e293b" stroke-width="2"
+  <line x1="0" y1="192" x2="320" y2="192" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
-  <line x1="32" y1="288" x2="352" y2="288" stroke="#1e293b" stroke-width="2"
+  <line x1="0" y1="256" x2="320" y2="256" stroke="#1e293b" stroke-width="2"
     opacity="0.6" />
 
   <!-- Glowing Floor Data Conduits -->
-  <line id="anim-conduit-v" data-anim="dash-v" x1="192" y1="32" x2="192"
-    y2="134" stroke="#00d2ff" stroke-width="3" stroke-dasharray="8 8"
+  <line id="anim-conduit-v" data-anim="dash-v" x1="160" y1="0" x2="160"
+    y2="102" stroke="#00d2ff" stroke-width="3" stroke-dasharray="8 8"
     opacity="0.8" />
-  <line id="anim-conduit-l" data-anim="dash-l" x1="32" y1="180" x2="134"
-    y2="180" stroke="#00d2ff" stroke-width="3" stroke-dasharray="8 8"
+  <line id="anim-conduit-l" data-anim="dash-l" x1="0" y1="148" x2="102"
+    y2="148" stroke="#00d2ff" stroke-width="3" stroke-dasharray="8 8"
     opacity="0.8" />
-  <line id="anim-conduit-r" data-anim="dash-r" x1="352" y1="180" x2="250"
-    y2="180" stroke="#00d2ff" stroke-width="3" stroke-dasharray="8 8"
+  <line id="anim-conduit-r" data-anim="dash-r" x1="320" y1="148" x2="218"
+    y2="148" stroke="#00d2ff" stroke-width="3" stroke-dasharray="8 8"
     opacity="0.8" />
 
   <!-- Airlock Pressure Door & Threshold (Bottom Center) -->
-  <rect x="168" y="334" width="48" height="18" rx="4" fill="#1e293b"
+  <rect x="136" y="302" width="48" height="18" rx="4" fill="#1e293b"
     stroke="#475569" stroke-width="2" />
-  <line x1="172" y1="332" x2="178" y2="352" stroke="#eab308" stroke-width="3" />
-  <line x1="180" y1="332" x2="186" y2="352" stroke="#eab308" stroke-width="3" />
-  <line x1="188" y1="332" x2="194" y2="352" stroke="#eab308" stroke-width="3" />
-  <line x1="196" y1="332" x2="202" y2="352" stroke="#eab308" stroke-width="3" />
-  <line x1="204" y1="332" x2="210" y2="352" stroke="#eab308" stroke-width="3" />
-  <rect x="186" y="336" width="12" height="14" rx="2" fill="#334155"
+  <line x1="140" y1="300" x2="146" y2="320" stroke="#eab308" stroke-width="3" />
+  <line x1="148" y1="300" x2="154" y2="320" stroke="#eab308" stroke-width="3" />
+  <line x1="156" y1="300" x2="162" y2="320" stroke="#eab308" stroke-width="3" />
+  <line x1="164" y1="300" x2="170" y2="320" stroke="#eab308" stroke-width="3" />
+  <line x1="172" y1="300" x2="178" y2="320" stroke="#eab308" stroke-width="3" />
+  <rect x="154" y="304" width="12" height="14" rx="2" fill="#334155"
     stroke="#64748b" stroke-width="1.5" />
 
   <!-- EXPANDED BRIDGE WORKSTATIONS & SEATING (6 Consoles + Chairs) -->
 
   <!-- 1. Captain's Center Executive Station (South of Dais, Facing North) -->
   <g id="captain-station">
-    <path d="M 148 246 Q 192 238 236 246 L 228 262 Q 192 254 156 262 Z"
+    <path d="M 116 214 Q 160 206 204 214 L 196 230 Q 160 222 124 230 Z"
       fill="#1e293b" stroke="#64748b" stroke-width="2" />
-    <rect id="screen-pulse-1" data-anim="pulse-1" x="164" y="240" width="56"
+    <rect id="screen-pulse-1" data-anim="pulse-1" x="132" y="208" width="56"
       height="7" rx="2" fill="url(#screen-cyan-2)" stroke="#00ffff"
       stroke-width="1" />
-    <rect x="150" y="242" width="12" height="6" rx="1.5" fill="#10b981"
+    <rect x="118" y="210" width="12" height="6" rx="1.5" fill="#10b981"
       opacity="0.9" />
-    <rect x="222" y="242" width="12" height="6" rx="1.5" fill="#ffcc00"
+    <rect x="190" y="210" width="12" height="6" rx="1.5" fill="#ffcc00"
       opacity="0.9" />
-    <use href="#chair-north" x="192" y="282" />
+    <use href="#chair-north" x="160" y="250" />
   </g>
 
   <!-- 2. Forward Navigation & Sensor Station (North of Dais, Facing South) -->
   <g id="forward-station">
-    <path d="M 148 114 Q 192 122 236 114 L 228 98 Q 192 106 156 98 Z"
+    <path d="M 116 82 Q 160 90 204 82 L 196 66 Q 160 74 124 66 Z"
       fill="#1e293b" stroke="#64748b" stroke-width="2" />
-    <rect id="screen-pulse-2" data-anim="pulse-2" x="164" y="113" width="56"
+    <rect id="screen-pulse-2" data-anim="pulse-2" x="132" y="81" width="56"
       height="7" rx="2" fill="url(#screen-emerald-2)" stroke="#10b981"
       stroke-width="1" />
-    <rect x="150" y="112" width="12" height="6" rx="1.5" fill="#00d2ff"
+    <rect x="118" y="80" width="12" height="6" rx="1.5" fill="#00d2ff"
       opacity="0.9" />
-    <rect x="222" y="112" width="12" height="6" rx="1.5" fill="#ffcc00"
+    <rect x="190" y="80" width="12" height="6" rx="1.5" fill="#ffcc00"
       opacity="0.9" />
-    <use href="#chair-south" x="192" y="76" />
+    <use href="#chair-south" x="160" y="44" />
   </g>
 
   <!-- 3. Left Tactical Workstation & Chair (Facing East) -->
   <g id="left-station">
-    <path d="M 72 144 Q 82 180 72 216 L 88 208 Q 94 180 88 152 Z" fill="#1e293b"
+    <path d="M 40 112 Q 50 148 40 184 L 56 176 Q 62 148 56 120 Z" fill="#1e293b"
       stroke="#475569" stroke-width="2" />
-    <rect id="screen-pulse-3" data-anim="pulse-1" x="86" y="156" width="6"
+    <rect id="screen-pulse-3" data-anim="pulse-1" x="54" y="124" width="6"
       height="48" rx="2" fill="url(#screen-cyan-2)" stroke="#00d2ff"
       stroke-width="1" />
-    <use href="#chair-east" x="54" y="180" />
+    <use href="#chair-east" x="22" y="148" />
   </g>
 
   <!-- 4. Right Communications Workstation & Chair (Facing West) -->
   <g id="right-station">
-    <path d="M 312 144 Q 302 180 312 216 L 296 208 Q 290 180 296 152 Z"
+    <path d="M 280 112 Q 270 148 280 184 L 264 176 Q 258 148 264 120 Z"
       fill="#1e293b" stroke="#475569" stroke-width="2" />
-    <rect id="screen-pulse-4" data-anim="pulse-2" x="292" y="156" width="6"
+    <rect id="screen-pulse-4" data-anim="pulse-2" x="260" y="124" width="6"
       height="48" rx="2" fill="url(#screen-amber-2)" stroke="#ffb400"
       stroke-width="1" />
-    <use href="#chair-west" x="330" y="180" />
+    <use href="#chair-west" x="298" y="148" />
   </g>
 
   <!-- 5. Southwest Engineering Console & Chair -->
   <g id="sw-station">
-    <path d="M 88 274 L 126 274 L 120 288 L 88 288 Z" fill="#1e293b"
+    <path d="M 56 242 L 94 242 L 88 256 L 56 256 Z" fill="#1e293b"
       stroke="#475569" stroke-width="1.5" />
-    <rect x="94" y="268" width="26" height="6" rx="1" fill="#ffb400"
+    <rect x="62" y="236" width="26" height="6" rx="1" fill="#ffb400"
       opacity="0.85" />
-    <use href="#chair-north" x="108" y="306" />
+    <use href="#chair-north" x="76" y="274" />
   </g>
 
   <!-- 6. Southeast Shield/System Console & Chair -->
   <g id="se-station">
-    <path d="M 296 274 L 258 274 L 264 288 L 296 288 Z" fill="#1e293b"
+    <path d="M 264 242 L 226 242 L 232 256 L 264 256 Z" fill="#1e293b"
       stroke="#475569" stroke-width="1.5" />
-    <rect x="264" y="268" width="26" height="6" rx="1" fill="#00d2ff"
+    <rect x="232" y="236" width="26" height="6" rx="1" fill="#00d2ff"
       opacity="0.85" />
-    <use href="#chair-north" x="276" y="306" />
+    <use href="#chair-north" x="244" y="274" />
   </g>
 
   <!-- CENTRAL TACTICAL TABLE & HOLOGRAM -->
-  <circle cx="192" cy="180" r="48" fill="#1e293b" stroke="#64748b"
+  <circle cx="160" cy="148" r="48" fill="#1e293b" stroke="#64748b"
     stroke-width="3" />
-  <circle cx="192" cy="180" r="42" fill="#0f172a" stroke="#00d2ff"
+  <circle cx="160" cy="148" r="42" fill="#0f172a" stroke="#00d2ff"
     stroke-width="1.5" opacity="0.7" />
 
   <!-- Dual Counter-Rotating Holographic Rings above Table -->
-  <g id="anim-ring-1" data-anim="rotate-1" transform="rotate(0, 192, 180)">
-    <circle cx="192" cy="180" r="34" fill="none" stroke="#00d2ff"
+  <g id="anim-ring-1" data-anim="rotate-1" transform="rotate(0, 160, 148)">
+    <circle cx="160" cy="148" r="34" fill="none" stroke="#00d2ff"
       stroke-width="2.5" stroke-dasharray="14 8 6 8" opacity="0.9" />
-    <polygon points="192,146 188,152 196,152" fill="#00ffff" />
+    <polygon points="160,114 156,120 164,120" fill="#00ffff" />
   </g>
 
-  <g id="anim-ring-2" data-anim="rotate-2" transform="rotate(0, 192, 180)">
-    <circle cx="192" cy="180" r="24" fill="none" stroke="#54e05e"
+  <g id="anim-ring-2" data-anim="rotate-2" transform="rotate(0, 160, 148)">
+    <circle cx="160" cy="148" r="24" fill="none" stroke="#54e05e"
       stroke-width="2" stroke-dasharray="10 8" />
-    <circle cx="216" cy="180" r="3.5" fill="#54e05e" />
-    <circle cx="168" cy="180" r="2.5" fill="#54e05e" />
+    <circle cx="184" cy="148" r="3.5" fill="#54e05e" />
+    <circle cx="136" cy="148" r="2.5" fill="#54e05e" />
   </g>
 
   <!-- Core Pulsing Star Center -->
-  <circle id="anim-core-star" data-anim="core-scale" cx="192" cy="180" r="13"
+  <circle id="anim-core-star" data-anim="core-scale" cx="160" cy="148" r="13"
     fill="none" stroke="#00ffff" stroke-width="3" opacity="0.75" />
-  <circle cx="192" cy="180" r="8" fill="#00d2ff" opacity="0.95" />
-  <circle cx="192" cy="180" r="3" fill="#ffffff" />
+  <circle cx="160" cy="148" r="8" fill="#00d2ff" opacity="0.95" />
+  <circle cx="160" cy="148" r="3" fill="#ffffff" />
 </svg>

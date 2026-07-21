@@ -97,11 +97,6 @@
     </g>
   </defs>
 
-  <!-- Foundation Void -->
-  <rect width="384" height="384" fill="#090d16" />
-  <rect width="384" height="384" fill="none" stroke="#1e293b" stroke-width="2"
-    opacity="0.4" />
-
   <!-- Tier 3 Full 6x6 Flagship Citadel Architecture (Bounds 8..376) -->
   <!-- Double-Reinforced Blast Shielding Walls with Observation Bay -->
   <path
