@@ -41,17 +41,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Pillow + an SVG rasterizer (rsvg-convert) for the art pipeline; apt
-      # packages sidestep Ubuntu's externally-managed pip restrictions.
-      - name: Install art pipeline dependencies
+      # SVG rasterizer (rsvg-convert) for the art pipeline — a system binary,
+      # so it's the one dependency that stays on apt.
+      - name: Install art pipeline system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pil librsvg2-bin
+          sudo apt-get install -y librsvg2-bin
 
-      # ruff/mypy have no apt package here, so bypass the externally-managed
-      # restriction directly (same restriction python3-pil sidesteps above).
-      - name: Install Python lint/type-check tools
-        run: pip install --break-system-packages ruff mypy
+      # Pillow via pip, not apt's python3-pil: Ubuntu's packaged build strips
+      # Pillow's py.typed marker, so mypy can't resolve it and errors on every
+      # PIL import ("missing library stubs or py.typed marker") even though
+      # Pillow has shipped inline stubs since 9.2 — confirmed by installing
+      # pip's Pillow into a clean venv, where mypy resolves it cleanly. pip
+      # needs --break-system-packages to bypass Ubuntu's externally-managed
+      # restriction on the system Python.
+      - name: Install Python dependencies
+        run: pip install --break-system-packages pillow ruff mypy
 
       # format:py/check:py/lint:py equivalents — ruff's own --check flag covers
       # format since `deno task format:py` writes in place.
