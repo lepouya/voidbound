@@ -69,16 +69,19 @@ per AGENTS.md's review gate, with a "Done:" note.
       `test_svg_ui_gen.py` (now redundant) into the new file. 35 Python tests
       pass (was 28; net effect of removing 2 duplicated tests and adding 9 new
       ones in `test_svg_rasterize.py`).
-- [ ] **CR-T.3 [idea]** `deno task gen-art` (added this pass, P0.14) now invokes
+- [x] **CR-T.3 [idea]** `deno task gen-art` (added this pass, P0.14) now invokes
       every `art/gen_*.sh` by blind glob, which only works safely because each
       script resolves its own paths independently of the caller's cwd. Four
       scripts do this via `cd "$(dirname "$0")"`;
-      `gen_motherships.sh`/`gen_vessels.sh` instead derive a
-      `SCRIPT_DIR`/`ROOT_DIR` pair from `${BASH_SOURCE[0]}` — both work today
-      (verified: the glob loop ran all six clean), but `gen-art/SKILL.md`'s
-      "Adding a new generator" section now states the shorter form as the
-      preferred shape for new scripts. Optional: reconcile the two existing
-      scripts to match, purely for consistency — not a functional bug.
+      `gen_motherships.sh`/`gen_vessels.sh` instead derived a
+      `SCRIPT_DIR`/`ROOT_DIR` pair from `${BASH_SOURCE[0]}` — both worked, but
+      `gen-art/SKILL.md`'s "Adding a new generator" section states the shorter
+      form as the preferred shape for new scripts. **Done:** reconciled both
+      scripts to the `cd "$(dirname "$0")"` shape (art/-relative paths),
+      matching the other four. Verified: both run correctly standalone (from the
+      repo root and from `art/`) and via `deno task gen-art`; every regenerated
+      asset is byte-identical to before. Removed the now-resolved "briefly
+      diverged" caveat from the skill's "Adding a new generator" rule.
 
 ## ROADMAP additions to consider
 

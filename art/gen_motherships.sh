@@ -1,18 +1,15 @@
-#!/usr/bin/env bash
+#!/bin/bash
+set -e
+cd "$(dirname "$0")"
+
 # Generate vector SVG mothership spritesheets (`mothership-1`) across states (`base`, `idle`, `damaged`)
 # and relations (`self`, `allies`, `neutral`, `enemy`).
 #
-# Run from art/ or workspace root. Outputs: src/assets/mothership-1-<state>-<relation>.png
+# Outputs: src/assets/mothership-1-<state>-<relation>.png
 
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-cd "${ROOT_DIR}"
-
-GEN_SCRIPT="tools/svg_mothership_gen.py"
-SOURCE_SVG="art/motherships/mothership-1.svg"
-DEST_DIR="src/assets"
+GEN_SCRIPT="../tools/svg_mothership_gen.py"
+SOURCE_SVG="motherships/mothership-1.svg"
+DEST_DIR="../src/assets"
 
 RELATIONS=("self" "allies" "neutral" "enemy")
 STATES=("base" "idle" "damaged")

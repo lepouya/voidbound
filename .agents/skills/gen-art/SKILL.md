@@ -96,11 +96,9 @@ px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at
 This means every script matching that name **must** be independently executable
 and resolve its own paths from its own location, never from the caller's cwd, so
 it behaves identically whether run standalone, from `art/`, from the repo root,
-or via the glob loop. `cd "$(dirname "$0")"` (below) is the established way to
-do that; `gen_motherships.sh`/`gen_vessels.sh` instead derive a
-`SCRIPT_DIR`/`ROOT_DIR` pair via `${BASH_SOURCE[0]}` and `cd` there — also
-valid, but prefer the shorter form below for a new script unless you have a
-specific reason to need the root-relative one.
+or via the glob loop. `cd "$(dirname "$0")"` (below) is the one shape every
+generator uses (`gen_motherships.sh`/`gen_vessels.sh` briefly diverged with a
+root-relative `SCRIPT_DIR`/`ROOT_DIR` derivation; reconciled — CR-T.3).
 
 1. Author your source art under `art/<subdir>/`.
 2. Create `art/gen_<name>.sh`:

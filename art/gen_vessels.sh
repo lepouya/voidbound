@@ -1,18 +1,15 @@
-#!/usr/bin/env bash
+#!/bin/bash
+set -e
+cd "$(dirname "$0")"
+
 # Generate vector SVG vessel spritesheets (`vessel-1`) across states (`base`, `moving`, `idle`)
 # and relations (`self`, `allies`, `neutral`, `enemy`).
 #
-# Run from art/ or workspace root. Outputs: src/assets/vessel-1-<state>-<relation>.png
+# Outputs: src/assets/vessel-1-<state>-<relation>.png
 
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-cd "${ROOT_DIR}"
-
-GEN_SCRIPT="tools/svg_vessel_gen.py"
-SOURCE_SVG="art/vessels/vessel-1.svg"
-DEST_DIR="src/assets"
+GEN_SCRIPT="../tools/svg_vessel_gen.py"
+SOURCE_SVG="vessels/vessel-1.svg"
+DEST_DIR="../src/assets"
 
 RELATIONS=("self" "allies" "neutral" "enemy")
 STATES=("base" "moving" "idle")
