@@ -129,8 +129,9 @@ root-relative `SCRIPT_DIR`/`ROOT_DIR` derivation; reconciled — CR-T.3).
       nondeterminism) even when visually unchanged — after a regen,
       `git checkout --` the semantically untouched PNGs so the diff only shows
       real changes.
-- [ ] If a `tools/*.py` script changed, run `deno task format`/`lint`/`test`
-      (their `:py` halves cover `ruff format`/`ruff check`/
+- [ ] If a `tools/*.py` script changed, run
+      `deno task format`/`check`/`lint`/`test` (their `:py` halves cover
+      `ruff format`/`mypy tools/`/`ruff check`/
       `python3 -m unittest discover -s tools`).
 - [ ] If the dev server is running, Vite HMR picks up regenerated **PNGs**
       (force a browser reload if you don't see it). Map JSON like

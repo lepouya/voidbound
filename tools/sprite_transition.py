@@ -58,7 +58,7 @@ def resize_to_square(img: Image.Image, size: int) -> Image.Image:
         padded = Image.new("RGBA", (side, side), (0, 0, 0, 0))
         padded.paste(img, ((side - w) // 2, (side - h) // 2))
         img = padded
-    return img.resize((size, size), Image.LANCZOS)
+    return img.resize((size, size), Image.Resampling.LANCZOS)
 
 
 # -- Overlay generators --------------------------------------------------------
@@ -123,7 +123,7 @@ def overlay_scale(
     scale = scale_from + (scale_to - scale_from) * t
     new_w = max(1, int(w * scale))
     new_h = max(1, int(h * scale))
-    scaled = alt.resize((new_w, new_h), Image.LANCZOS)
+    scaled = alt.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
     overlay = Image.new("RGBA", alt.size, (0, 0, 0, 0))
     paste_x = (w - new_w) // 2
@@ -152,7 +152,7 @@ def overlay_rotate(
     """
     angle = angle_from + (angle_to - angle_from) * t
     # Pillow rotates counter-clockwise; expand=True avoids clipping during rotation
-    rotated = alt.rotate(angle, resample=Image.BICUBIC, expand=True)
+    rotated = alt.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
     # Crop the rotated image back to the original size, centered
     rw, rh = rotated.size
     w, h = alt.size

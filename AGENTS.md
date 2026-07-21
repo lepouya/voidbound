@@ -1,11 +1,10 @@
 # Voidbound — AI Agent Steering Document
 
 **Before considering any task complete**, run `deno task format` (formats TS,
-Rust, and Python), `deno task check` (type-checks TS and Rust — there is no
-Python type checker configured), then `deno task lint` (lints TS, Rust, and
-Python). Never run `tsc`, `prettier`, `cargo fmt`, `cargo check`,
-`cargo
-clippy`, `ruff format`, or `ruff check` directly.
+Rust, and Python), `deno task check` (type-checks TS, Rust, and Python), then
+`deno task lint` (lints TS, Rust, and Python). Never run `tsc`, `prettier`,
+`cargo fmt`, `cargo check`, `cargo clippy`, `ruff format`, `ruff check`, or
+`mypy` directly.
 
 ## User review and playtest gate
 
@@ -49,8 +48,8 @@ task list that tracks what's built vs. planned.
   `format`, `check`, `lint`, `test` — live in `deno.json`; each is split into
   per-language halves (e.g. `format:ts` runs `deno fmt`, `format:rs` runs
   `cargo fmt`, `format:py` runs `ruff format tools/`) and the bare task runs
-  every half in sequence. `format`/`lint`/`test` have `:ts`/`:rs`/`:py` halves;
-  `check` has only `:ts`/`:rs` — no Python type checker is configured.
+  every half in sequence. `format`/`check`/`lint`/`test` all have
+  `:ts`/`:rs`/`:py` halves (`check:py` runs `mypy tools/`).
 - **Bundler:** Vite. `vite.config.ts` sets `assetsInlineLimit: 0` — required so
   Excalibur can load image assets in production builds. HMR on port 1421 when
   running under Tauri dev.
@@ -63,14 +62,13 @@ task list that tracks what's built vs. planned.
   discover -s tools`, covering `tmj_to_tilemap.py`,
   `sprite_merge.py`/`sprite_transition.py`, and the shared `svg_rasterize.py`
   rasterizer every `svg_*_gen.py` script imports). `deno task test:ts` /
-  `test:rs` / `test:py` run one half alone. `deno task format`/`lint` similarly
-  run TS + Rust + Python (`ruff format`/`ruff check tools/`); `deno task check`
-  stays TS + Rust only — no Python type checker is configured. CI
-  (`.github/workflows/ci.yml`) runs format/check/lint/test/cargo checks on push
-  and PR (the frontend job runs `test:ts`; the rust job runs cargo test itself)
-  — it does not yet run the Python suite or `ruff`. Logic that should be
-  unit-tested lives in pure modules with no runtime Excalibur/Vite imports
-  (`src/resources/tileset-geometry.ts`, `src/scene/grid-math.ts`,
+  `test:rs` / `test:py` run one half alone. `deno task format`/`check`/`lint`
+  similarly all run TS + Rust + Python (`ruff format`/`mypy tools/`/
+  `ruff check tools/`). CI (`.github/workflows/ci.yml`) runs
+  format/check/lint/test/cargo checks on push and PR (the frontend job runs
+  `test:ts`; the rust job runs cargo test itself) — it does not yet run the
+  Python suite, `mypy`, or `ruff`. Logic that should be unit-tested lives in
+  pure modules with no runtime Excalibur/Vite imports (`src/resources/tileset-geometry.ts`, `src/scene/grid-math.ts`,
   `src/state/game-state.ts`, `src/state/game-state-types.ts`,
   `src/scene/camera-math.ts`, `src/map/minimap-math.ts`,
   `src/map/vessel-math.ts`, `src/map/aoi-config.ts`,

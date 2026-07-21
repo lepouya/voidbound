@@ -46,7 +46,8 @@ Design decisions:
   - The output grid has the same cols*rows layout as the input, so sprite indices
     remain identical and downstream tileset configs don't need to change column/row
     counts — only the cell size changes.
-  - Resize uses Image.LANCZOS (high-quality downsampling) for production assets.
+  - Resize uses Image.Resampling.LANCZOS (high-quality downsampling) for
+    production assets.
 
 Dependencies: Pillow (`pip install Pillow`)
 """
@@ -122,7 +123,7 @@ def extract_sprite(cell: Image.Image, size: int) -> Image.Image:
     if cropped is None:
         return Image.new("RGBA", (size, size), (0, 0, 0, 0))
     squared = pad_to_square(cropped)
-    return squared.resize((size, size), Image.LANCZOS)
+    return squared.resize((size, size), Image.Resampling.LANCZOS)
 
 
 # -- Spritesheet assembly -------------------------------------------------------
@@ -146,7 +147,7 @@ def build_compact_sheet(
 # -- CLI -----------------------------------------------------------------------
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Extract sprites from a padded spritesheet, auto-detect bounds via "

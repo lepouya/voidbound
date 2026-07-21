@@ -99,7 +99,7 @@ def extract_sprite(cell: Image.Image, size: int) -> Image.Image:
         return Image.new("RGBA", (size, size), (0, 0, 0, 0))
     cropped = cell.crop(bbox)
     squared = pad_to_square(cropped)
-    return squared.resize((size, size), Image.LANCZOS)
+    return squared.resize((size, size), Image.Resampling.LANCZOS)
 
 
 # -- Source sheet loading ------------------------------------------------------
@@ -153,7 +153,7 @@ def resolve_source_image(spec: str, size: int) -> Image.Image:
     except Exception as e:
         print(f"Error opening image '{spec}': {e}", file=sys.stderr)
         sys.exit(1)
-    return pad_to_square(img).resize((size, size), Image.LANCZOS)
+    return pad_to_square(img).resize((size, size), Image.Resampling.LANCZOS)
 
 
 def load_sprites_from_sheet(
@@ -258,7 +258,7 @@ def parse_sheet_spec(spec: str) -> tuple[str, int, int]:
     return path, cols, rows
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Merge sprites from multiple source spritesheets into one output "
