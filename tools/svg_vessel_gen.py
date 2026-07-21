@@ -25,71 +25,35 @@ import argparse
 import math
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
-import uuid
 from PIL import Image
+
+from svg_rasterize import render_svg_string_to_image
 
 
 RELATION_PALETTES = {
     "self": {
-        "ACCENT_COLOR": "#00d2ff",      # Cyan / Blue
-        "HULL_PRIMARY": "#223344",      # Dark Space Navy
+        "ACCENT_COLOR": "#00d2ff",  # Cyan / Blue
+        "HULL_PRIMARY": "#223344",  # Dark Space Navy
         "HULL_SECONDARY": "#152230",
     },
     "allies": {
-        "ACCENT_COLOR": "#54e05e",      # Green
-        "HULL_PRIMARY": "#243828",      # Dark Forest Armor
+        "ACCENT_COLOR": "#54e05e",  # Green
+        "HULL_PRIMARY": "#243828",  # Dark Forest Armor
         "HULL_SECONDARY": "#17261a",
     },
     "neutral": {
-        "ACCENT_COLOR": "#e0e0e0",      # Silver / White
-        "HULL_PRIMARY": "#2f363f",      # Graphite Gray
+        "ACCENT_COLOR": "#e0e0e0",  # Silver / White
+        "HULL_PRIMARY": "#2f363f",  # Graphite Gray
         "HULL_SECONDARY": "#1f242b",
     },
     "enemy": {
-        "ACCENT_COLOR": "#ff3232",      # Crimson Red
-        "HULL_PRIMARY": "#402222",      # Dark Crimson Armor
+        "ACCENT_COLOR": "#ff3232",  # Crimson Red
+        "HULL_PRIMARY": "#402222",  # Dark Crimson Armor
         "HULL_SECONDARY": "#2a1515",
     },
 }
-
-
-def find_rsvg_convert() -> str | None:
-    path = shutil.which("rsvg-convert")
-    if path:
-        return path
-    for check_dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]:
-        candidate = os.path.join(check_dir, "rsvg-convert")
-        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-    return None
-
-
-def render_svg_string_to_image(svg_content: str, width: int, height: int, work_dir: str) -> Image.Image:
-    rsvg = find_rsvg_convert()
-    if not rsvg:
-        raise RuntimeError("Error: 'rsvg-convert' not found. Please install librsvg (`brew install librsvg`).")
-
-    temp_svg = os.path.join(work_dir, f"vessel_{uuid.uuid4().hex}.svg")
-    temp_png = os.path.join(work_dir, f"vessel_{uuid.uuid4().hex}.png")
-
-    with open(temp_svg, "w", encoding="utf-8") as f:
-        f.write(svg_content)
-
-    cmd = [rsvg, "-w", str(width), "-h", str(height), temp_svg, "-o", temp_png]
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        raise RuntimeError(f"rsvg-convert failed: {res.stderr}")
-
-    img = Image.open(temp_png).convert("RGBA")
-    try:
-        os.remove(temp_svg)
-        os.remove(temp_png)
-    except OSError:
-        pass
-    return img
 
 
 def compute_anisotropic_plume(
@@ -129,7 +93,9 @@ def compute_anisotropic_plume(
     return outer_d, mid_d, inner_d
 
 
-def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float) -> str:
+def format_frame_svg(
+    raw_svg: str, palette: dict[str, str], state: str, t: float
+) -> str:
     svg = raw_svg
     for key, val in palette.items():
         svg = svg.replace(f"{{{key}}}", val)
@@ -139,8 +105,12 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         hull_transform = f"translate(0, {float_y:.2f})"
         plume_opacity = 0.0
         plume_mid_opacity = 0.0
-        l_outer, l_mid, l_inner = compute_anisotropic_plume(26.0, 53.0, 4.0, 2.2, 0.0, 0.0, 0.0)
-        r_outer, r_mid, r_inner = compute_anisotropic_plume(38.0, 53.0, 4.0, 2.2, 0.0, 0.0, 0.0)
+        l_outer, l_mid, l_inner = compute_anisotropic_plume(
+            26.0, 53.0, 4.0, 2.2, 0.0, 0.0, 0.0
+        )
+        r_outer, r_mid, r_inner = compute_anisotropic_plume(
+            38.0, 53.0, 4.0, 2.2, 0.0, 0.0, 0.0
+        )
         core_glow = 0.2 + 0.1 * math.sin(t * 2 * math.pi)
         scanner_opacity = 0.0
         scanner_y = 20.0
@@ -166,8 +136,12 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         mid_w_r = 2.2 - 0.7 * pulse_r
 
         plume_mid_opacity = 0.5 + 0.25 * math.sin(t * 16 * math.pi + 0.3)
-        l_outer, l_mid, l_inner = compute_anisotropic_plume(26.0, 53.0, l_outer_len, mid_w_l, shear_l, pulse_fast_l, pulse_l)
-        r_outer, r_mid, r_inner = compute_anisotropic_plume(38.0, 53.0, r_outer_len, mid_w_r, shear_r, pulse_fast_r, pulse_r)
+        l_outer, l_mid, l_inner = compute_anisotropic_plume(
+            26.0, 53.0, l_outer_len, mid_w_l, shear_l, pulse_fast_l, pulse_l
+        )
+        r_outer, r_mid, r_inner = compute_anisotropic_plume(
+            38.0, 53.0, r_outer_len, mid_w_r, shear_r, pulse_fast_r, pulse_r
+        )
         core_glow = 0.9 + 0.1 * math.sin(t * 8 * math.pi)
         scanner_opacity = 0.0
         scanner_y = 20.0
@@ -186,8 +160,12 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         pulse_r = math.sin(t * 4 * math.pi + 0.5)
         shear_l = 0.4 * math.sin(t * 2 * math.pi)
         shear_r = 0.4 * math.sin(t * 2 * math.pi)
-        l_outer, l_mid, l_inner = compute_anisotropic_plume(26.0, 53.0, 4.0 + 1.0 * pulse_l, 2.2, shear_l, 0.0, pulse_l)
-        r_outer, r_mid, r_inner = compute_anisotropic_plume(38.0, 53.0, 4.0 + 1.0 * pulse_r, 2.2, shear_r, 0.0, pulse_r)
+        l_outer, l_mid, l_inner = compute_anisotropic_plume(
+            26.0, 53.0, 4.0 + 1.0 * pulse_l, 2.2, shear_l, 0.0, pulse_l
+        )
+        r_outer, r_mid, r_inner = compute_anisotropic_plume(
+            38.0, 53.0, 4.0 + 1.0 * pulse_r, 2.2, shear_r, 0.0, pulse_r
+        )
         core_glow = 0.4 + 0.3 * math.sin(t * 4 * math.pi)
         scanner_opacity = 0.95
         # Scanner sweeps smoothly from y=16 down to y=34 and back up
@@ -221,15 +199,43 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate animated vector vessel spritesheet.")
-    parser.add_argument("-s", "--source", required=True, help="Path to source vessel SVG file.")
-    parser.add_argument("-z", "--size", type=int, required=True, help="Tile size in pixels (e.g. 64).")
-    parser.add_argument("-n", "--frames", type=int, default=32, help="Number of animation frames (default: 32).")
-    parser.add_argument("-c", "--cols", type=int, default=6, help="Grid columns (default: 6).")
-    parser.add_argument("-r", "--rows", type=int, default=6, help="Grid rows (default: 6).")
-    parser.add_argument("--state", choices=["base", "moving", "idle"], required=True, help="Animation state.")
-    parser.add_argument("--relation", choices=["self", "allies", "neutral", "enemy"], required=True, help="Faction color relation.")
-    parser.add_argument("-d", "--dest", required=True, help="Path to destination PNG spritesheet.")
+    parser = argparse.ArgumentParser(
+        description="Generate animated vector vessel spritesheet."
+    )
+    parser.add_argument(
+        "-s", "--source", required=True, help="Path to source vessel SVG file."
+    )
+    parser.add_argument(
+        "-z", "--size", type=int, required=True, help="Tile size in pixels (e.g. 64)."
+    )
+    parser.add_argument(
+        "-n",
+        "--frames",
+        type=int,
+        default=32,
+        help="Number of animation frames (default: 32).",
+    )
+    parser.add_argument(
+        "-c", "--cols", type=int, default=6, help="Grid columns (default: 6)."
+    )
+    parser.add_argument(
+        "-r", "--rows", type=int, default=6, help="Grid rows (default: 6)."
+    )
+    parser.add_argument(
+        "--state",
+        choices=["base", "moving", "idle"],
+        required=True,
+        help="Animation state.",
+    )
+    parser.add_argument(
+        "--relation",
+        choices=["self", "allies", "neutral", "enemy"],
+        required=True,
+        help="Faction color relation.",
+    )
+    parser.add_argument(
+        "-d", "--dest", required=True, help="Path to destination PNG spritesheet."
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.source):
@@ -237,7 +243,10 @@ def main() -> int:
         return 1
 
     if args.frames > args.cols * args.rows:
-        print(f"Error: frames ({args.frames}) exceeds grid capacity ({args.cols * args.rows}).", file=sys.stderr)
+        print(
+            f"Error: frames ({args.frames}) exceeds grid capacity ({args.cols * args.rows}).",
+            file=sys.stderr,
+        )
         return 1
 
     with open(args.source, "r", encoding="utf-8") as f:
@@ -253,12 +262,18 @@ def main() -> int:
 
     work_dir = tempfile.mkdtemp(prefix="vessel_gen_")
     try:
-        print(f"Rendering vessel '{args.source}' [{args.state} | {args.relation}] -> {args.dest} ({args.frames} frames @ {args.size}x{args.size}px)...")
+        print(
+            f"Rendering vessel '{args.source}' [{args.state} | {args.relation}] -> {args.dest} ({args.frames} frames @ {args.size}x{args.size}px)..."
+        )
         for i in range(args.frames):
             t = i / float(args.frames)
             frame_svg = format_frame_svg(raw_svg, palette, args.state, t)
-            super_img = render_svg_string_to_image(frame_svg, super_size, super_size, work_dir)
-            downsampled = super_img.resize((args.size, args.size), Image.Resampling.LANCZOS)
+            super_img = render_svg_string_to_image(
+                frame_svg, super_size, super_size, work_dir
+            )
+            downsampled = super_img.resize(
+                (args.size, args.size), Image.Resampling.LANCZOS
+            )
             col = i % args.cols
             row = i // args.cols
             sheet.alpha_composite(downsampled, (col * args.size, row * args.size))

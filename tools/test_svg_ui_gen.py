@@ -2,10 +2,14 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import patch
 from PIL import Image
 
+import svg_rasterize
 import svg_ui_gen
+
+# Rasterizer error-path behavior (missing binary, failed exit code, missing
+# output file) is shared by every svg_*_gen.py script via svg_rasterize.py —
+# see test_svg_rasterize.py, which covers it once for every consumer.
 
 
 class TestSvgUiGen(unittest.TestCase):
@@ -34,7 +38,7 @@ class TestSvgUiGen(unittest.TestCase):
         self.assertNotEqual(active, "#808080")
 
     @unittest.skipUnless(
-        svg_ui_gen.find_rsvg_convert(),
+        svg_rasterize.find_rsvg_convert(),
         "rsvg-convert is intentionally absent; install librsvg to run SVG rendering tests",
     )
     def test_process_svg_states(self):
@@ -54,7 +58,7 @@ class TestSvgUiGen(unittest.TestCase):
             self.assertEqual(s.size, (64, 64))
 
     @unittest.skipUnless(
-        svg_ui_gen.find_rsvg_convert(),
+        svg_rasterize.find_rsvg_convert(),
         "rsvg-convert is intentionally absent; install librsvg to run SVG rendering tests",
     )
     def test_process_svg_states_respects_num_states(self):
@@ -76,23 +80,6 @@ class TestSvgUiGen(unittest.TestCase):
         sprites = [Image.new("RGBA", (64, 64), (255, 0, 0, 255))] * 3
         sheet = svg_ui_gen.build_compact_sheet(sprites, 3, 1, 64)
         self.assertEqual(sheet.size, (192, 64))
-
-    def test_missing_rasterizer_explains_how_to_install_it(self):
-        with patch("svg_ui_gen.find_rsvg_convert", return_value=None):
-            with self.assertRaisesRegex(RuntimeError, "brew install librsvg"):
-                svg_ui_gen.render_svg_to_image("<svg/>", 64, 64, self.test_dir)
-
-    def test_rasterizer_failure_preserves_stderr(self):
-        failed = svg_ui_gen.subprocess.CompletedProcess(
-            args=["rsvg-convert"],
-            returncode=1,
-            stdout="",
-            stderr="invalid SVG input",
-        )
-        with patch("svg_ui_gen.find_rsvg_convert", return_value="rsvg-convert"):
-            with patch("svg_ui_gen.subprocess.run", return_value=failed):
-                with self.assertRaisesRegex(RuntimeError, "invalid SVG input"):
-                    svg_ui_gen.render_svg_to_image("<svg/>", 64, 64, self.test_dir)
 
 
 if __name__ == "__main__":

@@ -45,11 +45,11 @@ import argparse
 import colorsys
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
-import uuid
 from PIL import Image
+
+from svg_rasterize import render_svg_string_to_image as render_svg_to_image
 
 
 def parse_hex_color(hex_str: str) -> tuple[int, int, int]:
@@ -74,68 +74,23 @@ def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
 def compute_active_color(hex_str: str) -> str:
     """Compute an active/pressed highlight color (brighter / more vibrant)."""
     r, g, b = parse_hex_color(hex_str)
-    h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    hue, light, sat = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
     # Increase lightness by 15%, cap at 1.0
-    l_new = min(1.0, l * 1.15 if l > 0.1 else l + 0.15)
-    s_new = min(1.0, s * 1.1)
-    r_new, g_new, b_new = colorsys.hls_to_rgb(h, l_new, s_new)
+    l_new = min(1.0, light * 1.15 if light > 0.1 else light + 0.15)
+    s_new = min(1.0, sat * 1.1)
+    r_new, g_new, b_new = colorsys.hls_to_rgb(hue, l_new, s_new)
     return rgb_to_hex((int(r_new * 255), int(g_new * 255), int(b_new * 255)))
 
 
 def compute_disabled_color(hex_str: str) -> str:
     """Compute a disabled color (desaturated and darkened)."""
     r, g, b = parse_hex_color(hex_str)
-    h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    hue, light, sat = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
     # Desaturate to 20% and reduce lightness to 50%
-    l_new = l * 0.55
-    s_new = s * 0.2
-    r_new, g_new, b_new = colorsys.hls_to_rgb(h, l_new, s_new)
+    l_new = light * 0.55
+    s_new = sat * 0.2
+    r_new, g_new, b_new = colorsys.hls_to_rgb(hue, l_new, s_new)
     return rgb_to_hex((int(r_new * 255), int(g_new * 255), int(b_new * 255)))
-
-
-def find_rsvg_convert() -> str | None:
-    """Return the explicitly supported SVG renderer, if it is installed."""
-    return shutil.which("rsvg-convert")
-
-
-def render_svg_to_image(svg_content: str, width: int, height: int, work_dir: str) -> Image.Image:
-    """
-    Render SVG XML string to a Pillow Image of size (width, height).
-    Uses the explicitly supported librsvg `rsvg-convert` command.
-    """
-    unique_id = uuid.uuid4().hex
-    tmp_svg = os.path.join(work_dir, f"temp_render_{unique_id}.svg")
-    tmp_png = os.path.join(work_dir, f"temp_render_{unique_id}.png")
-    
-    try:
-        with open(tmp_svg, "w", encoding="utf-8") as f:
-            f.write(svg_content)
-
-        rsvg_bin = find_rsvg_convert()
-        if not rsvg_bin:
-            raise RuntimeError(
-                "SVG rendering requires rsvg-convert from librsvg; install it with "
-                "`brew install librsvg` on macOS."
-            )
-
-        result = subprocess.run(
-            [rsvg_bin, "-w", str(width), "-h", str(height), tmp_svg, "-o", tmp_png],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            diagnostics = result.stderr.strip() or result.stdout.strip() or "no diagnostic output"
-            raise RuntimeError(
-                f"rsvg-convert failed with exit code {result.returncode}: {diagnostics}"
-            )
-        if not os.path.exists(tmp_png):
-            raise RuntimeError("rsvg-convert exited successfully but did not produce a PNG output file.")
-        return Image.open(tmp_png).convert("RGBA")
-    finally:
-        if os.path.exists(tmp_svg):
-            os.remove(tmp_svg)
-        if os.path.exists(tmp_png):
-            os.remove(tmp_png)
 
 
 def process_svg_states(
@@ -200,18 +155,34 @@ def build_compact_sheet(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate UI button spritesheets from SVG files.")
+    parser = argparse.ArgumentParser(
+        description="Generate UI button spritesheets from SVG files."
+    )
     parser.add_argument("-s", "--source", required=True, help="Path to source SVG file")
-    parser.add_argument("-c", "--cols", type=int, default=3, help="Grid columns (default: 3)")
-    parser.add_argument("-r", "--rows", type=int, default=1, help="Grid rows (default: 1)")
-    parser.add_argument("-z", "--size", type=int, default=64, help="Cell size px (default: 64)")
-    parser.add_argument("-d", "--dest", required=True, help="Output PNG spritesheet path")
-    parser.add_argument("--color1", default="#FFFFFF", help="Primary color hex (default: #FFFFFF)")
-    parser.add_argument("--color2", default="#00d2ff", help="Secondary color hex (default: #00d2ff)")
+    parser.add_argument(
+        "-c", "--cols", type=int, default=3, help="Grid columns (default: 3)"
+    )
+    parser.add_argument(
+        "-r", "--rows", type=int, default=1, help="Grid rows (default: 1)"
+    )
+    parser.add_argument(
+        "-z", "--size", type=int, default=64, help="Cell size px (default: 64)"
+    )
+    parser.add_argument(
+        "-d", "--dest", required=True, help="Output PNG spritesheet path"
+    )
+    parser.add_argument(
+        "--color1", default="#FFFFFF", help="Primary color hex (default: #FFFFFF)"
+    )
+    parser.add_argument(
+        "--color2", default="#00d2ff", help="Secondary color hex (default: #00d2ff)"
+    )
     parser.add_argument("--color1-active", help="Primary active color hex override")
     parser.add_argument("--color2-active", help="Secondary active color hex override")
     parser.add_argument("--color1-disabled", help="Primary disabled color hex override")
-    parser.add_argument("--color2-disabled", help="Secondary disabled color hex override")
+    parser.add_argument(
+        "--color2-disabled", help="Secondary disabled color hex override"
+    )
     parser.add_argument(
         "--states",
         type=int,

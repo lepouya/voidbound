@@ -36,46 +36,11 @@ import math
 import os
 import random
 import shutil
-import subprocess
 import sys
 import tempfile
-import uuid
 from PIL import Image, ImageDraw
 
-
-def find_rsvg_convert() -> str | None:
-    """Return the explicitly supported SVG renderer from librsvg."""
-    return shutil.which("rsvg-convert")
-
-
-def render_svg_to_image(svg_path: str, width: int, height: int, work_dir: str) -> Image.Image:
-    """Render an SVG file to an RGBA PIL Image at exact target dimensions using rsvg-convert."""
-    unique_id = uuid.uuid4().hex
-    tmp_png = os.path.join(work_dir, f"temp_asteroid_{unique_id}.png")
-
-    try:
-        rsvg_bin = find_rsvg_convert()
-        if not rsvg_bin:
-            raise RuntimeError(
-                "SVG rendering requires rsvg-convert from librsvg; install it with `brew install librsvg`."
-            )
-
-        result = subprocess.run(
-            [rsvg_bin, "-w", str(width), "-h", str(height), svg_path, "-o", tmp_png],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            diagnostics = result.stderr.strip() or result.stdout.strip() or "no diagnostic output"
-            raise RuntimeError(
-                f"rsvg-convert failed with exit code {result.returncode}: {diagnostics}"
-            )
-        if not os.path.exists(tmp_png):
-            raise RuntimeError("rsvg-convert exited successfully but did not produce a PNG output file.")
-        return Image.open(tmp_png).convert("RGBA")
-    finally:
-        if os.path.exists(tmp_png):
-            os.remove(tmp_png)
+from svg_rasterize import render_svg_file_to_image as render_svg_to_image
 
 
 class OrbitingParticle:
@@ -107,7 +72,9 @@ class OrbitingParticle:
         self.alpha_base = alpha_base
         self.spin_cycles = spin_cycles
 
-    def position_and_layer(self, t: float, center: float) -> tuple[float, float, bool, float, int]:
+    def position_and_layer(
+        self, t: float, center: float
+    ) -> tuple[float, float, bool, float, int]:
         """
         Compute particle position, depth layer, orientation, and alpha at normalized time t in [0, 1).
         Returns: (x, y, is_foreground, angle_deg, alpha)
@@ -124,8 +91,16 @@ class OrbitingParticle:
         if self.speed_cycles == 0:
             # Local zero-G bobbing around station (±2.5px to ±4.5px harmonic float across the loop)
             drift_amp = (self.radius_x / 64.0) * 3.5
-            pos_x = center + rot_x + drift_amp * math.sin(2.0 * math.pi * t + self.phase_rad)
-            pos_y = center + rot_y + drift_amp * math.cos(2.0 * math.pi * t + self.phase_rad)
+            pos_x = (
+                center
+                + rot_x
+                + drift_amp * math.sin(2.0 * math.pi * t + self.phase_rad)
+            )
+            pos_y = (
+                center
+                + rot_y
+                + drift_amp * math.cos(2.0 * math.pi * t + self.phase_rad)
+            )
         else:
             pos_x = center + rot_x
             pos_y = center + rot_y
@@ -146,7 +121,9 @@ class OrbitingParticle:
         return pos_x, pos_y, is_foreground, angle_deg, alpha
 
 
-def generate_particles_for_size(size: int, super_scale: int = 2) -> list[OrbitingParticle]:
+def generate_particles_for_size(
+    size: int, super_scale: int = 2
+) -> list[OrbitingParticle]:
     """Generate deterministic set of orbiting pebbles and space dust motes for given tile size."""
     # Seed based on size so generation is 100% deterministic and stable across runs
     random.seed(1337 + size)
@@ -221,7 +198,9 @@ def generate_particles_for_size(size: int, super_scale: int = 2) -> list[Orbitin
     return particles
 
 
-def draw_particle_onto_layer(layer: Image.Image, particle: OrbitingParticle, t: float, center: float) -> None:
+def draw_particle_onto_layer(
+    layer: Image.Image, particle: OrbitingParticle, t: float, center: float
+) -> None:
     """Draw a single particle onto the supersampled RGBA layer."""
     pos_x, pos_y, _, angle_deg, alpha = particle.position_and_layer(t, center)
 
@@ -280,7 +259,9 @@ def render_asteroid_frame(
 
     # Pendular tilt angle: ±3.5 degrees
     tilt_deg = 3.5 * math.sin(2.0 * math.pi * t)
-    rotated_rock = scaled_rock.rotate(tilt_deg, resample=Image.Resampling.BICUBIC, expand=True)
+    rotated_rock = scaled_rock.rotate(
+        tilt_deg, resample=Image.Resampling.BICUBIC, expand=True
+    )
 
     # Zero-G Lissajous drift around center
     drift_x = int(round((super_size / 64.0) * 2.2 * math.sin(2.0 * math.pi * t)))
@@ -314,17 +295,23 @@ def generate_animated_asteroid_sheet(
     super_scale = 2
     super_size = size * super_scale
 
-    print(f"Rendering vector base: {svg_path} at {super_size}x{super_size}px (2x supersampled)...")
+    print(
+        f"Rendering vector base: {svg_path} at {super_size}x{super_size}px (2x supersampled)..."
+    )
     base_rock = render_svg_to_image(svg_path, super_size, super_size, work_dir)
 
     particles = generate_particles_for_size(size, super_scale)
-    print(f"Generated {len(particles)} orbiting debris/dust particles for {size}x{size}px tier.")
+    print(
+        f"Generated {len(particles)} orbiting debris/dust particles for {size}x{size}px tier."
+    )
 
     sheet_width = cols * size
     sheet_height = rows * size
     sheet = Image.new("RGBA", (sheet_width, sheet_height), (0, 0, 0, 0))
 
-    print(f"Rendering {frames} frames into {cols}x{rows} grid ({sheet_width}x{sheet_height}px)...")
+    print(
+        f"Rendering {frames} frames into {cols}x{rows} grid ({sheet_width}x{sheet_height}px)..."
+    )
     for i in range(frames):
         t = i / float(frames)
         frame_img = render_asteroid_frame(base_rock, particles, t, super_size, size)
@@ -338,17 +325,41 @@ def generate_animated_asteroid_sheet(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate animated 3D tumbling asteroid spritesheet from SVG.")
-    parser.add_argument("-s", "--source", required=True, help="Path to source asteroid SVG file.")
-    parser.add_argument("-z", "--size", type=int, required=True, help="Tile size in pixels (64, 128, or 192).")
-    parser.add_argument("-n", "--frames", type=int, default=64, help="Number of animation frames (default: 64).")
-    parser.add_argument("-c", "--cols", type=int, default=8, help="Grid columns (default: 8).")
-    parser.add_argument("-r", "--rows", type=int, default=8, help="Grid rows (default: 8).")
-    parser.add_argument("-d", "--dest", required=True, help="Path to destination PNG spritesheet.")
+    parser = argparse.ArgumentParser(
+        description="Generate animated 3D tumbling asteroid spritesheet from SVG."
+    )
+    parser.add_argument(
+        "-s", "--source", required=True, help="Path to source asteroid SVG file."
+    )
+    parser.add_argument(
+        "-z",
+        "--size",
+        type=int,
+        required=True,
+        help="Tile size in pixels (64, 128, or 192).",
+    )
+    parser.add_argument(
+        "-n",
+        "--frames",
+        type=int,
+        default=64,
+        help="Number of animation frames (default: 64).",
+    )
+    parser.add_argument(
+        "-c", "--cols", type=int, default=8, help="Grid columns (default: 8)."
+    )
+    parser.add_argument(
+        "-r", "--rows", type=int, default=8, help="Grid rows (default: 8)."
+    )
+    parser.add_argument(
+        "-d", "--dest", required=True, help="Path to destination PNG spritesheet."
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.source):
-        print(f"Error: Source SVG file '{args.source}' does not exist.", file=sys.stderr)
+        print(
+            f"Error: Source SVG file '{args.source}' does not exist.", file=sys.stderr
+        )
         return 1
 
     if args.frames > args.cols * args.rows:

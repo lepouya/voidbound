@@ -47,71 +47,35 @@ import argparse
 import math
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
-import uuid
 from PIL import Image
+
+from svg_rasterize import render_svg_string_to_image
 
 
 RELATION_PALETTES = {
     "self": {
-        "ACCENT_COLOR": "#00d2ff",      # Cyan / Blue
-        "HULL_PRIMARY": "#223344",      # Dark Space Navy
+        "ACCENT_COLOR": "#00d2ff",  # Cyan / Blue
+        "HULL_PRIMARY": "#223344",  # Dark Space Navy
         "HULL_SECONDARY": "#152230",
     },
     "allies": {
-        "ACCENT_COLOR": "#54e05e",      # Green
-        "HULL_PRIMARY": "#243828",      # Dark Forest Armor
+        "ACCENT_COLOR": "#54e05e",  # Green
+        "HULL_PRIMARY": "#243828",  # Dark Forest Armor
         "HULL_SECONDARY": "#17261a",
     },
     "neutral": {
-        "ACCENT_COLOR": "#e0e0e0",      # Silver / White
-        "HULL_PRIMARY": "#2f363f",      # Graphite Gray
+        "ACCENT_COLOR": "#e0e0e0",  # Silver / White
+        "HULL_PRIMARY": "#2f363f",  # Graphite Gray
         "HULL_SECONDARY": "#1f242b",
     },
     "enemy": {
-        "ACCENT_COLOR": "#ff3232",      # Crimson Red
-        "HULL_PRIMARY": "#402222",      # Dark Crimson Armor
+        "ACCENT_COLOR": "#ff3232",  # Crimson Red
+        "HULL_PRIMARY": "#402222",  # Dark Crimson Armor
         "HULL_SECONDARY": "#2a1515",
     },
 }
-
-
-def find_rsvg_convert() -> str | None:
-    path = shutil.which("rsvg-convert")
-    if path:
-        return path
-    for check_dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]:
-        candidate = os.path.join(check_dir, "rsvg-convert")
-        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
-            return candidate
-    return None
-
-
-def render_svg_string_to_image(svg_content: str, width: int, height: int, work_dir: str) -> Image.Image:
-    rsvg = find_rsvg_convert()
-    if not rsvg:
-        raise RuntimeError("Error: 'rsvg-convert' not found. Please install librsvg (`brew install librsvg`).")
-
-    temp_svg = os.path.join(work_dir, f"mothership_{uuid.uuid4().hex}.svg")
-    temp_png = os.path.join(work_dir, f"mothership_{uuid.uuid4().hex}.png")
-
-    with open(temp_svg, "w", encoding="utf-8") as f:
-        f.write(svg_content)
-
-    cmd = [rsvg, "-w", str(width), "-h", str(height), temp_svg, "-o", temp_png]
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        raise RuntimeError(f"rsvg-convert failed: {res.stderr}")
-
-    img = Image.open(temp_png).convert("RGBA")
-    try:
-        os.remove(temp_svg)
-        os.remove(temp_png)
-    except OSError:
-        pass
-    return img
 
 
 def compute_anisotropic_plume(
@@ -132,7 +96,7 @@ def compute_anisotropic_plume(
         f"C {cx - mid_w - 0.8:.2f} {base_y + l_outer * 0.35:.2f}, {tip_x - 1.2:.2f} {base_y + l_outer * 0.85:.2f}, {tip_x:.2f} {base_y + l_outer:.2f} "
         f"C {tip_x + 1.2:.2f} {base_y + l_outer * 0.85:.2f}, {cx + mid_w + 0.8:.2f} {base_y + l_outer * 0.35:.2f}, {cx + w_outer:.2f} {base_y:.2f} Z"
     )
-    
+
     if is_aux:
         # Auxiliary thrusters return simple outer and inner cones
         w_inner = 1.8
@@ -167,7 +131,9 @@ def compute_anisotropic_plume(
     return outer_d, mid_d, inner_d
 
 
-def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float) -> str:
+def format_frame_svg(
+    raw_svg: str, palette: dict[str, str], state: str, t: float
+) -> str:
     svg = raw_svg
     for key, val in palette.items():
         svg = svg.replace(f"{{{key}}}", val)
@@ -177,35 +143,61 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         float_x = math.sin(t * 2 * math.pi) * 0.8
         float_y = math.cos(t * 2 * math.pi) * 1.2
         ship_transform = f"translate({float_x:.2f}, {float_y:.2f})"
-        
+
         thruster_opacity = 0.8 + 0.2 * math.sin(t * 2 * math.pi)
         plume_mid_opacity = 0.6 + 0.3 * math.sin(t * 4 * math.pi)
         core_glow_opacity = 0.85 + 0.15 * math.sin(t * 4 * math.pi)
         conduit_opacity = 0.65 + 0.25 * math.cos(t * 2 * math.pi)
         beacon_opacity = 0.5 + 0.5 * max(0.0, math.sin(t * 4 * math.pi))
         beacon_glow = 0.3 + 0.5 * max(0.0, math.sin(t * 4 * math.pi))
-        
+
         pulse_l = math.sin(t * 4 * math.pi)
         pulse_fast_l = math.sin(t * 8 * math.pi)
         shear_l = 0.8 * math.sin(t * 2 * math.pi)
-        
+
         pulse_r = math.sin(t * 4 * math.pi + 0.5)
         pulse_fast_r = math.sin(t * 8 * math.pi + 0.5)
         shear_r = 0.8 * math.sin(t * 2 * math.pi)
-        
+
         # 4 Main Capital Ship Exhaust Nozzles (Port Outer cx=70, Port Inner cx=88, Stbd Inner cx=168, Stbd Outer cx=186)
-        p1_o, p1_m, p1_i = compute_anisotropic_plume(70.0, 222.0, 18.0 + 4.0 * pulse_l, 4.2, shear_l, pulse_fast_l, pulse_l)
-        p2_o, p2_m, p2_i = compute_anisotropic_plume(88.0, 222.0, 20.0 + 4.0 * pulse_l, 4.5, shear_l, pulse_fast_l, pulse_l)
-        s1_o, s1_m, s1_i = compute_anisotropic_plume(168.0, 222.0, 20.0 + 4.0 * pulse_r, 4.5, shear_r, pulse_fast_r, pulse_r)
-        s2_o, s2_m, s2_i = compute_anisotropic_plume(186.0, 222.0, 18.0 + 4.0 * pulse_r, 4.2, shear_r, pulse_fast_r, pulse_r)
-        
+        p1_o, p1_m, p1_i = compute_anisotropic_plume(
+            70.0, 222.0, 18.0 + 4.0 * pulse_l, 4.2, shear_l, pulse_fast_l, pulse_l
+        )
+        p2_o, p2_m, p2_i = compute_anisotropic_plume(
+            88.0, 222.0, 20.0 + 4.0 * pulse_l, 4.5, shear_l, pulse_fast_l, pulse_l
+        )
+        s1_o, s1_m, s1_i = compute_anisotropic_plume(
+            168.0, 222.0, 20.0 + 4.0 * pulse_r, 4.5, shear_r, pulse_fast_r, pulse_r
+        )
+        s2_o, s2_m, s2_i = compute_anisotropic_plume(
+            186.0, 222.0, 18.0 + 4.0 * pulse_r, 4.2, shear_r, pulse_fast_r, pulse_r
+        )
+
         # 2 Auxiliary Maneuvering Thrusters (cx=114 & cx=142)
-        a1_o, _, a1_i = compute_anisotropic_plume(114.0, 216.0, 14.0 + 2.0 * pulse_l, 2.5, shear_l * 0.5, 0.0, pulse_l, is_aux=True)
-        a2_o, _, a2_i = compute_anisotropic_plume(142.0, 216.0, 14.0 + 2.0 * pulse_r, 2.5, shear_r * 0.5, 0.0, pulse_r, is_aux=True)
-        
+        a1_o, _, a1_i = compute_anisotropic_plume(
+            114.0,
+            216.0,
+            14.0 + 2.0 * pulse_l,
+            2.5,
+            shear_l * 0.5,
+            0.0,
+            pulse_l,
+            is_aux=True,
+        )
+        a2_o, _, a2_i = compute_anisotropic_plume(
+            142.0,
+            216.0,
+            14.0 + 2.0 * pulse_r,
+            2.5,
+            shear_r * 0.5,
+            0.0,
+            pulse_r,
+            is_aux=True,
+        )
+
         radar_angle = math.sin(t * 2 * math.pi) * 24.0
         radar_transform = f"rotate({radar_angle:.2f}, 128, 66)"
-        
+
         scanner_opacity = 0.0
         scanner_transform = "rotate(0, 128, 62)"
         damage_opacity = 0.0
@@ -215,33 +207,59 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         float_x = math.sin(t * 2 * math.pi) * 0.8
         float_y = math.cos(t * 2 * math.pi) * 1.2
         ship_transform = f"translate({float_x:.2f}, {float_y:.2f})"
-        
+
         thruster_opacity = 0.9 + 0.1 * math.sin(t * 4 * math.pi)
         plume_mid_opacity = 0.75 + 0.25 * math.sin(t * 8 * math.pi)
         core_glow_opacity = 0.95 + 0.05 * math.sin(t * 8 * math.pi)
         conduit_opacity = 0.85 + 0.15 * math.sin(t * 8 * math.pi)
         beacon_opacity = 0.9 + 0.1 * math.sin(t * 8 * math.pi)
         beacon_glow = 0.6 + 0.4 * math.sin(t * 8 * math.pi)
-        
+
         pulse_l = math.sin(t * 6 * math.pi)
         pulse_fast_l = math.sin(t * 12 * math.pi)
         shear_l = 1.0 * math.sin(t * 4 * math.pi)
-        
+
         pulse_r = math.sin(t * 6 * math.pi + 0.5)
         pulse_fast_r = math.sin(t * 12 * math.pi + 0.5)
         shear_r = 1.0 * math.sin(t * 4 * math.pi)
-        
-        p1_o, p1_m, p1_i = compute_anisotropic_plume(70.0, 222.0, 22.0 + 6.0 * pulse_l, 4.6, shear_l, pulse_fast_l, pulse_l)
-        p2_o, p2_m, p2_i = compute_anisotropic_plume(88.0, 222.0, 24.0 + 6.0 * pulse_l, 4.8, shear_l, pulse_fast_l, pulse_l)
-        s1_o, s1_m, s1_i = compute_anisotropic_plume(168.0, 222.0, 24.0 + 6.0 * pulse_r, 4.8, shear_r, pulse_fast_r, pulse_r)
-        s2_o, s2_m, s2_i = compute_anisotropic_plume(186.0, 222.0, 22.0 + 6.0 * pulse_r, 4.6, shear_r, pulse_fast_r, pulse_r)
-        
-        a1_o, _, a1_i = compute_anisotropic_plume(114.0, 216.0, 16.0 + 3.0 * pulse_l, 2.8, shear_l * 0.5, 0.0, pulse_l, is_aux=True)
-        a2_o, _, a2_i = compute_anisotropic_plume(142.0, 216.0, 16.0 + 3.0 * pulse_r, 2.8, shear_r * 0.5, 0.0, pulse_r, is_aux=True)
-        
+
+        p1_o, p1_m, p1_i = compute_anisotropic_plume(
+            70.0, 222.0, 22.0 + 6.0 * pulse_l, 4.6, shear_l, pulse_fast_l, pulse_l
+        )
+        p2_o, p2_m, p2_i = compute_anisotropic_plume(
+            88.0, 222.0, 24.0 + 6.0 * pulse_l, 4.8, shear_l, pulse_fast_l, pulse_l
+        )
+        s1_o, s1_m, s1_i = compute_anisotropic_plume(
+            168.0, 222.0, 24.0 + 6.0 * pulse_r, 4.8, shear_r, pulse_fast_r, pulse_r
+        )
+        s2_o, s2_m, s2_i = compute_anisotropic_plume(
+            186.0, 222.0, 22.0 + 6.0 * pulse_r, 4.6, shear_r, pulse_fast_r, pulse_r
+        )
+
+        a1_o, _, a1_i = compute_anisotropic_plume(
+            114.0,
+            216.0,
+            16.0 + 3.0 * pulse_l,
+            2.8,
+            shear_l * 0.5,
+            0.0,
+            pulse_l,
+            is_aux=True,
+        )
+        a2_o, _, a2_i = compute_anisotropic_plume(
+            142.0,
+            216.0,
+            16.0 + 3.0 * pulse_r,
+            2.8,
+            shear_r * 0.5,
+            0.0,
+            pulse_r,
+            is_aux=True,
+        )
+
         radar_angle = math.sin(t * 2 * math.pi) * 45.0
         radar_transform = f"rotate({radar_angle:.2f}, 128, 66)"
-        
+
         scanner_opacity = 0.95
         # Forward sector scanner sweep oscillates smoothly over t=0..1
         scan_angle = math.sin(t * 2 * math.pi) * 55.0
@@ -254,28 +272,40 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
         shudder_x = math.sin(t * 16 * math.pi) * 1.2
         shudder_y = math.cos(t * 12 * math.pi) * 1.4
         ship_transform = f"translate({shudder_x:.2f}, {shudder_y:.2f})"
-        
+
         thruster_opacity = 0.3 + 0.3 * math.sin(t * 12 * math.pi)
         plume_mid_opacity = 0.2 + 0.2 * math.sin(t * 16 * math.pi)
         core_glow_opacity = 0.4 + 0.3 * math.sin(t * 12 * math.pi)
         conduit_opacity = 0.25 + 0.15 * math.sin(t * 16 * math.pi)
         beacon_opacity = 0.15
         beacon_glow = 0.05
-        
+
         pulse_l = math.sin(t * 8 * math.pi)
         pulse_r = math.sin(t * 8 * math.pi + 1.0)
-        
-        p1_o, p1_m, p1_i = compute_anisotropic_plume(70.0, 222.0, 12.0 + 6.0 * pulse_l, 3.8, 0.0, 0.0, pulse_l)
-        p2_o, p2_m, p2_i = compute_anisotropic_plume(88.0, 222.0, 14.0 + 6.0 * pulse_l, 4.0, 0.0, 0.0, pulse_l)
-        s1_o, s1_m, s1_i = compute_anisotropic_plume(168.0, 222.0, 14.0 + 6.0 * pulse_r, 4.0, 0.0, 0.0, pulse_r)
-        s2_o, s2_m, s2_i = compute_anisotropic_plume(186.0, 222.0, 12.0 + 6.0 * pulse_r, 3.8, 0.0, 0.0, pulse_r)
-        
-        a1_o, _, a1_i = compute_anisotropic_plume(114.0, 216.0, 8.0 + 3.0 * pulse_l, 2.0, 0.0, 0.0, pulse_l, is_aux=True)
-        a2_o, _, a2_i = compute_anisotropic_plume(142.0, 216.0, 8.0 + 3.0 * pulse_r, 2.0, 0.0, 0.0, pulse_r, is_aux=True)
-        
+
+        p1_o, p1_m, p1_i = compute_anisotropic_plume(
+            70.0, 222.0, 12.0 + 6.0 * pulse_l, 3.8, 0.0, 0.0, pulse_l
+        )
+        p2_o, p2_m, p2_i = compute_anisotropic_plume(
+            88.0, 222.0, 14.0 + 6.0 * pulse_l, 4.0, 0.0, 0.0, pulse_l
+        )
+        s1_o, s1_m, s1_i = compute_anisotropic_plume(
+            168.0, 222.0, 14.0 + 6.0 * pulse_r, 4.0, 0.0, 0.0, pulse_r
+        )
+        s2_o, s2_m, s2_i = compute_anisotropic_plume(
+            186.0, 222.0, 12.0 + 6.0 * pulse_r, 3.8, 0.0, 0.0, pulse_r
+        )
+
+        a1_o, _, a1_i = compute_anisotropic_plume(
+            114.0, 216.0, 8.0 + 3.0 * pulse_l, 2.0, 0.0, 0.0, pulse_l, is_aux=True
+        )
+        a2_o, _, a2_i = compute_anisotropic_plume(
+            142.0, 216.0, 8.0 + 3.0 * pulse_r, 2.0, 0.0, 0.0, pulse_r, is_aux=True
+        )
+
         radar_angle = math.sin(t * 4 * math.pi) * 8.0
         radar_transform = f"rotate({radar_angle:.2f}, 128, 66)"
-        
+
         scanner_opacity = 0.0
         scanner_transform = "rotate(0, 128, 62)"
         damage_opacity = 1.0
@@ -292,26 +322,26 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
     svg = svg.replace("{CONDUIT_OPACITY}", f"{conduit_opacity:.2f}")
     svg = svg.replace("{BEACON_OPACITY}", f"{beacon_opacity:.2f}")
     svg = svg.replace("{BEACON_GLOW}", f"{beacon_glow:.2f}")
-    
+
     svg = svg.replace("{PLUME_P1_OUTER}", p1_o)
     svg = svg.replace("{PLUME_P1_MID}", p1_m)
     svg = svg.replace("{PLUME_P1_INNER}", p1_i)
     svg = svg.replace("{PLUME_P2_OUTER}", p2_o)
     svg = svg.replace("{PLUME_P2_MID}", p2_m)
     svg = svg.replace("{PLUME_P2_INNER}", p2_i)
-    
+
     svg = svg.replace("{PLUME_S1_OUTER}", s1_o)
     svg = svg.replace("{PLUME_S1_MID}", s1_m)
     svg = svg.replace("{PLUME_S1_INNER}", s1_i)
     svg = svg.replace("{PLUME_S2_OUTER}", s2_o)
     svg = svg.replace("{PLUME_S2_MID}", s2_m)
     svg = svg.replace("{PLUME_S2_INNER}", s2_i)
-    
+
     svg = svg.replace("{PLUME_A1_OUTER}", a1_o)
     svg = svg.replace("{PLUME_A1_INNER}", a1_i)
     svg = svg.replace("{PLUME_A2_OUTER}", a2_o)
     svg = svg.replace("{PLUME_A2_INNER}", a2_i)
-    
+
     svg = svg.replace("{RADAR_TRANSFORM}", radar_transform)
     svg = svg.replace("{SCANNER_OPACITY}", f"{scanner_opacity:.2f}")
     svg = svg.replace("{SCANNER_TRANSFORM}", scanner_transform)
@@ -322,15 +352,43 @@ def format_frame_svg(raw_svg: str, palette: dict[str, str], state: str, t: float
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate animated vector mothership spritesheet.")
-    parser.add_argument("-s", "--source", required=True, help="Path to source mothership SVG file.")
-    parser.add_argument("-z", "--size", type=int, required=True, help="Tile size in pixels (e.g. 256).")
-    parser.add_argument("-n", "--frames", type=int, default=32, help="Number of animation frames (default: 32).")
-    parser.add_argument("-c", "--cols", type=int, default=6, help="Grid columns (default: 6).")
-    parser.add_argument("-r", "--rows", type=int, default=6, help="Grid rows (default: 6).")
-    parser.add_argument("--state", choices=["base", "idle", "damaged"], required=True, help="Animation state.")
-    parser.add_argument("--relation", choices=["self", "allies", "neutral", "enemy"], required=True, help="Faction color relation.")
-    parser.add_argument("-d", "--dest", required=True, help="Path to destination PNG spritesheet.")
+    parser = argparse.ArgumentParser(
+        description="Generate animated vector mothership spritesheet."
+    )
+    parser.add_argument(
+        "-s", "--source", required=True, help="Path to source mothership SVG file."
+    )
+    parser.add_argument(
+        "-z", "--size", type=int, required=True, help="Tile size in pixels (e.g. 256)."
+    )
+    parser.add_argument(
+        "-n",
+        "--frames",
+        type=int,
+        default=32,
+        help="Number of animation frames (default: 32).",
+    )
+    parser.add_argument(
+        "-c", "--cols", type=int, default=6, help="Grid columns (default: 6)."
+    )
+    parser.add_argument(
+        "-r", "--rows", type=int, default=6, help="Grid rows (default: 6)."
+    )
+    parser.add_argument(
+        "--state",
+        choices=["base", "idle", "damaged"],
+        required=True,
+        help="Animation state.",
+    )
+    parser.add_argument(
+        "--relation",
+        choices=["self", "allies", "neutral", "enemy"],
+        required=True,
+        help="Faction color relation.",
+    )
+    parser.add_argument(
+        "-d", "--dest", required=True, help="Path to destination PNG spritesheet."
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.source):
@@ -338,7 +396,10 @@ def main() -> int:
         return 1
 
     if args.frames > args.cols * args.rows:
-        print(f"Error: frames ({args.frames}) exceeds grid capacity ({args.cols * args.rows}).", file=sys.stderr)
+        print(
+            f"Error: frames ({args.frames}) exceeds grid capacity ({args.cols * args.rows}).",
+            file=sys.stderr,
+        )
         return 1
 
     with open(args.source, "r", encoding="utf-8") as f:
@@ -355,7 +416,9 @@ def main() -> int:
         for frame_idx in range(args.frames):
             t = frame_idx / args.frames
             frame_svg = format_frame_svg(raw_svg, palette, args.state, t)
-            frame_img = render_svg_string_to_image(frame_svg, args.size, args.size, work_dir)
+            frame_img = render_svg_string_to_image(
+                frame_svg, args.size, args.size, work_dir
+            )
 
             col = frame_idx % args.cols
             row = frame_idx // args.cols
@@ -365,7 +428,9 @@ def main() -> int:
 
     os.makedirs(os.path.dirname(os.path.abspath(args.dest)), exist_ok=True)
     sheet.save(args.dest, "PNG")
-    print(f"Generated {args.dest} ({args.state}/{args.relation}, {args.frames} frames @ {args.size}x{args.size})")
+    print(
+        f"Generated {args.dest} ({args.state}/{args.relation}, {args.frames} frames @ {args.size}x{args.size})"
+    )
     return 0
 
 

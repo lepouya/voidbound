@@ -46,19 +46,28 @@ dependency, run that command before retrying.
 Scripts are called from `art/gen_*.sh` — you usually don't invoke them directly
 except when writing a new generator.
 
-| Script                      | Purpose                                                                               |
-| --------------------------- | ------------------------------------------------------------------------------------- |
-| `sprite_extract.py`         | Extract + uniform-resize sprites from a padded source sheet (standby — no caller yet) |
-| `sprite_merge.py`           | Merge sprites from multiple source sheets into one output sheet                       |
-| `sprite_transition.py`      | Generate animated spritesheets with fade/roll/scale/rotate transitions                |
-| `svg_ui_gen.py`             | Render SVG UI frames/icons to normal/active/disabled spritesheets                     |
-| `svg_vessel_gen.py`         | Render `vessel-1` SVG source to a 32-frame animated sheet per state/relation          |
-| `svg_mothership_gen.py`     | Render `mothership-1` SVG source to a 32-frame animated sheet per state/relation      |
-| `svg_module_base_gen.py`    | Render the shared `module-base` SVG source to a 32-frame animated sheet               |
-| `svg_module_command_gen.py` | Render the Command Module's 3 tier SVGs to 64-frame animated sheets                   |
-| `svg_asteroid_gen.py`       | Render asteroid tier SVGs to 64-frame animated sheets with tumbling motion            |
-| `svg_reticle_gen.py`        | Render selection-reticle SVGs to animated sheets across footprint spans               |
-| `tmj_to_tilemap.py`         | Convert a Tiled `.tmj` file → `TileMapData` JSON asset                                |
+| Script                      | Purpose                                                                                                                       |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `sprite_extract.py`         | Extract + uniform-resize sprites from a padded source sheet (standby — no caller yet)                                         |
+| `sprite_merge.py`           | Merge sprites from multiple source sheets into one output sheet                                                               |
+| `sprite_transition.py`      | Generate animated spritesheets with fade/roll/scale/rotate transitions                                                        |
+| `svg_rasterize.py`          | Shared `rsvg-convert` invocation + binary lookup — every `svg_*_gen.py` below imports it; not itself called from a `gen_*.sh` |
+| `svg_ui_gen.py`             | Render SVG UI frames/icons to normal/active/disabled spritesheets                                                             |
+| `svg_vessel_gen.py`         | Render `vessel-1` SVG source to a 32-frame animated sheet per state/relation                                                  |
+| `svg_mothership_gen.py`     | Render `mothership-1` SVG source to a 32-frame animated sheet per state/relation                                              |
+| `svg_module_base_gen.py`    | Render the shared `module-base` SVG source to a 32-frame animated sheet                                                       |
+| `svg_module_command_gen.py` | Render the Command Module's 3 tier SVGs to 64-frame animated sheets                                                           |
+| `svg_asteroid_gen.py`       | Render asteroid tier SVGs to 64-frame animated sheets with tumbling motion                                                    |
+| `svg_reticle_gen.py`        | Render selection-reticle SVGs to animated sheets across footprint spans                                                       |
+| `tmj_to_tilemap.py`         | Convert a Tiled `.tmj` file → `TileMapData` JSON asset                                                                        |
+
+Every `svg_*_gen.py` script renders through `svg_rasterize.py`'s
+`find_rsvg_convert()` +
+`render_svg_file_to_image()`/`render_svg_string_to_image()` — a new generator
+should import these rather than writing its own copy (CR-T.1 found six
+independent, already-drifted copies before this module existed).
+`test_svg_rasterize.py` covers the rasterizer's error paths (missing binary,
+failed exit code, no output file) once for every consumer.
 
 ### `tmj_to_tilemap.py` flags
 
