@@ -1,0 +1,302 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536" width="1536"
+  height="1536">
+  <defs>
+    <pattern id="floor-grid-o" width="64" height="64"
+      patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="#111827" />
+      <path d="M 64 0 L 0 0 0 64" fill="none" stroke="#1e293b"
+        stroke-width="2" />
+      <circle cx="8" cy="8" r="2" fill="#334155" />
+      <circle cx="56" cy="8" r="2" fill="#334155" />
+      <circle cx="8" cy="56" r="2" fill="#334155" />
+      <circle cx="56" cy="56" r="2" fill="#334155" />
+    </pattern>
+
+    <linearGradient id="wall-top-grad-o" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-bottom-grad-o" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-left-grad-o" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-right-grad-o" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+
+    <pattern id="vent-slats-dark-o" width="24" height="24"
+      patternUnits="userSpaceOnUse">
+      <rect width="24" height="10" fill="#1e293b" />
+      <rect y="10" width="24" height="14" fill="#090d16" />
+    </pattern>
+    <pattern id="louvers-o" width="32" height="16"
+      patternUnits="userSpaceOnUse">
+      <rect width="32" height="6" fill="#334155" />
+      <rect y="6" width="32" height="10" fill="#111827" />
+    </pattern>
+  </defs>
+
+  <rect width="1536" height="1536" fill="#090d16" />
+
+  <!-- ========================================================= -->
+  <!-- ROW 0: TOP CELLS + OBJECTS 27, 28, 29 -->
+  <!-- ========================================================= -->
+
+  <!-- Index 18 (Tile 0 + Object 27) -->
+  <g id="tile-18" transform="translate(0, 0)">
+    <rect x="128" y="128" width="384" height="384" fill="url(#floor-grid-o)" />
+    <polygon points="0,0 512,0 512,128 128,128 0,128"
+      fill="url(#wall-top-grad-o)" stroke="#334155" stroke-width="2" />
+    <polygon points="0,0 128,128 128,512 0,512" fill="url(#wall-left-grad-o)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="0" x2="128" y2="128" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <path d="M 128,512 L 128,128 L 512,128" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+    <!-- Object 27 overlay -->
+    <path d="M 380,100 L 380,280 L 100,280" fill="none" stroke="#334155"
+      stroke-width="64" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 380,100 L 380,280 L 100,280" fill="none" stroke="#475569"
+      stroke-width="44" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 380,100 L 380,280 L 100,280" fill="none" stroke="#64748b"
+      stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="350" y="150" width="60" height="32" rx="4" fill="#334155"
+      stroke="#64748b" stroke-width="4" />
+    <rect x="200" y="250" width="32" height="60" rx="4" fill="#334155"
+      stroke="#64748b" stroke-width="4" />
+    <circle cx="380" cy="280" r="44" fill="#334155" stroke="#64748b"
+      stroke-width="6" />
+    <circle cx="380" cy="280" r="20" fill="#1e293b" />
+  </g>
+
+  <!-- Index 19 (Tile 1 + Object 28) -->
+  <g id="tile-19" transform="translate(512, 0)">
+    <rect x="0" y="128" width="512" height="384" fill="url(#floor-grid-o)" />
+    <rect x="0" y="0" width="512" height="128" fill="url(#wall-top-grad-o)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="128" x2="512" y2="128" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <!-- Object 28 overlay -->
+    <rect x="136" y="136" width="240" height="240" rx="12" fill="#4d5055"
+      stroke="#334155" stroke-width="12" />
+    <rect x="156" y="156" width="200" height="200" rx="6" fill="#606569"
+      stroke="#475569" stroke-width="6" />
+    <rect x="176" y="176" width="160" height="160" rx="4" fill="#334155"
+      stroke="#1e293b" stroke-width="4" />
+    <line x1="176" y1="176" x2="336" y2="336" stroke="#475569"
+      stroke-width="6" />
+    <line x1="336" y1="176" x2="176" y2="336" stroke="#475569"
+      stroke-width="6" />
+    <circle cx="256" cy="256" r="28" fill="#4d5055" stroke="#64748b"
+      stroke-width="4" />
+    <circle cx="256" cy="256" r="12" fill="#1e293b" />
+  </g>
+
+  <!-- Index 20 (Tile 2 + Object 29) -->
+  <g id="tile-20" transform="translate(1024, 0)">
+    <rect x="0" y="128" width="384" height="384" fill="url(#floor-grid-o)" />
+    <polygon points="0,0 512,0 512,128 384,128 0,128"
+      fill="url(#wall-top-grad-o)" stroke="#334155" stroke-width="2" />
+    <polygon points="512,0 512,512 384,512 384,128"
+      fill="url(#wall-right-grad-o)" stroke="#334155" stroke-width="2" />
+    <line x1="512" y1="0" x2="384" y2="128" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <path d="M 0,128 L 384,128 L 384,512" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+    <!-- Object 29 overlay -->
+    <polygon points="100,80 440,80 480,440 60,440" fill="#555a5e"
+      stroke="#334155" stroke-width="12" stroke-linejoin="round" />
+    <polygon points="130,110 410,110 440,320 90,320" fill="#111827"
+      stroke="#475569" stroke-width="6" stroke-linejoin="round" />
+    <rect x="140" y="140" width="250" height="24" rx="4" fill="#334155" />
+    <rect x="150" y="180" width="230" height="24" rx="4" fill="#334155" />
+    <rect x="160" y="220" width="210" height="24" rx="4" fill="#334155" />
+    <rect x="170" y="260" width="190" height="24" rx="4" fill="#1e293b" />
+    <rect x="120" y="350" width="280" height="60" rx="6" fill="#5c6165"
+      stroke="#64748b" stroke-width="4" />
+    <circle cx="160" cy="380" r="8" fill="#64748b" />
+    <circle cx="360" cy="380" r="8" fill="#64748b" />
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- ROW 1: MIDDLE CELLS + OBJECTS 30, 31, 32 -->
+  <!-- ========================================================= -->
+
+  <!-- Index 21 (Tile 3 + Object 30) -->
+  <g id="tile-21" transform="translate(0, 512)">
+    <rect x="128" y="0" width="384" height="512" fill="url(#floor-grid-o)" />
+    <rect x="0" y="0" width="128" height="512" fill="url(#wall-left-grad-o)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="128" y1="0" x2="128" y2="512" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <!-- Object 30 overlay -->
+    <circle cx="256" cy="256" r="180" fill="#4a4d52" stroke="#334155"
+      stroke-width="12" />
+    <circle cx="256" cy="256" r="150" fill="url(#vent-slats-dark-o)"
+      stroke="#475569" stroke-width="8" />
+    <line x1="256" y1="106" x2="256" y2="406" stroke="#334155"
+      stroke-width="12" />
+    <line x1="106" y1="256" x2="406" y2="256" stroke="#334155"
+      stroke-width="12" />
+    <line x1="150" y1="150" x2="362" y2="362" stroke="#334155"
+      stroke-width="8" />
+    <line x1="362" y1="150" x2="150" y2="362" stroke="#334155"
+      stroke-width="8" />
+    <circle cx="256" cy="256" r="44" fill="#494c51" stroke="#64748b"
+      stroke-width="6" />
+    <circle cx="256" cy="256" r="18" fill="#111827" />
+  </g>
+
+  <!-- Index 22 (Tile 4 + Object 31) - Clean floor underneath -->
+  <g id="tile-22" transform="translate(512, 512)">
+    <rect x="0" y="0" width="512" height="512" fill="url(#floor-grid-o)" />
+    <!-- Object 31 overlay -->
+    <rect x="46" y="76" width="420" height="360" rx="16" fill="#9c9d97"
+      stroke="#475569" stroke-width="12" />
+    <rect x="70" y="100" width="372" height="312" rx="8" fill="#828783"
+      stroke="#64748b" stroke-width="6" />
+    <polygon points="46,76 130,76 46,160" fill="#64748b" />
+    <polygon points="466,76 382,76 466,160" fill="#64748b" />
+    <polygon points="46,436 130,436 46,352" fill="#64748b" />
+    <polygon points="466,436 382,436 466,352" fill="#64748b" />
+    <rect x="120" y="150" width="272" height="212" rx="6" fill="#606569"
+      stroke="#475569" stroke-width="6" />
+    <line x1="120" y1="256" x2="392" y2="256" stroke="#475569"
+      stroke-width="10" />
+    <rect x="236" y="226" width="40" height="60" rx="4" fill="#9c9d97"
+      stroke="#334155" stroke-width="4" />
+  </g>
+
+  <!-- Index 23 (Tile 5 + Object 32) -->
+  <g id="tile-23" transform="translate(1024, 512)">
+    <rect x="0" y="0" width="384" height="512" fill="url(#floor-grid-o)" />
+    <rect x="384" y="0" width="128" height="512" fill="url(#wall-right-grad-o)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="384" y1="0" x2="384" y2="512" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <!-- Object 32 overlay -->
+    <rect x="76" y="36" width="360" height="440" rx="12" fill="#59585d"
+      stroke="#334155" stroke-width="12" />
+    <rect x="100" y="60" width="312" height="392" rx="6" fill="#475569"
+      stroke="#64748b" stroke-width="6" />
+    <rect x="126" y="86" width="260" height="68" rx="4" fill="url(#louvers-o)"
+      stroke="#334155" stroke-width="4" />
+    <rect x="126" y="174" width="260" height="68" rx="4" fill="url(#louvers-o)"
+      stroke="#334155" stroke-width="4" />
+    <rect x="126" y="262" width="260" height="68" rx="4" fill="url(#louvers-o)"
+      stroke="#334155" stroke-width="4" />
+    <rect x="126" y="350" width="260" height="68" rx="4" fill="url(#louvers-o)"
+      stroke="#334155" stroke-width="4" />
+    <circle cx="360" cy="120" r="6" fill="#64748b" />
+    <circle cx="360" cy="208" r="6" fill="#64748b" />
+    <circle cx="360" cy="296" r="6" fill="#64748b" />
+    <circle cx="360" cy="384" r="6" fill="#64748b" />
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- ROW 2: BOTTOM CELLS + OBJECTS 33, 34, 35 -->
+  <!-- ========================================================= -->
+
+  <!-- Index 24 (Tile 6 + Object 33) -->
+  <g id="tile-24" transform="translate(0, 1024)">
+    <rect x="128" y="0" width="384" height="384" fill="url(#floor-grid-o)" />
+    <polygon points="0,384 128,384 128,0 0,0" fill="url(#wall-left-grad-o)"
+      stroke="#334155" stroke-width="2" />
+    <polygon points="0,512 512,512 512,384 128,384"
+      fill="url(#wall-bottom-grad-o)" stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="512" x2="128" y2="384" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <path d="M 128,0 L 128,384 L 512,384" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+    <!-- Object 33 overlay -->
+    <path d="M 0,180 L 512,180" stroke="#334155" stroke-width="64"
+      stroke-linecap="butt" />
+    <path d="M 0,180 L 512,180" stroke="#6c7675" stroke-width="48"
+      stroke-linecap="butt" />
+    <path d="M 0,180 L 512,180" stroke="#828783" stroke-width="16"
+      stroke-linecap="butt" />
+    <path d="M 0,340 L 512,340" stroke="#334155" stroke-width="64"
+      stroke-linecap="butt" />
+    <path d="M 0,340 L 512,340" stroke="#6e7877" stroke-width="48"
+      stroke-linecap="butt" />
+    <path d="M 0,340 L 512,340" stroke="#828783" stroke-width="16"
+      stroke-linecap="butt" />
+    <rect x="80" y="148" width="56" height="224" rx="6" fill="#475569"
+      stroke="#334155" stroke-width="6" />
+    <rect x="376" y="148" width="56" height="224" rx="6" fill="#475569"
+      stroke="#334155" stroke-width="6" />
+    <circle cx="108" cy="180" r="10" fill="#1e293b" />
+    <circle cx="108" cy="340" r="10" fill="#1e293b" />
+    <circle cx="404" cy="180" r="10" fill="#1e293b" />
+    <circle cx="404" cy="340" r="10" fill="#1e293b" />
+  </g>
+
+  <!-- Index 25 (Tile 7 + Object 34) -->
+  <g id="tile-25" transform="translate(512, 1024)">
+    <rect x="0" y="0" width="512" height="384" fill="url(#floor-grid-o)" />
+    <rect x="0" y="384" width="512" height="128" fill="url(#wall-bottom-grad-o)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="384" x2="512" y2="384" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <!-- Object 34 overlay -->
+    <path d="M 256,0 L 256,512" stroke="#334155" stroke-width="120"
+      stroke-linecap="butt" />
+    <path d="M 256,0 L 256,512" stroke="#556877" stroke-width="96"
+      stroke-linecap="butt" />
+    <path d="M 256,0 L 256,512" stroke="#64748b" stroke-width="32"
+      stroke-linecap="butt" />
+    <path d="M 46,256 L 466,256" stroke="#334155" stroke-width="100"
+      stroke-linecap="round" />
+    <path d="M 56,256 L 456,256" stroke="#475569" stroke-width="76"
+      stroke-linecap="round" />
+    <rect x="176" y="176" width="160" height="160" rx="24" fill="#334155"
+      stroke="#64748b" stroke-width="8" />
+    <circle cx="256" cy="256" r="56" fill="#1e293b" stroke="#475569"
+      stroke-width="8" />
+    <circle cx="256" cy="256" r="24" fill="#556877" />
+  </g>
+
+  <!-- Index 26 (Tile 8 + Object 35) -->
+  <g id="tile-26" transform="translate(1024, 1024)">
+    <rect x="0" y="0" width="384" height="384" fill="url(#floor-grid-o)" />
+    <polygon points="384,0 512,0 512,384 384,384" fill="url(#wall-right-grad-o)"
+      stroke="#334155" stroke-width="2" />
+    <polygon points="0,384 512,384 512,512 384,512"
+      fill="url(#wall-bottom-grad-o)" stroke="#334155" stroke-width="2" />
+    <line x1="512" y1="512" x2="384" y2="384" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <path d="M 0,384 L 384,384 L 384,0" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+    <!-- Object 35 overlay -->
+    <circle cx="280" cy="280" r="190" fill="#334155" stroke="#1e293b"
+      stroke-width="12" />
+    <circle cx="280" cy="280" r="160" fill="#828783" stroke="#64748b"
+      stroke-width="8" />
+    <circle cx="280" cy="280" r="110" fill="#606569" stroke="#475569"
+      stroke-width="6" />
+    <line x1="280" y1="90" x2="280" y2="170" stroke="#334155" stroke-width="20"
+      stroke-linecap="round" />
+    <line x1="280" y1="470" x2="280" y2="390" stroke="#334155" stroke-width="20"
+      stroke-linecap="round" />
+    <line x1="90" y1="280" x2="170" y2="280" stroke="#334155" stroke-width="20"
+      stroke-linecap="round" />
+    <line x1="470" y1="280" x2="390" y2="280" stroke="#334155" stroke-width="20"
+      stroke-linecap="round" />
+    <circle cx="280" cy="280" r="54" fill="#475569" stroke="#64748b"
+      stroke-width="6" />
+    <circle cx="280" cy="280" r="24" fill="#1e293b" />
+  </g>
+</svg>

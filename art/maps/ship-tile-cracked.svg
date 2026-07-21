@@ -1,0 +1,223 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536" width="1536"
+  height="1536">
+  <defs>
+    <!-- Floor Plating Pattern (64x64) -->
+    <pattern id="floor-grid-cracked" width="64" height="64"
+      patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="#111827" />
+      <path d="M 64 0 L 0 0 0 64" fill="none" stroke="#1e293b"
+        stroke-width="2" />
+      <circle cx="8" cy="8" r="2" fill="#334155" />
+      <circle cx="56" cy="8" r="2" fill="#334155" />
+      <circle cx="8" cy="56" r="2" fill="#334155" />
+      <circle cx="56" cy="56" r="2" fill="#334155" />
+    </pattern>
+
+    <!-- Wall Gradients (exact same border/wall colors as normal tiles) -->
+    <linearGradient id="wall-top-grad-c" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-bottom-grad-c" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-left-grad-c" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-right-grad-c" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1536" height="1536" fill="#090d16" />
+
+  <!-- ========================================================= -->
+  <!-- ROW 0: TOP CELLS (Damaged - Darker shade fissures, normal borders) -->
+  <!-- ========================================================= -->
+
+  <!-- Index 9: Top-Left Corner Damaged -->
+  <g id="tile-9" transform="translate(0, 0)">
+    <rect x="128" y="128" width="384" height="384"
+      fill="url(#floor-grid-cracked)" />
+    <polygon points="0,0 512,0 512,128 128,128 0,128"
+      fill="url(#wall-top-grad-c)" stroke="#334155" stroke-width="2" />
+    <polygon points="0,0 128,128 128,512 0,512" fill="url(#wall-left-grad-c)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="0" x2="128" y2="128" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <path d="M 128,512 L 128,128 L 512,128" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+    <!-- Cracks & Scars in darker shade (#000000 / #1e293b / #334155) -->
+    <path d="M 200,128 L 240,200 L 220,280 L 300,340" fill="none"
+      stroke="#000000" stroke-width="10" stroke-linecap="round" />
+    <path d="M 200,128 L 240,200 L 220,280 L 300,340" fill="none"
+      stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+    <circle cx="240" cy="200" r="8" fill="#090d16" stroke="#334155"
+      stroke-width="2" />
+  </g>
+
+  <!-- Index 10: Top Edge Damaged -->
+  <g id="tile-10" transform="translate(512, 0)">
+    <rect x="0" y="128" width="512" height="384"
+      fill="url(#floor-grid-cracked)" />
+    <rect x="0" y="0" width="512" height="128" fill="url(#wall-top-grad-c)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="128" x2="512" y2="128" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <!-- Jagged Hull Fracture in darker shade -->
+    <path d="M 100,128 L 160,220 L 140,300 L 250,420 L 290,400" fill="none"
+      stroke="#000000" stroke-width="12" stroke-linecap="round" />
+    <path d="M 100,128 L 160,220 L 140,300 L 250,420 L 290,400" fill="none"
+      stroke="#1e293b" stroke-width="4" stroke-linecap="round" />
+    <!-- Exposed Sub-structure -->
+    <line x1="150" y1="240" x2="180" y2="280" stroke="#334155"
+      stroke-width="6" />
+    <circle cx="160" cy="220" r="10" fill="#090d16" stroke="#334155"
+      stroke-width="2" />
+  </g>
+
+  <!-- Index 11: Top-Right Corner Damaged -->
+  <g id="tile-11" transform="translate(1024, 0)">
+    <rect x="0" y="128" width="384" height="384"
+      fill="url(#floor-grid-cracked)" />
+    <polygon points="0,0 512,0 512,128 384,128 0,128"
+      fill="url(#wall-top-grad-c)" stroke="#334155" stroke-width="2" />
+    <polygon points="512,0 512,512 384,512 384,128"
+      fill="url(#wall-right-grad-c)" stroke="#334155" stroke-width="2" />
+    <line x1="512" y1="0" x2="384" y2="128" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <path d="M 0,128 L 384,128 L 384,512" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+    <path d="M 384,200 L 320,260 L 340,340 L 260,400" fill="none"
+      stroke="#000000" stroke-width="10" stroke-linecap="round" />
+    <path d="M 384,200 L 320,260 L 340,340 L 260,400" fill="none"
+      stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- ROW 1: MIDDLE CELLS (Damaged) -->
+  <!-- ========================================================= -->
+
+  <!-- Index 12: Left Edge Damaged -->
+  <g id="tile-12" transform="translate(0, 512)">
+    <rect x="128" y="0" width="384" height="512"
+      fill="url(#floor-grid-cracked)" />
+    <rect x="0" y="0" width="128" height="512" fill="url(#wall-left-grad-c)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="128" y1="0" x2="128" y2="512" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <path d="M 128,180 L 220,240 L 200,320 L 320,400" fill="none"
+      stroke="#000000" stroke-width="12" stroke-linecap="round" />
+    <path d="M 128,180 L 220,240 L 200,320 L 320,400" fill="none"
+      stroke="#1e293b" stroke-width="4" stroke-linecap="round" />
+    <circle cx="220" cy="240" r="9" fill="#090d16" stroke="#334155"
+      stroke-width="2" />
+  </g>
+
+  <!-- Index 13: Center Floor Plating Damaged (No + crosshair!) -->
+  <g id="tile-13" transform="translate(512, 512)">
+    <rect x="0" y="0" width="512" height="512"
+      fill="url(#floor-grid-cracked)" />
+    <!-- Deep Floor Fissures across the tile in darker shade -->
+    <path d="M 50,50 L 160,180 L 120,300 L 280,450 L 460,400" fill="none"
+      stroke="#000000" stroke-width="16" stroke-linecap="round" />
+    <path d="M 50,50 L 160,180 L 120,300 L 280,450 L 460,400" fill="none"
+      stroke="#1e293b" stroke-width="5" stroke-linecap="round" />
+    <path d="M 160,180 L 320,150 L 420,260" fill="none" stroke="#000000"
+      stroke-width="12" stroke-linecap="round" />
+    <path d="M 160,180 L 320,150 L 420,260" fill="none" stroke="#1e293b"
+      stroke-width="4" stroke-linecap="round" />
+    <!-- Exposed Sub-floor steel structure -->
+    <line x1="140" y1="220" x2="180" y2="260" stroke="#334155"
+      stroke-width="8" />
+    <line x1="280" y1="160" x2="340" y2="200" stroke="#334155"
+      stroke-width="8" />
+    <circle cx="160" cy="180" r="12" fill="#090d16" stroke="#334155"
+      stroke-width="2" />
+    <circle cx="280" cy="450" r="10" fill="#090d16" stroke="#334155"
+      stroke-width="2" />
+  </g>
+
+  <!-- Index 14: Right Edge Damaged -->
+  <g id="tile-14" transform="translate(1024, 512)">
+    <rect x="0" y="0" width="384" height="512"
+      fill="url(#floor-grid-cracked)" />
+    <rect x="384" y="0" width="128" height="512" fill="url(#wall-right-grad-c)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="384" y1="0" x2="384" y2="512" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <path d="M 384,150 L 280,220 L 310,340 L 200,420" fill="none"
+      stroke="#000000" stroke-width="12" stroke-linecap="round" />
+    <path d="M 384,150 L 280,220 L 310,340 L 200,420" fill="none"
+      stroke="#1e293b" stroke-width="4" stroke-linecap="round" />
+    <circle cx="280" cy="220" r="8" fill="#090d16" stroke="#334155"
+      stroke-width="2" />
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- ROW 2: BOTTOM CELLS (Damaged) -->
+  <!-- ========================================================= -->
+
+  <!-- Index 15: Bottom-Left Corner Damaged -->
+  <g id="tile-15" transform="translate(0, 1024)">
+    <rect x="128" y="0" width="384" height="384"
+      fill="url(#floor-grid-cracked)" />
+    <polygon points="0,384 128,384 128,0 0,0" fill="url(#wall-left-grad-c)"
+      stroke="#334155" stroke-width="2" />
+    <polygon points="0,512 512,512 512,384 128,384"
+      fill="url(#wall-bottom-grad-c)" stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="512" x2="128" y2="384" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <path d="M 128,0 L 128,384 L 512,384" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+    <path d="M 128,300 L 220,240 L 240,160 L 340,100" fill="none"
+      stroke="#000000" stroke-width="10" stroke-linecap="round" />
+    <path d="M 128,300 L 220,240 L 240,160 L 340,100" fill="none"
+      stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+  </g>
+
+  <!-- Index 16: Bottom Edge Damaged -->
+  <g id="tile-16" transform="translate(512, 1024)">
+    <rect x="0" y="0" width="512" height="384"
+      fill="url(#floor-grid-cracked)" />
+    <rect x="0" y="384" width="512" height="128" fill="url(#wall-bottom-grad-c)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="384" x2="512" y2="384" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <path d="M 200,384 L 240,280 L 340,200 L 420,120" fill="none"
+      stroke="#000000" stroke-width="12" stroke-linecap="round" />
+    <path d="M 200,384 L 240,280 L 340,200 L 420,120" fill="none"
+      stroke="#1e293b" stroke-width="4" stroke-linecap="round" />
+    <circle cx="240" cy="280" r="10" fill="#090d16" stroke="#334155"
+      stroke-width="2" />
+  </g>
+
+  <!-- Index 17: Bottom-Right Corner Damaged -->
+  <g id="tile-17" transform="translate(1024, 1024)">
+    <rect x="0" y="0" width="384" height="384"
+      fill="url(#floor-grid-cracked)" />
+    <polygon points="384,0 512,0 512,384 384,384" fill="url(#wall-right-grad-c)"
+      stroke="#334155" stroke-width="2" />
+    <polygon points="0,384 512,384 512,512 384,512"
+      fill="url(#wall-bottom-grad-c)" stroke="#334155" stroke-width="2" />
+    <line x1="512" y1="512" x2="384" y2="384" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <path d="M 0,384 L 384,384 L 384,0" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+    <path d="M 384,300 L 280,240 L 260,150 L 160,80" fill="none"
+      stroke="#000000" stroke-width="10" stroke-linecap="round" />
+    <path d="M 384,300 L 280,240 L 260,150 L 160,80" fill="none"
+      stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+  </g>
+</svg>

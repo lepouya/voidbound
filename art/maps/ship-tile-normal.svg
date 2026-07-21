@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1536" width="1536"
+  height="1536">
+  <defs>
+    <!-- Floor Plating Pattern (64x64) -->
+    <pattern id="floor-grid" width="64" height="64"
+      patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="#111827" />
+      <path d="M 64 0 L 0 0 0 64" fill="none" stroke="#1e293b"
+        stroke-width="2" />
+      <!-- Rivets -->
+      <circle cx="8" cy="8" r="2" fill="#334155" />
+      <circle cx="56" cy="8" r="2" fill="#334155" />
+      <circle cx="8" cy="56" r="2" fill="#334155" />
+      <circle cx="56" cy="56" r="2" fill="#334155" />
+    </pattern>
+
+    <!-- Wall Bevel Pattern / Glows -->
+    <linearGradient id="wall-top-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-bottom-grad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-left-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="wall-right-grad" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="30%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#00d2ff" stop-opacity="0.8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Space / Hull Base -->
+  <rect width="1536" height="1536" fill="#090d16" />
+
+  <!-- ========================================================= -->
+  <!-- ROW 0: TOP CELLS -->
+  <!-- ========================================================= -->
+
+  <!-- Index 0: Top-Left Corner (r=0, c=0) -->
+  <g id="tile-0" transform="translate(0, 0)">
+    <!-- Floor Plating -->
+    <rect x="128" y="128" width="384" height="384" fill="url(#floor-grid)" />
+    <!-- Blast Walls (Top & Left meeting at 45 degree bevel) -->
+    <polygon points="0,0 512,0 512,128 128,128 0,128" fill="url(#wall-top-grad)"
+      stroke="#334155" stroke-width="2" />
+    <polygon points="0,0 128,128 128,512 0,512" fill="url(#wall-left-grad)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="0" x2="128" y2="128" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <!-- Bevel Corner Inner Trim -->
+    <path d="M 128,512 L 128,128 L 512,128" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+  </g>
+
+  <!-- Index 1: Top Edge (r=0, c=1) -->
+  <g id="tile-1" transform="translate(512, 0)">
+    <!-- Floor Plating -->
+    <rect x="0" y="128" width="512" height="384" fill="url(#floor-grid)" />
+    <!-- Top Blast Wall -->
+    <rect x="0" y="0" width="512" height="128" fill="url(#wall-top-grad)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="128" x2="512" y2="128" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <line x1="128" y1="64" x2="384" y2="64" stroke="#475569" stroke-width="6"
+      stroke-dasharray="20,10" />
+  </g>
+
+  <!-- Index 2: Top-Right Corner (r=0, c=2) -->
+  <g id="tile-2" transform="translate(1024, 0)">
+    <!-- Floor Plating -->
+    <rect x="0" y="128" width="384" height="384" fill="url(#floor-grid)" />
+    <!-- Blast Walls (Top & Right) -->
+    <polygon points="0,0 512,0 512,128 384,128 0,128" fill="url(#wall-top-grad)"
+      stroke="#334155" stroke-width="2" />
+    <polygon points="512,0 512,512 384,512 384,128" fill="url(#wall-right-grad)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="512" y1="0" x2="384" y2="128" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <!-- Bevel Corner Inner Trim -->
+    <path d="M 0,128 L 384,128 L 384,512" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- ROW 1: MIDDLE CELLS -->
+  <!-- ========================================================= -->
+
+  <!-- Index 3: Left Edge (r=1, c=0) -->
+  <g id="tile-3" transform="translate(0, 512)">
+    <!-- Floor Plating -->
+    <rect x="128" y="0" width="384" height="512" fill="url(#floor-grid)" />
+    <!-- Left Blast Wall -->
+    <rect x="0" y="0" width="128" height="512" fill="url(#wall-left-grad)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="128" y1="0" x2="128" y2="512" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <line x1="64" y1="128" x2="64" y2="384" stroke="#475569" stroke-width="6"
+      stroke-dasharray="20,10" />
+  </g>
+
+  <!-- Index 4: Center Floor Plating (r=1, c=1) - Clean seamless floor without + crosshair -->
+  <g id="tile-4" transform="translate(512, 512)">
+    <!-- Seamless Floor Plating -->
+    <rect x="0" y="0" width="512" height="512" fill="url(#floor-grid)" />
+  </g>
+
+  <!-- Index 5: Right Edge (r=1, c=2) -->
+  <g id="tile-5" transform="translate(1024, 512)">
+    <!-- Floor Plating -->
+    <rect x="0" y="0" width="384" height="512" fill="url(#floor-grid)" />
+    <!-- Right Blast Wall -->
+    <rect x="384" y="0" width="128" height="512" fill="url(#wall-right-grad)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="384" y1="0" x2="384" y2="512" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <line x1="448" y1="128" x2="448" y2="384" stroke="#475569" stroke-width="6"
+      stroke-dasharray="20,10" />
+  </g>
+
+  <!-- ========================================================= -->
+  <!-- ROW 2: BOTTOM CELLS -->
+  <!-- ========================================================= -->
+
+  <!-- Index 6: Bottom-Left Corner (r=2, c=0) -->
+  <g id="tile-6" transform="translate(0, 1024)">
+    <!-- Floor Plating -->
+    <rect x="128" y="0" width="384" height="384" fill="url(#floor-grid)" />
+    <!-- Blast Walls (Bottom & Left) -->
+    <polygon points="0,384 128,384 128,0 0,0" fill="url(#wall-left-grad)"
+      stroke="#334155" stroke-width="2" />
+    <polygon points="0,512 512,512 512,384 128,384"
+      fill="url(#wall-bottom-grad)" stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="512" x2="128" y2="384" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <!-- Bevel Corner Inner Trim -->
+    <path d="M 128,0 L 128,384 L 512,384" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+  </g>
+
+  <!-- Index 7: Bottom Edge (r=2, c=1) -->
+  <g id="tile-7" transform="translate(512, 1024)">
+    <!-- Floor Plating -->
+    <rect x="0" y="0" width="512" height="384" fill="url(#floor-grid)" />
+    <!-- Bottom Blast Wall -->
+    <rect x="0" y="384" width="512" height="128" fill="url(#wall-bottom-grad)"
+      stroke="#334155" stroke-width="2" />
+    <line x1="0" y1="384" x2="512" y2="384" stroke="#00d2ff" stroke-width="4"
+      stroke-opacity="0.8" />
+    <line x1="128" y1="448" x2="384" y2="448" stroke="#475569" stroke-width="6"
+      stroke-dasharray="20,10" />
+  </g>
+
+  <!-- Index 8: Bottom-Right Corner (r=2, c=2) -->
+  <g id="tile-8" transform="translate(1024, 1024)">
+    <!-- Floor Plating -->
+    <rect x="0" y="0" width="384" height="384" fill="url(#floor-grid)" />
+    <!-- Blast Walls (Bottom & Right) -->
+    <polygon points="384,0 512,0 512,384 384,384" fill="url(#wall-right-grad)"
+      stroke="#334155" stroke-width="2" />
+    <polygon points="0,384 512,384 512,512 384,512"
+      fill="url(#wall-bottom-grad)" stroke="#334155" stroke-width="2" />
+    <line x1="512" y1="512" x2="384" y2="384" stroke="#00d2ff" stroke-width="3"
+      stroke-opacity="0.6" />
+    <!-- Bevel Corner Inner Trim -->
+    <path d="M 0,384 L 384,384 L 384,0" fill="none" stroke="#00d2ff"
+      stroke-width="4" stroke-opacity="0.8" />
+  </g>
+</svg>
