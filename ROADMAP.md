@@ -56,6 +56,11 @@ Goal: the technical foundation everything else is built on.
 - [x] **P0.13 — Dev-speed build/run target.** `deno task dev:fast` scales every
       scheduler timer (production, build/hire, mining, vessel travel) via
       `VOIDBOUND_TIME_SCALE`; normal `deno task tauri dev` is unaffected.
+- [x] **P0.14 — Raster/AI-art → vector migration.** Mothership-1 (was `ss1`),
+      vessel-1 (was `cs1`, plus its multi-faction/idle-flourish system),
+      module-base, asteroids (now 64-frame tumbling), selection reticles, and
+      ship interior tiles all moved to the SVG/`rsvg-convert` pipeline P0.9
+      established; `deno task gen-art` regenerates every sheet in one command.
 
 ## Phase 1 — Core gameplay loop
 

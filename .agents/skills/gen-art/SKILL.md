@@ -14,21 +14,25 @@ appropriate generator script instead.
 
 ## Running an existing generator
 
-Every generator is safe to run from any directory — each script does `set -e`
-and `cd "$(dirname "$0")"` at the top, so output paths resolve correctly
-regardless of cwd.
+Every generator is safe to run from any directory — each script resolves its own
+paths internally, so output paths are correct regardless of cwd (see "Adding a
+new generator" for the required shape).
 
 ```bash
 art/gen_ship_level.sh   # ship-tiles.png + ship-level.json (Tiled map)
-art/gen_cs1.sh          # cs1-base.png, cs1-moving.png  (vessel sprites)
-art/gen_ss1.sh          # ss1-base.png, ss1-damaged.png (mothership sprites)
-art/gen_modules.sh      # module-base.png               (ship interior modules)
+art/gen_vessels.sh      # vessel-1-<state>-<relation>.png (12 sheets: 3 states * 4 relations)
+art/gen_motherships.sh  # mothership-1-<state>-<relation>.png (12 sheets: 3 states * 4 relations)
+art/gen_modules.sh      # module-base.png + module-command-t{1,2,3}.png (ship interior modules)
 art/gen_ui.sh           # ui-selection*.png, ui-frame-*.png, ui-icon-*.png
-art/gen_asteroids.sh    # asteroid-{small,medium,large}.png (placeholders)
+art/gen_asteroids.sh    # asteroid-{small,medium,large}.png (vector, animated)
 ```
 
 If the argument `$ARGUMENTS` is a script short-name (e.g. `cs1`), run
 `art/gen_<short>.sh`. Otherwise fall back to listing the available scripts.
+`deno task gen-art` (P0.14) discovers and runs **every** `art/gen_*.sh` script
+by glob — no registration step, so a new generator (see below) is picked up
+automatically. Use it to regenerate the whole asset catalog after a shared-tool
+change.
 
 ## Python tools (in `tools/`)
 
@@ -42,13 +46,19 @@ dependency, run that command before retrying.
 Scripts are called from `art/gen_*.sh` — you usually don't invoke them directly
 except when writing a new generator.
 
-| Script                 | Purpose                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------- |
-| `sprite_extract.py`    | Extract + uniform-resize sprites from a padded source sheet (standby — no caller yet) |
-| `sprite_merge.py`      | Merge sprites from multiple source sheets into one output sheet                       |
-| `sprite_transition.py` | Generate animated spritesheets with fade/roll/scale/rotate transitions                |
-| `svg_ui_gen.py`        | Render SVG UI frames/icons to normal/active/disabled spritesheets                     |
-| `tmj_to_tilemap.py`    | Convert a Tiled `.tmj` file → `TileMapData` JSON asset                                |
+| Script                      | Purpose                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| `sprite_extract.py`         | Extract + uniform-resize sprites from a padded source sheet (standby — no caller yet) |
+| `sprite_merge.py`           | Merge sprites from multiple source sheets into one output sheet                       |
+| `sprite_transition.py`      | Generate animated spritesheets with fade/roll/scale/rotate transitions                |
+| `svg_ui_gen.py`             | Render SVG UI frames/icons to normal/active/disabled spritesheets                     |
+| `svg_vessel_gen.py`         | Render `vessel-1` SVG source to a 32-frame animated sheet per state/relation          |
+| `svg_mothership_gen.py`     | Render `mothership-1` SVG source to a 32-frame animated sheet per state/relation      |
+| `svg_module_base_gen.py`    | Render the shared `module-base` SVG source to a 32-frame animated sheet               |
+| `svg_module_command_gen.py` | Render the Command Module's 3 tier SVGs to 64-frame animated sheets                   |
+| `svg_asteroid_gen.py`       | Render asteroid tier SVGs to 64-frame animated sheets with tumbling motion            |
+| `svg_reticle_gen.py`        | Render selection-reticle SVGs to animated sheets across footprint spans               |
+| `tmj_to_tilemap.py`         | Convert a Tiled `.tmj` file → `TileMapData` JSON asset                                |
 
 ### `tmj_to_tilemap.py` flags
 
@@ -72,6 +82,17 @@ px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at
 
 ## Adding a new generator
 
+**Rule:** `deno task gen-art` invokes every `art/gen_*.sh` file by blind glob
+(`for f in art/gen_*.sh; do "$f"; done`) — there is no per-script registration.
+This means every script matching that name **must** be independently executable
+and resolve its own paths from its own location, never from the caller's cwd, so
+it behaves identically whether run standalone, from `art/`, from the repo root,
+or via the glob loop. `cd "$(dirname "$0")"` (below) is the established way to
+do that; `gen_motherships.sh`/`gen_vessels.sh` instead derive a
+`SCRIPT_DIR`/`ROOT_DIR` pair via `${BASH_SOURCE[0]}` and `cd` there — also
+valid, but prefer the shorter form below for a new script unless you have a
+specific reason to need the root-relative one.
+
 1. Author your source art under `art/<subdir>/`.
 2. Create `art/gen_<name>.sh`:
 
@@ -86,8 +107,10 @@ px, pass `-W 32 -H 32`. This gives extra zoom fidelity — the sprite renders at
        <flags...>
    ```
 
-3. `chmod +x art/gen_<name>.sh`
-4. Run it once and verify the output in `src/assets/`.
+3. `chmod +x art/gen_<name>.sh` — required: the glob loop invokes the file
+   directly (`"$f"`), not via `bash art/gen_<name>.sh`.
+4. Run it once (standalone, and via `deno task gen-art` from the repo root) and
+   verify the output in `src/assets/`.
 5. If the filename doesn't match an auto-register pattern (`ui-frame-*`,
    `ui-icon-*`, `module-*`), run the **`/add-tileset`** skill to register it in
    `src/resources/tileset-geometry.ts`.

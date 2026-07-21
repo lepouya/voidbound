@@ -13,7 +13,8 @@
     "test:ts": "deno test --allow-read tests/",
     "test:rs": "cd src-tauri && cargo test",
     "dev:app": "deno task tauri dev",
-    "dev:fast": "VOIDBOUND_TIME_SCALE=5 deno task tauri dev"
+    "dev:fast": "VOIDBOUND_TIME_SCALE=5 deno task tauri dev",
+    "gen-art": "bash -c 'for f in art/gen_*.sh; do \"$f\"; done'"
   },
   "fmt": {
     "exclude": [
