@@ -29,13 +29,7 @@ import {
 } from "./module-catalog.ts";
 import { TileActor } from "../scene/tile-actor.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
-import {
-  ButtonDef,
-  errorToast,
-  roundButton,
-  TileRef,
-  ToastDef,
-} from "../ui/index.ts";
+import { ButtonDef, errorToast, roundButton, ToastDef } from "../ui/index.ts";
 
 /**
  * Modules occupy the 4*4 center of their 6*6 room. Mirrors MODULE_SPAN in
@@ -62,14 +56,26 @@ type LevelUpStatus = "unavailable" | "capped" | "unaffordable" | "ready";
  *  so the UI can say which one it is. */
 type HireStatus = "recruiting" | "full" | "unaffordable" | "ready";
 
-/** Finished module sprite. */
-function moduleTile(): TileRef {
-  return `module-${MODULE_ART_TYPE}:0`;
+interface ModuleVisuals {
+  /** Tileset name (`module-command-t1`, `module-lit`, etc.) */
+  tileset: string;
+  /** Width in grid tiles */
+  cols: number;
+  /** Height in grid tiles */
+  rows: number;
 }
 
-/** Translucent ghost of the module sprite, shown while a build/preview runs. */
-function ghostModuleTile(opacity: number): TileRef {
-  return { tile: `module-${MODULE_ART_TYPE}`, tileId: 0, opacity };
+/** Returns the visual specification (tileset name and dimensions) for a module given its type and level. */
+function moduleVisuals(data?: ModuleData): ModuleVisuals {
+  if (data?.moduleType === COMMAND_MODULE_TYPE) {
+    const tier = data.level >= 10 ? 3 : data.level >= 5 ? 2 : 1;
+    return { tileset: `module-command-t${tier}`, cols: 6, rows: 6 };
+  }
+  return {
+    tileset: `module-${MODULE_ART_TYPE}`,
+    cols: MODULE_SPAN,
+    rows: MODULE_SPAN,
+  };
 }
 
 /** True when two snapshots describe an identical module — placement, type,
@@ -398,14 +404,18 @@ export class ModuleSync {
       onPressed: () => this.host.openDetails(data.moduleId),
     }));
 
+    const visuals = moduleVisuals(data);
+
     return new TileActor({
       grid,
       edgeFallthrough: this.host.edgeFallthrough(),
-      tile: firstBuildPending ? ghostModuleTile(0.4) : moduleTile(),
-      col: data.col,
-      row: data.row,
-      width: MODULE_SPAN,
-      height: MODULE_SPAN,
+      tile: firstBuildPending
+        ? { tile: visuals.tileset, tileId: 0, opacity: 0.4 }
+        : `${visuals.tileset}:0`,
+      col: data.col - (visuals.cols - MODULE_SPAN) / 2,
+      row: data.row - (visuals.rows - MODULE_SPAN) / 2,
+      width: visuals.cols,
+      height: visuals.rows,
       ownerName: data.pending !== null
         ? buildCountdownLabel(displayName, data.pending.completesAt, now)
         : displayName,
@@ -473,13 +483,15 @@ export class ModuleSync {
     );
     if (buildable.length === 0) return null;
 
+    const visuals = moduleVisuals();
+
     return new TileActor({
       grid,
-      tile: ghostModuleTile(0.2),
+      tile: { tile: visuals.tileset, tileId: 0, opacity: 0.2 },
       col: anchor.col,
       row: anchor.row,
-      width: MODULE_SPAN,
-      height: MODULE_SPAN,
+      width: visuals.cols,
+      height: visuals.rows,
       onPressed,
       buttons: buildable.map((entry) => {
         const cost = costAtLevel(entry, 1);

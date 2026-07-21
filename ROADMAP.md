@@ -129,6 +129,13 @@ Goal: a playable single-player loop, no persistence yet.
       readout) relocates the mothership instantly via a server-verified command;
       occupancy/cost are re-verified against live state regardless of what the
       client's preview showed.
+- [x] **P1.23 — Command Module & module vector art foundation.** Replace the
+      shared `module-base` raster placeholder (`module-art-type: "base"`) with
+      bespoke animated vector interior graphics for the Command Module
+      (`command`), supporting a 6\*6 footprint with tiered visual upgrades
+      across levels (e.g. expanding console decks, holographic tactical
+      projections, and reinforcements). Establishes the 64-frame (`~4.2s` loop)
+      vector animation standard for all interior rooms. Needs P0.9, P1.4.
 
 ## Phase 2 — Persistence and balancing
 
@@ -343,9 +350,13 @@ Goal: real art, real panels, more platforms. Client-side work that is largely
 independent of the server phases — pull any of these earlier when placeholder
 art or missing panels start hurting playtests.
 
-- [ ] **P6.1 — Per-type module art.** Replace the shared `module-base` sprite
-      with per-type module sprites (`/gen-art`; the `module-*` auto-register
-      prefix already expects them). Needs P1.4.
+- [ ] **P6.1 — Per-type module art and tiered visual progression.** Replace the
+      remaining shared `module-base` placeholders with bespoke 64-frame animated
+      vector interior rooms (`/gen-art`) across all catalog types
+      (`ore-refinery`, `electronics-fabricator`, `hydroponics-bay`,
+      `fusion-reactor`, `storage-bay`, `crew-quarters`, `trading-post`),
+      supporting tiered visual upgrades (adding bunks, containment rings, or
+      assembly arms) as `level` increases. Needs P1.23.
 - [ ] **P6.2 — Space map art.** Real starfield background for the geometry-only
       map scene, and real asteroid sprites (per class, per tier) replacing the
       tinted placeholder vectors. **Requirement:** asteroid class must be
@@ -410,3 +421,10 @@ art or missing panels start hurting playtests.
       new tile, so a relocation reads clearly to anyone watching the map, not
       just the mover. Split out from P1.22 as presentation polish, not core
       mechanics (playtest feedback, July 2026). Needs P1.22.
+- [ ] **P6.12 — Canonical ship interior layout.** Re-arrange `ship-level.tmj` /
+      room grid coordinates from a generic grid into a tailored capital ship
+      layout matching `mothership-1`'s hull profile: Command Citadel (`command`)
+      at the bow, Crew Quarters and Hydroponics along the lateral wings (with
+      window observation ports), Trading Post / Storage Bays right near docking
+      ports, and engineering / fusion reactors (`fusion-reactor`) at the aft
+      above the engines. Needs P1.23.

@@ -1,0 +1,262 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 384" width="384"
+  height="384">
+  <defs>
+    <linearGradient id="screen-cyan-3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ffff" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#0088cc" stop-opacity="0.7" />
+    </linearGradient>
+    <linearGradient id="screen-amber-3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#cc6600" stop-opacity="0.7" />
+    </linearGradient>
+    <linearGradient id="screen-emerald-3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#047857" stop-opacity="0.7" />
+    </linearGradient>
+
+    <!-- Office Chair Template (North) -->
+    <g id="chair-north">
+      <circle cx="0" cy="0" r="10" fill="#1e293b" stroke="#475569"
+        stroke-width="1.5" />
+      <line x1="-8" y1="-8" x2="8" y2="8" stroke="#334155" stroke-width="2" />
+      <line x1="-8" y1="8" x2="8" y2="-8" stroke="#334155" stroke-width="2" />
+      <rect x="-9" y="-6" width="18" height="14" rx="3" fill="#0f172a"
+        stroke="#334155" stroke-width="1.5" />
+      <rect x="-10" y="5" width="20" height="7" rx="2" fill="#1e293b"
+        stroke="#64748b" stroke-width="1.5" />
+      <rect x="-6" y="6" width="12" height="4" rx="1" fill="#3b82f6"
+        opacity="0.8" />
+      <rect x="-13" y="-3" width="3" height="10" rx="1.5" fill="#334155" />
+      <rect x="10" y="-3" width="3" height="10" rx="1.5" fill="#334155" />
+    </g>
+
+    <!-- Executive Captain's Chair (North with gold/red command accents) -->
+    <g id="chair-exec-north">
+      <circle cx="0" cy="0" r="11" fill="#1e293b" stroke="#ffb400"
+        stroke-width="2" />
+      <line x1="-9" y1="-9" x2="9" y2="9" stroke="#64748b" stroke-width="2.5" />
+      <line x1="-9" y1="9" x2="9" y2="-9" stroke="#64748b" stroke-width="2.5" />
+      <rect x="-10" y="-7" width="20" height="16" rx="4" fill="#0f172a"
+        stroke="#ffb400" stroke-width="2" />
+      <rect x="-11" y="6" width="22" height="8" rx="3" fill="#1e293b"
+        stroke="#ffb400" stroke-width="1.5" />
+      <rect x="-7" y="7" width="14" height="5" rx="1.5" fill="#f43f5e"
+        opacity="0.9" />
+      <rect x="-14" y="-3" width="3.5" height="12" rx="1.5" fill="#475569"
+        stroke="#ffb400" stroke-width="1" />
+      <rect x="10.5" y="-3" width="3.5" height="12" rx="1.5" fill="#475569"
+        stroke="#ffb400" stroke-width="1" />
+    </g>
+
+    <!-- Office Chair Template (South) -->
+    <g id="chair-south">
+      <circle cx="0" cy="0" r="10" fill="#1e293b" stroke="#475569"
+        stroke-width="1.5" />
+      <line x1="-8" y1="-8" x2="8" y2="8" stroke="#334155" stroke-width="2" />
+      <line x1="-8" y1="8" x2="8" y2="-8" stroke="#334155" stroke-width="2" />
+      <rect x="-9" y="-8" width="18" height="14" rx="3" fill="#0f172a"
+        stroke="#334155" stroke-width="1.5" />
+      <rect x="-10" y="-12" width="20" height="7" rx="2" fill="#1e293b"
+        stroke="#64748b" stroke-width="1.5" />
+      <rect x="-6" y="-10" width="12" height="4" rx="1" fill="#3b82f6"
+        opacity="0.8" />
+      <rect x="-13" y="-7" width="3" height="10" rx="1.5" fill="#334155" />
+      <rect x="10" y="-7" width="3" height="10" rx="1.5" fill="#334155" />
+    </g>
+
+    <!-- Office Chair Template (East) -->
+    <g id="chair-east">
+      <circle cx="0" cy="0" r="10" fill="#1e293b" stroke="#475569"
+        stroke-width="1.5" />
+      <line x1="-8" y1="-8" x2="8" y2="8" stroke="#334155" stroke-width="2" />
+      <line x1="-8" y1="8" x2="8" y2="-8" stroke="#334155" stroke-width="2" />
+      <rect x="-6" y="-9" width="14" height="18" rx="3" fill="#0f172a"
+        stroke="#334155" stroke-width="1.5" />
+      <rect x="-12" y="-10" width="7" height="20" rx="2" fill="#1e293b"
+        stroke="#64748b" stroke-width="1.5" />
+      <rect x="-10" y="-6" width="4" height="12" rx="1" fill="#3b82f6"
+        opacity="0.8" />
+      <rect x="-3" y="-13" width="10" height="3" rx="1.5" fill="#334155" />
+      <rect x="-3" y="10" width="10" height="3" rx="1.5" fill="#334155" />
+    </g>
+
+    <!-- Office Chair Template (West) -->
+    <g id="chair-west">
+      <circle cx="0" cy="0" r="10" fill="#1e293b" stroke="#475569"
+        stroke-width="1.5" />
+      <line x1="-8" y1="-8" x2="8" y2="8" stroke="#334155" stroke-width="2" />
+      <line x1="-8" y1="8" x2="8" y2="-8" stroke="#334155" stroke-width="2" />
+      <rect x="-8" y="-9" width="14" height="18" rx="3" fill="#0f172a"
+        stroke="#334155" stroke-width="1.5" />
+      <rect x="5" y="-10" width="7" height="20" rx="2" fill="#1e293b"
+        stroke="#64748b" stroke-width="1.5" />
+      <rect x="6" y="-6" width="4" height="12" rx="1" fill="#3b82f6"
+        opacity="0.8" />
+      <rect x="-7" y="-13" width="10" height="3" rx="1.5" fill="#334155" />
+      <rect x="-7" y="10" width="10" height="3" rx="1.5" fill="#334155" />
+    </g>
+  </defs>
+
+  <!-- Foundation Void -->
+  <rect width="384" height="384" fill="#090d16" />
+  <rect width="384" height="384" fill="none" stroke="#1e293b" stroke-width="2"
+    opacity="0.4" />
+
+  <!-- Tier 3 Full 6x6 Flagship Citadel Architecture (Bounds 8..376) -->
+  <!-- Double-Reinforced Blast Shielding Walls with Observation Bay -->
+  <path
+    d="M 48 8 L 336 8 L 376 48 L 376 336 L 336 376 L 48 376 L 8 336 L 8 48 Z"
+    fill="#111827" stroke="#334155" stroke-width="24" />
+  <path
+    d="M 48 8 L 336 8 L 376 48 L 376 336 L 336 376 L 48 376 L 8 336 L 8 48 Z"
+    fill="none" stroke="#00d2ff" stroke-width="2" opacity="0.4" />
+
+  <!-- Forward Observation Window Slit (Deep Space Viewport at Top Wall) -->
+  <rect x="116" y="8" width="152" height="16" rx="6" fill="#04070e"
+    stroke="#00d2ff" stroke-width="2" />
+  <circle cx="140" cy="16" r="1.5" fill="#ffffff" opacity="0.9" />
+  <circle cx="178" cy="13" r="2" fill="#3b82f6" opacity="0.9" />
+  <circle cx="210" cy="18" r="1" fill="#ffffff" opacity="0.8" />
+  <circle cx="248" cy="14" r="1.8" fill="#ffb400" opacity="0.8" />
+
+  <!-- Floor Plating Grid across 6x6 room -->
+  <g opacity="0.5">
+    <line x1="72" y1="8" x2="72" y2="376" stroke="#1e293b" stroke-width="2" />
+    <line x1="136" y1="8" x2="136" y2="376" stroke="#1e293b" stroke-width="2" />
+    <line x1="200" y1="8" x2="200" y2="376" stroke="#1e293b" stroke-width="2" />
+    <line x1="264" y1="8" x2="264" y2="376" stroke="#1e293b" stroke-width="2" />
+    <line x1="328" y1="8" x2="328" y2="376" stroke="#1e293b" stroke-width="2" />
+    <line x1="8" y1="72" x2="376" y2="72" stroke="#1e293b" stroke-width="2" />
+    <line x1="8" y1="136" x2="376" y2="136" stroke="#1e293b" stroke-width="2" />
+    <line x1="8" y1="200" x2="376" y2="200" stroke="#1e293b" stroke-width="2" />
+    <line x1="8" y1="264" x2="376" y2="264" stroke="#1e293b" stroke-width="2" />
+    <line x1="8" y1="328" x2="376" y2="328" stroke="#1e293b" stroke-width="2" />
+  </g>
+
+  <!-- Glowing Floor Power Conduits -->
+  <line id="anim-conduit-v" data-anim="dash-v" x1="192" y1="26" x2="192"
+    y2="124" stroke="#00d2ff" stroke-width="3" stroke-dasharray="10 10"
+    opacity="0.8" />
+  <line id="anim-conduit-l" data-anim="dash-l" x1="16" y1="192" x2="124"
+    y2="192" stroke="#00d2ff" stroke-width="3" stroke-dasharray="10 10"
+    opacity="0.8" />
+  <line id="anim-conduit-r" data-anim="dash-r" x1="368" y1="192" x2="260"
+    y2="192" stroke="#00d2ff" stroke-width="3" stroke-dasharray="10 10"
+    opacity="0.8" />
+
+  <!-- Airlock Pressure Door (Bottom Center) -->
+  <rect x="164" y="356" width="56" height="20" rx="5" fill="#1e293b"
+    stroke="#475569" stroke-width="2" />
+  <line x1="170" y1="354" x2="176" y2="376" stroke="#eab308" stroke-width="3" />
+  <line x1="180" y1="354" x2="186" y2="376" stroke="#eab308" stroke-width="3" />
+  <line x1="190" y1="354" x2="196" y2="376" stroke="#eab308" stroke-width="3" />
+  <line x1="200" y1="354" x2="206" y2="376" stroke="#eab308" stroke-width="3" />
+  <line x1="210" y1="354" x2="216" y2="376" stroke="#eab308" stroke-width="3" />
+  <rect x="186" y="358" width="12" height="16" rx="2" fill="#334155"
+    stroke="#64748b" stroke-width="1.5" />
+
+  <!-- FLAGSHIP COMMAND WORKSTATIONS & EXECUTIVE SEATING (10 Consoles + 10 Chairs) -->
+
+  <!-- 1. Elevated Captain's Executive Dais (South of Table) -->
+  <g id="captain-exec-station">
+    <path d="M 136 268 Q 192 258 248 268 L 238 286 Q 192 276 146 286 Z"
+      fill="#1e293b" stroke="#ffb400" stroke-width="2" />
+    <rect id="screen-pulse-1" data-anim="pulse-1" x="156" y="260" width="72"
+      height="8" rx="2" fill="url(#screen-cyan-3)" stroke="#00ffff"
+      stroke-width="1.5" />
+    <rect x="140" y="262" width="14" height="6" rx="1.5" fill="#f43f5e"
+      opacity="0.9" />
+    <rect x="230" y="262" width="14" height="6" rx="1.5" fill="#ffcc00"
+      opacity="0.9" />
+    <!-- Executive Captain Chair right in center -->
+    <use href="#chair-exec-north" x="192" y="312" />
+    <!-- First Officer / Admiral Chair Left -->
+    <use href="#chair-north" x="150" y="316" />
+    <!-- First Officer / Admiral Chair Right -->
+    <use href="#chair-north" x="234" y="316" />
+  </g>
+
+  <!-- 2. Forward Flight & Navigation Pit (North of Table right below Viewport) -->
+  <g id="nav-station">
+    <path d="M 136 96 Q 192 106 248 96 L 238 78 Q 192 88 146 78 Z"
+      fill="#1e293b" stroke="#475569" stroke-width="2" />
+    <rect id="screen-pulse-2" data-anim="pulse-2" x="156" y="94" width="72"
+      height="8" rx="2" fill="url(#screen-emerald-3)" stroke="#10b981"
+      stroke-width="1.5" />
+    <!-- Two Navigation Officers facing viewport (south/forward) -->
+    <use href="#chair-south" x="166" y="56" />
+    <use href="#chair-south" x="218" y="56" />
+  </g>
+
+  <!-- 3. Left Operations & Shields Array (Facing East) -->
+  <g id="left-array">
+    <path d="M 56 130 Q 68 192 56 254 L 74 244 Q 82 192 74 140 Z" fill="#1e293b"
+      stroke="#475569" stroke-width="2" />
+    <rect id="screen-pulse-3" data-anim="pulse-1" x="72" y="146" width="6"
+      height="92" rx="2" fill="url(#screen-cyan-3)" stroke="#00d2ff"
+      stroke-width="1" />
+    <use href="#chair-east" x="38" y="160" />
+    <use href="#chair-east" x="38" y="224" />
+  </g>
+
+  <!-- 4. Right Communications & Fleet Command Array (Facing West) -->
+  <g id="right-array">
+    <path d="M 328 130 Q 316 192 328 254 L 310 244 Q 302 192 310 140 Z"
+      fill="#1e293b" stroke="#475569" stroke-width="2" />
+    <rect id="screen-pulse-4" data-anim="pulse-2" x="306" y="146" width="6"
+      height="92" rx="2" fill="url(#screen-amber-3)" stroke="#ffb400"
+      stroke-width="1" />
+    <use href="#chair-west" x="346" y="160" />
+    <use href="#chair-west" x="346" y="224" />
+  </g>
+
+  <!-- 5. Northwest Science Corner Desk & Chair -->
+  <g id="nw-station">
+    <path d="M 76 76 L 118 76 L 112 90 L 76 90 Z" fill="#1e293b"
+      stroke="#475569" stroke-width="1.5" />
+    <rect x="82" y="70" width="30" height="6" rx="1" fill="#00d2ff"
+      opacity="0.9" />
+    <use href="#chair-south" x="98" y="52" />
+  </g>
+
+  <!-- 6. Northeast Life Support Corner Desk & Chair -->
+  <g id="ne-station">
+    <path d="M 308 76 L 266 76 L 272 90 L 308 90 Z" fill="#1e293b"
+      stroke="#475569" stroke-width="1.5" />
+    <rect x="272" y="70" width="30" height="6" rx="1" fill="#10b981"
+      opacity="0.9" />
+    <use href="#chair-south" x="286" y="52" />
+  </g>
+
+  <!-- CENTRAL TACTICAL TABLE & MULTI-RING HOLOGRAM -->
+  <circle cx="192" cy="192" r="58" fill="#1e293b" stroke="#ffb400"
+    stroke-width="3.5" />
+  <circle cx="192" cy="192" r="50" fill="#0f172a" stroke="#00d2ff"
+    stroke-width="2" opacity="0.8" />
+
+  <!-- Triple Counter-Rotating Rings above Table -->
+  <g id="anim-ring-1" data-anim="rotate-1" transform="rotate(0, 192, 192)">
+    <circle cx="192" cy="192" r="42" fill="none" stroke="#00d2ff"
+      stroke-width="2.5" stroke-dasharray="16 10 6 10" opacity="0.9" />
+    <polygon points="192,150 187,156 197,156" fill="#00ffff" />
+  </g>
+
+  <g id="anim-ring-2" data-anim="rotate-2" transform="rotate(0, 192, 192)">
+    <circle cx="192" cy="192" r="30" fill="none" stroke="#54e05e"
+      stroke-width="2" stroke-dasharray="12 8" />
+    <circle cx="222" cy="192" r="4" fill="#54e05e" />
+    <circle cx="162" cy="192" r="3" fill="#54e05e" />
+  </g>
+
+  <g id="anim-ring-3" data-anim="rotate-3" transform="rotate(0, 192, 192)">
+    <circle cx="192" cy="192" r="18" fill="none" stroke="#ffb400"
+      stroke-width="2" stroke-dasharray="6 6" />
+    <polygon points="174,192 171,188 171,196" fill="#ffb400" />
+  </g>
+
+  <!-- Core Pulsing Star / Flagship Holo-Center -->
+  <circle id="anim-core-star" data-anim="core-scale" cx="192" cy="192" r="14"
+    fill="none" stroke="#00ffff" stroke-width="3" opacity="0.8" />
+  <circle cx="192" cy="192" r="9" fill="#00d2ff" opacity="0.95" />
+  <circle cx="192" cy="192" r="3.5" fill="#ffffff" />
+</svg>

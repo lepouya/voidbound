@@ -97,18 +97,28 @@ const defFrom = (
       tileSize: g.tileSize,
     };
 
-// Auto-register every PNG under assets/ whose filename starts with the rule's
-// prefix, deriving the tileset name from the path and the shape from the rule.
-const autoRegister = (rule: AutoTilesetRule): TilesetDef[] =>
-  Object.entries(allPngs)
-    .filter(([path]) => path.split("/").pop()?.startsWith(rule.prefix) ?? false)
-    .map(([path, src]) =>
-      defFrom(path.replace("/src/assets/", "").replace(".png", ""), src, rule)
-    );
+const registeredNames = new Set<string>();
 
 const TILESET_DEFS: TilesetDef[] = [
-  ...TILESET_GEOMETRY.map((g) => defFrom(g.name, png(g.name), g)),
-  ...AUTO_TILESET_RULES.flatMap(autoRegister),
+  ...TILESET_GEOMETRY.map((g) => {
+    registeredNames.add(g.name);
+    return defFrom(g.name, png(g.name), g);
+  }),
+  ...AUTO_TILESET_RULES.flatMap((rule: AutoTilesetRule) =>
+    Object.entries(allPngs)
+      .filter(([path]) => {
+        const name = path.replace("/src/assets/", "").replace(".png", "");
+        const filename = path.split("/").pop() ?? "";
+        if (filename.startsWith(rule.prefix) && !registeredNames.has(name)) {
+          registeredNames.add(name);
+          return true;
+        }
+        return false;
+      })
+      .map(([path, src]) =>
+        defFrom(path.replace("/src/assets/", "").replace(".png", ""), src, rule)
+      )
+  ),
 ];
 
 // -- TilesetRegistry -----------------------------------------------------------
