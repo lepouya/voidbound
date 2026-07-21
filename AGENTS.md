@@ -64,11 +64,16 @@ task list that tracks what's built vs. planned.
   rasterizer every `svg_*_gen.py` script imports). `deno task test:ts` /
   `test:rs` / `test:py` run one half alone. `deno task format`/`check`/`lint`
   similarly all run TS + Rust + Python (`ruff format`/`mypy tools/`/
-  `ruff check tools/`). CI (`.github/workflows/ci.yml`) runs
-  format/check/lint/test/cargo checks on push and PR (the frontend job runs
-  `test:ts`; the rust job runs cargo test itself) — it does not yet run the
-  Python suite, `mypy`, or `ruff`. Logic that should be unit-tested lives in
-  pure modules with no runtime Excalibur/Vite imports (`src/resources/tileset-geometry.ts`, `src/scene/grid-math.ts`,
+  `ruff check tools/`). CI (`.github/workflows/ci.yml`) runs three parallel
+  jobs, split by runtime dependency rather than mirroring the `deno task`
+  groupings directly: `frontend` (TS format/check/lint/test), `python`
+  (`ruff`/`mypy` pip-installed there, since Ubuntu's system Python has no apt
+  package for either, plus a crash-only smoke test that runs every
+  `art/gen_*.sh` against the real source SVGs — never diffed against
+  `src/assets/`, since renderer output has byte-level churn even when
+  unchanged), and `rust` (with the Tauri system deps cargo needs). Logic that
+  should be unit-tested lives in pure modules with no runtime Excalibur/Vite
+  imports (`src/resources/tileset-geometry.ts`, `src/scene/grid-math.ts`,
   `src/state/game-state.ts`, `src/state/game-state-types.ts`,
   `src/scene/camera-math.ts`, `src/map/minimap-math.ts`,
   `src/map/vessel-math.ts`, `src/map/aoi-config.ts`,

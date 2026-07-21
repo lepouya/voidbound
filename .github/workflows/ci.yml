@@ -36,15 +36,48 @@ jobs:
       - name: Deno tests
         run: deno task test:ts
 
-      # Pillow + an SVG rasterizer (rsvg-convert) for svg_ui_gen tests; apt
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pillow + an SVG rasterizer (rsvg-convert) for the art pipeline; apt
       # packages sidestep Ubuntu's externally-managed pip restrictions.
       - name: Install art pipeline dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pil librsvg2-bin
 
-      - name: Art pipeline tests
+      # ruff/mypy have no apt package here, so bypass the externally-managed
+      # restriction directly (same restriction python3-pil sidesteps above).
+      - name: Install Python lint/type-check tools
+        run: pip install --break-system-packages ruff mypy
+
+      # format:py/check:py/lint:py equivalents — ruff's own --check flag covers
+      # format since `deno task format:py` writes in place.
+      - name: Python format check
+        run: ruff format --check tools/
+
+      - name: Python type check
+        run: mypy tools/
+
+      - name: Python lint
+        run: ruff check tools/
+
+      - name: Python tests
         run: python3 -m unittest discover -s tools -v
+
+      # Crash-only smoke test: runs every art/gen_*.sh against the real source
+      # SVGs/sheets (deno task gen-art's own glob loop, done here without a
+      # Deno install since this job has no other Deno step). Never diff the
+      # output against src/assets/ — rsvg-convert's output has byte-level
+      # churn even when unchanged (see the gen-art skill), so a diff check
+      # here would be permanently flaky; success is just a zero exit code.
+      - name: Art pipeline smoke test
+        run: |
+          for f in art/gen_*.sh; do
+            "$f"
+          done
 
   rust:
     runs-on: ubuntu-latest
