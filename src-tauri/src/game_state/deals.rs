@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use super::modules::{scale_for_level, TRADING_POST_MODULE_TYPE};
 use super::resources::{trade_display_name, ResourceCounts, TradeKind, TRADE_KINDS};
-use super::state::{player_identity, NotificationPayload, SeedRng, ServerPush, ServerState};
+use super::state::{NotificationPayload, SeedRng, ServerPush, ServerState};
 
 /// One UTC day in ms. The deal shop resets at fixed 00:00 UTC boundaries
 /// (README's "resetting at a fixed point" principle), not a rolling window.
@@ -221,7 +221,7 @@ impl ServerState {
     /// but capped at a fraction of the player's storage cap, get boosted by
     /// the rolled rarity.
     fn generate_deal(&self, day: u64, slot: u32, generation: u32, freebie: bool) -> DealData {
-        let mut rng = SeedRng(deal_seed(&player_identity().id, day, slot, generation));
+        let mut rng = SeedRng(deal_seed(&self.player.id, day, slot, generation));
         let deal_id = format!("deal-{day}-{slot}-{generation}");
         if freebie {
             // Deliberately basic — its own band, not the sizing rule below:

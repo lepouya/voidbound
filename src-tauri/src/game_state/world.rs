@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use super::resources::{ResourceCounts, ResourceKind};
+#[cfg(test)]
+use super::state::player_identity;
 use super::state::{
-    deadline_after, player_identity, scaled_ms, time_scale, unscaled_ms, NotificationCargo,
-    NotificationPayload, SeedRng, ServerPush, ServerState, MAP_COLS, MAP_ROWS, MAP_TILE_PX,
+    deadline_after, scaled_ms, time_scale, unscaled_ms, NotificationCargo, NotificationPayload,
+    SeedRng, ServerPush, ServerState, MAP_COLS, MAP_ROWS, MAP_TILE_PX,
 };
 
 /// Response to request_map_window (ROADMAP P1.13): the re-centered interest
@@ -476,14 +478,14 @@ impl ServerState {
     /// The requesting player's own mothership — dispatch departs from it.
     pub(super) fn player_mothership(&self) -> Result<&MothershipData, String> {
         self.motherships
-            .get(&player_identity().id)
+            .get(&self.player.id)
             .ok_or_else(|| "player has no mothership".to_string())
     }
 
     /// How many vessels the requesting player currently has in the table
     /// (in flight, parked, or mining) — the fleet-cap check's input.
     fn player_vessel_count(&self) -> usize {
-        let player_id = player_identity().id;
+        let player_id = self.player.id.clone();
         self.vessels
             .values()
             .filter(|v| v.owner_id == player_id)
@@ -628,7 +630,7 @@ impl ServerState {
         now_ms: u64,
     ) -> Result<MothershipActionResponse, String> {
         self.settle_vessel_arrivals(now_ms);
-        let player_id = player_identity().id;
+        let player_id = self.player.id.clone();
         if self.vessels.values().any(|v| v.owner_id == player_id) {
             return Err("recall every vessel before warping".to_string());
         }
@@ -915,7 +917,7 @@ impl ServerState {
         let (src_col, src_row) = src;
         let (dest_col, dest_row) = dest;
         self.next_vessel_seq += 1;
-        let player = player_identity();
+        let player = self.player.clone();
         let speed = effective_vessel_speed_px_s();
         VesselMoveEventData {
             event_id: self.next_event_id(),
@@ -964,7 +966,7 @@ impl ServerState {
             .get(vessel_id)
             .ok_or_else(|| format!("unknown vessel: {vessel_id:?}"))?
             .clone();
-        if vessel.owner_id != player_identity().id {
+        if vessel.owner_id != self.player.id {
             return Err(format!("vessel {vessel_id:?} belongs to another player"));
         }
         let mut event = self.return_leg(&vessel, now_ms)?;
@@ -981,7 +983,7 @@ impl ServerState {
     /// own anywhere, everyone else's only inside the interest area. Stable
     /// id order — the placement slice of snapshots and window responses.
     pub(super) fn motherships_snapshot(&self) -> Vec<MothershipData> {
-        let player_id = player_identity().id;
+        let player_id = self.player.id.clone();
         let mut ships: Vec<_> = self
             .motherships
             .values()
@@ -999,7 +1001,7 @@ impl ServerState {
     /// responses.
     pub(super) fn active_vessels(&mut self, now_ms: u64) -> Vec<VesselMoveEventData> {
         self.settle_vessel_arrivals(now_ms);
-        let player_id = player_identity().id;
+        let player_id = self.player.id.clone();
         let mut vessels: Vec<_> = self
             .vessels
             .values()
@@ -1202,7 +1204,21 @@ mod tests {
         let mut s = ServerState::new(0);
         let err = s.relocate_mothership(999, 5, 0).unwrap_err();
         assert!(err.contains("outside the map"), "{err}");
-        // (503, 499) is the seeded enemy mothership's own anchor.
+        s.resources.fuel = 100;
+        s.motherships.insert(
+            "player-2".to_string(),
+            MothershipData {
+                mothership_id: "player-2".to_string(),
+                owner_id: "player-2".to_string(),
+                owner_name: "Player 2".to_string(),
+                ship_type: "mothership-1".to_string(),
+                damaged: false,
+                col: 503,
+                row: 499,
+                span: 4,
+            },
+        );
+        // (503, 499) is another real profile's mothership anchor.
         let err = s.relocate_mothership(503, 499, 0).unwrap_err();
         assert!(err.contains("occupied"), "{err}");
     }
@@ -1217,16 +1233,13 @@ mod tests {
     }
 
     #[test]
-    fn snapshot_includes_the_seeded_motherships() {
+    fn snapshot_includes_the_selected_profiles_mothership() {
         let s = ServerState::new(0);
         let ships = s.motherships_snapshot();
-        assert_eq!(ships.len(), 2);
+        assert_eq!(ships.len(), 1);
         let player = ships.iter().find(|m| m.owner_id == "player-1").unwrap();
         assert_eq!((player.col, player.row, player.span), (498, 498, 4));
         assert!(!player.damaged);
-        let enemy = ships.iter().find(|m| m.owner_id == "player-2").unwrap();
-        assert_eq!((enemy.col, enemy.row), (503, 499));
-        assert!(enemy.damaged);
     }
 
     #[test]

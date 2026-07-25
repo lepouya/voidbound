@@ -2,6 +2,7 @@ mod commands;
 mod crew;
 mod deals;
 mod modules;
+mod persistence;
 mod resources;
 mod scheduler;
 mod state;
@@ -14,4 +15,4 @@ mod world;
 // generate_handler! also needs — an explicit re-export list would miss them.
 pub(crate) use commands::*;
 pub(crate) use scheduler::{run_scheduler, GameServer};
-pub(crate) use state::{now_ms, time_scale, MAP_COLS, MAP_ROWS, MAP_TILE_PX};
+pub(crate) use state::{configure_time_scale, now_ms, time_scale, MAP_COLS, MAP_ROWS, MAP_TILE_PX};

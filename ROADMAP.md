@@ -156,18 +156,12 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       source event IDs, client formatting, and durable movement completion
       markers. Still open: per-player persistence and audience routing → P2.1;
       socket delivery → P3.1.
-- [ ] **P2.1 — Multi-account local-system save/load.** A version-1 JSON
-      `SaveEnvelope` persists the durable `PersistentSystem` domain model — not
-      the mixed runtime `ServerState` or AOI-filtered `GameStateData`. One local
-      system holds multiple developer players; startup `--player <name>` and
-      development-only `--time-scale <factor>` arguments replace the current
-      hardcoded identity/environment scale (a trimmed, case-insensitive missing
-      name atomically creates a new profile). New profiles receive a
-      deterministically seeded, in-bounds mothership spawn clear of every ship
-      and asteroid. Only one Tauri process may own the save at a time; all
-      players' progression advances system-wide. Loading rides the existing
-      loader and falls back to a fresh system only after recovery exhausts its
-      valid saves. Needs P2.2.
+- [x] **P2.1 — Multi-account local-system save/load.** Versioned JSON snapshots
+      persist the complete local system, with launch-selected developer
+      profiles, deterministic clear spawns, exclusive ownership, backups, and
+      recovery. Still open: exhaustive version migrations/validation → P2.3;
+      shutdown and recovery diagnostics hardening → P2.4; deterministic offline
+      replay → P2.5.
 - [ ] **P2.3 — Versioned save format + validation.** The first P2.1 file already
       carries a schema version; this task adds the version-specific
       DTO/migration harness and fixture coverage so later phases can evolve it

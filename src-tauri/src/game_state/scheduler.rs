@@ -1,8 +1,10 @@
+use std::path::PathBuf;
 use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use tauri::{Emitter, Manager};
 
+use super::persistence::{normalize_player_name, SaveEnvelopeV1, SaveStore, SAVE_SCHEMA_VERSION};
 use super::state::{now_ms, Revisioned, ServerPush, ServerState, SERVER_PUSH_EVENT};
 
 /// The managed Tauri state: the authoritative ServerState behind a mutex,
@@ -12,15 +14,76 @@ use super::state::{now_ms, Revisioned, ServerPush, ServerState, SERVER_PUSH_EVEN
 /// out the scheduler's current sleep.
 pub struct GameServer {
     pub(super) state: Mutex<ServerState>,
+    save_store: SaveStore,
     wake: Condvar,
 }
 
 impl GameServer {
-    pub fn new(now_ms: u64) -> Self {
-        Self {
-            state: Mutex::new(ServerState::new(now_ms)),
-            wake: Condvar::new(),
+    pub fn open(
+        save_path: PathBuf,
+        player_name: String,
+        restore_backup: Option<usize>,
+        now_ms: u64,
+    ) -> Result<Self, String> {
+        let save_store = SaveStore::open(save_path)?;
+        let loaded = match restore_backup {
+            Some(index) => Some(save_store.restore_backup(index)?),
+            None => match save_store.load() {
+                Ok(envelope) => envelope,
+                Err(error) => {
+                    eprintln!("local-system recovery exhausted: {error}; creating a fresh system");
+                    None
+                }
+            },
+        };
+        let is_fresh_system = loaded.is_none();
+        let mut state = match loaded {
+            Some(envelope) => {
+                let requested = normalize_player_name(&player_name);
+                if envelope.system.players.contains_key(&requested) {
+                    ServerState::from_persistent(envelope.system, &player_name)?
+                } else {
+                    let fallback = envelope
+                        .system
+                        .players
+                        .values()
+                        .next()
+                        .ok_or_else(|| "persistent system has no player profiles".to_string())?
+                        .identity
+                        .name
+                        .clone();
+                    let mut state = ServerState::from_persistent(envelope.system, &fallback)?;
+                    state.create_player_profile(player_name.clone(), now_ms)?;
+                    state
+                }
+            }
+            None => ServerState::new(now_ms),
+        };
+        if normalize_player_name(&state.player.name) != normalize_player_name(&player_name) {
+            state.create_player_profile(player_name, now_ms)?;
+            if is_fresh_system {
+                state.parked_players.remove("player 1");
+                state.motherships.remove("player-1");
+            }
         }
+        let server = Self {
+            state: Mutex::new(state),
+            save_store,
+            wake: Condvar::new(),
+        };
+        server.persist()?;
+        Ok(server)
+    }
+
+    fn persist(&self) -> Result<(), String> {
+        let state = self.state.lock().map_err(|error| error.to_string())?;
+        let envelope = SaveEnvelopeV1 {
+            schema_version: SAVE_SCHEMA_VERSION,
+            saved_at: now_ms(),
+            system: state.persistent_system(),
+        };
+        drop(state);
+        self.save_store.save(&envelope)
     }
 }
 
@@ -47,6 +110,7 @@ pub fn run_scheduler(app: tauri::AppHandle) {
     let server = app.state::<GameServer>();
     let mut state = server.state.lock().unwrap_or_else(PoisonError::into_inner);
     loop {
+        state.settle_parked_players(now_ms());
         state.settle(now_ms());
         let pushes = state.drain_pushes();
         if !pushes.is_empty() {
@@ -58,6 +122,9 @@ pub fn run_scheduler(app: tauri::AppHandle) {
             // Emit without holding the lock, then re-settle: time passed and
             // commands may have run while it was released.
             drop(state);
+            if let Err(error) = server.persist() {
+                eprintln!("autosave after scheduler settlement failed: {error}");
+            }
             emit_pushes(&app, pushes);
             state = server.state.lock().unwrap_or_else(PoisonError::into_inner);
             continue;
@@ -86,6 +153,9 @@ pub(super) fn finish_command(
     let revision = state.advance_revision();
     let pushes = state.drain_revisioned_pushes(revision);
     drop(state);
+    if let Err(error) = server.persist() {
+        eprintln!("autosave after command failed: {error}");
+    }
     emit_pushes(app, pushes);
     server.wake.notify_all();
     revision

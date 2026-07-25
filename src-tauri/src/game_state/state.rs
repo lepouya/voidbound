@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -7,10 +7,11 @@ use serde::Serialize;
 use super::crew::{CrewData, PendingHire, STARTING_CREW};
 use super::deals::{utc_day_index, DealData, DealsData, DAY_MS};
 use super::modules::{module_anchor_at, ModuleData, COMMAND_MODULE_TYPE, PRODUCTION_TICK_MS};
+use super::persistence::{normalize_player_name, PersistentPlayerV1, PersistentSystemV1};
 use super::resources::ResourceCounts;
 use super::world::{seed_asteroids, AsteroidData, MapWindow, MothershipData, VesselMoveEventData};
 
-#[derive(Serialize, serde::Deserialize)]
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
 pub struct PlayerIdentity {
     pub id: String,
     pub name: String,
@@ -250,6 +251,12 @@ pub(crate) fn deadline_after(start_ms: u64, duration_ms: u64) -> u64 {
 
 static TIME_SCALE: OnceLock<f64> = OnceLock::new();
 
+pub(crate) fn configure_time_scale(scale: f64) -> Result<(), String> {
+    TIME_SCALE
+        .set(scale)
+        .map_err(|_| "time scale was configured more than once".to_string())
+}
+
 /// Dev-speed multiplier (ROADMAP P0.13), read once from `VOIDBOUND_TIME_SCALE`
 /// at first use. Unset — the normal `deno task tauri dev` — behaves as 1.0
 /// (real-time); `deno task dev:fast` sets it so build/hire/mine timers
@@ -316,6 +323,14 @@ pub(super) struct OutboxEntry {
 /// Authoritative per-player state, held in memory for the app's lifetime.
 /// Phase 2 serializes it to a save file; the phase-3 server owns it remotely.
 pub struct ServerState {
+    /// The immutable launch-time session identity. It is runtime context, not
+    /// a field in the persistent system snapshot.
+    pub(super) player: PlayerIdentity,
+    pub(super) system_id: String,
+    pub(super) system_seed: u64,
+    /// Durable profiles other than the launch-selected player. They are not
+    /// projected to this client, but remain part of the one local system.
+    pub(super) parked_players: BTreeMap<String, PersistentPlayerV1>,
     /// Global authoritative ordering token. It advances once per command
     /// boundary and once per scheduler batch that emits pushes.
     pub(super) revision: u64,
@@ -405,41 +420,30 @@ impl ServerState {
                 pending: None,
             },
         );
-        // Placeholder world: the player's mothership plus one sample enemy,
-        // at the center of the full-size map (ROADMAP P1.9). Persistence
-        // (P2) / the real server (P3) will load these instead.
-        let motherships = HashMap::from([
-            (
-                player.id.clone(),
-                MothershipData {
-                    mothership_id: player.id.clone(),
-                    owner_id: player.id.clone(),
-                    owner_name: player.name.clone(),
-                    ship_type: "mothership-1".to_string(),
-                    damaged: false,
-                    col: 498,
-                    row: 498,
-                    span: 4,
-                },
-            ),
-            (
-                "player-2".to_string(),
-                MothershipData {
-                    mothership_id: "player-2".to_string(),
-                    owner_id: "player-2".to_string(),
-                    owner_name: "Enemy".to_string(),
-                    ship_type: "mothership-1".to_string(),
-                    damaged: true,
-                    col: 503,
-                    row: 499,
-                    span: 4,
-                },
-            ),
-        ]);
+        // A new local system starts with its selected developer player's
+        // mothership. Other ships are real local profiles created at a later
+        // launch, never a display-only placeholder enemy.
+        let motherships = HashMap::from([(
+            player.id.clone(),
+            MothershipData {
+                mothership_id: player.id.clone(),
+                owner_id: player.id.clone(),
+                owner_name: player.name.clone(),
+                ship_type: "mothership-1".to_string(),
+                damaged: false,
+                col: 498,
+                row: 498,
+                span: 4,
+            },
+        )]);
         // Placeholder starter asteroid field, spread across the map.
         // Persistence (P2) / the real server (P3) will load this instead.
         let asteroids = seed_asteroids(&motherships);
         let mut state = Self {
+            player: player.clone(),
+            system_id: "local-system-1".to_string(),
+            system_seed: 0x9E37_79B9_7F4A_7C15,
+            parked_players: BTreeMap::new(),
             revision: 0,
             resources: ResourceCounts {
                 construction: 0,
@@ -476,6 +480,172 @@ impl ServerState {
         state.regenerate_deals(state.deals_day_index, 0, true);
         debug_assert!(state.validate_timestamps().is_ok());
         state
+    }
+
+    pub(super) fn from_persistent(
+        mut system: PersistentSystemV1,
+        selected_name: &str,
+    ) -> Result<Self, String> {
+        system.validate()?;
+        let key = normalize_player_name(selected_name);
+        let player = system
+            .players
+            .remove(&key)
+            .ok_or_else(|| format!("no saved profile for {selected_name:?}"))?;
+        let state = Self {
+            player: player.identity,
+            system_id: system.system_id,
+            system_seed: system.system_seed,
+            parked_players: system.players,
+            revision: system.state_revision,
+            resources: player.resources,
+            last_production_at: player.last_production_at,
+            modules: player.modules.into_iter().collect(),
+            next_module_seq: player.next_module_seq,
+            motherships: system.world.motherships.into_iter().collect(),
+            vessels: system.world.vessels.into_iter().collect(),
+            next_vessel_seq: player.next_vessel_seq,
+            asteroids: system.world.asteroids.into_iter().collect(),
+            next_event_seq: player.next_event_seq,
+            crew: player.crew,
+            pending_hire: player.pending_hire,
+            notifications: player.notifications,
+            next_notification_seq: player.next_notification_seq,
+            deals: player.deals,
+            deals_day_index: player.deals_day_index,
+            deal_refreshes_used: player.deal_refreshes_used,
+            aoi: MapWindow::centered_at(MAP_COLS / 2, MAP_ROWS / 2),
+            outbox: Vec::new(),
+            resources_dirty: false,
+        };
+        state.validate_timestamps()?;
+        Ok(state)
+    }
+
+    pub(super) fn persistent_system(&self) -> PersistentSystemV1 {
+        let mut system = PersistentSystemV1::from_state(self);
+        system.system_id = self.system_id.clone();
+        system.system_seed = self.system_seed;
+        system.players.extend(self.parked_players.clone());
+        system
+    }
+
+    /// While one local profile is selected, the single authoritative process
+    /// still advances every other profile in the same system. Their resulting
+    /// notifications remain durable in their own feeds, but their runtime
+    /// pushes are deliberately discarded: the one active webview must never
+    /// receive another profile's badge, toast, or entity update.
+    pub(super) fn settle_parked_players(&mut self, now_ms: u64) {
+        let selected_identity = self.player.clone();
+        let selected_profile = PersistentPlayerV1::from_state(self);
+        let keys: Vec<String> = self.parked_players.keys().cloned().collect();
+        for key in keys {
+            let Some(profile) = self.parked_players.remove(&key) else {
+                continue;
+            };
+            self.load_active_profile(profile);
+            self.settle(now_ms);
+            let settled = PersistentPlayerV1::from_state(self);
+            self.parked_players.insert(key, settled);
+            self.outbox.clear();
+            self.resources_dirty = false;
+        }
+        self.load_active_profile(selected_profile);
+        self.player = selected_identity;
+    }
+
+    pub(super) fn create_player_profile(
+        &mut self,
+        display_name: String,
+        now_ms: u64,
+    ) -> Result<(), String> {
+        let normalized = normalize_player_name(&display_name);
+        if normalized.is_empty() {
+            return Err("--player must not be empty".to_string());
+        }
+        if self.parked_players.contains_key(&normalized)
+            || normalize_player_name(&self.player.name) == normalized
+        {
+            return Err(format!("player {display_name:?} already exists"));
+        }
+
+        let current = PersistentPlayerV1::from_state(self);
+        self.parked_players
+            .insert(normalize_player_name(&self.player.name), current);
+
+        let mut identity_hash = 0xcbf2_9ce4_8422_2325u64;
+        for byte in normalized.bytes() {
+            identity_hash ^= u64::from(byte);
+            identity_hash = identity_hash.wrapping_mul(0x100_0000_01b3);
+        }
+        let identity = PlayerIdentity {
+            id: format!("player-{identity_hash:016x}"),
+            name: display_name,
+        };
+        let mut template = Self::new(now_ms);
+        template.player = identity.clone();
+        for module in template.modules.values_mut() {
+            module.owner_id = identity.id.clone();
+            module.owner_name = identity.name.clone();
+        }
+        template.regenerate_deals(template.deals_day_index, 0, true);
+        let profile = PersistentPlayerV1::from_state(&template);
+
+        let mut rng = SeedRng(self.system_seed ^ identity_hash);
+        let mut spawn = None;
+        for _ in 0..4096 {
+            let col = rng.range(0, (MAP_COLS - 4) as u64) as i64;
+            let row = rng.range(0, (MAP_ROWS - 4) as u64) as i64;
+            let clear = self.motherships.values().all(|ship| {
+                footprints_separated((col, row, 4), (ship.col, ship.row, ship.span), 1)
+            }) && self.asteroids.values().all(|asteroid| {
+                footprints_separated(
+                    (col, row, 4),
+                    (asteroid.col, asteroid.row, asteroid.span),
+                    1,
+                )
+            });
+            if clear {
+                spawn = Some((col, row));
+                break;
+            }
+        }
+        let Some((col, row)) = spawn else {
+            return Err("no clear deterministic mothership spawn remains".to_string());
+        };
+        self.motherships.insert(
+            identity.id.clone(),
+            MothershipData {
+                mothership_id: identity.id.clone(),
+                owner_id: identity.id.clone(),
+                owner_name: identity.name.clone(),
+                ship_type: "mothership-1".to_string(),
+                damaged: false,
+                col,
+                row,
+                span: 4,
+            },
+        );
+        self.load_active_profile(profile);
+        self.aoi = MapWindow::centered_at(col + 2, row + 2);
+        Ok(())
+    }
+
+    fn load_active_profile(&mut self, profile: PersistentPlayerV1) {
+        self.player = profile.identity;
+        self.resources = profile.resources;
+        self.last_production_at = profile.last_production_at;
+        self.modules = profile.modules.into_iter().collect();
+        self.next_module_seq = profile.next_module_seq;
+        self.next_vessel_seq = profile.next_vessel_seq;
+        self.next_event_seq = profile.next_event_seq;
+        self.crew = profile.crew;
+        self.pending_hire = profile.pending_hire;
+        self.notifications = profile.notifications;
+        self.next_notification_seq = profile.next_notification_seq;
+        self.deals = profile.deals;
+        self.deals_day_index = profile.deals_day_index;
+        self.deal_refreshes_used = profile.deal_refreshes_used;
     }
 
     /// Reject timer pairs that could only come from a corrupt/unsupported
@@ -612,7 +782,7 @@ impl ServerState {
         // below are filtered to it.
         self.recenter_aoi_on_player();
         GameStateData {
-            player: player_identity(),
+            player: self.player.clone(),
             resources: self.resources,
             map_window: self.aoi,
             motherships: self.motherships_snapshot(),
@@ -722,6 +892,17 @@ fn validate_timestamp_pair(label: &str, start_ms: u64, deadline_ms: u64) -> Resu
     Ok(())
 }
 
+fn footprints_separated(
+    (a_col, a_row, a_span): (i64, i64, i64),
+    (b_col, b_row, b_span): (i64, i64, i64),
+    gap: i64,
+) -> bool {
+    a_col + a_span + gap <= b_col
+        || b_col + b_span + gap <= a_col
+        || a_row + a_span + gap <= b_row
+        || b_row + b_span + gap <= a_row
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::resources::ResourceKind;
@@ -738,12 +919,22 @@ mod tests {
             (aoi.center_col, aoi.center_row, aoi.span),
             (500, 500, AOI_SPAN)
         );
-        // Both seeded ships sit inside the home window.
-        assert_eq!(s.motherships_snapshot().len(), 2);
+        // The selected profile's ship is inside the home window.
+        assert_eq!(s.motherships_snapshot().len(), 1);
         // A far-away foreign ship drops from the slice...
-        let enemy = s.motherships.get_mut("player-2").unwrap();
-        enemy.col = 10;
-        enemy.row = 10;
+        s.motherships.insert(
+            "player-2".to_string(),
+            MothershipData {
+                mothership_id: "player-2".to_string(),
+                owner_id: "player-2".to_string(),
+                owner_name: "Player 2".to_string(),
+                ship_type: "mothership-1".to_string(),
+                damaged: false,
+                col: 10,
+                row: 10,
+                span: 4,
+            },
+        );
         assert_eq!(s.motherships_snapshot().len(), 1);
         // ...but the player's own ship is exempt wherever it is.
         let own = s.motherships.get_mut("player-1").unwrap();

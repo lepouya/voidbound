@@ -686,6 +686,19 @@ The pre-P2.1/P2.5 policy decisions are now settled:
    recovered primary is recorded, and the user-facing/log behavior when every
    generation fails. The five-generation and explicit-restore policy is settled.
 
+### P2.1 implementation decisions
+
+- **Spawn planner:** `local-system-1` uses the fixed seed
+  `0x9E37_79B9_7F4A_7C15`; a normalized-name FNV-1a hash selects a deterministic
+  sequence of at most 4,096 candidates. A new 4*4 mothership requires one clear
+  tile from every ship and asteroid.
+- **Snapshot lifecycle:** `local-system.json` is protected by an exclusive OS
+  lock. Command and scheduler boundaries write a synced temporary snapshot,
+  rotate five `.json.bak<N>` generations, then replace the primary. A corrupt
+  primary falls back to the newest valid backup; `--restore-backup <1..5>`
+  selects one deliberately. Final shutdown flushing and rejected-file
+  preservation remain P2.4 hardening work.
+
 ### Deliberately deferred to Phase 3
 
 8. **SQLite-to-PostgreSQL persistence boundary.** Define repositories,

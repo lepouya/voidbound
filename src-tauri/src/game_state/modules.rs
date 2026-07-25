@@ -1,9 +1,11 @@
 use serde::Serialize;
 
 use super::resources::{ResourceCounts, ResourceKind};
+#[cfg(test)]
+use super::state::player_identity;
 use super::state::{
-    deadline_after, player_identity, scaled_ms, ModuleCompletionOperation, NotificationPayload,
-    ServerPush, ServerState,
+    deadline_after, scaled_ms, ModuleCompletionOperation, NotificationPayload, ServerPush,
+    ServerState,
 };
 
 /// One entry in the module catalog (ROADMAP P1.4): production, storage,
@@ -534,7 +536,7 @@ impl ServerState {
         self.resources.spend(ResourceKind::Construction, cost)?;
         self.resources_dirty = true;
         self.next_module_seq += 1;
-        let player = player_identity();
+        let player = self.player.clone();
         let module = ModuleData {
             module_id: format!("module-{}-{}", now_ms, self.next_module_seq),
             owner_id: player.id,
@@ -592,7 +594,7 @@ impl ServerState {
                 module.pending.is_some(),
             )
         };
-        if owner_id != player_identity().id {
+        if owner_id != self.player.id {
             return Err(format!("module {module_id:?} belongs to another player"));
         }
         if pending {

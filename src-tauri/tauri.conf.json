@@ -22,6 +22,24 @@
       "csp": null
     }
   },
+  "plugins": {
+    "cli": {
+      "args": [
+        {
+          "name": "player",
+          "takesValue": true
+        },
+        {
+          "name": "time-scale",
+          "takesValue": true
+        },
+        {
+          "name": "restore-backup",
+          "takesValue": true
+        }
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
