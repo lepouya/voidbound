@@ -100,8 +100,94 @@ progress, not fast-forwarded frame by frame.
 - **Idempotency**: event IDs are unique; applying the same event twice must be a
   no-op or a keyed replacement (the `applyVesselEvent` merge is the pattern).
 - **Persistence** (ROADMAP phase 2) is a local prototype of the same idea: the
-  save file is a snapshot, and the versioned format maps forward to the
-  server-side snapshot schema.
+  save file is a versioned full-system snapshot, not the client projection. The
+  format maps forward to the server-side snapshot schema, but Phase 2 saves are
+  developer-only and are never imported into an online account or world.
+
+## Persistent state, sessions, and local development
+
+Three shapes must remain distinct:
+
+```text
+PersistentSystem      all durable players + world entities + timers + counters
+Runtime server state  scheduler/outbox/AOI/delivery machinery rebuilt on startup
+Client projection     one player plus owned and in-window world entities
+```
+
+`GameStateData` is a client projection and must never become the save format.
+Likewise, the in-process `ServerState` currently mixes durable state with
+runtime fields, so Phase 2 serializes an explicit persistent DTO rather than
+deriving `Serialize` for that type. Runtime-only outbox, dirty/coalescing state,
+AOI subscriptions, and derived indexes are rebuilt after load.
+
+Phase 2 has one local persistent system containing multiple developer players.
+`--player <name>` selects a session identity at startup; names are trimmed,
+matched case-insensitively, and created on first use. A session identity never
+changes mid-run. The local process holds exclusive ownership of the save — no
+attempt is made to synchronize two Tauri backends. Creating a player is an
+atomic system mutation that adds their profile and a deterministic, in-bounds
+mothership spawn clear of existing ships and asteroids.
+
+`--time-scale <factor>` and `--restore-backup <1..5>` are development-only
+startup controls. Time scale never reaches an online server or rewrites existing
+deadlines; a run's scale affects only new local durations and live production
+cadence. Five rolling local backup generations protect the whole system; a
+restore rolls every local player back together.
+
+## Time and offline settlement
+
+The Phase 3 server scheduler runs while players are offline; reconnecting only
+projects the already-settled state and its per-player feed. Phase 2 needs local
+startup recovery instead. Its `advance_to(now)` processes the entire local
+system, not just the selected player, in this deterministic same-timestamp
+order:
+
+1. Production boundary using pre-completion state.
+2. Module completion.
+3. Crew completion.
+4. Outbound vessel arrival.
+5. Mining completion.
+6. Return-vessel arrival and cargo deposit.
+7. Daily rollover.
+
+Same-kind ties sort by stable action/entity ID. Phase 2 applies at most 24 hours
+of offline progression, then permanently discards/re-anchors excess elapsed time
+so repeated restarts cannot bypass the cap. It re-anchors unfinished timers with
+their remaining simulated duration and moves daily state to the current UTC day
+without replaying skipped rollovers. This cap is local-development behavior, not
+an online anti-cheat mechanism.
+
+## Action IDs, notifications, and delivery
+
+Every authorized action and scheduler-created transition has an immutable action
+or event ID. A per-player notification is a durable typed tagged-union payload
+with its own feed ID and a `sourceEventId`; server-composed English is not wire
+data. Entity/action completion state, rather than the bounded notification feed,
+is the durable idempotency record — evicting old Mail entries must never replay
+an arrival or completion.
+
+The scheduler advances all players, but delivery is session/audience scoped. A
+Player 1 completion while a local Player 2 session is active is appended to
+Player 1's persisted feed and is not emitted as a Player 2 push, badge update,
+or toast. On a later Player 1 load, the snapshot restores the feed and unread
+badge; historical snapshot entries never replay transient toasts.
+
+## Storage delivery path
+
+Phase 2 uses a versioned JSON snapshot with validation, atomic writes, and
+rolling backups. The local networked Phase 3 server uses embedded SQLite so it
+starts with the Rust host and no separately installed database. Online
+production uses PostgreSQL through configuration such as `DATABASE_URL`; the
+game-domain model and persistence boundary, not a Phase 2 save import, bridge
+the two.
+
+Use relational state for players, memberships, modules, motherships, vessels,
+asteroids, notifications, and AOI queries. Flexible typed payloads may use JSON
+storage within that relational model. Each accepted action's transaction
+verifies current state, appends its per-system event sequence, updates
+materialized state, creates notifications, and records an outbox entry. DuckDB
+is appropriate later for event/balance analysis, not the authoritative gameplay
+store.
 
 ## Interest management (AOI)
 

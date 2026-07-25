@@ -148,39 +148,52 @@ Goal: game state survives a restart, and the stubbed numbers become real.
 Balancing lives in this phase because progression tuning is only meaningful once
 progress persists — the reason P1.7 moved here.
 
-- [ ] **P2.1 — Save/load via a Tauri command.** Serialize `ServerState` to a
-      local file; load on startup in place of the seeded new-player state
-      (falling back to the seeds when no save exists). Loading rides the
-      existing loader phase and its resilience rules — a missing or corrupt save
-      must never block game start. No server involved; SERVER.md frames the save
-      file as a local prototype of the phase-3 snapshot. `ServerState`'s data
-      structs already derive `Deserialize` (good prep), but `outbox`,
-      `notified_arrivals`, `resources_dirty`, and `aoi` are runtime/session
-      state, not persisted progress — they need `#[serde(skip)]` (or an
-      equivalent reconstruct-on-load default) so a save doesn't serialize stale
-      in-flight pushes or window state. Call `ServerState::validate_timestamps`
-      before accepting a deserialized save so wrapped/corrupt timer pairs fall
-      through to the existing new-player recovery path.
+Detailed decisions, rationale, and implementation edge cases for this phase live
+in [PHASE_2_PLANNING.md](PHASE_2_PLANNING.md). Keep task status and completion
+notes here; keep the durable/server contracts in `SERVER.md`.
+
 - [ ] **P2.2 — Notification message structure.** Switch
-      `NotificationData.message` from server-composed English prose to a `kind`
-      enum + structured params, with the client composing the display string
-      from a lookup table (structure only — no additional languages shipped yet,
-      just unblocked for later). Must land before P2.3 freezes the save format
-      and before P3.1 freezes the socket protocol, since `message` is currently
-      baked into both. (CR6.4)
-- [ ] **P2.3 — Versioned save format.** Version field + migration path so later
-      phases (and the phase-3 server snapshot format) can evolve without wiping
-      saves. Needs P2.1, P2.2.
-- [ ] **P2.4 — Autosave.** Persist without user action: save at scheduler settle
-      boundaries and on exit, with atomic write-temp-then-rename so a crash
-      never corrupts the save. Needs P2.1.
-- [ ] **P2.5 — Offline catch-up.** On load, settle everything that came due
-      while the app was closed through the same settlement paths the scheduler
-      uses live: production accrual is already lazy, but build completions,
-      vessel arrivals/returns, and mine-outs must settle in timestamp order and
-      emit their notifications. Needs P2.1. Mind P1.19: a long-offline catch-up
-      emitting many notifications at once could flash more toasts than
-      `MAX_ACTIVE_TOASTS` on load — throttle or batch them.
+      `NotificationData.message` from server-composed English prose to a closed,
+      typed `kind` union with structured parameters and `sourceEventId`; the
+      client renders it from a lookup table. Give every authorized action and
+      time-based transition an immutable action/event ID, and make notifications
+      durable per-player feed entries instead of session-global messages. This
+      supplies idempotency/deduplication state independently of the bounded feed
+      and routes live pushes only to their intended player. Must land before the
+      first save format and P3.1's socket protocol. (CR6.4)
+- [ ] **P2.1 — Multi-account local-system save/load.** A version-1 JSON
+      `SaveEnvelope` persists the durable `PersistentSystem` domain model — not
+      the mixed runtime `ServerState` or AOI-filtered `GameStateData`. One local
+      system holds multiple developer players; startup `--player <name>` and
+      development-only `--time-scale <factor>` arguments replace the current
+      hardcoded identity/environment scale (a trimmed, case-insensitive missing
+      name atomically creates a new profile). New profiles receive a
+      deterministically seeded, in-bounds mothership spawn clear of every ship
+      and asteroid. Only one Tauri process may own the save at a time; all
+      players' progression advances system-wide. Loading rides the existing
+      loader and falls back to a fresh system only after recovery exhausts its
+      valid saves. Needs P2.2.
+- [ ] **P2.3 — Versioned save format + validation.** The first P2.1 file already
+      carries a schema version; this task adds the version-specific
+      DTO/migration harness and fixture coverage so later phases can evolve it
+      without wiping development progress. Only an explicit migration repairs a
+      known older shape; invalid references, catalog data, geometry, counters,
+      or timer/action relationships reject that generation rather than silently
+      deleting data. Needs P2.1, P2.2.
+- [ ] **P2.4 — Autosave + recovery.** Persist snapshots at scheduler/command
+      settle boundaries and on exit without holding the gameplay lock for I/O.
+      Atomic temp-write/flush/rename prevents partial saves; retain five
+      complete rolling backup generations, automatically load the newest valid
+      one after a failure, preserve rejected files for diagnosis, and support
+      the development-only `--restore-backup <1..5>` switch. Needs P2.1, P2.3.
+- [ ] **P2.5 — Deterministic offline catch-up.** Replace broad `settle(now)`
+      recovery with system-wide `advance_to(now)`: process earliest deadlines in
+      stable timestamp/action-ID order (production, modules, crew, outbound
+      arrivals, mining, returns/cargo, daily rollover), producing each affected
+      player's durable feed entries even while another account is selected.
+      Snapshot backlog updates Mail/badges but never replays toasts. Cap
+      recovery at 24 hours; discard/re-anchor excess time so restarts cannot
+      bypass the cap. Needs P2.1, P2.2, P2.3.
 - [ ] **P2.6 — Balancing pass.** Replace the stubs with real curves: the
       `scale_for_level`/`scaleForLevel` doubling, `MINE_UNITS_PER_HOUR`,
       asteroid deposit bands and per-window density, and the P1.10 crew numbers
@@ -197,7 +210,7 @@ progress persists — the reason P1.7 moved here.
       less over the course of a day and reset at a fixed point — the README's
       alternative to hard energy caps. Local implementation first; the server
       re-verifies it in phase 3. Mining is the first action worth damping. Needs
-      P2.1; lands naturally alongside P2.6.
+      P2.5; lands naturally alongside P2.6.
 - [ ] **P2.8 — Crew understaffing UX pass** _(split from P1.10, playtest
       feedback, July 2026)_. Richer understaffing UX — per-module indicators
       (today's single ship-wide output-percent badge doesn't say which modules
