@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use super::crew::PendingHire;
 use super::deals::DealData;
-use super::modules::ModuleData;
+use super::modules::{catalog_entry, module_anchor_at, ModuleData, COMMAND_MODULE_TYPE};
 use super::resources::ResourceCounts;
-use super::state::{NotificationData, PlayerIdentity, ServerState};
-use super::world::{AsteroidData, MothershipData, VesselMoveEventData};
+use super::state::{NotificationData, PlayerIdentity, ServerState, MAP_COLS, MAP_ROWS};
+use super::world::{AsteroidData, MothershipData, VesselMoveEventData, ASTEROID_TIERS};
 
 pub(super) const SAVE_SCHEMA_VERSION: u32 = 1;
 const BACKUP_COUNT: usize = 5;
@@ -24,6 +24,14 @@ pub(super) struct SaveEnvelopeV1 {
     pub schema_version: u32,
     pub saved_at: u64,
     pub system: PersistentSystemV1,
+}
+
+/// The dispatch-only portion of an envelope. Read this before any versioned
+/// DTO so an old save can only enter through its explicit migration path.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveEnvelopeHeader {
+    schema_version: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -88,13 +96,18 @@ impl PersistentSystemV1 {
         if self.players.is_empty() {
             return Err("persistent system has no players".to_string());
         }
+        let mut player_ids = HashSet::new();
         for (key, player) in &self.players {
             if key != &normalize_player_name(&player.identity.name) {
                 return Err(format!("player key {key:?} does not match its identity"));
             }
-            if player.identity.name.trim().is_empty() {
+            if player.identity.name.trim().is_empty() || player.identity.id.trim().is_empty() {
                 return Err("player identity is empty".to_string());
             }
+            if !player_ids.insert(&player.identity.id) {
+                return Err(format!("duplicate player id {:?}", player.identity.id));
+            }
+            validate_player(player)?;
             for (module_id, module) in &player.modules {
                 if module_id != &module.module_id || module.owner_id != player.identity.id {
                     return Err(format!("invalid module entry {module_id:?}"));
@@ -102,17 +115,182 @@ impl PersistentSystemV1 {
             }
         }
         for (id, ship) in &self.world.motherships {
+            let Some(owner) = self
+                .players
+                .values()
+                .find(|p| p.identity.id == ship.owner_id)
+            else {
+                return Err(format!("invalid mothership entry {id:?}"));
+            };
             if id != &ship.mothership_id
-                || !self
-                    .players
-                    .values()
-                    .any(|p| p.identity.id == ship.owner_id)
+                || ship.owner_name != owner.identity.name
+                || ship.mothership_id != ship.owner_id
+                || ship.ship_type != "mothership-1"
+                || !in_bounds(ship.col, ship.row, ship.span)
+                || ship.span != 4
             {
                 return Err(format!("invalid mothership entry {id:?}"));
             }
         }
+        for player in self.players.values() {
+            if !self.world.motherships.contains_key(&player.identity.id) {
+                return Err(format!("player {:?} has no mothership", player.identity.id));
+            }
+        }
+        validate_world(&self.world, &self.players)?;
         Ok(())
     }
+}
+
+fn validate_player(player: &PersistentPlayerV1) -> Result<(), String> {
+    let mut rooms = HashSet::new();
+    let mut notification_ids = HashSet::new();
+    for module in player.modules.values() {
+        let Some(_) = catalog_entry(&module.module_type) else {
+            return Err(format!("unknown module type {:?}", module.module_type));
+        };
+        if module.owner_name != player.identity.name
+            || module.level == 0 && module.pending.is_none()
+            || module.pending.as_ref().is_some_and(|pending| {
+                pending.level <= module.level
+                    || pending.action_id.is_empty()
+                    || pending.completes_at < pending.dispatched_at
+            })
+            || module_anchor_at(module.col, module.row) != Some((module.col, module.row))
+            || !rooms.insert((module.col, module.row))
+        {
+            return Err(format!("invalid module {:?}", module.module_id));
+        }
+    }
+    let command_modules = player
+        .modules
+        .values()
+        .filter(|module| module.module_type == COMMAND_MODULE_TYPE)
+        .count();
+    if command_modules != 1 {
+        return Err(format!(
+            "player {:?} has {command_modules} command modules",
+            player.identity.id
+        ));
+    }
+    if let Some(pending) = &player.pending_hire {
+        if pending.action_id.is_empty() || pending.completes_at < pending.dispatched_at {
+            return Err("invalid pending crew hire".to_string());
+        }
+    }
+    for notification in &player.notifications {
+        if notification.notification_id.is_empty()
+            || notification.source_event_id.is_empty()
+            || !notification_ids.insert(&notification.notification_id)
+        {
+            return Err("invalid notification entry".to_string());
+        }
+    }
+    let mut deal_slots = HashSet::new();
+    let mut deal_ids = HashSet::new();
+    for deal in &player.deals {
+        if deal.deal_id.is_empty()
+            || !deal_ids.insert(&deal.deal_id)
+            || !deal_slots.insert(deal.slot)
+            || deal.get.amount == 0
+            || deal
+                .give
+                .as_ref()
+                .is_some_and(|give| give.amount == 0 || give.kind == deal.get.kind)
+        {
+            return Err(format!("invalid deal {:?}", deal.deal_id));
+        }
+    }
+    Ok(())
+}
+
+fn validate_world(
+    world: &PersistentWorldV1,
+    players: &BTreeMap<String, PersistentPlayerV1>,
+) -> Result<(), String> {
+    for asteroid in world.asteroids.values() {
+        let Some(tier) = ASTEROID_TIERS
+            .iter()
+            .find(|tier| tier.tier == asteroid.tier)
+        else {
+            return Err(format!("unknown asteroid tier {:?}", asteroid.tier));
+        };
+        if asteroid.asteroid_id.is_empty()
+            || asteroid.span != tier.span
+            || !in_bounds(asteroid.col, asteroid.row, asteroid.span)
+            || asteroid.total == 0
+            || asteroid.remaining == 0
+            || asteroid.remaining > asteroid.total
+        {
+            return Err(format!("invalid asteroid {:?}", asteroid.asteroid_id));
+        }
+        if let Some(mining) = &asteroid.mining {
+            let Some(vessel) = world.vessels.get(&mining.vessel_id) else {
+                return Err(format!(
+                    "mining asteroid {:?} has no vessel",
+                    asteroid.asteroid_id
+                ));
+            };
+            if mining.action_id != vessel.event_id
+                || vessel.mining_asteroid_id.as_deref() != Some(&asteroid.asteroid_id)
+                || mining.completes_at < mining.started_at
+            {
+                return Err(format!("invalid mining job for {:?}", asteroid.asteroid_id));
+            }
+        }
+    }
+    for vessel in world.vessels.values() {
+        let Some(owner) = players
+            .values()
+            .find(|player| player.identity.id == vessel.owner_id)
+        else {
+            return Err(format!("vessel {:?} has no owner", vessel.vessel_id));
+        };
+        if vessel.event_id.is_empty()
+            || vessel.vessel_id.is_empty()
+            || vessel.owner_name != owner.identity.name
+            || vessel.mothership_id != vessel.owner_id
+            || !world.motherships.contains_key(&vessel.mothership_id)
+            || vessel.vessel_type != "vessel-1"
+            || !vessel.speed.is_finite()
+            || vessel.speed <= 0.0
+            || !vessel.src_col.is_finite()
+            || !vessel.src_row.is_finite()
+            || !in_bounds(vessel.dest_col, vessel.dest_row, 1)
+            || vessel.arrival_at < vessel.dispatched_at
+            || vessel.returning && vessel.mining_asteroid_id.is_some()
+            || vessel
+                .mining_asteroid_id
+                .as_ref()
+                .is_some_and(|id| !world.asteroids.contains_key(id))
+        {
+            return Err(format!("invalid vessel {:?}", vessel.vessel_id));
+        }
+    }
+    for ship in world.motherships.values() {
+        for asteroid in world.asteroids.values() {
+            if footprints_overlap(
+                (ship.col, ship.row, ship.span),
+                (asteroid.col, asteroid.row, asteroid.span),
+            ) {
+                return Err("mothership overlaps asteroid".to_string());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn in_bounds(col: i64, row: i64, span: i64) -> bool {
+    span > 0 && col >= 0 && row >= 0 && col + span <= MAP_COLS && row + span <= MAP_ROWS
+}
+
+fn footprints_overlap(a: (i64, i64, i64), b: (i64, i64, i64)) -> bool {
+    let (a_col, a_row, a_span) = a;
+    let (b_col, b_row, b_span) = b;
+    a_col < b_col + b_span
+        && b_col < a_col + a_span
+        && a_row < b_row + b_span
+        && b_row < a_row + a_span
 }
 
 impl PersistentPlayerV1 {
@@ -220,16 +398,7 @@ impl SaveStore {
     fn read_envelope(&self, path: &Path) -> Result<SaveEnvelopeV1, String> {
         let text =
             fs::read_to_string(path).map_err(|err| format!("read {}: {err}", path.display()))?;
-        let envelope: SaveEnvelopeV1 = serde_json::from_str(&text)
-            .map_err(|err| format!("parse {}: {err}", path.display()))?;
-        if envelope.schema_version != SAVE_SCHEMA_VERSION {
-            return Err(format!(
-                "unsupported save schema version {}",
-                envelope.schema_version
-            ));
-        }
-        envelope.system.validate()?;
-        Ok(envelope)
+        decode_save(&text).map_err(|err| format!("{}: {err}", path.display()))
     }
 
     fn rotate_backups(&self) -> Result<(), String> {
@@ -255,6 +424,24 @@ impl SaveStore {
 
     fn backup_path(&self, index: usize) -> PathBuf {
         self.path.with_extension(format!("json.bak{index}"))
+    }
+}
+
+/// Decode one historical save shape and migrate it to the current DTO. There
+/// are no pre-v1 saves: adding a fictional migration would violate the rule
+/// that only a known historical shape may be repaired. Future migrations are
+/// appended here as explicit `vN -> vN+1` transformations.
+fn decode_save(text: &str) -> Result<SaveEnvelopeV1, String> {
+    let header: SaveEnvelopeHeader =
+        serde_json::from_str(text).map_err(|err| format!("parse save envelope header: {err}"))?;
+    match header.schema_version {
+        SAVE_SCHEMA_VERSION => {
+            let envelope: SaveEnvelopeV1 =
+                serde_json::from_str(text).map_err(|err| format!("parse v1 save: {err}"))?;
+            envelope.system.validate()?;
+            Ok(envelope)
+        }
+        version => Err(format!("unsupported save schema version {version}")),
     }
 }
 
@@ -291,6 +478,54 @@ mod tests {
             saved_at,
             system: state.persistent_system(),
         }
+    }
+
+    #[test]
+    fn decodes_the_hand_authored_current_version_fixture() {
+        let envelope =
+            decode_save(include_str!("fixtures/save-v1.json")).expect("decode v1 fixture");
+        assert_eq!(envelope.system.players.len(), 1);
+        assert_eq!(envelope.system.world.motherships.len(), 1);
+    }
+
+    #[test]
+    fn rejects_unknown_future_versions_without_guessing_a_migration() {
+        let error = decode_save(include_str!("fixtures/save-future.json")).unwrap_err();
+        assert!(
+            error.contains("unsupported save schema version 99"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_references_and_timer_relationships() {
+        let mut invalid_owner = envelope(1);
+        invalid_owner
+            .system
+            .world
+            .motherships
+            .get_mut("player-1")
+            .expect("starter mothership")
+            .owner_id = "missing-player".to_string();
+        assert!(invalid_owner.system.validate().is_err());
+
+        let mut invalid_timer = envelope(1);
+        let player = invalid_timer
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player");
+        player
+            .modules
+            .get_mut("module-command")
+            .expect("command")
+            .pending = Some(super::super::modules::ModulePendingBuild {
+            level: 2,
+            action_id: "event-1".to_string(),
+            dispatched_at: 2,
+            completes_at: 1,
+        });
+        assert!(invalid_timer.system.validate().is_err());
     }
 
     #[test]

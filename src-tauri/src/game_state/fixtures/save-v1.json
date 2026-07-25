@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "savedAt": 100,
+  "system": {
+    "systemId": "local-system-1",
+    "systemSeed": 1,
+    "stateRevision": 0,
+    "world": {
+      "motherships": {
+        "player-fixture": {
+          "mothershipId": "player-fixture",
+          "ownerId": "player-fixture",
+          "ownerName": "Fixture Player",
+          "shipType": "mothership-1",
+          "damaged": false,
+          "col": 100,
+          "row": 100,
+          "span": 4
+        }
+      },
+      "vessels": {},
+      "asteroids": {}
+    },
+    "players": {
+      "fixture player": {
+        "identity": { "id": "player-fixture", "name": "Fixture Player" },
+        "resources": {
+          "construction": 0,
+          "highTech": 0,
+          "biological": 0,
+          "fuel": 0,
+          "credits": 0
+        },
+        "lastProductionAt": 100,
+        "modules": {
+          "module-command": {
+            "moduleId": "module-command",
+            "ownerId": "player-fixture",
+            "ownerName": "Fixture Player",
+            "moduleType": "command",
+            "col": 18,
+            "row": 18,
+            "level": 1,
+            "pending": null
+          }
+        },
+        "crew": 0,
+        "pendingHire": null,
+        "notifications": [],
+        "deals": [],
+        "dealsDayIndex": 0,
+        "dealRefreshesUsed": 0,
+        "nextModuleSeq": 0,
+        "nextVesselSeq": 0,
+        "nextEventSeq": 0,
+        "nextNotificationSeq": 0
+      }
+    }
+  }
+}

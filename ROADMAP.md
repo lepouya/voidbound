@@ -162,13 +162,11 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       recovery. Still open: exhaustive version migrations/validation → P2.3;
       shutdown and recovery diagnostics hardening → P2.4; deterministic offline
       replay → P2.5.
-- [ ] **P2.3 — Versioned save format + validation.** The first P2.1 file already
-      carries a schema version; this task adds the version-specific
-      DTO/migration harness and fixture coverage so later phases can evolve it
-      without wiping development progress. Only an explicit migration repairs a
-      known older shape; invalid references, catalog data, geometry, counters,
-      or timer/action relationships reject that generation rather than silently
-      deleting data. Needs P2.1, P2.2.
+- [x] **P2.3 — Versioned save format + validation.** Version-dispatched save
+      decoding, explicit future-version rejection, semantic validation, and
+      hand-authored fixtures protect local-system snapshots. Still open: the
+      first real schema migration when a format changes (no task yet); P3.3's
+      snapshot schema builds on this boundary.
 - [ ] **P2.4 — Autosave + recovery.** Persist snapshots at scheduler/command
       settle boundaries and on exit without holding the gameplay lock for I/O.
       Atomic temp-write/flush/rename prevents partial saves; retain five
