@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{copy, BufReader, Write};
 use std::path::{Path, PathBuf};
 
 use fs2::FileExt;
@@ -354,6 +354,7 @@ impl SaveStore {
                     "rejecting primary save {}: {primary_error}",
                     self.path.display()
                 );
+                self.quarantine_rejected(&self.path)?;
                 for index in 1..=BACKUP_COUNT {
                     let backup = self.backup_path(index);
                     if !backup.exists() {
@@ -364,7 +365,10 @@ impl SaveStore {
                             eprintln!("recovering local system from backup {index}");
                             return Ok(Some(envelope));
                         }
-                        Err(error) => eprintln!("rejecting backup {index}: {error}"),
+                        Err(error) => {
+                            eprintln!("rejecting backup {index}: {error}");
+                            self.quarantine_rejected(&backup)?;
+                        }
                     }
                 }
                 Err(format!(
@@ -389,9 +393,18 @@ impl SaveStore {
             .map_err(|err| format!("serialize local-system save: {err}"))?;
         let temporary = self.path.with_extension("json.tmp");
         write_synced(&temporary, &bytes)?;
-        self.rotate_backups()?;
-        fs::rename(&temporary, &self.path)
-            .map_err(|err| format!("replace local-system save: {err}"))?;
+        if self.path.exists() {
+            let backup_temporary = self.path.with_extension("json.bak1.tmp");
+            copy_synced(&self.path, &backup_temporary)?;
+            self.rotate_backups()?;
+            replace_file(
+                &backup_temporary,
+                &self.backup_path(1),
+                "install primary backup",
+            )?;
+        }
+        replace_file(&temporary, &self.path, "replace local-system save")?;
+        sync_parent_directory(&self.path);
         Ok(())
     }
 
@@ -402,21 +415,11 @@ impl SaveStore {
     }
 
     fn rotate_backups(&self) -> Result<(), String> {
-        for index in (1..=BACKUP_COUNT).rev() {
+        for index in (2..=BACKUP_COUNT).rev() {
             let destination = self.backup_path(index);
-            let source = if index == 1 {
-                self.path.clone()
-            } else {
-                self.backup_path(index - 1)
-            };
+            let source = self.backup_path(index - 1);
             if source.exists() {
-                if destination.exists() {
-                    fs::remove_file(&destination).map_err(|err| {
-                        format!("remove old backup {}: {err}", destination.display())
-                    })?;
-                }
-                fs::rename(&source, &destination)
-                    .map_err(|err| format!("rotate backup {}: {err}", destination.display()))?;
+                replace_file(&source, &destination, "rotate backup")?;
             }
         }
         Ok(())
@@ -424,6 +427,38 @@ impl SaveStore {
 
     fn backup_path(&self, index: usize) -> PathBuf {
         self.path.with_extension(format!("json.bak{index}"))
+    }
+
+    fn quarantine_rejected(&self, path: &Path) -> Result<(), String> {
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| format!("rejected save has no UTF-8 filename: {}", path.display()))?;
+        let parent = path
+            .parent()
+            .ok_or_else(|| format!("rejected save has no parent: {}", path.display()))?;
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|error| format!("timestamp rejected save: {error}"))?
+            .as_nanos();
+        for suffix in 0..1_000_u32 {
+            let rejected = parent.join(format!("{file_name}.rejected-{stamp}-{suffix}"));
+            if !rejected.exists() {
+                fs::rename(path, &rejected).map_err(|error| {
+                    format!(
+                        "preserve rejected save {} as {}: {error}",
+                        path.display(),
+                        rejected.display()
+                    )
+                })?;
+                eprintln!("preserved rejected save as {}", rejected.display());
+                return Ok(());
+            }
+        }
+        Err(format!(
+            "could not find a unique rejected-save path for {}",
+            path.display()
+        ))
     }
 }
 
@@ -451,6 +486,41 @@ fn write_synced(path: &Path, bytes: &[u8]) -> Result<(), String> {
         .map_err(|err| format!("write temporary save: {err}"))?;
     file.sync_all()
         .map_err(|err| format!("flush temporary save: {err}"))
+}
+
+fn copy_synced(source: &Path, destination: &Path) -> Result<(), String> {
+    let source = File::open(source)
+        .map_err(|error| format!("open primary save {}: {error}", source.display()))?;
+    let mut destination = File::create(destination).map_err(|error| {
+        format!(
+            "create temporary primary backup {}: {error}",
+            destination.display()
+        )
+    })?;
+    copy(&mut BufReader::new(source), &mut destination)
+        .map_err(|error| format!("copy primary save to temporary backup: {error}"))?;
+    destination
+        .sync_all()
+        .map_err(|error| format!("flush temporary primary backup: {error}"))
+}
+
+fn replace_file(source: &Path, destination: &Path, operation: &str) -> Result<(), String> {
+    fs::rename(source, destination)
+        .map_err(|error| format!("{operation} {}: {error}", destination.display()))
+}
+
+/// Directory syncing is not available on every supported platform. A file
+/// replacement is still atomic when both paths live in this directory; where
+/// the OS permits opening it, syncing the directory also persists the rename.
+fn sync_parent_directory(path: &Path) {
+    let Some(parent) = path.parent() else {
+        return;
+    };
+    if let Ok(directory) = File::open(parent) {
+        if let Err(error) = directory.sync_all() {
+            eprintln!("sync save directory {}: {error}", parent.display());
+        }
+    }
 }
 
 #[cfg(test)]
@@ -544,6 +614,79 @@ mod tests {
 
         let recovered = store.load().expect("recover backup").expect("a backup");
         assert_eq!(recovered.saved_at, 1);
+        drop(store);
+        fs::remove_dir_all(directory).expect("remove test directory");
+    }
+
+    #[test]
+    fn retains_five_complete_backup_generations_before_replacing_primary() {
+        let directory = test_path();
+        let path = directory.join("local-system.json");
+        let store = SaveStore::open(path.clone()).expect("open test store");
+        for saved_at in 1..=6 {
+            store.save(&envelope(saved_at)).expect("save generation");
+        }
+
+        assert_eq!(store.read_envelope(&path).expect("primary").saved_at, 6);
+        for (index, saved_at) in (1..=5).zip((1..=5).rev()) {
+            assert_eq!(
+                store
+                    .read_envelope(&store.backup_path(index))
+                    .expect("complete backup")
+                    .saved_at,
+                saved_at
+            );
+        }
+
+        drop(store);
+        fs::remove_dir_all(directory).expect("remove test directory");
+    }
+
+    #[test]
+    fn skips_rejected_generations_and_preserves_them_for_diagnosis() {
+        let directory = test_path();
+        let path = directory.join("local-system.json");
+        let store = SaveStore::open(path.clone()).expect("open test store");
+        store.save(&envelope(1)).expect("first save");
+        store.save(&envelope(2)).expect("second save");
+        store.save(&envelope(3)).expect("third save");
+        fs::write(&path, "not json").expect("corrupt primary");
+        fs::write(store.backup_path(1), "also not json").expect("corrupt newest backup");
+
+        let recovered = store.load().expect("recover backup").expect("a backup");
+        assert_eq!(recovered.saved_at, 1);
+        let rejected = fs::read_dir(&directory)
+            .expect("read save directory")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains(".rejected-"))
+            .count();
+        assert_eq!(rejected, 2);
+
+        drop(store);
+        fs::remove_dir_all(directory).expect("remove test directory");
+    }
+
+    #[test]
+    fn restore_backup_leaves_the_current_primary_in_the_backup_set() {
+        let directory = test_path();
+        let path = directory.join("local-system.json");
+        let store = SaveStore::open(path.clone()).expect("open test store");
+        store.save(&envelope(1)).expect("first save");
+        store.save(&envelope(2)).expect("second save");
+        store.save(&envelope(3)).expect("third save");
+
+        let restored = store.restore_backup(2).expect("restore selected backup");
+        assert_eq!(restored.saved_at, 1);
+        store.save(&restored).expect("write restored primary");
+        assert_eq!(store.read_envelope(&path).expect("primary").saved_at, 1);
+        assert_eq!(
+            store
+                .read_envelope(&store.backup_path(1))
+                .expect("previous primary backup")
+                .saved_at,
+            3
+        );
+
         drop(store);
         fs::remove_dir_all(directory).expect("remove test directory");
     }

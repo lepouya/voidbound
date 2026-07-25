@@ -7,7 +7,7 @@ use tauri_plugin_cli::{CliExt, Matches};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_cli::init())
         .setup(|app| {
@@ -51,8 +51,13 @@ pub fn run() {
             game_state::request_refresh_deals,
             game_state::mark_notifications_read
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building Tauri application");
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { .. } = event {
+            app_handle.state::<GameServer>().persist_on_exit();
+        }
+    });
 }
 
 struct StartupConfig {

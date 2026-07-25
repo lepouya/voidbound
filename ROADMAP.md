@@ -167,12 +167,11 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       hand-authored fixtures protect local-system snapshots. Still open: the
       first real schema migration when a format changes (no task yet); P3.3's
       snapshot schema builds on this boundary.
-- [ ] **P2.4 — Autosave + recovery.** Persist snapshots at scheduler/command
-      settle boundaries and on exit without holding the gameplay lock for I/O.
-      Atomic temp-write/flush/rename prevents partial saves; retain five
-      complete rolling backup generations, automatically load the newest valid
-      one after a failure, preserve rejected files for diagnosis, and support
-      the development-only `--restore-backup <1..5>` switch. Needs P2.1, P2.3.
+- [x] **P2.4 — Autosave + recovery.** Revision-aware atomic snapshots at
+      command/scheduler boundaries plus a best-effort exit flush; five rolling
+      backups, rejected-file preservation, automatic fallback, and
+      `--restore-backup <1..5>`. Still open: deterministic offline catch-up →
+      P2.5.
 - [ ] **P2.5 — Deterministic offline catch-up.** Replace broad `settle(now)`
       recovery with system-wide `advance_to(now)`: process earliest deadlines in
       stable timestamp/action-ID order (production, modules, crew, outbound
