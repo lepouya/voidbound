@@ -45,6 +45,7 @@ impl GameServer {
                 }
             },
         };
+        let saved_at = loaded.as_ref().map(|envelope| envelope.saved_at);
         let is_fresh_system = loaded.is_none();
         let mut state = match loaded {
             Some(envelope) => {
@@ -74,6 +75,14 @@ impl GameServer {
                 state.parked_players.remove("player 1");
                 state.motherships.remove("player-1");
             }
+        }
+        if let Some(saved_at) = saved_at {
+            state.recover_to(saved_at, now_ms);
+            // Recovery is reflected by the initial snapshot. Never emit its
+            // historical pushes into a newly-created webview (which would
+            // replay a backlog of toasts).
+            state.outbox.clear();
+            state.resources_dirty = false;
         }
         let server = Self {
             state: Mutex::new(state),
@@ -166,8 +175,7 @@ pub fn run_scheduler(app: tauri::AppHandle) {
     let server = app.state::<GameServer>();
     let mut state = server.state.lock().unwrap_or_else(PoisonError::into_inner);
     loop {
-        state.settle_parked_players(now_ms());
-        state.settle(now_ms());
+        state.advance_to(now_ms());
         let pushes = state.drain_pushes();
         if !pushes.is_empty() {
             let revision = state.advance_revision();

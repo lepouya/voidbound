@@ -530,13 +530,11 @@ impl ServerState {
         system
     }
 
-    /// While one local profile is selected, the single authoritative process
-    /// still advances every other profile in the same system. Their resulting
-    /// notifications remain durable in their own feeds, but their runtime
-    /// pushes are deliberately discarded: the one active webview must never
-    /// receive another profile's badge, toast, or entity update.
-    pub(super) fn settle_parked_players(&mut self, now_ms: u64) {
-        let selected_identity = self.player.clone();
+    /// Run a player-local operation over every durable profile, in stable
+    /// name order. World tables remain shared; world helpers filter to the
+    /// active profile's owner before applying player-owned effects.
+    fn for_each_profile(&mut self, mut operation: impl FnMut(&mut Self)) {
+        operation(self);
         let selected_profile = PersistentPlayerV1::from_state(self);
         let keys: Vec<String> = self.parked_players.keys().cloned().collect();
         for key in keys {
@@ -544,14 +542,11 @@ impl ServerState {
                 continue;
             };
             self.load_active_profile(profile);
-            self.settle(now_ms);
+            operation(self);
             let settled = PersistentPlayerV1::from_state(self);
             self.parked_players.insert(key, settled);
-            self.outbox.clear();
-            self.resources_dirty = false;
         }
         self.load_active_profile(selected_profile);
-        self.player = selected_identity;
     }
 
     pub(super) fn create_player_profile(
@@ -719,13 +714,17 @@ impl ServerState {
         });
     }
 
-    /// Append a notification to the feed (dropping the oldest past the cap)
-    /// and queue its live push.
+    /// Allocate an immutable, system-wide action/event ID. The sequence is
+    /// durable per player, so the owner prefix is required to keep IDs unique
+    /// across the local multi-account system and to make P2.5 tie-breaking
+    /// unambiguous.
     pub(super) fn next_event_id(&mut self) -> String {
         self.next_event_seq = self.next_event_seq.saturating_add(1);
-        format!("event-{}", self.next_event_seq)
+        format!("{}:event-{}", self.player.id, self.next_event_seq)
     }
 
+    /// Append a notification to the feed (dropping the oldest past the cap)
+    /// and queue its live push.
     pub(super) fn push_notification(
         &mut self,
         source_event_id: String,
@@ -749,23 +748,82 @@ impl ServerState {
         self.queue_push(ServerPush::Notification(notification));
     }
 
-    /// Settle everything due at now_ms — production ticks, module build
-    /// completions, mining completions, vessel arrivals — queueing the
-    /// corresponding pushes. The scheduler thread's whole job; commands
-    /// settle the same way piecemeal through their own entry points. Mining
-    /// settles before arrivals so an auto-return created long ago can dock
-    /// (and deposit its cargo) in the same pass.
+    /// Deterministically advance the complete local system through `now_ms`.
+    /// Production is accrued once for each interval between meaningful state
+    /// transitions; replaying every 5-second live cadence during a day-long
+    /// startup recovery would do identical work thousands of times.
+    pub(super) fn advance_to(&mut self, now_ms: u64) {
+        loop {
+            let mut next = u64::MAX;
+            self.for_each_profile(|state| {
+                next = next.min(state.next_transition_deadline());
+            });
+            if next > now_ms {
+                self.advance_at(now_ms);
+                break;
+            }
+            self.advance_at(next);
+        }
+    }
+
+    fn advance_at(&mut self, at_ms: u64) {
+        // The documented P2.5 causal order. Player-local passes are stable
+        // because profiles live in a BTreeMap; entity helpers sort their IDs.
+        self.for_each_profile(|state| state.accrue_production_until(at_ms));
+        self.for_each_profile(|state| state.settle_modules(at_ms));
+        self.for_each_profile(|state| state.settle_hire(at_ms));
+        self.for_each_profile(|state| state.settle_vessel_arrivals_kind(at_ms, false));
+        self.for_each_profile(|state| state.settle_mining(at_ms));
+        self.for_each_profile(|state| state.settle_vessel_arrivals_kind(at_ms, true));
+        self.for_each_profile(|state| state.settle_deals(at_ms));
+    }
+
+    /// Startup-only recovery. The saved envelope timestamp controls the cap,
+    /// not any individual timer cursor, so restarting repeatedly cannot turn
+    /// a long absence into repeated 24-hour grants.
+    pub(super) fn recover_to(&mut self, saved_at: u64, now_ms: u64) {
+        const OFFLINE_CAP_MS: u64 = 24 * 60 * 60 * 1000;
+        let capped_at = saved_at.saturating_add(OFFLINE_CAP_MS).min(now_ms);
+        self.advance_to(capped_at);
+        if now_ms <= capped_at {
+            return;
+        }
+        let skipped = now_ms - capped_at;
+        eprintln!("offline recovery capped at 24 hours; re-anchoring {skipped} ms");
+        self.for_each_profile(|state| {
+            state.last_production_at = now_ms;
+            if let Some(pending) = &mut state.pending_hire {
+                pending.dispatched_at = pending.dispatched_at.saturating_add(skipped);
+                pending.completes_at = pending.completes_at.saturating_add(skipped);
+            }
+            for module in state.modules.values_mut() {
+                if let Some(pending) = &mut module.pending {
+                    pending.dispatched_at = pending.dispatched_at.saturating_add(skipped);
+                    pending.completes_at = pending.completes_at.saturating_add(skipped);
+                }
+            }
+            state.deals_day_index = utc_day_index(now_ms);
+            state.deal_refreshes_used = 0;
+            state.regenerate_deals(state.deals_day_index, 0, true);
+        });
+        for vessel in self.vessels.values_mut() {
+            if !vessel.arrival_settled {
+                vessel.dispatched_at = vessel.dispatched_at.saturating_add(skipped);
+                vessel.arrival_at = vessel.arrival_at.saturating_add(skipped);
+            }
+        }
+        for asteroid in self.asteroids.values_mut() {
+            if let Some(mining) = &mut asteroid.mining {
+                mining.started_at = mining.started_at.saturating_add(skipped);
+                mining.completes_at = mining.completes_at.saturating_add(skipped);
+            }
+        }
+    }
+
+    /// Compatibility name for command paths and older tests. Both live and
+    /// recovery settlement now share the deterministic timeline driver.
     pub(super) fn settle(&mut self, now_ms: u64) {
-        self.accrue_production(now_ms); // also settles modules
-                                        // After production: the staffing-ratio bump must never be credited
-                                        // retroactively for ticks that elapsed before the recruitment
-                                        // finished (ROADMAP P1.10).
-        self.settle_hire(now_ms);
-        self.settle_mining(now_ms);
-        self.settle_vessel_arrivals(now_ms);
-        // The daily deal reset (ROADMAP P1.12) — after production, so a
-        // rollover lands with counts already settled to now.
-        self.settle_deals(now_ms);
+        self.advance_to(now_ms);
     }
 
     /// Build the load_game_state snapshot: settle everything due first, then
@@ -803,7 +861,16 @@ impl ServerState {
     /// or until a command wakes it early because it created a nearer
     /// deadline.
     pub(super) fn next_deadline(&self) -> u64 {
-        let mut deadline = deadline_after(self.last_production_at, scaled_ms(PRODUCTION_TICK_MS));
+        let deadline = deadline_after(self.last_production_at, scaled_ms(PRODUCTION_TICK_MS));
+        deadline.min(self.next_transition_deadline())
+    }
+
+    /// The next state transition other than production. This is deliberately
+    /// separate from `next_deadline`: the live scheduler still wakes at the
+    /// production cadence, while catch-up accrues an entire unchanged interval
+    /// in one mathematically equivalent pass.
+    fn next_transition_deadline(&self) -> u64 {
+        let mut deadline = u64::MAX;
         if let Some(pending) = &self.pending_hire {
             deadline = deadline.min(pending.completes_at);
         }
@@ -1077,6 +1144,19 @@ mod tests {
         }
         assert_eq!(s.notifications.len(), MAX_NOTIFICATIONS);
         assert_eq!(s.notifications[0].source_event_id, "event-5");
+    }
+
+    #[test]
+    fn event_ids_are_unique_across_local_profiles() {
+        let mut s = ServerState::new(0);
+        let first = s.next_event_id();
+        s.create_player_profile("Player 2".to_string(), 0)
+            .expect("create second local profile");
+        let second = s.next_event_id();
+
+        assert_eq!(first, "player-1:event-1");
+        assert_ne!(first, second);
+        assert!(second.starts_with("player-"));
     }
 
     #[test]

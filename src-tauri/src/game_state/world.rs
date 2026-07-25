@@ -506,12 +506,25 @@ impl ServerState {
     /// lazily on read/mutation plus eagerly from the scheduler thread, like
     /// production accrual.
     pub(super) fn settle_vessel_arrivals(&mut self, now_ms: u64) {
-        let arrived: Vec<VesselMoveEventData> = self
+        self.settle_vessel_arrivals_kind(now_ms, false);
+        self.settle_vessel_arrivals_kind(now_ms, true);
+    }
+
+    /// Settle one deterministic class of arrivals. Offline replay processes
+    /// outbound legs before mining and return legs afterwards.
+    pub(super) fn settle_vessel_arrivals_kind(&mut self, now_ms: u64, returning: bool) {
+        let mut arrived: Vec<VesselMoveEventData> = self
             .vessels
             .values()
-            .filter(|v| now_ms >= v.arrival_at && !v.arrival_settled)
+            .filter(|v| {
+                now_ms >= v.arrival_at
+                    && !v.arrival_settled
+                    && v.returning == returning
+                    && v.owner_id == self.player.id
+            })
             .cloned()
             .collect();
+        arrived.sort_by(|a, b| a.event_id.cmp(&b.event_id));
         for vessel in arrived {
             let docked = vessel.returning;
             if docked {
@@ -824,16 +837,22 @@ impl ServerState {
     /// it really is — the same aged-event lerp recalls rely on. Runs lazily
     /// on read/mutation plus eagerly from the scheduler thread.
     pub(super) fn settle_mining(&mut self, now_ms: u64) {
-        let due: Vec<(String, AsteroidMining)> = self
+        let mut due: Vec<(String, AsteroidMining)> = self
             .asteroids
             .values()
             .filter_map(|a| {
                 a.mining
                     .clone()
                     .filter(|m| now_ms >= m.completes_at)
+                    .filter(|m| {
+                        self.vessels
+                            .get(&m.vessel_id)
+                            .is_some_and(|vessel| vessel.owner_id == self.player.id)
+                    })
                     .map(|m| (a.asteroid_id.clone(), m))
             })
             .collect();
+        due.sort_by(|a, b| a.1.action_id.cmp(&b.1.action_id));
         for (asteroid_id, mining) in due {
             // No "mining complete" notification of its own (P1.21 playtest
             // feedback, July 2026) — vessel-returned reports the harvested

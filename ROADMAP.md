@@ -172,14 +172,9 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       backups, rejected-file preservation, automatic fallback, and
       `--restore-backup <1..5>`. Still open: deterministic offline catch-up →
       P2.5.
-- [ ] **P2.5 — Deterministic offline catch-up.** Replace broad `settle(now)`
-      recovery with system-wide `advance_to(now)`: process earliest deadlines in
-      stable timestamp/action-ID order (production, modules, crew, outbound
-      arrivals, mining, returns/cargo, daily rollover), producing each affected
-      player's durable feed entries even while another account is selected.
-      Snapshot backlog updates Mail/badges but never replays toasts. Cap
-      recovery at 24 hours; discard/re-anchor excess time so restarts cannot
-      bypass the cap. Needs P2.1, P2.2, P2.3.
+- [x] **P2.5 — Deterministic offline catch-up.** System-wide, stable-order
+      recovery advances meaningful deadlines, silently fills durable feeds, and
+      caps/re-anchors offline progress at 24 hours.
 - [ ] **P2.6 — Balancing pass.** Replace the stubs with real curves: the
       `scale_for_level`/`scaleForLevel` doubling, `MINE_UNITS_PER_HOUR`,
       asteroid deposit bands and per-window density, and the P1.10 crew numbers

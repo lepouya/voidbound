@@ -378,6 +378,7 @@ impl ServerState {
                 }
             }
         }
+        settled.sort_by(|(a, _), (b, _)| a.module_id.cmp(&b.module_id));
         for (module, pending) in &settled {
             let operation = if module.level == 1 {
                 ModuleCompletionOperation::Build
@@ -417,16 +418,21 @@ impl ServerState {
     /// freezing production. Credits are earned through trade (P1.12), never
     /// produced.
     pub(super) fn accrue_production(&mut self, now_ms: u64) {
+        self.accrue_production_until(now_ms);
+        self.settle_modules(now_ms);
+    }
+
+    /// Accrue through an exact timeline boundary without applying module
+    /// completions. `advance_to` uses this before its ordered completion pass.
+    pub(super) fn accrue_production_until(&mut self, now_ms: u64) {
         if now_ms < self.last_production_at {
             self.last_production_at = now_ms;
-            self.settle_modules(now_ms);
             return;
         }
         let interval_start = self.last_production_at;
         let tick_ms = scaled_ms(PRODUCTION_TICK_MS);
         let ticks = (now_ms - interval_start) / tick_ms;
         if ticks == 0 {
-            self.settle_modules(now_ms);
             return;
         }
         self.resources_dirty = true;
@@ -488,7 +494,6 @@ impl ServerState {
             }
         }
         self.last_production_at = deadline_after(interval_start, ticks.saturating_mul(tick_ms));
-        self.settle_modules(now_ms);
     }
 
     /// Verify and execute a build request: the type must be a real,
