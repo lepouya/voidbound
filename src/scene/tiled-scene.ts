@@ -27,7 +27,7 @@ import {
   RESOURCE_KINDS,
   ResourceKind,
 } from "../state/game-state.ts";
-import { MailDialog } from "./mail-dialog.ts";
+import { formatNotification, MailDialog } from "./mail-dialog.ts";
 // Deliberate exception to the scene/ directory being domain-agnostic: the
 // shared HUD resource bar renders storage/crew caps, which are ship-module
 // derived, so the base scene class reaches into ship/'s catalog for this one
@@ -648,7 +648,7 @@ export abstract class TiledScene extends ex.Scene {
     // the initial snapshot's unread backlog never floods the toast layer, and
     // MAX_ACTIVE_TOASTS already bounds a burst gracefully.
     gameState.subscribeToNotifications((n) => {
-      if (this.isActive) this.showToast(n.message);
+      if (this.isActive) this.showToast(formatNotification(n));
     });
     const bottomRight = this.addHudGroup({
       anchor: "bottom-right",

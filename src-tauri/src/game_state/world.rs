@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use super::resources::{resource_display_name, ResourceCounts, ResourceKind};
+use super::resources::{ResourceCounts, ResourceKind};
 use super::state::{
-    deadline_after, player_identity, scaled_ms, time_scale, unscaled_ms, SeedRng, ServerPush,
-    ServerState, MAP_COLS, MAP_ROWS, MAP_TILE_PX,
+    deadline_after, player_identity, scaled_ms, time_scale, unscaled_ms, NotificationCargo,
+    NotificationPayload, SeedRng, ServerPush, ServerState, MAP_COLS, MAP_ROWS, MAP_TILE_PX,
 };
 
 /// Response to request_map_window (ROADMAP P1.13): the re-centered interest
@@ -80,6 +80,7 @@ pub struct MothershipData {
 /// placement plus the resource counts after the fuel cost.
 #[derive(Serialize, Debug)]
 pub struct MothershipActionResponse {
+    pub event_id: String,
     pub mothership: MothershipData,
     pub resources: ResourceCounts,
 }
@@ -256,6 +257,8 @@ fn asteroid_tier(tier: &str) -> Option<&'static AsteroidTierEntry> {
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AsteroidMining {
+    /// The mining dispatch that owns this extraction window.
+    pub action_id: String,
     pub vessel_id: String,
     /// Epoch ms when extraction starts — the miner's outbound arrival. The
     /// slot is reserved from dispatch, so this can be in the future.
@@ -417,6 +420,9 @@ pub struct VesselCargo {
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct VesselMoveEventData {
+    /// Immutable ID for this individual movement leg (a recall replaces the
+    /// vessel's current leg but never its prior event identity).
+    pub event_id: String,
     pub vessel_id: String,
     pub owner_id: String,
     pub owner_name: String,
@@ -442,6 +448,8 @@ pub struct VesselMoveEventData {
     /// Harvested resources riding home on a return leg; deposited when the
     /// vessel docks.
     pub cargo: Option<VesselCargo>,
+    /// Durable completion marker for this leg's arrival side effects.
+    pub arrival_settled: bool,
 }
 
 /// Progress of a vessel's move at `now_ms`, clamped to [0, 1].
@@ -499,15 +507,14 @@ impl ServerState {
         let arrived: Vec<VesselMoveEventData> = self
             .vessels
             .values()
-            .filter(|v| now_ms >= v.arrival_at && !self.notified_arrivals.contains(&v.vessel_id))
+            .filter(|v| now_ms >= v.arrival_at && !v.arrival_settled)
             .cloned()
             .collect();
         for vessel in arrived {
             let docked = vessel.returning;
             if docked {
                 self.vessels.remove(&vessel.vessel_id);
-                self.notified_arrivals.remove(&vessel.vessel_id);
-                let message = match &vessel.cargo {
+                let cargo = match &vessel.cargo {
                     Some(cargo) => {
                         // Deposit clamps at the storage cap (ROADMAP P1.11);
                         // whatever doesn't fit is lost, and the notification
@@ -517,36 +524,44 @@ impl ServerState {
                         if accepted > 0 {
                             self.resources_dirty = true;
                         }
-                        let name = resource_display_name(cargo.resource);
                         let lost = cargo.amount - accepted;
-                        if lost > 0 {
-                            format!(
-                                "Vessel returned with {accepted} {name} — storage full, {lost} lost"
-                            )
-                        } else {
-                            format!("Vessel returned with {accepted} {name}")
-                        }
+                        Some(NotificationCargo {
+                            resource: cargo.resource,
+                            accepted,
+                            lost,
+                        })
                     }
-                    None => "Vessel returned to the mothership".to_string(),
+                    None => None,
                 };
-                self.push_notification("vessel-returned", message, vessel.arrival_at);
+                self.push_notification(
+                    vessel.event_id.clone(),
+                    NotificationPayload::VesselReturned {
+                        vessel_id: vessel.vessel_id.clone(),
+                        cargo,
+                    },
+                    vessel.arrival_at,
+                );
                 // Own vessel (the only kind until P3) — exempt from
                 // interest-area filtering.
                 self.queue_push(ServerPush::VesselRemoved {
                     vessel_id: vessel.vessel_id,
                 });
             } else {
-                self.notified_arrivals.insert(vessel.vessel_id.clone());
+                if let Some(current) = self.vessels.get_mut(&vessel.vessel_id) {
+                    current.arrival_settled = true;
+                }
                 // Arriving at a plain map destination isn't notification-worthy
                 // (P1.21 playtest feedback, July 2026) — only mining-started
                 // and vessel-returned are.
                 if vessel.mining_asteroid_id.is_some() {
                     self.push_notification(
-                        "mining-started",
-                        format!(
-                            "Vessel started mining at ({}, {})",
-                            vessel.dest_col, vessel.dest_row
-                        ),
+                        vessel.event_id.clone(),
+                        NotificationPayload::MiningStarted {
+                            vessel_id: vessel.vessel_id.clone(),
+                            asteroid_id: vessel.mining_asteroid_id.clone().expect("checked"),
+                            col: vessel.dest_col,
+                            row: vessel.dest_row,
+                        },
                         vessel.arrival_at,
                     );
                 }
@@ -650,12 +665,20 @@ impl ServerState {
         ship.col = dest_col;
         ship.row = dest_row;
         let mothership = ship.clone();
+        let event_id = self.next_event_id();
         self.push_notification(
-            "mothership-warped",
-            format!("Mothership warped from ({src_col}, {src_row}) to ({dest_col}, {dest_row})"),
+            event_id.clone(),
+            NotificationPayload::MothershipWarped {
+                mothership_id: mothership.mothership_id.clone(),
+                from_col: src_col,
+                from_row: src_row,
+                to_col: dest_col,
+                to_row: dest_row,
+            },
             now_ms,
         );
         Ok(MothershipActionResponse {
+            event_id,
             mothership,
             resources: self.resources,
         })
@@ -713,6 +736,7 @@ impl ServerState {
             .get_mut(asteroid_id)
             .expect("existence checked above");
         asteroid.mining = Some(AsteroidMining {
+            action_id: event.event_id.clone(),
             vessel_id: event.vessel_id.clone(),
             started_at: event.arrival_at,
             completes_at: deadline_after(event.arrival_at, mine_duration_ms(remaining)),
@@ -765,14 +789,14 @@ impl ServerState {
         if snapshot.remaining == 0 {
             self.asteroids.remove(asteroid_id);
             self.push_notification(
-                "asteroid-depleted",
-                format!(
-                    "Asteroid mined out — {} {} deposit at ({}, {})",
-                    snapshot.tier,
-                    resource_display_name(resource),
-                    footprint.0,
-                    footprint.1
-                ),
+                mining.action_id,
+                NotificationPayload::AsteroidDepleted {
+                    asteroid_id: asteroid_id.to_string(),
+                    tier: snapshot.tier.clone(),
+                    resource,
+                    col: footprint.0,
+                    row: footprint.1,
+                },
                 now_ms,
             );
             self.queue_entity_push(
@@ -826,7 +850,6 @@ impl ServerState {
                 Ok(event) => event,
                 Err(_) => vessel,
             };
-            self.notified_arrivals.remove(&event.vessel_id);
             self.vessels.insert(event.vessel_id.clone(), event.clone());
             // Own vessel (the only kind until P3) — exempt from
             // interest-area filtering.
@@ -839,7 +862,7 @@ impl ServerState {
     /// recalls and the mining auto-return. Pure derivation: recording the
     /// event and notification bookkeeping stay with the caller.
     fn return_leg(
-        &self,
+        &mut self,
         vessel: &VesselMoveEventData,
         at_ms: u64,
     ) -> Result<VesselMoveEventData, String> {
@@ -852,6 +875,8 @@ impl ServerState {
         let (src_col, src_row) = vessel_position(vessel, at_ms);
         let (dock_col, dock_row) = closest_dock_tile(ship, src_col, src_row);
         Ok(VesselMoveEventData {
+            event_id: self.next_event_id(),
+            arrival_settled: false,
             src_col,
             src_row,
             dest_col: dock_col,
@@ -893,6 +918,7 @@ impl ServerState {
         let player = player_identity();
         let speed = effective_vessel_speed_px_s();
         VesselMoveEventData {
+            event_id: self.next_event_id(),
             vessel_id: format!("vessel-{}-{}", now_ms, self.next_vessel_seq),
             owner_id: player.id,
             owner_name: player.name,
@@ -911,6 +937,7 @@ impl ServerState {
             returning: false,
             mining_asteroid_id,
             cargo: None,
+            arrival_settled: false,
         }
     }
 
@@ -946,7 +973,6 @@ impl ServerState {
         }
         // The redirect puts the vessel back in flight: its next arrival is a
         // fresh event for the notification bookkeeping.
-        self.notified_arrivals.remove(vessel_id);
         self.vessels.insert(vessel_id.to_string(), event.clone());
         Ok(event)
     }
@@ -1148,8 +1174,7 @@ mod tests {
         assert!(pushes.iter().any(|p| matches!(
             p,
             ServerPush::Notification(n)
-                if n.kind == "mothership-warped"
-                    && n.message == "Mothership warped from (498, 498) to (600, 600)"
+                if matches!(&n.payload, NotificationPayload::MothershipWarped { from_col: 498, from_row: 498, to_col: 600, to_row: 600, .. })
                     && !n.read
         )));
         assert!(pushes
@@ -1292,7 +1317,7 @@ mod tests {
         assert!(pushes.iter().any(|p| matches!(
             p,
             ServerPush::Notification(n)
-                if n.kind == "vessel-returned" && n.created_at == back.arrival_at
+                if n.payload.kind() == "vessel-returned" && n.created_at == back.arrival_at
         )));
         assert!(pushes.iter().any(|p| matches!(
             p,
@@ -1436,17 +1461,18 @@ mod tests {
             notification_kinds(&s),
             vec!["mining-started", "asteroid-depleted", "vessel-returned"]
         );
-        assert!(s.notifications.last().unwrap().message.contains("240"));
+        assert!(
+            matches!(&s.notifications.last().unwrap().payload, NotificationPayload::VesselReturned { cargo: Some(cargo), .. } if cargo.accepted == 240)
+        );
         // CR1.6: the depletion message names the deposit, not just "mined
         // out" — tier, resource, and location, matching the seeded asteroid.
         let depleted = s
             .notifications
             .iter()
-            .find(|n| n.kind == "asteroid-depleted")
+            .find(|n| n.payload.kind() == "asteroid-depleted")
             .unwrap();
-        assert_eq!(
-            depleted.message,
-            "Asteroid mined out — small biological material deposit at (499, 510)"
+        assert!(
+            matches!(&depleted.payload, NotificationPayload::AsteroidDepleted { tier, resource: ResourceKind::Biological, col: 499, row: 510, .. } if tier == "small")
         );
     }
 
@@ -1462,9 +1488,9 @@ mod tests {
         s.settle(back.arrival_at);
         assert_eq!(s.resources.biological, 2_000);
         let last = s.notifications.last().unwrap();
-        assert_eq!(last.kind, "vessel-returned");
-        assert!(last.message.contains("storage full"), "{}", last.message);
-        assert!(last.message.contains("140 lost"), "{}", last.message);
+        assert!(
+            matches!(&last.payload, NotificationPayload::VesselReturned { cargo: Some(cargo), .. } if cargo.lost == 140)
+        );
     }
 
     #[test]

@@ -166,6 +166,15 @@ data. Entity/action completion state, rather than the bounded notification feed,
 is the durable idempotency record — evicting old Mail entries must never replay
 an arrival or completion.
 
+Phase 2's notification vocabulary is closed and client-rendered: module
+completion (`moduleId`, `moduleType`, level, build/level-up operation), crew
+hire (head count), mining start (vessel, asteroid, destination), asteroid
+depletion (asteroid, tier, resource, position), vessel return (optional cargo
+accepted/lost amounts), mothership warp (source/destination), and daily deal
+refresh (day index). Add a typed variant in both Rust and TypeScript for every
+future kind; clients retain a defensive display fallback during staggered
+upgrades.
+
 The scheduler advances all players, but delivery is session/audience scoped. A
 Player 1 completion while a local Player 2 session is active is appended to
 Player 1's persisted feed and is not emitted as a Player 2 push, badge update,

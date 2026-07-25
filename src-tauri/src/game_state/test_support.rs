@@ -44,7 +44,7 @@ pub(super) fn insert_settled(s: &mut ServerState, id: &str, module_type: &str, l
 
 /// The kind of every feed entry, oldest first.
 pub(super) fn notification_kinds(s: &ServerState) -> Vec<&str> {
-    s.notifications.iter().map(|n| n.kind.as_str()).collect()
+    s.notifications.iter().map(|n| n.payload.kind()).collect()
 }
 
 /// A state with production silenced (the only module is a settled

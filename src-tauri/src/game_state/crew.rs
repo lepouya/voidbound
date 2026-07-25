@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use super::resources::{ResourceCounts, ResourceKind};
-use super::state::{deadline_after, scaled_ms, ServerPush, ServerState};
+use super::state::{deadline_after, scaled_ms, NotificationPayload, ServerPush, ServerState};
 
 /// A crew recruitment in flight (ROADMAP P1.10) — one at a time, same timer
 /// shape as a module's pending build. Mirrors the TS `PendingHire` in
@@ -9,6 +9,7 @@ use super::state::{deadline_after, scaled_ms, ServerPush, ServerState};
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingHire {
+    pub action_id: String,
     pub dispatched_at: u64,
     pub completes_at: u64,
 }
@@ -30,6 +31,7 @@ pub struct CrewData {
 /// pending, plus the resource counts after the cost was deducted.
 #[derive(Serialize, Debug)]
 pub struct CrewActionResponse {
+    pub action_id: String,
     pub crew: CrewData,
     pub resources: ResourceCounts,
 }
@@ -81,10 +83,17 @@ impl ServerState {
         self.resources.spend(ResourceKind::Biological, cost)?;
         self.resources_dirty = true;
         self.pending_hire = Some(PendingHire {
+            action_id: self.next_event_id(),
             dispatched_at: now_ms,
             completes_at: deadline_after(now_ms, scaled_ms(HIRE_TIME_MS)),
         });
         Ok(CrewActionResponse {
+            action_id: self
+                .pending_hire
+                .as_ref()
+                .expect("hire is pending")
+                .action_id
+                .clone(),
             crew: self.crew_data(),
             resources: self.resources,
         })
@@ -102,14 +111,15 @@ impl ServerState {
             return;
         }
         let completed_at = pending.completes_at;
+        let action_id = pending.action_id.clone();
         self.crew += 1;
         self.pending_hire = None;
         // Crew is the player's own ship state — never interest-area
         // filtered.
         self.queue_push(ServerPush::Crew(self.crew_data()));
         self.push_notification(
-            "crew-hired",
-            format!("A new crew member came aboard ({} total)", self.crew),
+            action_id,
+            NotificationPayload::CrewHired { crew: self.crew },
             completed_at,
         );
     }
@@ -171,7 +181,7 @@ mod tests {
         )));
         assert!(pushes.iter().any(|p| matches!(
             p,
-            ServerPush::Notification(n) if n.kind == "crew-hired" && !n.read
+            ServerPush::Notification(n) if n.payload.kind() == "crew-hired" && !n.read
         )));
         assert_eq!(s.crew, 1);
         // Settling again at the same time re-announces nothing.

@@ -57,6 +57,7 @@ function sampleVessel(
   overrides: Partial<VesselMoveEvent> = {},
 ): VesselMoveEvent {
   return {
+    eventId: `event-${id}`,
     vesselId: id,
     ownerId: "player-1",
     ownerName: "Player 1",
@@ -72,6 +73,7 @@ function sampleVessel(
     returning: false,
     miningAsteroidId: null,
     cargo: null,
+    arrivalSettled: false,
     ...overrides,
   };
 }
@@ -139,12 +141,17 @@ function sampleDeals(overrides: Partial<DealsData> = {}): DealsData {
 
 function sampleNotification(
   id: string,
-  overrides: Partial<NotificationData> = {},
+  overrides: Partial<Extract<NotificationData, { kind: "module-completed" }>> =
+    {},
 ): NotificationData {
   return {
     notificationId: id,
-    kind: "build-complete",
-    message: "Ore Refinery construction complete",
+    sourceEventId: `event-${id}`,
+    kind: "module-completed",
+    moduleId: "module-ore-refinery",
+    moduleType: "ore-refinery",
+    level: 1,
+    operation: "build",
     createdAt: 1_000,
     read: false,
     ...overrides,
@@ -229,7 +236,14 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
     vessels: [sampleVessel("vessel-a")],
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-1")],
-    crew: { crew: 3, pendingHire: { dispatchedAt: 500, completesAt: 30_500 } },
+    crew: {
+      crew: 3,
+      pendingHire: {
+        actionId: "event-hire",
+        dispatchedAt: 500,
+        completesAt: 30_500,
+      },
+    },
     deals: sampleDeals(),
   }));
 
@@ -261,6 +275,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
   assertEquals(state.mapWindow, sampleWindow());
   assertEquals(state.crew, 3);
   assertEquals(state.pendingHire, {
+    actionId: "event-hire",
     dispatchedAt: 500,
     completesAt: 30_500,
   });
@@ -349,7 +364,12 @@ Deno.test("applyModuleEvent merges by moduleId and notifies", () => {
   // A level-up re-stamps the same module with a pending build: replace, not
   // append.
   const leveledUp = sampleModule("module-a", {
-    pending: { level: 2, dispatchedAt: 1_000, completesAt: 6_000 },
+    pending: {
+      actionId: "event-module",
+      level: 2,
+      dispatchedAt: 1_000,
+      completesAt: 6_000,
+    },
   });
   state.applyModuleEvent(revisioned(leveledUp));
 
@@ -481,7 +501,12 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
     type: "asteroid",
     data: sampleAsteroid("asteroid-1", {
       remaining: 120,
-      mining: { vesselId: "vessel-b", startedAt: 1_000, completesAt: 5_000 },
+      mining: {
+        actionId: "event-mine",
+        vesselId: "vessel-b",
+        startedAt: 1_000,
+        completesAt: 5_000,
+      },
     }),
   }));
   assertEquals(state.asteroids.get("asteroid-1")?.remaining, 120);
@@ -545,7 +570,12 @@ Deno.test("late responses preserve newer pushes without losing unrelated data", 
   state.applyModuleEvent(revisioned(
     sampleModule("module-a", {
       level: 1,
-      pending: { level: 2, dispatchedAt: 1_000, completesAt: 2_000 },
+      pending: {
+        actionId: "event-module",
+        level: 2,
+        dispatchedAt: 1_000,
+        completesAt: 2_000,
+      },
     }),
     11,
   ));
@@ -607,7 +637,11 @@ Deno.test("applyCrewEvent replaces the crew state and notifies", () => {
   // A hire response: the head count is unchanged, a recruitment pends.
   state.applyCrewEvent(revisioned({
     crew: 2,
-    pendingHire: { dispatchedAt: 1_000, completesAt: 31_000 },
+    pendingHire: {
+      actionId: "event-hire",
+      dispatchedAt: 1_000,
+      completesAt: 31_000,
+    },
   }));
   assertEquals(state.crew, 2);
   assertEquals(state.pendingHire?.completesAt, 31_000);
@@ -649,10 +683,7 @@ Deno.test("unreadNotificationCount counts only unread entries", () => {
   }));
   state.applyServerPush(serverPush({
     type: "notification",
-    data: sampleNotification("notif-2", {
-      kind: "vessel-arrived",
-      message: "Vessel arrived at (50, 60)",
-    }),
+    data: sampleNotification("notif-2"),
   }));
   state.applyServerPush(serverPush({
     type: "notification",

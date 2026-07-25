@@ -1,7 +1,10 @@
 use serde::Serialize;
 
 use super::resources::{ResourceCounts, ResourceKind};
-use super::state::{deadline_after, player_identity, scaled_ms, ServerPush, ServerState};
+use super::state::{
+    deadline_after, player_identity, scaled_ms, ModuleCompletionOperation, NotificationPayload,
+    ServerPush, ServerState,
+};
 
 /// One entry in the module catalog (ROADMAP P1.4): production, storage,
 /// cost, build time, and unlock prerequisite for a module type.
@@ -225,6 +228,8 @@ pub struct ModuleData {
 pub struct ModulePendingBuild {
     /// The level this build completes to.
     pub level: u32,
+    /// Immutable ID allocated when this build/upgrade was authorized.
+    pub action_id: String,
     pub dispatched_at: u64,
     pub completes_at: u64,
 }
@@ -233,6 +238,7 @@ pub struct ModulePendingBuild {
 /// current state plus the resource counts after the cost was deducted.
 #[derive(Serialize, Debug)]
 pub struct ModuleActionResponse {
+    pub action_id: String,
     pub module: ModuleData,
     pub resources: ResourceCounts,
 }
@@ -363,35 +369,39 @@ impl ServerState {
         for module in self.modules.values_mut() {
             if let Some(pending) = &module.pending {
                 if now_ms >= pending.completes_at {
+                    let pending = pending.clone();
                     module.level = pending.level;
                     module.pending = None;
-                    settled.push(module.clone());
+                    settled.push((module.clone(), pending));
                 }
             }
         }
-        for module in &settled {
-            let name = catalog_entry(&module.module_type)
-                .map(|e| e.display_name)
-                .unwrap_or(&module.module_type);
-            let (kind, message) = if module.level == 1 {
-                ("build-complete", format!("{name} construction complete"))
+        for (module, pending) in &settled {
+            let operation = if module.level == 1 {
+                ModuleCompletionOperation::Build
             } else {
-                (
-                    "levelup-complete",
-                    format!("{name} upgraded to level {}", module.level),
-                )
+                ModuleCompletionOperation::Levelup
             };
             // Modules are the player's own ship interior — always exempt
             // from interest-area filtering.
             self.queue_push(ServerPush::Module(module.clone()));
-            self.push_notification(kind, message, now_ms);
+            self.push_notification(
+                pending.action_id.clone(),
+                NotificationPayload::ModuleCompleted {
+                    module_id: module.module_id.clone(),
+                    module_type: module.module_type.clone(),
+                    level: module.level,
+                    operation,
+                },
+                now_ms,
+            );
         }
         // A Trading Post level-up can raise the deal slot count mid-batch —
         // make the reward visible now rather than at the next reroll
         // (ROADMAP P1.12).
         if settled
             .iter()
-            .any(|m| m.module_type == TRADING_POST_MODULE_TYPE)
+            .any(|(m, _)| m.module_type == TRADING_POST_MODULE_TYPE)
         {
             self.top_up_deal_slots();
         }
@@ -535,6 +545,7 @@ impl ServerState {
             level: 0,
             pending: Some(ModulePendingBuild {
                 level: 1,
+                action_id: self.next_event_id(),
                 dispatched_at: now_ms,
                 completes_at: deadline_after(
                     now_ms,
@@ -545,6 +556,12 @@ impl ServerState {
         self.modules
             .insert(module.module_id.clone(), module.clone());
         Ok(ModuleActionResponse {
+            action_id: module
+                .pending
+                .as_ref()
+                .expect("new build is pending")
+                .action_id
+                .clone(),
             module,
             resources: self.resources,
         })
@@ -600,16 +617,24 @@ impl ServerState {
             now_ms,
             scaled_ms(scale_for_level(entry.base_build_time_ms, next_level)),
         );
+        let action_id = self.next_event_id();
         let module = self
             .modules
             .get_mut(module_id)
             .expect("existence checked above");
         module.pending = Some(ModulePendingBuild {
             level: next_level,
+            action_id,
             dispatched_at: now_ms,
             completes_at,
         });
         Ok(ModuleActionResponse {
+            action_id: module
+                .pending
+                .as_ref()
+                .expect("level-up is pending")
+                .action_id
+                .clone(),
             module: module.clone(),
             resources: self.resources,
         })
@@ -962,11 +987,10 @@ mod tests {
         assert!(pushes.iter().any(|p| matches!(
             p,
             ServerPush::Notification(n)
-                if n.kind == "build-complete"
-                    && n.message.contains("Ore Refinery")
+                if matches!(&n.payload, NotificationPayload::ModuleCompleted { module_type, operation: ModuleCompletionOperation::Build, .. } if module_type == "ore-refinery")
                     && !n.read
         )));
-        assert_eq!(notification_kinds(&s), vec!["build-complete"]);
+        assert_eq!(notification_kinds(&s), vec!["module-completed"]);
         // Settling again at the same time re-announces nothing.
         s.settle(ore_refinery_build_time());
         assert!(s.drain_pushes().is_empty());
@@ -988,7 +1012,7 @@ mod tests {
         assert!(s.drain_pushes().iter().any(|p| matches!(
             p,
             ServerPush::Notification(n)
-                if n.kind == "levelup-complete" && n.message.contains("level 2")
+                if matches!(&n.payload, NotificationPayload::ModuleCompleted { level: 2, operation: ModuleCompletionOperation::Levelup, .. })
         )));
     }
 

@@ -152,15 +152,10 @@ Detailed decisions, rationale, and implementation edge cases for this phase live
 in [PHASE_2_PLANNING.md](PHASE_2_PLANNING.md). Keep task status and completion
 notes here; keep the durable/server contracts in `SERVER.md`.
 
-- [ ] **P2.2 — Notification message structure.** Switch
-      `NotificationData.message` from server-composed English prose to a closed,
-      typed `kind` union with structured parameters and `sourceEventId`; the
-      client renders it from a lookup table. Give every authorized action and
-      time-based transition an immutable action/event ID, and make notifications
-      durable per-player feed entries instead of session-global messages. This
-      supplies idempotency/deduplication state independently of the bounded feed
-      and routes live pushes only to their intended player. Must land before the
-      first save format and P3.1's socket protocol. (CR6.4)
+- [x] **P2.2 — Notification message structure.** Typed notification payloads,
+      source event IDs, client formatting, and durable movement completion
+      markers. Still open: per-player persistence and audience routing → P2.1;
+      socket delivery → P3.1.
 - [ ] **P2.1 — Multi-account local-system save/load.** A version-1 JSON
       `SaveEnvelope` persists the durable `PersistentSystem` domain model — not
       the mixed runtime `ServerState` or AOI-filtered `GameStateData`. One local

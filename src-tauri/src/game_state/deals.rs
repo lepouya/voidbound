@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use super::modules::{scale_for_level, TRADING_POST_MODULE_TYPE};
 use super::resources::{trade_display_name, ResourceCounts, TradeKind, TRADE_KINDS};
-use super::state::{player_identity, SeedRng, ServerPush, ServerState};
+use super::state::{player_identity, NotificationPayload, SeedRng, ServerPush, ServerState};
 
 /// One UTC day in ms. The deal shop resets at fixed 00:00 UTC boundaries
 /// (README's "resetting at a fixed point" principle), not a rolling window.
@@ -138,6 +138,7 @@ pub struct DealsData {
 /// resource counts after the exchange/cost.
 #[derive(Serialize, Debug)]
 pub struct DealActionResponse {
+    pub action_id: String,
     pub deals: DealsData,
     pub resources: ResourceCounts,
 }
@@ -300,9 +301,10 @@ impl ServerState {
         self.queue_push(ServerPush::Deals(self.deals_data()));
         // Only worth announcing once the player can actually open the shop.
         if self.trading_post_level() >= 1 {
+            let event_id = self.next_event_id();
             self.push_notification(
-                "deals-refreshed",
-                "New deals are in at the Trading Post".to_string(),
+                event_id,
+                NotificationPayload::DealsRefreshed { day_index: today },
                 now_ms,
             );
         }
@@ -357,6 +359,7 @@ impl ServerState {
             .expect("existence checked above")
             .accepted = true;
         Ok(DealActionResponse {
+            action_id: self.next_event_id(),
             deals: self.deals_data(),
             resources: self.resources,
         })
@@ -387,6 +390,7 @@ impl ServerState {
         self.deal_refreshes_used += 1;
         self.regenerate_deals(self.deals_day_index, self.deal_refreshes_used, false);
         Ok(DealActionResponse {
+            action_id: self.next_event_id(),
             deals: self.deals_data(),
             resources: self.resources,
         })
@@ -644,9 +648,9 @@ mod tests {
         // is settled, so the player can act on it).
         let pushes = s.drain_pushes();
         assert!(pushes.iter().any(|p| matches!(p, ServerPush::Deals(_))));
-        assert!(pushes
-            .iter()
-            .any(|p| matches!(p, ServerPush::Notification(n) if n.kind == "deals-refreshed")));
+        assert!(pushes.iter().any(
+            |p| matches!(p, ServerPush::Notification(n) if n.payload.kind() == "deals-refreshed")
+        ));
     }
 
     #[test]
@@ -657,6 +661,7 @@ mod tests {
         // slots once it settles).
         insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 2);
         s.modules.get_mut("module-tp").unwrap().pending = Some(ModulePendingBuild {
+            action_id: "event-test".to_string(),
             level: 3,
             dispatched_at: 0,
             completes_at: 1_000,

@@ -93,6 +93,8 @@ export interface MothershipData {
  * in src-tauri/src/game_state/world.rs — keep the two in sync.
  */
 export interface VesselMoveEvent {
+  /** Immutable ID for this specific movement leg. */
+  eventId: string;
   vesselId: string;
   ownerId: string;
   /** Display name shown below the vessel sprite. */
@@ -126,6 +128,8 @@ export interface VesselMoveEvent {
   /** Harvested resources riding home on a return leg; the backend deposits
    *  them into the counts when the vessel docks. */
   cargo: VesselCargo | null;
+  /** Backend-side completion marker carried for persistence/recovery. */
+  arrivalSettled: boolean;
 }
 
 /**
@@ -145,6 +149,7 @@ export interface VesselCargo {
  * `AsteroidMining` in src-tauri/src/game_state/world.rs — keep the two in sync.
  */
 export interface AsteroidMining {
+  actionId: string;
   vesselId: string;
   /** Epoch ms when extraction starts — the miner's outbound arrival. The
    *  slot is reserved from dispatch, so this can be in the future. */
@@ -195,18 +200,66 @@ export interface AsteroidData {
  * live as a ServerPush. Mirrors the Rust `NotificationData` in
  * src-tauri/src/game_state/state.rs — keep the two in sync.
  */
-export interface NotificationData {
+export type NotificationData = {
   notificationId: string;
-  /** Category slug, e.g. "build-complete", "mining-started" — display and
-   *  grouping only; new kinds need no client changes. */
-  kind: string;
-  /** Server-composed display text (the server owns the catalog names). */
-  message: string;
+  /** Immutable action/transition ID the feed entry reports. Retaining only
+   *  100 Mail rows never makes that transition replayable. */
+  sourceEventId: string;
   /** Server epoch ms when the notification was created. */
   createdAt: number;
   /** Cleared by the mark_notifications_read command; the Mail HUD badge
    *  shows the unread count. */
   read: boolean;
+} & NotificationPayload;
+
+/** Closed known vocabulary. Add one discriminated member with every new
+ * server kind; runtime rendering also retains a defensive fallback if a
+ * newer server arrives first. Mirrors Rust `NotificationPayload`. */
+export type NotificationPayload = KnownNotificationPayload;
+
+export type KnownNotificationPayload =
+  | {
+    kind: "module-completed";
+    moduleId: string;
+    moduleType: string;
+    level: number;
+    operation: "build" | "levelup";
+  }
+  | { kind: "crew-hired"; crew: number }
+  | {
+    kind: "mining-started";
+    vesselId: string;
+    asteroidId: string;
+    col: number;
+    row: number;
+  }
+  | {
+    kind: "asteroid-depleted";
+    asteroidId: string;
+    tier: string;
+    resource: MaterialResourceKind;
+    col: number;
+    row: number;
+  }
+  | {
+    kind: "vessel-returned";
+    vesselId: string;
+    cargo: NotificationCargo | null;
+  }
+  | {
+    kind: "mothership-warped";
+    mothershipId: string;
+    fromCol: number;
+    fromRow: number;
+    toCol: number;
+    toRow: number;
+  }
+  | { kind: "deals-refreshed"; dayIndex: number };
+
+export interface NotificationCargo {
+  resource: MaterialResourceKind;
+  accepted: number;
+  lost: number;
 }
 
 /**
@@ -215,6 +268,7 @@ export interface NotificationData {
  * src-tauri/src/game_state/crew.rs — keep the two in sync.
  */
 export interface PendingHire {
+  actionId: string;
   /** Server epoch ms when the hire was authorized. */
   dispatchedAt: number;
   /** Pre-computed completion time — lets late-joining clients show the
@@ -298,6 +352,7 @@ export interface DealsData {
 export interface ModulePendingBuild {
   /** The level this build completes to. */
   level: number;
+  actionId: string;
   /** Server epoch ms when the build/upgrade was authorized. */
   dispatchedAt: number;
   /** Pre-computed completion time — lets late-joining clients show the
@@ -340,6 +395,7 @@ export interface ModuleData {
  * src-tauri/src/game_state/modules.rs — keep the two in sync.
  */
 export interface ModuleActionResponse {
+  actionId: string;
   module: ModuleData;
   /** Authoritative counts after the cost was deducted. */
   resources: ResourceCounts;
@@ -351,6 +407,7 @@ export interface ModuleActionResponse {
  * two in sync.
  */
 export interface CrewActionResponse {
+  actionId: string;
   crew: CrewData;
   /** Authoritative counts after the cost was deducted. */
   resources: ResourceCounts;
@@ -362,6 +419,7 @@ export interface CrewActionResponse {
  * src-tauri/src/game_state/deals.rs — keep the two in sync.
  */
 export interface DealActionResponse {
+  actionId: string;
   deals: DealsData;
   /** Authoritative counts after the exchange/cost was applied. */
   resources: ResourceCounts;
@@ -373,6 +431,7 @@ export interface DealActionResponse {
  * src-tauri/src/game_state/world.rs — keep the two in sync.
  */
 export interface MothershipActionResponse {
+  eventId: string;
   mothership: MothershipData;
   /** Authoritative counts after the fuel cost was deducted. */
   resources: ResourceCounts;

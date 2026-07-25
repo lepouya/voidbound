@@ -114,7 +114,7 @@ export class MailDialog {
         {
           weight: 3,
           align: "left",
-          label: { text: (n.read ? "" : "● ") + n.message, color },
+          label: { text: (n.read ? "" : "● ") + formatNotification(n), color },
         },
         {
           weight: 1,
@@ -134,5 +134,37 @@ export class MailDialog {
     } catch (err) {
       console.warn("mark_notifications_read rejected:", err);
     }
+  }
+}
+
+/** Client-owned display text for the typed notification wire contract. New
+ * known variants must be added here; a newer server kind remains readable by
+ * the fallback while a client upgrade is pending. */
+export function formatNotification(notification: NotificationData): string {
+  switch (notification.kind) {
+    case "module-completed":
+      return notification.operation === "build"
+        ? `${notification.moduleType} construction complete`
+        : `${notification.moduleType} upgraded to level ${notification.level}`;
+    case "crew-hired":
+      return `A new crew member came aboard (${notification.crew} total)`;
+    case "mining-started":
+      return `Vessel started mining at (${notification.col}, ${notification.row})`;
+    case "asteroid-depleted":
+      return `Asteroid mined out — ${notification.tier} ${notification.resource} deposit at (${notification.col}, ${notification.row})`;
+    case "vessel-returned": {
+      const cargo = notification.cargo;
+      if (cargo === null) return "Vessel returned to the mothership";
+      const loss = cargo.lost > 0 ? ` — storage full, ${cargo.lost} lost` : "";
+      return `Vessel returned with ${cargo.accepted} ${cargo.resource}${loss}`;
+    }
+    case "mothership-warped":
+      return `Mothership warped from (${notification.fromCol}, ${notification.fromRow}) to (${notification.toCol}, ${notification.toRow})`;
+    case "deals-refreshed":
+      return "New deals are in at the Trading Post";
+    default:
+      // Defensive runtime fallback for a newer server kind arriving before
+      // this client has its matching union member.
+      return `New notification (${(notification as { kind: string }).kind})`;
   }
 }

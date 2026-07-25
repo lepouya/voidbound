@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -27,15 +27,85 @@ const MAX_NOTIFICATIONS: usize = 100;
 /// pushed live (`ServerPush::Notification`). Mirrors the TS
 /// `NotificationData` in `src/state/game-state-types.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum NotificationPayload {
+    ModuleCompleted {
+        module_id: String,
+        module_type: String,
+        level: u32,
+        operation: ModuleCompletionOperation,
+    },
+    CrewHired {
+        crew: u32,
+    },
+    MiningStarted {
+        vessel_id: String,
+        asteroid_id: String,
+        col: i64,
+        row: i64,
+    },
+    AsteroidDepleted {
+        asteroid_id: String,
+        tier: String,
+        resource: super::resources::ResourceKind,
+        col: i64,
+        row: i64,
+    },
+    VesselReturned {
+        vessel_id: String,
+        cargo: Option<NotificationCargo>,
+    },
+    MothershipWarped {
+        mothership_id: String,
+        from_col: i64,
+        from_row: i64,
+        to_col: i64,
+        to_row: i64,
+    },
+    DealsRefreshed {
+        day_index: u64,
+    },
+}
+
+impl NotificationPayload {
+    #[cfg(test)]
+    pub(super) fn kind(&self) -> &'static str {
+        match self {
+            Self::ModuleCompleted { .. } => "module-completed",
+            Self::CrewHired { .. } => "crew-hired",
+            Self::MiningStarted { .. } => "mining-started",
+            Self::AsteroidDepleted { .. } => "asteroid-depleted",
+            Self::VesselReturned { .. } => "vessel-returned",
+            Self::MothershipWarped { .. } => "mothership-warped",
+            Self::DealsRefreshed { .. } => "deals-refreshed",
+        }
+    }
+}
+
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
+pub enum ModuleCompletionOperation {
+    Build,
+    Levelup,
+}
+
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationCargo {
+    pub resource: super::resources::ResourceKind,
+    pub accepted: u64,
+    pub lost: u64,
+}
+
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationData {
     pub notification_id: String,
-    /// Category slug: "build-complete", "levelup-complete", "mining-started",
-    /// or "vessel-returned". Display/grouping only — new kinds need no client
-    /// changes.
-    pub kind: String,
-    /// Server-composed display text (the server owns the catalog names).
-    pub message: String,
+    /// Immutable ID of the authorized action or scheduler transition this
+    /// feed entry reports. Feed retention never controls idempotency.
+    pub source_event_id: String,
+    #[serde(flatten)]
+    pub payload: NotificationPayload,
     /// Server epoch ms when the notification was created.
     pub created_at: u64,
     /// Cleared by the mark_notifications_read command; the Mail HUD badge
@@ -274,11 +344,9 @@ pub struct ServerState {
     /// single source of truth for the field (the client renders the
     /// snapshot). Mined-out asteroids are removed outright.
     pub(super) asteroids: HashMap<String, AsteroidData>,
-    /// Vessels whose current move's arrival has already produced its feed
-    /// notification — parked vessels stay in the table, so without this every
-    /// settle pass would re-announce them. An id leaves the set when its
-    /// vessel despawns or is recalled (the redirect makes it in-flight again).
-    pub(super) notified_arrivals: HashSet<String>,
+    /// A monotonic source for every authorized action and scheduler-created
+    /// transition. P2.1 persists this counter with the durable player state.
+    pub(super) next_event_seq: u64,
     /// Ship's crew head count (ROADMAP P1.10). Capacity derives from the
     /// module table (crew_capacity); the pooled staffing ratio against
     /// crew_required damps producer output in accrue_production.
@@ -387,7 +455,7 @@ impl ServerState {
             vessels: HashMap::new(),
             next_vessel_seq: 0,
             asteroids,
-            notified_arrivals: HashSet::new(),
+            next_event_seq: 0,
             crew: STARTING_CREW,
             pending_hire: None,
             notifications: Vec::new(),
@@ -483,12 +551,22 @@ impl ServerState {
 
     /// Append a notification to the feed (dropping the oldest past the cap)
     /// and queue its live push.
-    pub(super) fn push_notification(&mut self, kind: &str, message: String, now_ms: u64) {
+    pub(super) fn next_event_id(&mut self) -> String {
+        self.next_event_seq = self.next_event_seq.saturating_add(1);
+        format!("event-{}", self.next_event_seq)
+    }
+
+    pub(super) fn push_notification(
+        &mut self,
+        source_event_id: String,
+        payload: NotificationPayload,
+        now_ms: u64,
+    ) {
         self.next_notification_seq += 1;
         let notification = NotificationData {
             notification_id: format!("notif-{}-{}", now_ms, self.next_notification_seq),
-            kind: kind.to_string(),
-            message,
+            source_event_id,
+            payload,
             created_at: now_ms,
             read: false,
         };
@@ -565,7 +643,7 @@ impl ServerState {
             }
         }
         for vessel in self.vessels.values() {
-            if !self.notified_arrivals.contains(&vessel.vessel_id) {
+            if !vessel.arrival_settled {
                 deadline = deadline.min(vessel.arrival_at);
             }
         }
@@ -767,6 +845,7 @@ mod tests {
         let mut s = ServerState::new(0);
         assert_eq!(s.next_deadline(), TICK);
         s.pending_hire = Some(PendingHire {
+            action_id: "event-test".to_string(),
             dispatched_at: 0,
             completes_at: 3,
         });
@@ -799,17 +878,29 @@ mod tests {
     fn notifications_are_capped_at_the_oldest_end() {
         let mut s = ServerState::new(0);
         for i in 0..(MAX_NOTIFICATIONS + 5) {
-            s.push_notification("test", format!("n{i}"), i as u64);
+            s.push_notification(
+                format!("event-{i}"),
+                NotificationPayload::CrewHired { crew: i as u32 },
+                i as u64,
+            );
         }
         assert_eq!(s.notifications.len(), MAX_NOTIFICATIONS);
-        assert_eq!(s.notifications[0].message, "n5");
+        assert_eq!(s.notifications[0].source_event_id, "event-5");
     }
 
     #[test]
     fn mark_notifications_read_clears_every_entry() {
         let mut s = ServerState::new(0);
-        s.push_notification("test", "hello".to_string(), 0);
-        s.push_notification("test", "world".to_string(), 1);
+        s.push_notification(
+            "event-1".to_string(),
+            NotificationPayload::CrewHired { crew: 1 },
+            0,
+        );
+        s.push_notification(
+            "event-2".to_string(),
+            NotificationPayload::CrewHired { crew: 2 },
+            1,
+        );
         assert!(s.notifications.iter().all(|n| !n.read));
         let returned = s.mark_notifications_read();
         assert!(returned.iter().all(|n| n.read));
@@ -852,6 +943,7 @@ mod tests {
                 total: 60,
                 remaining: 60,
                 mining: Some(AsteroidMining {
+                    action_id: "event-mine".to_string(),
                     vessel_id: "vessel-m".to_string(),
                     started_at: 11_000,
                     completes_at: 12_000,
@@ -883,6 +975,7 @@ mod tests {
     fn persisted_timer_validation_rejects_wrapped_deadlines() {
         let mut s = ServerState::new(0);
         s.pending_hire = Some(PendingHire {
+            action_id: "event-hire".to_string(),
             dispatched_at: u64::MAX,
             completes_at: 0,
         });
