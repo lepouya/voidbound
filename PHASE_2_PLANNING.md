@@ -698,11 +698,21 @@ both the authoritative calculations and the mirrors.
 - A newly created local developer profile starts with **100 construction, 100
   high-tech, 100 biological, and 100 fuel**, plus zero credits and zero crew.
   This is a provisional playtest grant, not a future online-account entitlement.
-- Existing basic modules use construction-only costs through their first three
-  settled levels. Starting at target level 4, their cost must include all four
-  material resources, so advancing requires a balanced production base rather
-  than only construction output. The exact per-level cost table/curve is a
-  configurable catalog value, not another hardcoded shared doubling rule.
+- A level-1 basic module costs **25 construction**, so the starter grant funds
+  several opening choices before resource planning becomes necessary.
+- Basic-module construction cost grows by **1.5x per target level**, rounded up
+  deterministically. The first values are 25, 38, 57, 86, and 129 construction;
+  the biological/fuel and high-tech fractions apply to that rounded construction
+  amount at their respective level gates.
+- Existing basic modules use construction-only costs through target level 5.
+  From levels 6–10 they additionally cost one operational material—biological
+  for human/crew-oriented modules or fuel for robot/vessel-oriented modules—at
+  half the construction amount. From target level 11 they also cost high-tech
+  material at half the construction amount. The operational mapping is
+  biological for the Command Module, Hydroponics Bay, Crew Quarters, and Trading
+  Post; and fuel for the Ore Refinery, Electronics Fabricator, Fusion Reactor,
+  and Storage Bay. The exact per-level construction table remains catalog
+  configuration, not another hardcoded shared doubling rule.
 - Future advanced module types may define mixed material costs from their first
   level. Their prices are deliberately deferred to the task that introduces each
   module, rather than guessed in P2.6.
@@ -710,6 +720,33 @@ both the authoritative calculations and the mirrors.
   independently configurable curves/tables for costs, build time, production,
   and storage. Trade values and warp's one-fuel-per-tile cost remain unchanged
   until the broader credits/fuel design work (→ P4.6, P4.9).
+
+**Construction-time baseline — decided:** basic construction uses this
+configurable target-level table: **45 seconds, 90 seconds, 3 minutes, 8 minutes,
+20 minutes, 45 minutes, 2 hours, 6 hours, 18 hours, and 48 hours** for levels
+1–10. It is the shared pacing baseline, not a promise that every module takes
+the same time. Each catalog entry has an exact rational time multiplier
+(numerator/denominator, rounded up to whole milliseconds) applied to the
+baseline — for example, resource refineries may use `1/2`. The table's
+post-level-10 behavior must remain explicitly configurable too, rather than
+silently inheriting the old doubling rule; it can be extended as later content
+establishes real end-game level caps and timers.
+
+**First-pass production and storage — decided:** the Command Module produces 12
+units/minute of each material at level 1; a fully staffed refinery produces 24
+units/minute of its material (12/minute at the 50% understaffing floor).
+Production grows by a configurable, rounded-up **1.15x per-level** curve, slower
+than the 1.5x upgrade-cost curve. This keeps levels 1–5 within roughly 2–5
+minutes of passive production, while making mining the practical accelerator
+from level 6 onward; P2.6 has mining but no quests/events yet. Command storage
+remains a 1,000-unit material baseline, and Storage Bay contributes a
+configurable, linear 2,000 units per settled level rather than doubling.
+
+**First-pass crew and module timers — decided:** recruitment remains a linear 20
+biological times the new crew head count, with a 5-minute recruitment timer.
+Resource refineries use the construction-time baseline at an exact `1/2`
+multiplier; Command Module, utilities, and Trading Post use `1/1` until their
+roles justify distinct pacing.
 
 #### Crew baseline
 
