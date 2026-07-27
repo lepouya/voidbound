@@ -186,7 +186,11 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       h. Also revisit the single-deposit / single-miner rules for large
       asteroids (README leaves that door open). Needs P2.1 — tuning requires
       persistent progress. `MAX_VESSELS` stays a flat stopgap until P5.9
-      replaces it with real cap-scaling.
+      replaces it with real cap-scaling. The approved first pass gives new local
+      profiles 100 of each material; makes basic-module levels 4+ mixed-resource
+      upgrades; fixes crew berths to a 2-person Command baseline plus 5 per Crew
+      Quarters level; and seeds four radial asteroid grades (deposit multipliers
+      configurable, initially 1/1.5/2/4) outside the empty central system.
 - [ ] **P2.7 — Diminishing returns** _(moved from P1.7)_. Repeated actions yield
       less over the course of a day and reset at a fixed point — the README's
       alternative to hard energy caps. Local implementation first; the server
@@ -202,6 +206,10 @@ notes here; keep the durable/server contracts in `SERVER.md`.
 - [ ] **P2.9 — Storage Bay production-boost perk** _(split from P1.11)_. The
       README describes a Storage Bay perk that boosts production; P1.11 shipped
       only the capacity-cap half. Needs P1.11.
+- [ ] **P2.10 — Developer reset controls.** Startup-only, destructive
+      `--reset-player <name>` (fresh profile in the existing shared local
+      system) and `--reset-system` (fresh deterministic test system), with
+      explicit logs and mutually exclusive arguments. Needs P2.1.
 
 ## Phase 3 — Server-authoritative events
 
@@ -252,11 +260,11 @@ Goal: the MMO layer.
 - [ ] **P4.1 — Alliance Embassy gameplay.** Joining, contribution, and alliance
       boosts — the first alliance mechanics. Alliance entities join the P1.13
       always-sent AOI exemption here.
-- [ ] **P4.2 — Map difficulty scaling toward the center.** Higher-level
-      nodes/territories closer to the center gate progress — alliances must gain
-      power together to push inward. The README lists moons and planets
-      alongside asteroids as resource nodes; they'd first appear here as the
-      higher-tier center content. Needs P4.1.
+- [ ] **P4.2 — Map difficulty scaling toward the center.** P2.6 establishes
+      radial asteroid resource grades and reserves the empty central system;
+      this task adds higher-level nodes/territories, enemies, and alliance-gated
+      center progression. The README's moons and planets first appear here.
+      Needs P4.1, P2.6.
 - [ ] **P4.3 — Operations Center: fog of war / radar.** The Operations Center
       module (README § Ship design): visibility radius on the space map tied to
       its level — P1.13's AOI window shrunk to a radar radius — plus its

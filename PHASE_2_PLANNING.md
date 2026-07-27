@@ -686,6 +686,82 @@ The pre-P2.1/P2.5 policy decisions are now settled:
    recovered primary is recorded, and the user-facing/log behavior when every
    generation fails. The five-generation and explicit-restore policy is settled.
 
+### P2.6 balance and local-playtest decisions
+
+P2.6 makes the first persistent progression pass deliberately configurable. The
+server remains authoritative for every value; TypeScript has display-only
+mirrors where the UI needs to preview a cost, cap, or duration. Tests must cover
+both the authoritative calculations and the mirrors.
+
+#### Starter economy and module costs
+
+- A newly created local developer profile starts with **100 construction, 100
+  high-tech, 100 biological, and 100 fuel**, plus zero credits and zero crew.
+  This is a provisional playtest grant, not a future online-account entitlement.
+- Existing basic modules use construction-only costs through their first three
+  settled levels. Starting at target level 4, their cost must include all four
+  material resources, so advancing requires a balanced production base rather
+  than only construction output. The exact per-level cost table/curve is a
+  configurable catalog value, not another hardcoded shared doubling rule.
+- Future advanced module types may define mixed material costs from their first
+  level. Their prices are deliberately deferred to the task that introduces each
+  module, rather than guessed in P2.6.
+- P2.6 replaces the current shared `scale_for_level`/`scaleForLevel` stub with
+  independently configurable curves/tables for costs, build time, production,
+  and storage. Trade values and warp's one-fuel-per-tile cost remain unchanged
+  until the broader credits/fuel design work (→ P4.6, P4.9).
+
+#### Crew baseline
+
+- The Command Module supplies exactly **2 initial berths**, not 2 per level.
+- Crew Quarters supplies **5 berths per settled level**. This supports the four
+  resource producers plus the staffed Trading Post at a matching progression
+  level, with two reserve berths.
+- The 50% pooled-output floor remains in P2.6, with no biological upkeep. P2.8
+  first adds per-module shortage visibility, prioritization, and reassignment;
+  only then may it impose a lower floor without making a shortage opaque or a
+  death spiral.
+
+#### Radial asteroid grades and the central system
+
+The 1000*1000 map is divided by Chebyshev distance from its nearest edge into
+four 100-tile resource bands and an empty central system:
+
+| Area                                     | Nearest-edge distance | Asteroid resource grade |
+| ---------------------------------------- | --------------------: | ----------------------: |
+| Outer band                               |                  0–99 |                       1 |
+| Second band                              |               100–199 |                       2 |
+| Third band                               |               200–299 |                       3 |
+| Inner band                               |               300–399 |                       4 |
+| Central system `[400, 600) * [400, 600)` |               400–499 |                    none |
+
+An asteroid's resource grade is independent of its small/medium/large size tier.
+Grade multiplies its seeded deposit by a configurable table; the initial table
+is **[1, 1.5, 2, 4]** for grades 1–4. Thus deep nodes reward longer mining
+commitments, while future Research upgrades can reduce mining time. Keep one
+miner per asteroid in P2.6. The central system has no ordinary asteroids and is
+reserved for future conflict/boss content (→ P4.2); enemies themselves are not
+part of P2.6.
+
+Grade is derived from an asteroid's immutable map position rather than stored in
+the save. Existing saves retain their absolute deposits and active timers; the
+new radial distribution applies when a fresh local system is seeded. This avoids
+silently changing earned resources or live jobs.
+
+#### Developer reset controls
+
+Local playtests need two destructive, startup-only controls:
+
+- `--reset-player <name>` removes the selected developer profile and all its
+  owned state, then creates that profile afresh in the existing shared system.
+  Other profiles and the world (including depleted asteroids) remain intact.
+- `--reset-system` replaces the entire local test system with its deterministic
+  fresh seed. It removes every local profile and all world progress.
+
+The controls are mutually exclusive, clearly logged, and never part of an
+online/server protocol. They need their own roadmap task because they are
+developer data-management operations, not player actions or balancing rules.
+
 ### P2.1 implementation decisions
 
 - **Spawn planner:** `local-system-1` uses the fixed seed

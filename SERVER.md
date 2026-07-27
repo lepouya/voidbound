@@ -132,7 +132,11 @@ mothership spawn clear of existing ships and asteroids.
 startup controls. Time scale never reaches an online server or rewrites existing
 deadlines; a run's scale affects only new local durations and live production
 cadence. Five rolling local backup generations protect the whole system; a
-restore rolls every local player back together.
+restore rolls every local player back together. P2.10 adds two mutually
+exclusive, destructive startup controls for local playtests:
+`--reset-player <name>` removes and recreates one profile without changing the
+shared world, while `--reset-system` replaces the entire deterministic local
+system. Neither maps to the online protocol.
 
 ## Time and offline settlement
 
