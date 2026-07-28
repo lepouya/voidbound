@@ -38,13 +38,12 @@ pub struct CrewActionResponse {
 
 /// Biological-material cost of one crew hire, multiplied by the new head
 /// count — linear, not the doubling stub: hiring is a repeat purchase
-/// (ROADMAP P1.10). Balancing stub → P2.6. Mirrored display-only as
-/// HIRE_COST_BIOLOGICAL in `src/ship/module-catalog.ts` — keep the two in sync.
-const HIRE_COST_BIOLOGICAL: u64 = 20;
+/// (ROADMAP P1.10). Sent to the client in the server-owned balance catalog.
+pub(super) const HIRE_COST_BIOLOGICAL: u64 = 20;
 
-/// Recruitment time per hire. Balancing stub → P2.6. Mirrored display-only
-/// as HIRE_TIME_MS in `src/ship/module-catalog.ts` — keep the two in sync.
-const HIRE_TIME_MS: u64 = 30_000;
+/// Recruitment time per hire. Sent to the client in the server-owned balance
+/// catalog.
+pub(super) const HIRE_TIME_MS: u64 = 300_000;
 
 /// A new player starts with no crew (ROADMAP P1.10) and hires from scratch —
 /// the first recruitment is a natural early goal (and a future tutorial
@@ -138,6 +137,7 @@ mod tests {
         let err = s.hire_crew(0).unwrap_err();
         assert!(err.contains("no berths"), "{err}");
         insert_settled(&mut s, "module-quarters", "crew-quarters", 1);
+        s.resources.biological = 0;
         let err = s.hire_crew(0).unwrap_err();
         assert!(err.contains("not enough biological"), "{err}");
         // Linear cost: the third head costs 3 * the base.
@@ -192,7 +192,9 @@ mod tests {
     #[test]
     fn hire_settles_after_production_so_the_ratio_is_not_retroactive() {
         let mut s = ServerState::new(0);
-        // A level-4 refinery with no crew at all: the floor rate, 8/tick.
+        s.resources.construction = 0;
+        // A level-4 refinery (37 construction/minute) with no crew at all,
+        // running at the 50% floor.
         insert_settled(&mut s, "module-refinery", "ore-refinery", 4);
         s.crew = 0;
         s.resources.biological = HIRE_COST_BIOLOGICAL;
@@ -201,10 +203,14 @@ mod tests {
         // the *old* staffing first; only then does the new head land.
         s.settle(HIRE_TIME_MS);
         let ticks = HIRE_TIME_MS / TICK;
-        assert_eq!(s.resources.construction, ticks * (8 + 1));
+        // 60 ticks of the floor rate plus the undamped command baseline:
+        // (37 * 60 * 4 / 8 + 12 * 60) / 12.
+        assert_eq!(s.resources.construction, (37 * ticks / 2 + 12 * ticks) / 12);
+        assert_eq!(s.resources.construction, 152);
         assert_eq!(s.crew, 1);
-        // The next tick runs at the improved ratio: 16 * (4 + 1) / 8 = 10.
+        // The next tick runs at the improved ratio: 37 * (4 + 1) / 8 = 23, so
+        // (23 + 12 + 6 carried) / 12 = 3.
         s.accrue_production(HIRE_TIME_MS + TICK);
-        assert_eq!(s.resources.construction, ticks * 9 + 10 + 1);
+        assert_eq!(s.resources.construction, 152 + 3);
     }
 }

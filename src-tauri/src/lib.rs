@@ -39,6 +39,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             map::generate_map,
             game_state::load_game_state,
+            game_state::reset_local_system,
             game_state::request_map_window,
             game_state::request_build_module,
             game_state::request_levelup_module,

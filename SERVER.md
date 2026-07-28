@@ -75,6 +75,15 @@ A joining client receives:
 2. The **log suffix** — all events with sequence `> N`, replayed in order
    through the normal `apply*Event` entry points.
 
+`load_game_state` also carries a versioned **balance catalog** for client-side
+display only: module metadata and preview curves, crew-hire values, and asteroid
+tiers/mining rate. The Rust rules remain authoritative for every spend,
+completion, and harvest. The client validates the catalog and installs it before
+publishing the snapshot to scene subscribers; an unknown schema or malformed
+catalog fails the load as a safe unloaded state rather than guessing local
+fallback numbers. A future schema change must increment `schemaVersion` and ship
+a compatible client parser.
+
 For this to work, every event must be self-contained: `apply*Event` can
 reconstruct the outcome from the event fields alone (IDs, source/destination,
 amounts, timestamps) with no hidden local state — the required-field checklist

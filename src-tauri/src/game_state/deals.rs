@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use super::modules::{scale_for_level, TRADING_POST_MODULE_TYPE};
+use super::modules::TRADING_POST_MODULE_TYPE;
 use super::resources::{trade_display_name, ResourceCounts, TradeKind, TRADE_KINDS};
 use super::state::{NotificationPayload, SeedRng, ServerPush, ServerState};
 
@@ -15,25 +15,29 @@ pub(super) fn utc_day_index(now_ms: u64) -> u64 {
 }
 
 /// Credits-per-resource-unit exchange rate. With the four resources still
-/// value-equivalent (all balancing is stubbed until P2.6), deal sizing works
-/// in "units" and converts a credits side through this. Balancing stub →
-/// P2.6.
+/// value-equivalent, deal sizing works in "units" and converts a credits side
+/// through this. P2.6 left every trade number alone on purpose: credits have
+/// no designed role yet, so pricing them is P4.6's work.
 const CREDITS_PER_RESOURCE_UNIT: u64 = 1;
 
-/// Deal give-side size in units at Trading Post level 1; doubles per level
-/// (scale_for_level). Balancing stub → P2.6.
+/// Deal give-side size in units at Trading Post level 1; it retains its
+/// existing doubling progression until the broader credits pass (P4.6).
 const DEAL_GIVE_BASE_UNITS: u64 = 40;
+
+fn deal_give_units_at_level(level: u32) -> u64 {
+    DEAL_GIVE_BASE_UNITS.saturating_mul(2u64.saturating_pow(level.saturating_sub(1)))
+}
 
 /// The give side is capped at this fraction of the player's current storage
 /// cap for the resource (cap / 5 = 20%) — the single rule that keeps deals
 /// affordable at every progression stage and makes "trade a million
 /// resources" structurally impossible. Credits are uncapped and skip it.
-/// Balancing stub → P2.6.
+/// Trade tuning → P4.6.
 const DEAL_GIVE_CAP_DIVISOR: u64 = 5;
 
 /// Freebie get-amount band in units (inclusive) — a separate, deliberately
 /// small band, not the deal-sizing rule: the daily freebie is a growth
-/// nudge, never a big win. Balancing stub → P2.6.
+/// nudge, never a big win. Trade tuning → P4.6.
 const DEAL_FREEBIE_MIN_UNITS: u64 = 10;
 
 const DEAL_FREEBIE_MAX_UNITS: u64 = 30;
@@ -41,7 +45,7 @@ const DEAL_FREEBIE_MAX_UNITS: u64 = 30;
 /// Credits cost of each refresh within a day, indexed by refreshes already
 /// used: the first is free, then doubling, hard-capped at the array length
 /// (5/day). Mirrored display-only as DEAL_REFRESH_COSTS_CREDITS in
-/// `src/ship/trade-catalog.ts` — keep the two in sync. Balancing stub → P2.6.
+/// `src/ship/trade-catalog.ts` — keep the two in sync. Trade tuning → P4.6.
 const DEAL_REFRESH_COSTS_CREDITS: [u64; 5] = [0, 10, 20, 40, 80];
 
 /// Deal slot count by Trading Post level: 3 at level 1, +1 every 2 levels,
@@ -64,7 +68,7 @@ pub enum DealRarity {
 }
 
 /// (rarity, roll weight out of 100, get-side bonus percent). Weights and
-/// bonuses are balancing stubs → P2.6; display styling lives in
+/// bonuses are trade numbers → P4.6; display styling lives in
 /// `src/ship/trade-catalog.ts`.
 const DEAL_RARITIES: [(DealRarity, u64, u64); 3] = [
     (DealRarity::Common, 70, 20),
@@ -249,7 +253,7 @@ impl ServerState {
             .filter(|k| *k != give_kind)
             .collect();
         let get_kind = others[(rng.next() % 4) as usize];
-        let base = scale_for_level(DEAL_GIVE_BASE_UNITS, self.trading_post_level().max(1));
+        let base = deal_give_units_at_level(self.trading_post_level().max(1));
         let mut give_units = rng.range(base / 2, base);
         if let Some(res) = give_kind.material() {
             give_units = give_units.min(self.storage_caps().get(res) / DEAL_GIVE_CAP_DIVISOR);
@@ -485,6 +489,13 @@ mod tests {
     #[test]
     fn accept_deal_applies_the_exchange_once() {
         let mut s = ServerState::new(0);
+        s.resources = ResourceCounts {
+            construction: 0,
+            high_tech: 0,
+            biological: 0,
+            fuel: 0,
+            credits: 0,
+        };
         insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
         let deal = s.deals[1].clone();
         let give = deal.give.unwrap();
@@ -503,6 +514,13 @@ mod tests {
     #[test]
     fn accept_deal_rejects_an_unaffordable_give_side() {
         let mut s = ServerState::new(0);
+        s.resources = ResourceCounts {
+            construction: 0,
+            high_tech: 0,
+            biological: 0,
+            fuel: 0,
+            credits: 0,
+        };
         insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
         let deal = s.deals[1].clone();
         // One short of the give amount: rejected, nothing gained.
@@ -516,6 +534,13 @@ mod tests {
     #[test]
     fn freebie_accepts_without_cost() {
         let mut s = ServerState::new(0);
+        s.resources = ResourceCounts {
+            construction: 0,
+            high_tech: 0,
+            biological: 0,
+            fuel: 0,
+            credits: 0,
+        };
         insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
         let freebie = s.deals[0].clone();
         assert!(freebie.give.is_none());

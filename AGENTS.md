@@ -56,8 +56,9 @@ task list that tracks what's built vs. planned.
 - **Testing:** `deno task test` runs three halves: the pure-logic TS suite in
   `tests/` (e.g. anchor/camera/dialog/HUD/minimap/grid math, TileRef parsing, a
   PNG-dimensions-vs-catalog cross-check, the `GameState` apply/sync entry
-  points, and the module/asteroid/trade catalog mirrors), the Rust game-rule
-  tests via cargo, and the Python art-pipeline suite
+  points, the balance-catalog preview curves — pinned against the Rust originals
+  by matched tests that name each other — and the trade catalog mirror), the
+  Rust game-rule tests via cargo, and the Python art-pipeline suite
   (`python3 -m unittest
   discover -s tools`, covering `tmj_to_tilemap.py`,
   `sprite_merge.py`/`sprite_transition.py`, and the shared `svg_rasterize.py`
@@ -110,7 +111,8 @@ src-tauri/            # Backend (Rust + Tauri)
   src/game_state/     # ServerState + gameplay commands (game rules live here);
                       #   mod.rs, state.rs (ServerState + push/settle plumbing),
                       #   scheduler.rs, commands.rs, and one file per domain —
-                      #   modules.rs, world.rs, deals.rs, crew.rs, resources.rs
+                      #   modules.rs, world.rs, deals.rs, crew.rs, resources.rs,
+                      #   balance.rs (the cross-domain wire balance payload)
   src/map.rs          # generate_map command (map data)
 
 tests/                # deno test pure-logic suite (run: deno task test:ts)
@@ -203,7 +205,11 @@ review to add them:
 
 - **Timed actions show a live countdown**, never a static "in progress" label
   (e.g. "Recruiting (12s)"). `TileActor.setButtonLabel()` exists for per-second
-  label ticks without rebuilding the actor.
+  label ticks without rebuilding the actor. They also **state the wait before it
+  is committed to** — `Hire Crew (5m)` next to its cost badge — so the duration
+  is part of the decision rather than something the player discovers only once
+  the timer is already running (P2.6 review). Use `formatDuration` on both, so
+  one action never reports its time two different ways.
 - **Degraded/penalized states get a visible indicator** on the affected entity
   (e.g. an understaffed producer wears an output-percent badge).
 - **Action buttons go on every entity where a player would look for them**, not
@@ -291,10 +297,23 @@ shared Excalibur `loader` as an `ex.Loadable` (see `GameStateResource` in
 src/state/game-state-loader.ts) — never block or gate `game.start()`; the
 loading screen exists precisely so slow work happens behind it. A loadable must
 catch its own errors and resolve anyway: a failed or slow backend must never
-block game start (the player continues on new-player defaults). Scenes must
-tolerate the snapshot landing late or never — read `gameState` defaults at init
-and `subscribe()` to re-stamp visuals when a load lands. Player identity never
-changes mid-game (re-launching is the only way to switch users), so this
+block game start. Scenes must tolerate the snapshot landing late or never — read
+`gameState` defaults at init and `subscribe()` to re-stamp visuals when a load
+lands.
+
+What a failed load _means_ changed with the wire-delivered balance catalog: the
+client carries no local fallback numbers, so there is no playable offline mode
+to continue into. A failed load leaves an explicitly unloaded state (no catalog,
+no world) and `TiledScene.onActivate` surfaces `currentLoadFailure()` as a
+non-dismissable dialog with Retry — on every scene, so a scene switch can't walk
+away from it. `gameState.suspended` drops incoming pushes while that failure is
+outstanding: without a snapshot baseline there is nothing to reconcile them
+against. Pushes arriving _before_ a successful snapshot are still applied
+deliberately — the listener subscribes first and `load()` reconciles per entity
+by revision. Dev builds also get a Reset control (`reset_local_system`, refused
+in release) that reseeds the local system when in-progress balance work has left
+an unloadable save; it goes away when Phase 3 owns the state. Player identity
+never changes mid-game (re-launching is the only way to switch users), so this
 resilience only covers the initial load, not live identity swaps.
 
 ### UI library (`src/ui/`)
@@ -321,7 +340,10 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   (ROADMAP P1.14). Modal scrim + framed panel + title/close + row/cell content
   composed from the other primitives; row cells hold a button, a tile + label,
   or centered text. Don't call `spawnDialog` from scenes — use
-  `TiledScene.openDialog()`, which owns the modal slot and input capture. Also
+  `TiledScene.openDialog()`, which owns the modal slot and input capture.
+  `dismissable: false` makes a dialog the player must answer — no close button,
+  scrim taps swallowed (a scene switch and a replacing dialog still close it);
+  the load-failure dialog is the first consumer. Also
   `bindDialogRows(handle, subscribe, buildRows)` — rebuild a dialog's rows on
   every state-store notify (store-agnostic; unsubscribe from `onClose`). The
   scaffold for every server-driven panel: P1.12's shop is the reference
@@ -495,16 +517,17 @@ new commands and push variants.
 - `request_hire_crew()` — timed crew recruitment (ROADMAP P1.10): one hire in
   flight at a time, the new head must fit crew capacity
   (`crew_capacity_per_level` summed over settled module levels), and a linear
-  biological cost (scales with the new head count — a repeat purchase, not the
-  doubling-per-level stub) gates it; returns `CrewData` (head count + pending
+  biological cost (scales with the new head count — a repeat purchase, not a
+  per-level curve) gates it; returns `CrewData` (head count + pending
   recruitment) plus updated counts (`CrewActionResponse`). Crew berths damp
   producer output through a pooled ship-wide staffing ratio at production
   accrual — `output * (0.5 + 0.5 * staffed/required)` — floored at 50% so
   understaffing punishes but never kills; the Command Module's baseline output
   is never damped (the anti-stuck guarantee: a new player can progress at 0
-  crew). Hire cost/time and the 50% floor are balancing stubs (→ P2.6); richer
-  understaffing UX (per-module indicators, crew prioritization, temporary
-  reassignment) is tracked by ROADMAP P2.8.
+  crew). P2.6 settled hire cost/time (20 biological per new head, 5 minutes) and
+  kept the 50% floor deliberately; lowering it waits on the richer understaffing
+  UX (per-module indicators, crew prioritization, temporary reassignment)
+  tracked by ROADMAP P2.8, so a shortage can be seen before it bites harder.
 - `request_dispatch_vessel(dest_col, dest_row)` /
   `request_recall_vessel(vessel_id)` — verify the move, derive dock, speed, and
   arrival time (recalls depart from the server-lerped current position), record
@@ -532,30 +555,72 @@ new commands and push variants.
   accept additionally verifies a settled Trading Post, the give-side cost, and
   that the get side fits storage — rejected outright, never clamp-and-lose:
   explicit player actions differ deliberately from P1.11's passive-overflow
-  rule. Refreshes replace every slot (an unclaimed freebie is forfeited; a
-  refresh batch never mints one) at a doubling credits cost, hard-capped per
-  day; slot count grows with the post's settled level, and a mid-batch level-up
-  appends the new slots immediately (`top_up_deal_slots` — append-only: existing
-  deals and their accepted state are never rerolled, so leveling can't dodge the
-  refresh cost). The shop dialog is opened from the settled post's Trade button
-  (`ShipLevel.openShopDialog`) and re-renders from `gameState.deals` via
-  `bindDialogRows` (see § UI library).
+  rule. **Mining is the known exception**: a harvest is an explicit action too,
+  but its cargo still clamps at the cap on deposit with the overflow lost. P2.6
+  added a warning row to the asteroid panel instead of reconciling the two;
+  which rule mining should follow is an open question recorded in
+  `PHASE_2_PLANNING.md`, not a settled difference. Refreshes replace every slot
+  (an unclaimed freebie is forfeited; a refresh batch never mints one) at a
+  doubling credits cost, hard-capped per day; slot count grows with the post's
+  settled level, and a mid-batch level-up appends the new slots immediately
+  (`top_up_deal_slots` — append-only: existing deals and their accepted state
+  are never rerolled, so leveling can't dodge the refresh cost). The shop dialog
+  is opened from the settled post's Trade button (`ShipLevel.openShopDialog`)
+  and re-renders from `gameState.deals` via `bindDialogRows` (see § UI library).
 
 Gameplay constants (production tick, the module catalog's per-type cost/build
 time/production, the asteroid tier catalog + mine rate, room grid, map geometry,
-vessel speed) live in game_state/ (modules.rs, world.rs, state.rs); the ones the
-UI renders have display-only TS mirrors — comments mark each pair; keep them in
-sync (the asteroid mirror is `src/map/asteroid-catalog.ts`: tier bands, class
-names, sprite tints, duration estimates; the deal-shop mirror is
-`src/ship/trade-catalog.ts`: refresh costs and rarity styling — deal sizing has
-no mirror, amounts arrive on the wire). The module catalog's
-cost/build-time/production all scale per level through one shared
-doubling-per-level stub (`scale_for_level`/`scaleForLevel`) — real balancing is
-a later pass, as is the asteroid deposit/rate balance. Mothership placement is
-data, not a constant: it is seeded in `ServerState::new` and reaches the client
-only via the snapshot — the asteroid field seeds the same way (deterministic
-`seed_asteroids`). The game-rule logic is covered by the Rust tests (part of
-`deno task test`).
+vessel speed) live in game_state/ (modules.rs, world.rs, state.rs). **The module
+and asteroid catalogs are no longer hand-synced mirrors** (ROADMAP P2.6): they
+ride the `load_game_state` snapshot as a versioned `balance` payload, validated
+and installed by `applyBalanceCatalog` before the snapshot is published, so
+`src/ship/module-catalog.ts` and `src/map/asteroid-catalog.ts` hold _no_ numbers
+of their own — they compute previews from server-supplied curve parameters. The
+payload is assembled by `balance_catalog_data()` in
+[src-tauri/src/game_state/balance.rs](src-tauri/src/game_state/balance.rs) — its
+own module because it spans domains (module catalog, crew, asteroids) and no one
+domain should own the others' constants — and validated and installed
+client-side by the single `applyBalanceCatalog` in
+[src/state/balance-catalog.ts](src/state/balance-catalog.ts), which owns **all**
+validation and then calls each catalog's `install*Balance`. Validation is total
+and all-or-nothing: a payload bad anywhere installs nothing, so the client can
+never render new module numbers against old asteroid ones. Adding a balance
+constant the UI must render means adding it to the wire payload and bumping
+`schemaVersion` on both sides (`BALANCE_SCHEMA_VERSION`, one constant per side),
+a mismatch being refused outright as an `incompatible` load failure rather than
+guessed at. Server-side-only parameters (asteroid `seed_count`/`max_miners`)
+deliberately stay off the wire. Test suites share one complete fixture,
+`sampleBalance()` in [tests/balance_fixture.ts](tests/balance_fixture.ts), since
+whole-payload validation means even an asteroid-only suite needs valid module
+data. The remaining hand-synced pair is `src/ship/trade-catalog.ts` (deal
+refresh costs and rarity styling; deal sizing has no mirror, amounts arrive on
+the wire), plus `crewScaledAmount`'s staffing formula — comments mark those.
+
+The balance curves are independently configurable, not one shared rule (P2.6
+replaced the `scale_for_level`/`scaleForLevel` doubling stub): construction cost
+compounds 1.5x per target level from 25; build time reads a per-level table.
+Cost and build time each take their own exact per-entry rational multiplier —
+kept **separate** even though every type currently sets the two identically (the
+producers are half of both), so speed and price can be tuned apart without a
+schema change. The cost multiplier applies to construction and so reaches the
+supplemental materials derived from it, rather than discounting only the
+construction line. Production compounds 1.15x in fixed point and is catalogued
+**per minute**, converted to the tick cadence at accrual with a runtime sub-unit
+carry. Storage and crew berths are each a catalog `base` (granted once settled
+at any level) plus a `per_level` contribution — two fields rather than one plus
+an "is it flat?" branch, so no type is a special case. The Command Module is
+base-only **by design**: leveling it buys progression (unlocks and the ship-wide
+level cap), never capacity, so the Storage Bay and Crew Quarters stay worth
+building at every level. Where a preview and the server must agree exactly, the
+two implementations are pinned by matched tests naming each other.
+
+Mothership placement is data, not a constant: it is seeded in `ServerState::new`
+and reaches the client only via the snapshot. Spawns are planned into the
+**outer resource band** (`plan_outer_band_spawn`) — the map's radial grades
+leave the central system empty, so a central spawn would start with nothing
+mineable in its whole interest window. The asteroid field seeds the same way
+(deterministic `seed_asteroids`). The game-rule logic is covered by the Rust
+tests (part of `deno task test`).
 
 Tauri commands return `Result<T, String>` — propagate errors as strings, don't
 `unwrap`/panic in command handlers.

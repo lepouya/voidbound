@@ -526,17 +526,28 @@ fn sync_parent_directory(path: &Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use crate::game_state::state::ServerState;
 
+    /// A private directory per test. Cargo runs these as parallel threads in
+    /// one process, and each test ends by `remove_dir_all`-ing its own
+    /// directory — so two tests sharing a path don't merely interfere, one
+    /// deletes the other's save mid-run. The pid is identical across those
+    /// threads and a `SystemTime` reading is only microsecond-resolution, so
+    /// the counter is what actually guarantees uniqueness within a process;
+    /// pid and timestamp keep separate `cargo test` runs (and reused pids)
+    /// apart.
     fn test_path() -> PathBuf {
+        static NEXT_TEST_DIR: AtomicU64 = AtomicU64::new(0);
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock after epoch")
             .as_nanos();
+        let seq = NEXT_TEST_DIR.fetch_add(1, Ordering::Relaxed);
         std::env::temp_dir().join(format!(
-            "voidbound-save-test-{}-{nonce}",
+            "voidbound-save-test-{}-{nonce}-{seq}",
             std::process::id()
         ))
     }

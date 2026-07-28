@@ -4,12 +4,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
+use super::balance::{balance_catalog_data, BalanceCatalogData};
 use super::crew::{CrewData, PendingHire, STARTING_CREW};
 use super::deals::{utc_day_index, DealData, DealsData, DAY_MS};
 use super::modules::{module_anchor_at, ModuleData, COMMAND_MODULE_TYPE, PRODUCTION_TICK_MS};
 use super::persistence::{normalize_player_name, PersistentPlayerV1, PersistentSystemV1};
 use super::resources::ResourceCounts;
-use super::world::{seed_asteroids, AsteroidData, MapWindow, MothershipData, VesselMoveEventData};
+use super::world::{
+    plan_outer_band_spawn, seed_asteroids, AsteroidData, MapWindow, MothershipData,
+    VesselMoveEventData, SYSTEM_SEED,
+};
 
 #[derive(Serialize, serde::Deserialize, Clone, Debug)]
 pub struct PlayerIdentity {
@@ -176,9 +180,12 @@ pub enum ServerPush {
 
 /// Game state pushed to the client. Mirrors the TS `GameStateData` in
 /// `src/state/game-state-types.ts` — keep the two in sync.
-#[derive(Serialize, serde::Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameStateData {
+    /// Versioned balance/catalog data for client-side previews only. Rust
+    /// remains the sole authority that applies these rules.
+    pub balance: BalanceCatalogData,
     pub player: PlayerIdentity,
     pub resources: ResourceCounts,
     /// The interest-area window the world slices below were filtered to
@@ -397,6 +404,28 @@ pub struct ServerState {
     /// appends one Resources push carrying the final counts, so several
     /// accruals/spends inside one mutation collapse into a single push.
     pub(super) resources_dirty: bool,
+    /// Sub-unit production carried between accruals, in "units * ticks"
+    /// numerator space (see `accrue_production_until`), keyed by normalized
+    /// player name. Per profile because `for_each_profile` swaps the active
+    /// profile mid-settlement — carry earned under one player must never land
+    /// in another's counts. Runtime-only and deliberately not persisted: it is
+    /// worth strictly less than one unit per resource, so a restart that drops
+    /// it costs the player nothing measurable, and keeping it out of the save
+    /// avoids a schema change for a rounding detail.
+    pub(super) production_carry: HashMap<String, ResourceCounts>,
+}
+
+/// FNV-1a over a normalized player name — the per-player half of every
+/// deterministic plan derived for that profile (spawn placement today). Kept
+/// in one place so a created profile and the system's first player are
+/// seeded by the same rule.
+fn player_seed_hash(name: &str) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325u64;
+    for byte in normalize_player_name(name).bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100_0000_01b3);
+    }
+    hash
 }
 
 impl ServerState {
@@ -422,7 +451,13 @@ impl ServerState {
         );
         // A new local system starts with its selected developer player's
         // mothership. Other ships are real local profiles created at a later
-        // launch, never a display-only placeholder enemy.
+        // launch, never a display-only placeholder enemy. Its spawn is
+        // planned exactly like a later profile's — deterministically, in the
+        // outer resource band — so the very first player is not the one
+        // account that starts somewhere the rules would never place anyone.
+        let mut spawn_rng = SeedRng(SYSTEM_SEED ^ player_seed_hash(&player.name));
+        let (spawn_col, spawn_row) = plan_outer_band_spawn(&mut spawn_rng, 4, |_, _| true)
+            .expect("outer-band spawn exists in an empty system");
         let motherships = HashMap::from([(
             player.id.clone(),
             MothershipData {
@@ -431,25 +466,24 @@ impl ServerState {
                 owner_name: player.name.clone(),
                 ship_type: "mothership-1".to_string(),
                 damaged: false,
-                col: 498,
-                row: 498,
+                col: spawn_col,
+                row: spawn_row,
                 span: 4,
             },
         )]);
-        // Placeholder starter asteroid field, spread across the map.
-        // Persistence (P2) / the real server (P3) will load this instead.
+        // A fresh local system receives its deterministic balanced field.
         let asteroids = seed_asteroids(&motherships);
         let mut state = Self {
             player: player.clone(),
             system_id: "local-system-1".to_string(),
-            system_seed: 0x9E37_79B9_7F4A_7C15,
+            system_seed: SYSTEM_SEED,
             parked_players: BTreeMap::new(),
             revision: 0,
             resources: ResourceCounts {
-                construction: 0,
-                high_tech: 0,
-                biological: 0,
-                fuel: 0,
+                construction: 100,
+                high_tech: 100,
+                biological: 100,
+                fuel: 100,
                 credits: 0,
             },
             last_production_at: now_ms,
@@ -467,9 +501,10 @@ impl ServerState {
             deals: Vec::new(),
             deals_day_index: utc_day_index(now_ms),
             deal_refreshes_used: 0,
-            aoi: MapWindow::centered_at(MAP_COLS / 2, MAP_ROWS / 2),
+            aoi: MapWindow::centered_at(spawn_col + 2, spawn_row + 2),
             outbox: Vec::new(),
             resources_dirty: false,
+            production_carry: HashMap::new(),
         };
         // The interest area starts centered on the player's mothership —
         // matching the camera's home position (ROADMAP P1.13).
@@ -517,6 +552,7 @@ impl ServerState {
             aoi: MapWindow::centered_at(MAP_COLS / 2, MAP_ROWS / 2),
             outbox: Vec::new(),
             resources_dirty: false,
+            production_carry: HashMap::new(),
         };
         state.validate_timestamps()?;
         Ok(state)
@@ -568,11 +604,7 @@ impl ServerState {
         self.parked_players
             .insert(normalize_player_name(&self.player.name), current);
 
-        let mut identity_hash = 0xcbf2_9ce4_8422_2325u64;
-        for byte in normalized.bytes() {
-            identity_hash ^= u64::from(byte);
-            identity_hash = identity_hash.wrapping_mul(0x100_0000_01b3);
-        }
+        let identity_hash = player_seed_hash(&normalized);
         let identity = PlayerIdentity {
             id: format!("player-{identity_hash:016x}"),
             name: display_name,
@@ -587,24 +619,18 @@ impl ServerState {
         let profile = PersistentPlayerV1::from_state(&template);
 
         let mut rng = SeedRng(self.system_seed ^ identity_hash);
-        let mut spawn = None;
-        for _ in 0..4096 {
-            let col = rng.range(0, (MAP_COLS - 4) as u64) as i64;
-            let row = rng.range(0, (MAP_ROWS - 4) as u64) as i64;
-            let clear = self.motherships.values().all(|ship| {
-                footprints_separated((col, row, 4), (ship.col, ship.row, ship.span), 1)
-            }) && self.asteroids.values().all(|asteroid| {
-                footprints_separated(
-                    (col, row, 4),
-                    (asteroid.col, asteroid.row, asteroid.span),
-                    1,
-                )
-            });
-            if clear {
-                spawn = Some((col, row));
-                break;
-            }
-        }
+        let spawn = plan_outer_band_spawn(&mut rng, 4, |col, row| {
+            self.motherships
+                .values()
+                .all(|ship| footprints_separated((col, row, 4), (ship.col, ship.row, ship.span), 1))
+                && self.asteroids.values().all(|asteroid| {
+                    footprints_separated(
+                        (col, row, 4),
+                        (asteroid.col, asteroid.row, asteroid.span),
+                        1,
+                    )
+                })
+        });
         let Some((col, row)) = spawn else {
             return Err("no clear deterministic mothership spawn remains".to_string());
         };
@@ -840,6 +866,7 @@ impl ServerState {
         // below are filtered to it.
         self.recenter_aoi_on_player();
         GameStateData {
+            balance: balance_catalog_data(),
             player: self.player.clone(),
             resources: self.resources,
             map_window: self.aoi,
@@ -959,7 +986,7 @@ fn validate_timestamp_pair(label: &str, start_ms: u64, deadline_ms: u64) -> Resu
     Ok(())
 }
 
-fn footprints_separated(
+pub(super) fn footprints_separated(
     (a_col, a_row, a_span): (i64, i64, i64),
     (b_col, b_row, b_span): (i64, i64, i64),
     gap: i64,
@@ -980,11 +1007,14 @@ mod tests {
     #[test]
     fn snapshots_are_windowed_to_the_interest_area() {
         let mut s = ServerState::new(0);
-        // The AOI starts centered on the player's mothership (498+2, 498+2).
+        // The AOI starts centered on the player's mothership, wherever the
+        // outer-band spawn planner put it.
+        let ship = s.player_mothership().expect("player mothership");
+        let (ship_col, ship_row) = (ship.col, ship.row);
         let aoi = s.aoi;
         assert_eq!(
             (aoi.center_col, aoi.center_row, aoi.span),
-            (500, 500, AOI_SPAN)
+            (ship_col + 2, ship_row + 2, AOI_SPAN)
         );
         // The selected profile's ship is inside the home window.
         assert_eq!(s.motherships_snapshot().len(), 1);
@@ -1012,7 +1042,8 @@ mod tests {
             .iter()
             .any(|m| m.owner_id == "player-1"));
         // The asteroid slice holds only in-window footprints — far fewer
-        // than the whole seeded field.
+        // than the whole seeded field. A spawn lands in the outer resource
+        // band, so the home window has asteroids in it to slice (P2.6).
         let mut s = ServerState::new(0);
         let windowed = s.asteroids_snapshot(0);
         assert!(!windowed.is_empty());
@@ -1093,7 +1124,7 @@ mod tests {
         s.accrue_production(2 * TICK);
         let pushes = s.drain_pushes();
         assert_eq!(pushes.len(), 1);
-        assert!(matches!(pushes[0], ServerPush::Resources(c) if c.construction == 2));
+        assert!(matches!(pushes[0], ServerPush::Resources(c) if c.construction == 102));
         // Drained: nothing left until the next change.
         assert!(s.drain_pushes().is_empty());
     }
@@ -1115,21 +1146,23 @@ mod tests {
         let mut s = funded_state(1, 0);
         // Nothing pending: the next production tick is the only deadline.
         assert_eq!(s.next_deadline(), TICK);
-        // A build completing between ticks beats the tick (15s build started
-        // at 1_000 completes at 16_000, between the 15_000 and 20_000 ticks).
+        // A refinery build completes between production ticks.
         s.build_module(2, 2, "ore-refinery".to_string(), 1_000)
             .unwrap();
-        s.settle(3 * TICK);
+        s.settle(4 * TICK);
         assert_eq!(s.next_deadline(), 1_000 + ore_refinery_build_time());
         // Once it settles, the cadence falls back to the tick.
         s.settle(1_000 + ore_refinery_build_time());
-        assert_eq!(s.next_deadline(), 4 * TICK);
+        assert_eq!(s.next_deadline(), 5 * TICK);
         // A short vessel flight beats the tick; its settled arrival doesn't.
-        let out = s.dispatch_vessel(500, 501, 16_000).unwrap();
-        assert!(out.arrival_at < 4 * TICK);
+        // One tile off the dock, wherever the ship spawned.
+        let ship = s.player_mothership().expect("player mothership");
+        let (hop_col, hop_row) = (ship.col + 2, ship.row + 3);
+        let out = s.dispatch_vessel(hop_col, hop_row, 23_500).unwrap();
+        assert!(out.arrival_at < 5 * TICK);
         assert_eq!(s.next_deadline(), out.arrival_at);
         s.settle(out.arrival_at);
-        assert_eq!(s.next_deadline(), 4 * TICK);
+        assert_eq!(s.next_deadline(), 5 * TICK);
     }
 
     #[test]

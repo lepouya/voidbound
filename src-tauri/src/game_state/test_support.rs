@@ -1,18 +1,26 @@
-use super::modules::{catalog_entry, ModuleData, PRODUCTION_TICK_MS};
+use super::modules::{build_time_ms, catalog_entry, module_cost, ModuleData, PRODUCTION_TICK_MS};
 use super::resources::ResourceKind;
 use super::state::{player_identity, ServerState};
 use super::world::AsteroidData;
 
 pub(super) const TICK: u64 = PRODUCTION_TICK_MS;
 
+/// Sub-unit production the active profile is carrying between accruals —
+/// runtime-only state, so tests read it through this helper rather than
+/// reaching into the per-profile map.
+pub(super) fn production_carry(s: &ServerState, kind: ResourceKind) -> u64 {
+    s.production_carry
+        .get(&super::persistence::normalize_player_name(&s.player.name))
+        .map(|carry| carry.get(kind))
+        .unwrap_or(0)
+}
+
 pub(super) fn ore_refinery_cost() -> u64 {
-    catalog_entry("ore-refinery")
-        .unwrap()
-        .base_cost_construction
+    module_cost(catalog_entry("ore-refinery").unwrap(), 1).construction
 }
 
 pub(super) fn ore_refinery_build_time() -> u64 {
-    catalog_entry("ore-refinery").unwrap().base_build_time_ms
+    build_time_ms(catalog_entry("ore-refinery").unwrap(), 1)
 }
 
 /// A state that can afford `builds` ore-refinery builds, with production
@@ -47,6 +55,22 @@ pub(super) fn notification_kinds(s: &ServerState) -> Vec<&str> {
     s.notifications.iter().map(|n| n.payload.kind()).collect()
 }
 
+/// A state whose mothership sits at a fixed anchor with an empty asteroid
+/// field. For tests about ship/vessel/relocate mechanics rather than world
+/// content: P2.6 moved new spawns into the outer resource band, so the
+/// planner's chosen coordinates are deterministic but not fixed, and a test
+/// that hardcodes them is really asserting the spawn rule by accident.
+pub(super) fn anchored_state(col: i64, row: i64) -> ServerState {
+    let mut s = ServerState::new(0);
+    s.asteroids.clear();
+    let id = player_identity().id;
+    let ship = s.motherships.get_mut(&id).expect("player mothership");
+    ship.col = col;
+    ship.row = row;
+    s.aoi = super::world::MapWindow::centered_at(col + 2, row + 2);
+    s
+}
+
 /// A state with production silenced (the only module is a settled
 /// Storage Bay, which produces nothing but keeps a 2000-per-resource
 /// storage cap so deposits aren't clamped — ROADMAP P1.11) and the
@@ -54,7 +78,14 @@ pub(super) fn notification_kinds(s: &ServerState) -> Vec<&str> {
 /// 10 tiles / 10 s from the (499, 500) dock — so mining math is
 /// deterministic.
 pub(super) fn mining_state(amount: u64) -> ServerState {
-    let mut s = ServerState::new(0);
+    let mut s = anchored_state(498, 498);
+    s.resources = super::resources::ResourceCounts {
+        construction: 0,
+        high_tech: 0,
+        biological: 0,
+        fuel: 0,
+        credits: 0,
+    };
     s.modules.clear();
     let player = player_identity();
     s.modules.insert(
@@ -70,7 +101,6 @@ pub(super) fn mining_state(amount: u64) -> ServerState {
             pending: None,
         },
     );
-    s.asteroids.clear();
     s.asteroids.insert(
         "asteroid-x".to_string(),
         AsteroidData {

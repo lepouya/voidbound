@@ -14,6 +14,7 @@ import {
   ServerPush,
   VesselMoveEvent,
 } from "../src/state/game-state.ts";
+import { sampleBalance } from "./balance_fixture.ts";
 
 function revisioned<T>(data: T, revision = 1): Revisioned<T> {
   return { revision, data };
@@ -30,6 +31,8 @@ const ZERO_RESOURCES: ResourceCounts = {
   fuel: 0,
   credits: 0,
 };
+
+const SAMPLE_BALANCE = sampleBalance();
 
 function sampleWindow(overrides: Partial<MapWindow> = {}): MapWindow {
   return { centerCol: 50, centerRow: 50, span: 100, ...overrides };
@@ -222,6 +225,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
   assert(!state.loaded);
 
   state.load(revisioned({
+    balance: SAMPLE_BALANCE,
     player: { id: "player-42", name: "Loaded Player" },
     resources: {
       construction: 5,
@@ -284,9 +288,40 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
   assertEquals(notified, 1);
 });
 
+Deno.test("pushes apply before a snapshot but not while suspended", () => {
+  const state = new GameState();
+  // Deliberately NOT gated on `loaded`: the push listener subscribes before
+  // the snapshot is requested so nothing emitted in between is missed, and
+  // load() reconciles per entity by revision.
+  assert(!state.loaded);
+  state.applyServerPush(revisioned({
+    type: "resources",
+    data: { ...ZERO_RESOURCES, construction: 9 },
+  }, 5));
+  assertEquals(state.resources.construction, 9);
+
+  // Suspended is the narrower guard: a load has definitively failed, so
+  // there is no baseline to reconcile against and no catalog to render with.
+  state.suspended = true;
+  state.applyServerPush(revisioned({
+    type: "resources",
+    data: { ...ZERO_RESOURCES, construction: 99 },
+  }, 6));
+  assertEquals(state.resources.construction, 9);
+
+  // A recovered load lifts it and the channel resumes.
+  state.suspended = false;
+  state.applyServerPush(revisioned({
+    type: "resources",
+    data: { ...ZERO_RESOURCES, construction: 42 },
+  }, 7));
+  assertEquals(state.resources.construction, 42);
+});
+
 Deno.test("applyMapWindow replaces the world tables and window, notifies", () => {
   const state = new GameState();
   state.load(revisioned({
+    balance: SAMPLE_BALANCE,
     player: { id: "player-1", name: "Player 1" },
     resources: { ...ZERO_RESOURCES, construction: 7 },
     mapWindow: sampleWindow(),
@@ -382,6 +417,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
   const state = new GameState();
   state.applyVesselEvent(revisioned(sampleVessel("vessel-docked"), 0));
   state.load(revisioned({
+    balance: SAMPLE_BALANCE,
     player: { id: "player-1", name: "Player 1" },
     resources: ZERO_RESOURCES,
     mapWindow: sampleWindow(),
@@ -395,6 +431,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
   }, 1));
 
   state.load(revisioned({
+    balance: SAMPLE_BALANCE,
     player: { id: "player-1", name: "Player 1" },
     resources: ZERO_RESOURCES,
     mapWindow: sampleWindow({ centerCol: 12, centerRow: 14 }),
@@ -736,6 +773,7 @@ Deno.test("subscribeToNotifications fires once per fresh push, never for a repla
   // load()'s backlog must not fire the listener (it would flood the toast
   // layer for a returning player's unread feed).
   state.load(revisioned({
+    balance: SAMPLE_BALANCE,
     player: { id: "player-42", name: "Loaded Player" },
     resources: ZERO_RESOURCES,
     mapWindow: sampleWindow(),

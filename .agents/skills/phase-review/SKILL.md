@@ -24,7 +24,11 @@ Read in this order, taking notes but changing nothing behavioral yet:
    `.agents/skills/`.
 3. **Cross-check every "keep the two in sync" mirror pair** field by field —
    Rust struct ↔ TS interface, Rust constant ↔ TS display mirror, and any
-   invariant whose halves live on opposite sides of the language boundary.
+   invariant whose halves live on opposite sides of the language boundary. Also
+   check the pairs the type system _can't_ catch: values sent over the wire as
+   parameters (the `balance` catalog) whose client-side calculation must
+   reproduce a server one exactly — those are pinned only by matched tests
+   naming each other, so verify the tests still exist and still agree.
 4. **Verify doc claims against code** — file paths, function names, asset
    prefixes, and especially skill templates/snippets, which drift the fastest.
 5. **Fix mechanical doc/skill inaccuracies immediately** (they only get staler)

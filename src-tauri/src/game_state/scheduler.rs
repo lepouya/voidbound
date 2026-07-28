@@ -17,6 +17,10 @@ pub struct GameServer {
     save_store: Arc<SaveStore>,
     save_progress: Arc<Mutex<SaveProgress>>,
     wake: Condvar,
+    /// The session's selected developer identity, kept so a development
+    /// reset can rebuild the same profile rather than silently reverting to
+    /// the `Player 1` fallback.
+    player_name: String,
 }
 
 /// Coordinates save requests independently of the gameplay lock. State
@@ -47,6 +51,7 @@ impl GameServer {
         };
         let saved_at = loaded.as_ref().map(|envelope| envelope.saved_at);
         let is_fresh_system = loaded.is_none();
+        let session_player = player_name.clone();
         let mut state = match loaded {
             Some(envelope) => {
                 let requested = normalize_player_name(&player_name);
@@ -89,9 +94,38 @@ impl GameServer {
             save_store,
             save_progress: Arc::new(Mutex::new(SaveProgress::default())),
             wake: Condvar::new(),
+            player_name: session_player,
         };
         server.persist()?;
         Ok(server)
+    }
+
+    /// Replace the whole local system with a fresh deterministic seed,
+    /// keeping the session's selected identity. Development-only: this
+    /// destroys every profile and all world progress, and exists so a
+    /// playtest wrecked by in-progress balance work can be started over
+    /// without hunting down the save file. P2.10's `--reset-system` is the
+    /// startup-argument form of the same operation and should call this.
+    pub(crate) fn reset_system(&self, now_ms: u64) -> Result<(), String> {
+        {
+            let mut state = self.state.lock().map_err(|error| error.to_string())?;
+            let mut fresh = ServerState::new(now_ms);
+            if normalize_player_name(&fresh.player.name) != normalize_player_name(&self.player_name)
+            {
+                fresh.create_player_profile(self.player_name.clone(), now_ms)?;
+                fresh.parked_players.remove("player 1");
+                fresh.motherships.remove("player-1");
+            }
+            *state = fresh;
+        }
+        // The fresh system restarts at revision 0, which the save-progress
+        // guard would read as stale and skip — clear it so the reset
+        // actually reaches disk.
+        self.save_progress
+            .lock()
+            .map_err(|error| error.to_string())?
+            .saved_revision = None;
+        self.persist()
     }
 
     fn persist(&self) -> Result<(), String> {

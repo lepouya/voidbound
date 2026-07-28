@@ -9,9 +9,10 @@
 #
 # usage: tools/verify_dev.sh <subcommand>
 #   status               stale-instance check: dev task, app process, window id
-#   start                launch `deno task tauri dev` in the foreground
+#   start [app args...]  launch `deno task tauri dev` in the foreground
 #                        (keep its exec session open; refuses if an instance
-#                        already exists)
+#                        already exists). Trailing args reach the app binary,
+#                        e.g. `start --time-scale 60 --player Tester`
 #   wait [-t SECS]       wait for the app process + window to (re)appear
 #                        (e.g. after a src-tauri/ edit relaunches the backend)
 #   log [-n LINES] [-g PATTERN] [-s HH:MM:SS]
@@ -103,7 +104,6 @@ status)
     ;;
 
 start)
-    [ $# -eq 0 ] || { echo "start takes no flags" >&2; exit 2; }
     if [ -n "$(dev_task_pid)" ] || [ -n "$(app_ps)" ]; then
         echo "an instance is already running — 'tools/verify_dev.sh stop' first:" >&2
         app_ps >&2
@@ -119,12 +119,17 @@ start)
     }
     trap cleanup_pid_file EXIT
     echo "dev task running in foreground (pid $$), log: $log_file"
+    # Trailing args go to the app binary (--time-scale, --player,
+    # --restore-backup; see startup_config in src-tauri/src/lib.rs). Two `--`
+    # are needed: the first ends tauri's own options, the second ends cargo's,
+    # so what remains reaches the binary.
+    [ $# -gt 0 ] && echo "app args: $*"
     # Timestamp every log line as it arrives so screenshots (which also print
     # wall-clock times) can be correlated with client console output. Keep the
     # process attached to the caller's live exec session: the command runner
     # cleans up background descendants when a tool call returns, even if they
     # were launched through nohup.
-    deno task tauri dev 2>&1 | while IFS= read -r line; do
+    deno task tauri dev -- -- "$@" 2>&1 | while IFS= read -r line; do
         stamped="$(date +%H:%M:%S) $line"
         printf "%s\n" "$stamped" >>"$log_file"
         printf "%s\n" "$stamped"

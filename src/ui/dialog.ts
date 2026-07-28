@@ -176,6 +176,14 @@ export interface DialogDef {
   /** Frame overrides (margins, title band, padding). */
   layout?: DialogLayoutOpts;
   /**
+   * Set false for a dialog the player must answer: the close button is
+   * omitted and a scrim tap is swallowed rather than dismissing. A scene
+   * switch and a replacing dialog still close it — this suppresses the two
+   * *player-initiated* dismissals, not the scene's ownership of the slot.
+   * Defaults to true.
+   */
+  dismissable?: boolean;
+  /**
    * Called after the dialog closes, whatever the path: the close button, a
    * scene switch, or a newer dialog replacing this one.
    */
@@ -343,6 +351,7 @@ export function spawnDialog(
   // scroll distance carried between scrollBy calls.
   let scrollOffsetRows = 0;
   let dragAccumPx = 0;
+  const dismissable = def.dismissable ?? true;
 
   const closeDef: HudButtonDef = {
     ...squareButton({
@@ -502,7 +511,7 @@ export function spawnDialog(
       { anchor: "middle-center" },
     );
     if (title) root.addChild(title);
-    addButton(closeDef, frame.closeCenter);
+    if (dismissable) addButton(closeDef, frame.closeCenter);
 
     if (def.headerRow) {
       const headerCellRects = layoutCellRects(
@@ -614,10 +623,11 @@ export function spawnDialog(
         }
       }
       // A tap outside the panel itself lands on the scrim — dismiss instead
-      // of silently swallowing it.
+      // of silently swallowing it, unless the dialog must be answered.
       if (
-        screenPos.x < panelRect.x || screenPos.x > panelRect.x + panelRect.w ||
-        screenPos.y < panelRect.y || screenPos.y > panelRect.y + panelRect.h
+        dismissable &&
+        (screenPos.x < panelRect.x || screenPos.x > panelRect.x + panelRect.w ||
+          screenPos.y < panelRect.y || screenPos.y > panelRect.y + panelRect.h)
       ) {
         requestClose();
       }

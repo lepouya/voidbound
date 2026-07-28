@@ -16,9 +16,13 @@ import {
 // own-mothership panel reads out and upgrades the Command Module, so the map
 // scene reaches into ship/'s catalog for this one panel.
 import {
+  canAffordModuleCost,
   COMMAND_MODULE_TYPE,
   costAtLevel,
+  formatModuleCost,
+  maxModuleLevel,
   moduleCatalogEntry,
+  storageCapsForModules,
 } from "../ship/module-catalog.ts";
 import { RESOURCE_ICON_TILESET } from "../scene/tiled-scene.ts";
 import {
@@ -36,11 +40,12 @@ import {
 /** Result of commandUpgradeStatus(): whether/why the details panel's Upgrade
  *  button would currently be enabled. "pending" (a build/level-up timer is
  *  already running) is kept distinct from "unaffordable" so the UI can say
- *  which one it is; the Command Module is exempt from the level cap that
- *  gives other modules a "capped" variant. */
+ *  which one it is; the global level cap gives the Command Module its own
+ *  "capped" variant too. */
 type CommandUpgradeStatus =
   | "unavailable"
   | "pending"
+  | "capped"
   | "unaffordable"
   | "ready";
 
@@ -49,6 +54,10 @@ const FIELD_LABEL: { fontSize: number; color: ex.Color } = {
   fontSize: 10,
   color: ex.Color.fromHex("#9ab0c8"),
 };
+
+/** Amber for advisory rows — a warning the player can still act against,
+ *  distinct from an outright rejection (which is an error toast). */
+const WARNING_COLOR = ex.Color.fromHex("#e8b23a");
 
 /** A "Name   value" readout row. */
 function fieldRow(name: string, value: string): DialogRowDef {
@@ -206,10 +215,12 @@ export class DetailsDialog {
                   (command.pending?.completesAt ?? serverNow()) - serverNow(),
                 )
               })`
+              : status === "capped"
+              ? "Max level"
               : "Upgrade",
-            badge: status === "pending"
+            badge: status === "pending" || status === "capped"
               ? undefined
-              : `${costAtLevel(entry!, nextLevel)}`,
+              : formatModuleCost(costAtLevel(entry!, nextLevel)),
             disabled: status !== "ready",
             onPressed: () => void this.upgradeCommandModule(command.moduleId),
           }),
@@ -219,8 +230,7 @@ export class DetailsDialog {
   }
 
   /** Whether/why the Upgrade button would currently be enabled — mirrors
-   *  ModuleSync.levelUpStatus minus the "capped" variant (the Command Module
-   *  is what the cap is measured against). */
+   *  ModuleSync.levelUpStatus, including the server-delivered global cap. */
   private commandUpgradeStatus(
     command: ModuleData | undefined,
   ): CommandUpgradeStatus {
@@ -228,8 +238,11 @@ export class DetailsDialog {
     const entry = moduleCatalogEntry(command.moduleType);
     if (!entry) return "unavailable";
     if (command.pending !== null) return "pending";
-    return gameState.resources.construction >=
-        costAtLevel(entry, command.level + 1)
+    if (command.level + 1 > maxModuleLevel()) return "capped";
+    return canAffordModuleCost(
+        gameState.resources,
+        costAtLevel(entry, command.level + 1),
+      )
       ? "ready"
       : "unaffordable";
   }
@@ -330,7 +343,34 @@ export class DetailsDialog {
       },
       fieldRow("Status", this.asteroidStatusText(asteroid)),
       fieldRow("Location", `(${asteroid.col}, ${asteroid.row})`),
+      ...this.storageWarningRows(asteroid),
     ];
+  }
+
+  /** Warn when the deposit is worth more than the player can actually bank.
+   *  A harvest lands as one lump on the vessel's return and is clamped at
+   *  the storage cap, with the overflow lost — and a deep-band asteroid can
+   *  hold many times a starting cap, so a multi-hour job can silently return
+   *  a fraction of its yield. P2.6 chose to warn rather than to reject the
+   *  dispatch or clamp the job; if that changes, this row goes with it. */
+  private storageWarningRows(asteroid: AsteroidData): DialogRowDef[] {
+    const caps = storageCapsForModules(gameState.modules.values());
+    const room = Math.max(
+      0,
+      caps[asteroid.resource] - gameState.resources[asteroid.resource],
+    );
+    if (asteroid.remaining <= room) return [];
+    return [{
+      cells: [{
+        label: {
+          text: `Storage holds ${formatCompactCount(room, 1_000)} more — ${
+            formatCompactCount(asteroid.remaining - room, 1_000)
+          } of a full harvest would be lost`,
+          fontSize: 10,
+          color: WARNING_COLOR,
+        },
+      }],
+    }];
   }
 
   /** Live one-line asteroid status: the mining slot's phase (miner inbound

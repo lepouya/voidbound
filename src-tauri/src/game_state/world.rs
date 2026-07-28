@@ -88,7 +88,9 @@ pub struct MothershipActionResponse {
 }
 
 /// Fuel cost per tile of straight-line warp distance — the first real fuel
-/// sink (ROADMAP P1.22). Balancing stub like scale_for_level (→ P2.6).
+/// sink (ROADMAP P1.22). P2.6 deliberately left the rate alone: P4.7 replaces
+/// warp's fuel cost with a "warp core" item outright, so tuning this number
+/// now would be throwaway work. Fuel's broader economy is P4.9.
 const WARP_FUEL_PER_TILE: u64 = 1;
 
 /// Center tile of the ship's inner 2*2 that is closest to the given position
@@ -173,10 +175,15 @@ impl MapWindow {
 
 /// Mining extraction rate in resource units per hour, shared by every tier —
 /// tiers differ only in how much an asteroid holds, so a full mine-out takes
-/// amount / rate (small 15–60 min, medium 1–4 h, large 4–12 h). A stub like
-/// `scale_for_level` until real balancing lands. Mirrored display-only in
-/// `src/map/asteroid-catalog.ts` — keep the two in sync.
-const MINE_UNITS_PER_HOUR: u64 = 240;
+/// amount / rate. P2.6 reviewed this and deliberately kept 240: it is the
+/// value that makes all three README duration bands land at grade 1 (small
+/// 60–240 units → 15–60 min, medium 240–960 → 1–4 h, large 960–2880 → 4–12 h),
+/// so it is load-bearing rather than arbitrary — changing it breaks all three
+/// at once. Radial grade multiplies the deposit, so deeper nodes take
+/// proportionally longer by design; future research/upgrades are the intended
+/// lever for bringing those times back down (→ P5.1). Sent to the client in the
+/// server-owned balance catalog.
+pub(super) const MINE_UNITS_PER_HOUR: u64 = 240;
 
 pub(super) const HOUR_MS: u64 = 3_600_000;
 
@@ -195,8 +202,8 @@ fn mined_amount(elapsed_ms: u64) -> u64 {
 }
 
 /// One asteroid size tier (README § Design principles): footprint, how much
-/// resource it can hold, and how many the starter field seeds. Mirrors the
-/// TS `ASTEROID_TIERS` in `src/map/asteroid-catalog.ts` — keep the two in sync.
+/// resource it can hold, and how many the starter field seeds. Its display
+/// fields are sent to `src/map/asteroid-catalog.ts` in the balance catalog.
 pub struct AsteroidTierEntry {
     /// Wire key — the `tier` string on `AsteroidData`.
     pub tier: &'static str,
@@ -212,12 +219,33 @@ pub struct AsteroidTierEntry {
     /// neighborhood — 4* the P1.9 density, affordable now that the interest
     /// area (ROADMAP P1.13) unloads everything outside a 100*100 window
     /// (~19 in-window asteroids instead of ~5, which felt sparse under the
-    /// tighter zoom cap). Still a stub pending real balancing.
+    /// tighter zoom cap). P2.6 preserves this 1,920-node density.
     pub seed_count: usize,
-    /// Simultaneous mining slots. 1 everywhere today; the large tier may
-    /// allow more later (README revisit note), so verification reads this
+    /// Simultaneous mining slots. P2.6 settled this at 1 for every tier,
+    /// including large: contention over a rich deposit is meant to be
+    /// resolved by combat — driving the occupying vessel home (→ P5.5) —
+    /// rather than by sharing the rock. Verification still reads this
     /// instead of hardcoding the single-slot rule.
     pub max_miners: usize,
+}
+
+/// Serializable display projection of the authoritative asteroid rules.
+/// `seed_count` and `max_miners` stay server-side: they parameterize seeding
+/// and mining verification, and the client has nothing to render from them.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AsteroidTierData {
+    pub tier: &'static str,
+    pub span: i64,
+    pub min_amount: u64,
+    pub max_amount: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AsteroidBalanceData {
+    pub tiers: Vec<AsteroidTierData>,
+    pub mine_units_per_hour: u64,
 }
 
 pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
@@ -247,8 +275,108 @@ pub const ASTEROID_TIERS: &[AsteroidTierEntry] = &[
     },
 ];
 
+pub(super) fn asteroid_balance_data() -> AsteroidBalanceData {
+    AsteroidBalanceData {
+        tiers: ASTEROID_TIERS
+            .iter()
+            .map(|tier| AsteroidTierData {
+                tier: tier.tier,
+                span: tier.span,
+                min_amount: tier.min_amount,
+                max_amount: tier.max_amount,
+            })
+            .collect(),
+        mine_units_per_hour: MINE_UNITS_PER_HOUR,
+    }
+}
+
 fn asteroid_tier(tier: &str) -> Option<&'static AsteroidTierEntry> {
     ASTEROID_TIERS.iter().find(|t| t.tier == tier)
+}
+
+const GRADE_MULTIPLIERS: [(u64, u64); 4] = [(1, 1), (3, 2), (2, 1), (4, 1)];
+
+/// Width of one radial resource band, measured from the nearest map edge.
+const GRADE_BAND_WIDTH: i64 = 100;
+/// How many bands there are — one deposit multiplier each, so the table's
+/// own length is the count.
+const GRADE_BAND_COUNT: usize = GRADE_MULTIPLIERS.len();
+/// Distance from the nearest edge at which the reserved central system
+/// begins: everything past the last band. Derived rather than written out,
+/// so widening a band or adding one can't leave the core's bounds behind.
+const RESERVED_CORE_MARGIN: i64 = GRADE_BAND_WIDTH * GRADE_BAND_COUNT as i64;
+
+/// Whether a footprint overlaps the reserved central system at all. A
+/// multi-tile asteroid may not spill into it even when its top-left anchor
+/// sits in the outermost graded ring.
+fn touches_reserved_core(col: i64, row: i64, span: i64) -> bool {
+    col < MAP_COLS - RESERVED_CORE_MARGIN
+        && col + span > RESERVED_CORE_MARGIN
+        && row < MAP_ROWS - RESERVED_CORE_MARGIN
+        && row + span > RESERVED_CORE_MARGIN
+}
+
+/// Deterministic seed for `local-system-1` — the world generator and every
+/// per-player spawn plan derive from it (PHASE_2_PLANNING § P2.1).
+pub(super) const SYSTEM_SEED: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/// Tiles kept clear of the map boundary so a spawn is never flush against
+/// the world edge.
+const SPAWN_EDGE_MARGIN: i64 = 4;
+
+/// Bounded deterministic candidate count — a spawn plan either finds a legal
+/// spot within this many tries or fails loudly (never a partial profile).
+const SPAWN_CANDIDATES: usize = 4096;
+
+/// Deterministically pick a mothership spawn inside the **outer resource
+/// band** (grade 1, ROADMAP P2.6).
+///
+/// Players start on the rim, where asteroids and level-appropriate
+/// opposition live, and push inward toward the richer grades (→ P4.2).
+/// Uniform whole-map spawning is wrong in both directions: the reserved
+/// central system holds no asteroids at all, so a central spawn starts with
+/// nothing mineable inside its entire interest window, and a grade-4 spawn
+/// would hand a new player 4x deposits before they can use them.
+///
+/// The band is a ring, so candidates are rejection-sampled — it covers ~36%
+/// of the map, which converges long before the candidate bound. Only the
+/// anchor is required to be in-band; a footprint straddling the boundary
+/// into grade 2 is harmless. `clear` decides whether a candidate footprint
+/// is otherwise acceptable.
+pub(super) fn plan_outer_band_spawn(
+    rng: &mut SeedRng,
+    span: i64,
+    mut clear: impl FnMut(i64, i64) -> bool,
+) -> Option<(i64, i64)> {
+    for _ in 0..SPAWN_CANDIDATES {
+        let col = rng.range(
+            SPAWN_EDGE_MARGIN as u64,
+            (MAP_COLS - span - SPAWN_EDGE_MARGIN) as u64,
+        ) as i64;
+        let row = rng.range(
+            SPAWN_EDGE_MARGIN as u64,
+            (MAP_ROWS - span - SPAWN_EDGE_MARGIN) as u64,
+        ) as i64;
+        if asteroid_grade(col, row) != Some(0) {
+            continue;
+        }
+        if clear(col, row) {
+            return Some((col, row));
+        }
+    }
+    None
+}
+
+/// Grade derives from immutable map position, never save data. The central
+/// 200*200 system is reserved for future conflict content and gets no normal
+/// asteroids.
+fn asteroid_grade(col: i64, row: i64) -> Option<usize> {
+    let nearest_edge = col.min(row).min(MAP_COLS - 1 - col).min(MAP_ROWS - 1 - row);
+    // Off-map reads negative here, and belong in no band at all.
+    if !(0..RESERVED_CORE_MARGIN).contains(&nearest_edge) {
+        return None;
+    }
+    Some((nearest_edge / GRADE_BAND_WIDTH) as usize)
 }
 
 /// An active mining job on an asteroid — which vessel, and the extraction
@@ -318,10 +446,8 @@ fn footprints_clear(
 }
 
 /// Scatter the starter asteroid field (ROADMAP P1.6): ASTEROID_TIERS
-/// seed_counts of each tier, rejection-sampled uniformly across the whole
-/// map (July 2026 playtest feedback: resources spread evenly, not clustered
-/// around the start — seed_counts are area-scaled to keep local density
-/// playable) to keep clear of motherships and each other, with a
+/// seed_counts of each tier, rejection-sampled across the four radial resource
+/// bands (the center stays empty) to keep clear of motherships and each other, with a
 /// deterministic RNG so every run gets the same field until persistence
 /// (P2) stores the world. Resource kinds are weighted so high-tech shows up
 /// least ("rare asteroids", README § Design principles).
@@ -344,7 +470,7 @@ pub(super) fn seed_asteroids(
         ResourceKind::Fuel,
         ResourceKind::HighTech,
     ];
-    let mut rng = SeedRng(0x9E37_79B9_7F4A_7C15);
+    let mut rng = SeedRng(SYSTEM_SEED);
     let mut asteroids: HashMap<String, AsteroidData> = HashMap::new();
     let mut seq = 0;
     for tier in ASTEROID_TIERS {
@@ -354,6 +480,12 @@ pub(super) fn seed_asteroids(
                 let col = rng.range(0, (MAP_COLS - tier.span) as u64) as i64;
                 let row = rng.range(0, (MAP_ROWS - tier.span) as u64) as i64;
                 let spot = (col, row, tier.span);
+                let Some(grade) = asteroid_grade(col, row) else {
+                    continue;
+                };
+                if touches_reserved_core(col, row, tier.span) {
+                    continue;
+                }
                 let blocked = motherships
                     .values()
                     .any(|m| !footprints_clear(spot, (m.col, m.row, m.span), MOTHERSHIP_CLEARANCE))
@@ -365,8 +497,10 @@ pub(super) fn seed_asteroids(
                 }
                 seq += 1;
                 // Snap to a friendly multiple of 10 within the tier band.
-                let amount = rng.range(tier.min_amount, tier.max_amount) / 10 * 10;
-                let amount = amount.max(tier.min_amount);
+                let base_amount = rng.range(tier.min_amount, tier.max_amount) / 10 * 10;
+                let base_amount = base_amount.max(tier.min_amount);
+                let (numerator, denominator) = GRADE_MULTIPLIERS[grade];
+                let amount = base_amount.saturating_mul(numerator) / denominator;
                 asteroids.insert(
                     format!("asteroid-{seq}"),
                     AsteroidData {
@@ -626,8 +760,8 @@ impl ServerState {
     /// strand). The 4*4 destination must be on the map and clear of every
     /// other mothership/asteroid (plain overlap — `footprints_clear` at
     /// `gap: 0` — distinct from `seed_asteroids`' wider seeding clearance).
-    /// Fuel cost scales with straight-line tile distance (balancing stub, →
-    /// P2.6). Instant and synchronous like `accept_deal`: no scheduler/timer
+    /// Fuel cost scales with straight-line tile distance. Broader fuel-economy
+    /// tuning is deferred to P4.9. Instant and synchronous like `accept_deal`: no scheduler/timer
     /// involved, so the returned response is already authoritative. The
     /// occupancy check re-reads `self.motherships`/`self.asteroids` live —
     /// never the client's picker preview — so a same-tick race (another
@@ -1090,7 +1224,7 @@ mod tests {
 
     #[test]
     fn dispatch_departs_from_the_closest_dock_with_arrival_time() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         let event = s.dispatch_vessel(500, 510, 1_000).unwrap();
         // Mothership at (498, 498), 4*4: the inner docks are
         // (499..=500, 499..=500).
@@ -1106,7 +1240,7 @@ mod tests {
 
     #[test]
     fn dispatch_rejects_off_map_and_docking_destinations() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         for (col, row) in [(1000, 5), (5, -1), (-3, 3), (2, 1000)] {
             let err = s.dispatch_vessel(col, row, 0).unwrap_err();
             assert!(err.contains("outside the map"), "{err}");
@@ -1118,7 +1252,7 @@ mod tests {
 
     #[test]
     fn dispatch_rejects_beyond_the_fleet_cap() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         for i in 0..MAX_VESSELS {
             s.dispatch_vessel(500, 510 + i as i64, 0).unwrap();
         }
@@ -1136,7 +1270,7 @@ mod tests {
 
     #[test]
     fn recall_redirects_from_the_lerped_mid_flight_position() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         let out = s.dispatch_vessel(500, 510, 0).unwrap();
         // Halfway through the 10 s outbound flight the vessel sits at row 505.
         let back = s.recall_vessel(&out.vessel_id, 5_000).unwrap();
@@ -1154,7 +1288,7 @@ mod tests {
 
     #[test]
     fn arrived_vessels_stay_parked_until_recalled() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         let out = s.dispatch_vessel(500, 510, 0).unwrap();
         // Long past arrival the vessel is still on the map, parked at dest.
         assert_eq!(s.active_vessels(60_000).len(), 1);
@@ -1173,7 +1307,7 @@ mod tests {
 
     #[test]
     fn relocate_moves_the_ship_and_spends_fuel_by_distance() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         s.resources.fuel = 200;
         // Player starts at (498, 498); straight-line distance to (600, 600)
         // is hypot(102, 102) ≈ 144.25, so the fuel cost rounds up to 145.
@@ -1188,7 +1322,7 @@ mod tests {
 
     #[test]
     fn relocate_queues_a_notification_and_resources_push() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         s.resources.fuel = 200;
         s.relocate_mothership(600, 600, 0).unwrap();
         let pushes = s.drain_pushes();
@@ -1205,14 +1339,14 @@ mod tests {
 
     #[test]
     fn relocate_to_the_same_spot_costs_no_fuel() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         let response = s.relocate_mothership(498, 498, 0).unwrap();
-        assert_eq!(response.resources.fuel, 0);
+        assert_eq!(response.resources.fuel, 100);
     }
 
     #[test]
     fn relocate_rejects_when_a_vessel_is_deployed() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         s.dispatch_vessel(500, 510, 0).unwrap();
         let err = s.relocate_mothership(600, 600, 0).unwrap_err();
         assert!(err.contains("recall every vessel"), "{err}");
@@ -1220,7 +1354,7 @@ mod tests {
 
     #[test]
     fn relocate_rejects_off_map_and_occupied_destinations() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         let err = s.relocate_mothership(999, 5, 0).unwrap_err();
         assert!(err.contains("outside the map"), "{err}");
         s.resources.fuel = 100;
@@ -1244,7 +1378,7 @@ mod tests {
 
     #[test]
     fn relocate_rejects_insufficient_fuel() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         let err = s.relocate_mothership(600, 600, 0).unwrap_err();
         assert!(err.contains("not enough fuel"), "{err}");
         // Nothing moved: the failed spend left the ship at its old spot.
@@ -1253,12 +1387,78 @@ mod tests {
 
     #[test]
     fn snapshot_includes_the_selected_profiles_mothership() {
-        let s = ServerState::new(0);
+        let s = anchored_state(498, 498);
         let ships = s.motherships_snapshot();
         assert_eq!(ships.len(), 1);
         let player = ships.iter().find(|m| m.owner_id == "player-1").unwrap();
         assert_eq!((player.col, player.row, player.span), (498, 498, 4));
         assert!(!player.damaged);
+    }
+
+    #[test]
+    fn radial_grade_bands_tile_the_map_and_reserve_the_core() {
+        // Bands and the reserved core are both derived from one width/count
+        // pair. These fixed coordinates are what pins that derivation to the
+        // intended 100-tile bands and empty 200*200 centre — without them the
+        // seeding code and its own assertions would agree with each other
+        // while both being wrong.
+        assert_eq!(asteroid_grade(0, 0), Some(0));
+        assert_eq!(asteroid_grade(99, 500), Some(0));
+        assert_eq!(asteroid_grade(100, 500), Some(1));
+        assert_eq!(asteroid_grade(399, 500), Some(3));
+        assert_eq!(asteroid_grade(400, 500), None);
+        assert_eq!(asteroid_grade(500, 500), None);
+        // Bands are measured from the *nearest* edge, so the far side mirrors.
+        assert_eq!(asteroid_grade(MAP_COLS - 1, 500), Some(0));
+        assert_eq!(asteroid_grade(600, 500), Some(3));
+        assert_eq!(asteroid_grade(599, 500), None);
+        // Off-map reads negative and belongs to no band.
+        assert_eq!(asteroid_grade(-1, 500), None);
+
+        // The reserved core is exactly the ungraded region: a 1*1 footprint
+        // touches it precisely where `asteroid_grade` gives up.
+        for col in [399, 400, 500, 599, 600] {
+            assert_eq!(
+                touches_reserved_core(col, 500, 1),
+                asteroid_grade(col, 500).is_none(),
+                "col {col}"
+            );
+        }
+        // A larger footprint is excluded as soon as one tile would spill in.
+        assert!(touches_reserved_core(398, 500, 3));
+        assert!(!touches_reserved_core(397, 500, 3));
+    }
+
+    #[test]
+    fn spawns_land_in_the_outer_band_with_asteroids_in_the_home_window() {
+        // P2.6 regression: the radial bands emptied the central system, and a
+        // spawn there starts with nothing mineable inside its entire interest
+        // window — no mining loop at all on first boot.
+        let mut s = ServerState::new(0);
+        let ship = s.player_mothership().expect("player mothership");
+        let (col, row) = (ship.col, ship.row);
+        assert_eq!(asteroid_grade(col, row), Some(0), "spawn ({col}, {row})");
+        let window = s.aoi;
+        let visible = s
+            .asteroids
+            .values()
+            .filter(|a| window.intersects(a.col, a.row, a.span))
+            .count();
+        assert!(visible > 0, "no asteroids in the home window");
+
+        // A profile created later follows the same rule, and never lands on
+        // top of the world already seeded around it.
+        s.create_player_profile("Player 2".to_string(), 0)
+            .expect("create second local profile");
+        let second = s.player_mothership().expect("second mothership");
+        assert_eq!(asteroid_grade(second.col, second.row), Some(0));
+        let separated = super::super::state::footprints_separated;
+        assert!(s.asteroids.values().all(|a| separated(
+            (second.col, second.row, 4),
+            (a.col, a.row, a.span),
+            1
+        )));
+        assert!(separated((second.col, second.row, 4), (col, row, 4), 1));
     }
 
     #[test]
@@ -1387,7 +1587,15 @@ mod tests {
         for asteroid in a.asteroids.values() {
             let tier = asteroid_tier(&asteroid.tier).expect("known tier");
             assert_eq!(asteroid.span, tier.span);
-            assert!(asteroid.total >= tier.min_amount && asteroid.total <= tier.max_amount);
+            let grade = asteroid_grade(asteroid.col, asteroid.row).expect("outside central system");
+            let (numerator, denominator) = GRADE_MULTIPLIERS[grade];
+            assert!(asteroid.total >= tier.min_amount * numerator / denominator);
+            assert!(asteroid.total <= tier.max_amount * numerator / denominator);
+            assert!(!touches_reserved_core(
+                asteroid.col,
+                asteroid.row,
+                asteroid.span
+            ));
             assert_eq!(asteroid.remaining, asteroid.total);
             assert!(asteroid.mining.is_none());
             assert!(asteroid.col >= 0 && asteroid.col + asteroid.span <= MAP_COLS);
@@ -1604,7 +1812,7 @@ mod tests {
 
     #[test]
     fn vessel_docks_follow_the_mothership_position() {
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         // Relocate the player's mothership: docks must move with it, for
         // dispatch departure, recall destination, and docked pruning alike.
         let ship = s.motherships.get_mut("player-1").unwrap();
@@ -1625,7 +1833,7 @@ mod tests {
         // exercising the fix, that docking reads the `returning` flag stamped
         // at return_leg time rather than re-deriving it from is_dock_tile
         // against the mothership's now-different position.
-        let mut s = ServerState::new(0);
+        let mut s = anchored_state(498, 498);
         let out = s.dispatch_vessel(500, 510, 0).unwrap();
         let back = s.recall_vessel(&out.vessel_id, 0).unwrap();
         assert!(back.returning);

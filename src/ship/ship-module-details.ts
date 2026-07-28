@@ -10,6 +10,8 @@ import {
   costAtLevel,
   crewRequiredForModules,
   crewScaledAmount,
+  formatModuleCost,
+  maxModuleLevel,
   moduleCatalogEntry,
   productionAtLevel,
 } from "./module-catalog.ts";
@@ -147,7 +149,7 @@ export class ModuleDetailsDialog {
             { label: { text: "Production", ...FIELD_LABEL } },
             {
               tile: `${RESOURCE_ICON_TILESET[kind as ResourceKind]}:0`,
-              label: `${formatCompactCount(scaled)}/tick${
+              label: `${formatCompactCount(scaled)}/min${
                 staffPct < 100 ? ` (${staffPct}% staffed)` : ""
               }`,
               weight: 2,
@@ -155,13 +157,10 @@ export class ModuleDetailsDialog {
           ],
         });
       }
-      if (entry.crewCapacityPerLevel > 0) {
-        rows.push(
-          fieldRow(
-            "Crew berths",
-            `${entry.crewCapacityPerLevel * data.level}`,
-          ),
-        );
+      const berths = entry.crewCapacityBase +
+        entry.crewCapacityPerLevel * data.level;
+      if (berths > 0) {
+        rows.push(fieldRow("Crew berths", `${berths}`));
       }
       if (entry.crewRequiredPerLevel > 0) {
         rows.push(
@@ -172,11 +171,16 @@ export class ModuleDetailsDialog {
         );
       }
     }
-    if (data.pending === null) {
+    if (data.pending === null && data.level < maxModuleLevel()) {
       const nextLevel = data.level + 1;
       rows.push(
-        fieldRow("Next level cost", `${costAtLevel(entry, nextLevel)}`),
+        fieldRow(
+          "Next level cost",
+          formatModuleCost(costAtLevel(entry, nextLevel)),
+        ),
       );
+    } else if (data.pending === null) {
+      rows.push(fieldRow("Upgrade", "Maximum reached"));
     }
     return rows;
   }

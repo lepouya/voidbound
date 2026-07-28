@@ -58,6 +58,76 @@ export type ResourceCounts = Record<ResourceKind, number>;
  */
 export type MaterialResourceKind = Exclude<ResourceKind, "credits">;
 
+export interface ModuleCatalogData {
+  moduleType: string;
+  displayName: string;
+  produces: [MaterialResourceKind, number][];
+  /** Storage granted once settled at any level, plus storage added per
+   *  settled level: `base + perLevel * level`. Split in two rather than one
+   *  field plus an "is it flat?" branch, so no type is a special case. */
+  storesBase: [MaterialResourceKind, number][];
+  storesPerLevel: [MaterialResourceKind, number][];
+  /** Crew berths, same base + per-level shape as `stores`. */
+  crewCapacityBase: number;
+  crewCapacityPerLevel: number;
+  crewRequiredPerLevel: number;
+  /** Extra materials charged from `operationalCostStartLevel` on, each at
+   *  the supplemental fraction. A list, not one material: some types are
+   *  honestly both "houses humans" and "houses robotics". Amounts sum into
+   *  their slot, so a list containing highTech pays it twice past
+   *  `highTechCostStartLevel`. */
+  operationalCosts: MaterialResourceKind[];
+  /** Exact cost multiplier over the shared construction curve, reaching the
+   *  supplemental materials derived from it. Separate from the build-time
+   *  multiplier even where the two currently agree, so cost and speed can be
+   *  tuned apart without a schema change. */
+  costNumerator: number;
+  costDenominator: number;
+  buildTimeNumerator: number;
+  buildTimeDenominator: number;
+  unlockCommandLevel: number;
+}
+
+export interface BalanceCatalogData {
+  schemaVersion: number;
+  modules: ModuleCatalogData[];
+  baseBuildTimesMs: number[];
+  postLevel10BuildTimeMs: number;
+  constructionCostLevelOne: number;
+  constructionCostNumerator: number;
+  constructionCostDenominator: number;
+  productionNumerator: number;
+  productionDenominator: number;
+  /** Fixed-point scale the production curve compounds in before its single
+   *  rounding — the mirror must use the server's value to match exactly. */
+  productionPrecision: number;
+  /** Production ticks per minute; `produces` is stated per minute. */
+  ticksPerMinute: number;
+  operationalCostStartLevel: number;
+  highTechCostStartLevel: number;
+  /** Global module-level ceiling, enforced by the server for the Command
+   * Module and every other module. */
+  maxModuleLevel: number;
+  supplementalCostNumerator: number;
+  supplementalCostDenominator: number;
+  hireCostBiological: number;
+  hireTimeMs: number;
+  asteroids: {
+    tiers: AsteroidTierData[];
+    mineUnitsPerHour: number;
+  };
+}
+
+/** Server-side seeding and mining-slot parameters (`seedCount`, `maxMiners`)
+ *  deliberately stay off the wire — the client has nothing to render from
+ *  them, and the backend is what verifies both. */
+export interface AsteroidTierData {
+  tier: string;
+  span: number;
+  minAmount: number;
+  maxAmount: number;
+}
+
 /**
  * A mothership on the space map, as reported by the backend — the single
  * source of truth for placement. MapLevel builds its map actors from the
@@ -471,6 +541,7 @@ export interface MapWindowData {
  * `GameStateData` in src-tauri/src/game_state/state.rs — keep the two in sync.
  */
 export interface GameStateData {
+  balance: BalanceCatalogData;
   player: PlayerIdentity;
   resources: ResourceCounts;
   /** The interest-area window the world slices below were filtered to

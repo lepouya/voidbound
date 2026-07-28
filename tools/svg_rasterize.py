@@ -6,7 +6,7 @@ Before this module existed, each generator carried its own copy-pasted
 `find_rsvg_convert()` + render function, and the copies had already drifted
 from each other (some checked hardcoded Homebrew/Linux install paths beyond
 `shutil.which`, some didn't; error-message detail and exit-code handling
-differed) — see CR-T.1 in CODE_REVIEW.md. This module is the one
+differed) — found by the July 2026 phase review. This module is the one
 implementation every generator imports instead.
 
 Two render entry points, matching the two shapes generators actually need:

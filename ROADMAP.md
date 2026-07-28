@@ -175,22 +175,11 @@ notes here; keep the durable/server contracts in `SERVER.md`.
 - [x] **P2.5 — Deterministic offline catch-up.** System-wide, stable-order
       recovery advances meaningful deadlines, silently fills durable feeds, and
       caps/re-anchors offline progress at 24 hours.
-- [ ] **P2.6 — Balancing pass.** Replace the stubs with real curves: the
-      `scale_for_level`/`scaleForLevel` doubling, `MINE_UNITS_PER_HOUR`,
-      asteroid deposit bands and per-window density, and the P1.10 crew numbers
-      (hire cost/time, the 50% output floor, the berth-vs-demand ratio, and
-      whether crew consume biological upkeep — a good sink, but mind the death
-      spiral). Also balancing stubs today: the P1.11 Storage Bay cap numbers,
-      the P1.12 Trading Post deal numbers, and the P1.22 warp fuel cost. README
-      targets: small asteroids mine out in 15–60 min, medium 1–4 h, large 4–12
-      h. Also revisit the single-deposit / single-miner rules for large
-      asteroids (README leaves that door open). Needs P2.1 — tuning requires
-      persistent progress. `MAX_VESSELS` stays a flat stopgap until P5.9
-      replaces it with real cap-scaling. The approved first pass gives new local
-      profiles 100 of each material; makes basic-module levels 4+ mixed-resource
-      upgrades; fixes crew berths to a 2-person Command baseline plus 5 per Crew
-      Quarters level; and seeds four radial asteroid grades (deposit multipliers
-      configurable, initially 1/1.5/2/4) outside the empty central system.
+- [x] **P2.6 — Balancing pass.** Server-authoritative, versioned balance catalog
+      for progression, crew, storage, asteroid mining, and module costs/timers;
+      level-30 module cap; radial asteroid grades and outer-band spawning. Still
+      open: asteroid-grade presentation → P2.11; verification UI defects →
+      P2.12; startup-only developer reset controls → P2.10.
 - [ ] **P2.7 — Diminishing returns** _(moved from P1.7)_. Repeated actions yield
       less over the course of a day and reset at a fixed point — the README's
       alternative to hard energy caps. Local implementation first; the server
@@ -210,6 +199,29 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       `--reset-player <name>` (fresh profile in the existing shared local
       system) and `--reset-system` (fresh deterministic test system), with
       explicit logs and mutually exclusive arguments. Needs P2.1.
+- [ ] **P2.11 — Surface asteroid resource grade** _(split from P2.6 review,
+      July 2026)_. P2.6 seeds four radial grades that multiply a deposit by up
+      to 4x, but nothing in the UI ever names one: richness is inferable only by
+      comparing raw deposit numbers, and only between asteroids of the same size
+      tier, so the band structure the whole map is built around is invisible to
+      the player. Decide what they see — a badge on the actor, a row in the
+      asteroid panel, a minimap tint, or map-wide banding — and render it.
+      `ASTEROID_TIERS`/`asteroidTierEntry` are deliberately kept alive
+      client-side for this; if the answer is "never surface it", delete them.
+      Needs P2.6.
+- [ ] **P2.12 — UI defects found verifying P2.6** _(July 2026)_. Five unrelated
+      presentation bugs seen during the P2.6 runtime verification; none are P2.6
+      regressions, and none block it: - Build-offer arc labels collide when a
+      room offers all six module types — "Electronics Fabricator" overruns both
+      its own cost badge and its neighbours. - `Hire Crew (5m)` overlaps the
+      Command Module's owner-name label. - The recruiting countdown reads
+      `Recruiting (288s)` in raw seconds while the pre-commit label uses
+      `formatDuration` ("5m") — `recruitingLabel` should use the same helper so
+      one action doesn't report its time two ways. - Load-failure dialog buttons
+      render as blank grey squares (no icon). - `ModuleDetailsDialog` renders no
+      storage row at all, though its own doc comment promises "production,
+      storage, crew" — and P2.6's capacity split made storage a first-class
+      `base` + `per_level` catalog pair with no UI surface anywhere.
 
 ## Phase 3 — Server-authoritative events
 
@@ -335,7 +347,11 @@ Goal: the README's Technologies, Combat, and Defence module categories.
       mothership's resources sit in its counts, a mothership raid or catching a
       vessel mid-mining/mid-return is a looting opportunity, not just a damage
       exchange — needs its own design pass (what's stealable, whether a raid
-      needs to "win" first, defender recourse). Needs P3.1, P5.4.
+      needs to "win" first, defender recourse). Committed by P2.6: combat is
+      also how a contested asteroid is settled. Asteroids keep a single mining
+      slot at every tier, so taking a rich deposit someone else is working means
+      beating their vessel and sending it home, rather than sharing the rock.
+      Needs P3.1, P5.4.
 - [ ] **P5.6 — Repair Shop.** Repairs weapon/vessel damage from P5.5 combat
       using resources and time, mirroring the P1.3 build-timer pattern. Needs
       P5.5.
@@ -350,6 +366,16 @@ Goal: the README's Technologies, Combat, and Defence module categories.
       A further +1 via a premium (real-money) shop purchase is a possible
       extension, gated on P4.10's monetization decision — don't build until
       that's settled. Needs P5.1, P5.4, P5.7. (CR6.5)
+- [ ] **P5.10 — Module build prerequisites** _(split from P2.6, July 2026)_.
+      Today a module type's availability is a single `unlock_command_level`
+      integer, so "not buildable yet" can only ever mean "the Command Module is
+      too low." Generalize it to real prerequisites — other modules at a level,
+      a research unlock (P5.1), possibly an item or a quest — with the reason a
+      type is unavailable shown to the player rather than the button simply
+      being absent. P2.6 pushed the Trading Post to Command level 3 as a stopgap
+      because a level gate was the only lever available; gates like that should
+      move onto this system and further into the game once it exists. Needs
+      P1.4, P5.1.
 
 ## Phase 6 — Presentation and platforms
 

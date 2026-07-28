@@ -11,6 +11,7 @@ import {
   ServerPush,
 } from "./game-state.ts";
 import { loadAfterListenerReady } from "./game-state-loader-order.ts";
+import { applyBalanceCatalog } from "./balance-catalog.ts";
 
 /**
  * Excalibur loader resource that fetches the initial game state from the
@@ -19,10 +20,11 @@ import { loadAfterListenerReady } from "./game-state-loader-order.ts";
  * potentially a slow network round-trip or login handshake later — runs
  * alongside asset loading.
  *
- * Resilient by design: a failed load never blocks game start. The player
- * simply continues on the new-player defaults, and a later login/sync can
- * call gameState.load() again at any time — scenes subscribe for changes
- * rather than assuming state is final when they initialize.
+ * A failed load never blocks game start — the loading screen always
+ * finishes. But the client carries no local fallback balance numbers, so a
+ * failure leaves an explicitly *unloaded* state (no catalog, no world)
+ * rather than a playable offline mode; scenes surface `currentLoadFailure()`
+ * as a blocking dialog with a retry (see load-failure-dialog.ts).
  *
  * Lives outside game-state.ts so that module stays free of runtime
  * Excalibur/Tauri imports and unit-testable under Deno (same split as
@@ -34,18 +36,8 @@ export class GameStateResource
   private attempted = false;
 
   async load(): Promise<Revisioned<GameStateData> | null> {
-    try {
-      this.data = await loadAfterListenerReady(
-        startServerPushListener,
-        () => invoke<Revisioned<GameStateData>>("load_game_state"),
-      );
-      gameState.load(this.data);
-    } catch (err) {
-      console.error(
-        "load_game_state failed; continuing as a new player:",
-        err,
-      );
-    }
+    await attemptGameStateLoad(startServerPushListener);
+    this.data = loadedSnapshot;
     this.attempted = true;
     return this.data;
   }
@@ -53,6 +45,111 @@ export class GameStateResource
   isLoaded(): boolean {
     return this.attempted;
   }
+}
+
+/**
+ * Why a load attempt failed. The two need different words in front of the
+ * player and, later, different recovery: a transport failure is transient
+ * and worth retrying, while an incompatible catalog means the client itself
+ * is out of date and no amount of retrying will help — once Phase 3 serves
+ * real clients, that case has to tell the player to update the app or
+ * reload the page.
+ */
+export type LoadFailureKind = "unreachable" | "incompatible";
+
+export interface LoadFailure {
+  kind: LoadFailureKind;
+  message: string;
+}
+
+/** Non-null while the most recent load attempt is unresolved. */
+let loadFailure: LoadFailure | null = null;
+/** The snapshot of the last *successful* attempt; never a partial one. */
+let loadedSnapshot: Revisioned<GameStateData> | null = null;
+const failureListeners = new Set<() => void>();
+
+export function currentLoadFailure(): LoadFailure | null {
+  return loadFailure;
+}
+
+/** Notified whenever the outstanding failure appears or clears. */
+export function subscribeToLoadFailure(listener: () => void): () => void {
+  failureListeners.add(listener);
+  return () => failureListeners.delete(listener);
+}
+
+function setLoadFailure(failure: LoadFailure | null): void {
+  loadFailure = failure;
+  // An unresolved failure also stops the push channel from building a
+  // partial world behind an empty catalog (see GameState.suspended).
+  gameState.suspended = failure !== null;
+  for (const listener of failureListeners) listener();
+}
+
+/**
+ * Fetch the snapshot, install its balance catalog, and publish it — the one
+ * path used by the loader phase and by the failure dialog's Retry alike.
+ *
+ * `beforeFirstRequest` runs only on the very first attempt: the push
+ * listener must be subscribed before the snapshot is requested so no change
+ * emitted after the snapshot is missed (game-state-loader-order.ts). A retry
+ * reuses the listener already running.
+ *
+ * The snapshot is published only once its catalog validates, so a rejected
+ * catalog can never leave `data` holding state that `gameState` never saw.
+ */
+export async function attemptGameStateLoad(
+  beforeFirstRequest?: () => Promise<void>,
+): Promise<LoadFailure | null> {
+  let snapshot: Revisioned<GameStateData>;
+  try {
+    snapshot = beforeFirstRequest
+      ? await loadAfterListenerReady(
+        beforeFirstRequest,
+        () => invoke<Revisioned<GameStateData>>("load_game_state"),
+      )
+      : await invoke<Revisioned<GameStateData>>("load_game_state");
+  } catch (err) {
+    console.error("load_game_state failed:", err);
+    setLoadFailure({ kind: "unreachable", message: `${err}` });
+    return loadFailure;
+  }
+  return adoptSnapshot(snapshot);
+}
+
+/**
+ * Development-only: reseed the backend's local system and adopt the fresh
+ * snapshot. Refused by release builds server-side; the dialog only offers it
+ * in dev, and both halves go away once Phase 3 owns the state.
+ */
+export async function resetLocalSystem(): Promise<LoadFailure | null> {
+  let snapshot: Revisioned<GameStateData>;
+  try {
+    snapshot = await invoke<Revisioned<GameStateData>>("reset_local_system");
+  } catch (err) {
+    console.error("reset_local_system failed:", err);
+    setLoadFailure({ kind: "unreachable", message: `${err}` });
+    return loadFailure;
+  }
+  return adoptSnapshot(snapshot);
+}
+
+/** Validate a snapshot's catalog, then publish both. Either both land or
+ *  neither does. */
+function adoptSnapshot(
+  snapshot: Revisioned<GameStateData>,
+): LoadFailure | null {
+  try {
+    applyBalanceCatalog(snapshot.data.balance);
+  } catch (err) {
+    console.error("balance catalog rejected:", err);
+    setLoadFailure({ kind: "incompatible", message: `${err}` });
+    return loadFailure;
+  }
+  loadedSnapshot = snapshot;
+  gameState.load(snapshot);
+  setLoadFailure(null);
+  return null;
 }
 
 /**

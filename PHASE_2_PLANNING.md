@@ -689,25 +689,51 @@ The pre-P2.1/P2.5 policy decisions are now settled:
 ### P2.6 balance and local-playtest decisions
 
 P2.6 makes the first persistent progression pass deliberately configurable. The
-server remains authoritative for every value; TypeScript has display-only
-mirrors where the UI needs to preview a cost, cap, or duration. Tests must cover
-both the authoritative calculations and the mirrors.
+server remains authoritative for every value; TypeScript needs to preview a
+cost, cap, or duration. Tests must cover both the authoritative calculations and
+the previews.
+
+**Catalog delivery — decided during implementation:** the module and asteroid
+catalogs are **sent over the wire**, not hand-copied into TypeScript. The
+original plan said "display-only mirrors"; implementing a balancing pass against
+two hand-synced copies of every curve made the drift risk obvious — each retune
+would have meant editing the same number twice, with nothing but review catching
+a miss. `load_game_state` now carries a versioned `balance` payload (module
+metadata, curve parameters, crew values, asteroid tiers and mine rate); the
+client validates and installs it before publishing the snapshot, and an unknown
+`schemaVersion` or malformed payload fails the load rather than falling back to
+guessed local numbers. Rust remains the sole authority that applies any of it —
+the client only renders previews.
+
+Two consequences worth keeping in mind:
+
+- The client has **no offline defaults left**. A failed load means no catalog
+  and no world, which is why the loader surfaces a blocking retry dialog rather
+  than dropping the player into an empty game (see AGENTS.md § Startup / loader
+  phase).
+- Where a preview must agree exactly with the server (the production and cost
+  curves), the two implementations are pinned by **matched tests that name each
+  other**, since the wire only carries parameters, not results. Changing a curve
+  means changing both sequences in the same edit.
 
 #### Starter economy and module costs
 
 - A newly created local developer profile starts with **100 construction, 100
   high-tech, 100 biological, and 100 fuel**, plus zero credits and zero crew.
   This is a provisional playtest grant, not a future online-account entitlement.
-- A level-1 basic module costs **25 construction**, so the starter grant funds
-  several opening choices before resource planning becomes necessary.
+- A level-1 basic module costs **25 construction** before its per-entry cost
+  multiplier (see the post-review decisions below), which halves the four
+  producers to **13**. The starter grant funds seven opening producers, or four
+  of the full-price utilities — several opening choices either way, before
+  resource planning becomes necessary.
 - Basic-module construction cost grows by **1.5x per target level**, rounded up
   deterministically. The first values are 25, 38, 57, 86, and 129 construction;
   the biological/fuel and high-tech fractions apply to that rounded construction
   amount at their respective level gates.
-- Existing basic modules use construction-only costs through target level 5.
-  From levels 6–10 they additionally cost one operational material—biological
-  for human/crew-oriented modules or fuel for robot/vessel-oriented modules—at
-  half the construction amount. From target level 11 they also cost high-tech
+- Existing basic modules use construction-only costs through target level 4.
+  From levels 5–9 they additionally cost one operational material—biological for
+  human/crew-oriented modules or fuel for robot/vessel-oriented modules—at half
+  the construction amount. From target level 10 they also cost high-tech
   material at half the construction amount. The operational mapping is
   biological for the Command Module, Hydroponics Bay, Crew Quarters, and Trading
   Post; and fuel for the Ore Refinery, Electronics Fabricator, Fusion Reactor,
@@ -716,6 +742,24 @@ both the authoritative calculations and the mirrors.
 - Future advanced module types may define mixed material costs from their first
   level. Their prices are deliberately deferred to the task that introduces each
   module, rather than guessed in P2.6.
+- **Cost shape — decided:** a cost is **keyed material slots**, not a list of
+  (material, amount) line items, on both sides of the wire. A list can name the
+  same material twice, and each entry would then be verified against the full
+  balance while both are subtracted; keyed slots make that unrepresentable and
+  make the client's preview and the server's charge structurally the same
+  calculation. A module's operational materials are likewise a **list**, not a
+  single choice: the biological/fuel split reads as "houses humans" vs "houses
+  robotics" and some types are honestly both — a Command Module runs crew
+  quarters _and_ drone control — so the catalog must be able to say both.
+  Amounts sum per material, so listing high-tech operationally simply adds to
+  the universal high-tech charge rather than colliding with it.
+- **Level cap — decided:** P2.6 caps every module, including the Command Module,
+  at **level 30**. The Command Module continues to gate every other module below
+  that ceiling. Reaching beyond it is future content: end-game costs may
+  introduce an antimatter/exotic-matter item to extend progression. The
+  extension point is `module_cost`'s return type, which would grow an item side
+  alongside its material slots; no catalog field or call site has to change
+  shape again for that.
 - P2.6 replaces the current shared `scale_for_level`/`scaleForLevel` stub with
   independently configurable curves/tables for costs, build time, production,
   and storage. Trade values and warp's one-fuel-per-tile cost remain unchanged
@@ -730,7 +774,7 @@ the same time. Each catalog entry has an exact rational time multiplier
 baseline — for example, resource refineries may use `1/2`. The table's
 post-level-10 behavior must remain explicitly configurable too, rather than
 silently inheriting the old doubling rule; it can be extended as later content
-establishes real end-game level caps and timers.
+establishes a later progression cap or revised timers.
 
 **First-pass production and storage — decided:** the Command Module produces 12
 units/minute of each material at level 1; a fully staffed refinery produces 24
@@ -785,6 +829,82 @@ the save. Existing saves retain their absolute deposits and active timers; the
 new radial distribution applies when a fresh local system is seeded. This avoids
 silently changing earned resources or live jobs.
 
+**Spawn placement — decided:** players spawn at a deterministic position inside
+the **outer band** (grade 1), never uniformly across the map. The bands make
+whole-map spawning wrong in both directions: the reserved central system has no
+asteroids at all, so a central spawn begins with nothing mineable anywhere in
+its interest window — which is exactly what the fixed (498, 498) start did once
+the bands landed — while a grade-4 spawn would hand a new player 4x deposits
+before they can bank or use them. Starting on the rim and pushing inward is also
+the progression the bands and P4.2 describe. The system's first player is
+planned by the same rule as every later profile, so no account starts somewhere
+the rules would never place anyone.
+
+**A map-center fallback is now a bug, wherever it survives.** Emptying the
+central system changed the cost of every "fall back to the middle of the map"
+default written before the bands landed. On the space map it is worse than an
+odd viewport: the AOI window follows the camera, so a camera parked at the
+center re-centers the interest window there, and `applyMapWindow` replaces the
+world tables wholesale — despawning every entity around the player's actual
+ship. This was not hypothetical. The load-failure dialog's recovery path had
+exactly that shape: `TiledScene.onActivate` picks its camera target before
+surfacing the failure, so `initialCameraTarget()` fell back to the center while
+the world was unloaded, and nothing re-centered it when a Retry succeeded — the
+player recovered from a load failure into empty space 490 tiles from their own
+mothership. Fixed by re-running `resetTo(initialCameraTarget())` once a load
+resolves. It was found by runtime verification, not review; audit the remaining
+center-fallbacks the same way rather than by reading them.
+
+**Single miner — decided:** every tier keeps one mining slot, large included.
+Contention over a rich deposit is meant to be resolved by combat — beating the
+occupying vessel and driving it home (→ P5.5) — rather than by sharing the rock.
+This closes the README's "revisit multi-miner for large asteroids" door
+deliberately; `max_miners` stays a catalog field rather than an assumption, so
+the decision is reversible without touching verification code.
+
+**Harvest overflow — warned, not yet prevented:** a harvest lands as one lump on
+the vessel's return and is clamped at the storage cap, with the overflow lost. A
+deep-band asteroid can hold many times a starting cap, so a multi-hour job can
+silently return a fraction of its yield. P2.6 adds a warning row to the asteroid
+panel when a deposit exceeds free capacity. This is knowingly inconsistent with
+P1.12's rule that explicit player actions are _rejected outright, never
+clamp-and-lose_ — dispatching a miner is as explicit as accepting a deal.
+Reconciling the two (reject the dispatch, cap the job at what fits, or deposit
+incrementally during extraction) is left open rather than settled by default.
+
+#### Settled without change, and handed on
+
+P2.6's brief listed more stubs than it should retune. These were reviewed and
+deliberately left alone; each is recorded at its constant so the next reader
+does not mistake "unchanged" for "overlooked":
+
+- **`MINE_UNITS_PER_HOUR` stays 240.** It is not arbitrary: 240/hour is exactly
+  what makes all three README duration bands land at grade 1, because the tier
+  deposit bands and the rate were designed against each other. Changing it
+  breaks all three at once. Radial grade multiplies the deposit, so deeper nodes
+  take proportionally longer **by design**; future research/upgrades are the
+  intended lever for bringing those times back down (→ P5.1), which also gives
+  the deep bands something to unlock toward.
+- **Asteroid density stays at 1,920 nodes** — retuned by P1.13's interest-area
+  work already, and unrelated to the deposit-value question P2.6 was asking.
+- **Crew keep no biological upkeep, and the 50% output floor holds.** Lowering
+  the floor waits on P2.8's per-module shortage visibility; punishing a shortage
+  harder before the player can see which modules are shorted is the death-spiral
+  risk the roadmap warns about.
+- **Large asteroids keep one miner.** The README leaves multi-miner open;
+  nothing in P2.6 needs it, and `max_miners` is already read from the catalog
+  rather than assumed, so the door stays open.
+- **Trading Post deal numbers → P4.6.** Credits have no designed role yet, so
+  pricing trades now would be guessing at an economy that does not exist.
+- **Warp fuel cost → P4.9.** P4.7 replaces warp's fuel cost with a "warp core"
+  item outright, so tuning the per-tile rate now would be throwaway work.
+- **Trading Post unlock moved to Command level 3.** The intent recorded at the
+  constant was "trade arrives after the first production loop is running";
+  P2.6's pacing put Command level 2 around 2.5 minutes in, ahead of that. Level
+  3 lands nearer 6 minutes. This is a stopgap in the shape of the only lever
+  available — a single Command-level integer. It should move later still once
+  modules can express real prerequisites (→ P5.10).
+
 #### Developer reset controls
 
 Local playtests need two destructive, startup-only controls:
@@ -798,6 +918,52 @@ Local playtests need two destructive, startup-only controls:
 The controls are mutually exclusive, clearly logged, and never part of an
 online/server protocol. They need their own roadmap task because they are
 developer data-management operations, not player actions or balancing rules.
+
+#### Post-review catalog-shape decisions
+
+Settled while working the P2.6 code review's refactor list; all three are shape
+decisions the balance values then live inside.
+
+- **Capacity is `base` + `per_level`, not a flat-vs-linear special case.**
+  Storage and crew berths each carry two catalog fields, and every module's
+  contribution is `base (once settled) + per_level * level` unconditionally.
+  Previously the Command Module was branched on by name in four places — twice
+  server-side, twice in the client mirror. The Command Module is now simply
+  base-only, and **stays that way by design**: leveling it buys progression
+  (unlocks and the ship-wide level cap), never capacity. Holding more and
+  housing more are the specialized modules' jobs, so a Storage Bay and Crew
+  Quarters remain worth building at every level. Pinned by matched tests
+  asserting a level-10 Command Module holds exactly what a level-1 one does.
+- **Cost gets its own per-entry multiplier, separate from build time.** Build
+  time had an exact rational multiplier from the start while cost had none, so
+  every type cost the same at a given level regardless of role. Cost now takes
+  its own `cost_numerator`/`cost_denominator`, initialized to match each type's
+  time multiplier — the four producers are half price as well as half time,
+  everything else `1/1`. The two are deliberately **kept separate** despite
+  currently agreeing everywhere, so a slow-but-cheap or fast-but-expensive type
+  needs no schema change mid-balancing. The multiplier applies to construction
+  and so reaches the supplemental materials derived from it: a half-cost module
+  is half cost in every material, not just the construction line.
+- **Server-only parameters stay off the wire.** `seed_count` and `max_miners`
+  parameterize seeding and mining verification; the client validated them and
+  rendered nothing from them. Both are now server-side only. `max_miners` is not
+  awaiting a future client use — the single-miner rule is settled, with
+  contested asteroids resolved by combat (→ P5.5).
+
+These changed the balance payload's shape, so the initial catalog moved
+`schemaVersion` to 2; the level-30 cap adds its own wire field and makes the
+current version **3**. One `BALANCE_SCHEMA_VERSION` constant per side
+(`game_state/balance.rs`, `src/state/balance-catalog.ts`) is bumped together.
+
+The payload also got a home on each side rather than living inside one of the
+domains it spans. Server-side, `balance.rs` assembles it from each domain's own
+constants — `modules.rs` no longer imports crew and world symbols purely to
+build a wire message, and the construction-curve numbers are named constants
+read by both the curve and the payload rather than literals written twice.
+Client-side, `balance-catalog.ts` owns **all** validation and installs every
+catalog together; validation is total and all-or-nothing, so a payload that is
+malformed anywhere installs nothing, and the client can never render new module
+numbers against stale asteroid ones.
 
 ### P2.1 implementation decisions
 

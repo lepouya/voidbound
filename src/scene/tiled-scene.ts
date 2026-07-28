@@ -28,6 +28,8 @@ import {
   ResourceKind,
 } from "../state/game-state.ts";
 import { formatNotification, MailDialog } from "./mail-dialog.ts";
+import { currentLoadFailure } from "../state/game-state-loader.ts";
+import { loadFailureDialog } from "./load-failure-dialog.ts";
 // Deliberate exception to the scene/ directory being domain-agnostic: the
 // shared HUD resource bar renders storage/crew caps, which are ship-module
 // derived, so the base scene class reaches into ship/'s catalog for this one
@@ -242,6 +244,39 @@ export abstract class TiledScene extends ex.Scene {
       this.sceneCamera.resetTo(this.initialCameraTarget());
       this.registerInputHandlers();
     }
+    this.surfaceLoadFailure();
+  }
+
+  /**
+   * Show the blocking load-failure dialog if the snapshot never landed
+   * (F5). Every scene does this on activation rather than only the start
+   * scene: switching scenes closes the modal, and the failure is still
+   * true on the other side, so the player must not be able to walk away
+   * from it into an empty world.
+   */
+  private surfaceLoadFailure(): void {
+    const failure = currentLoadFailure();
+    if (failure === null) return;
+    this.openDialog(loadFailureDialog(
+      failure,
+      {
+        openDialog: (def) => void this.openDialog(def),
+        closeDialog: () => this.closeDialog(),
+      },
+      // A recovered load replaces every table the scene renders from, and
+      // the sync passes run off the state notify that load() emits — so the
+      // actors need nothing here. The *camera* does: onActivate already
+      // picked its target while the world was still empty, so it is parked
+      // on initialCameraTarget()'s fallback (map center for the space map).
+      // Leaving it there is not merely an odd view — the map scene's AOI
+      // hysteresis would then re-center the interest window on the map
+      // center and despawn every entity around the player's actual
+      // mothership, which is nowhere near it (ROADMAP P2.6 F3/D1 spawns in
+      // the outer band and leaves the central system empty).
+      () => {
+        if (this.mapReady) this.sceneCamera.resetTo(this.initialCameraTarget());
+      },
+    ));
   }
 
   override onDeactivate(): void {

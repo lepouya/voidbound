@@ -203,23 +203,31 @@ auto-recall `ServerPush::Vessel`.
 - [ ] Timed actions: deadline in `next_deadline()`, settlement queues outbox
       pushes, command ends with `finish_command`; TS `ServerPush` union +
       `applyServerPush` routing updated (section 4).
-- [ ] Catalog mirror (if the action reads costs/rates/thresholds a player should
-      see before committing — a build cost, a mining rate, a refresh price): the
-      Rust catalog constant is the source of truth; the TS side gets its own
-      **display-mirror pure module** (no Excalibur/Vite imports, unit-tested
-      under plain `deno test`) rather than a copy inline in the scene file.
-      Every field on the TS side needs a `// keep the two in
-      sync` comment
-      pointing at the exact Rust constant name and file. Diff the two
-      field-by-field before finishing — there is no automated cross-language
-      check, and this ritual has already drifted once. The existing instances
-      are the template: `MODULE_CATALOG` (src/ship/module-catalog.ts ↔
-      `MODULE_CATALOG` in game_state/modules.rs), `ASTEROID_TIERS`
-      (src/map/asteroid-catalog.ts ↔ `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR` in
-      game_state/world.rs), `DEAL_REFRESH_COSTS_CREDITS`
-      (src/ship/trade-catalog.ts ↔ same name in game_state/deals.rs), and
-      `HIRE_COST_BIOLOGICAL`/`HIRE_TIME_MS` (src/ship/module-catalog.ts ↔ same
-      names in game_state/crew.rs).
+- [ ] Catalog data (if the action reads costs/rates/thresholds a player should
+      see before committing — a build cost, a mining rate, a refresh price):
+      Rust is the source of truth and applies the rule; the client only previews
+      it. **Prefer sending the values over the wire** rather than hand-copying
+      them: `load_game_state`'s versioned `balance` payload
+      (`module_balance_data` in game_state/modules.rs → `applyBalanceCatalog` in
+      src/ship/module-catalog.ts) is the template — add the field there, bump
+      `schemaVersion`, and validate it client-side before install. ROADMAP P2.6
+      moved the module and asteroid catalogs onto this path precisely because
+      hand-synced copies meant editing every balance number twice, with only
+      review to catch a miss.
+
+      A hand-synced mirror is still acceptable for values the UI styles rather
+      than computes (`src/ship/trade-catalog.ts` ↔ game_state/deals.rs is the
+      remaining one). If you write one, put it in a **pure module** (no
+      Excalibur/Vite imports, unit-tested under plain `deno test`), give every
+      field a `// keep the two in sync` comment naming the exact Rust constant
+      and file, and diff them field-by-field before finishing — there is no
+      automated cross-language check.
+
+      Where a client preview must reproduce a server *calculation* exactly
+      (the P2.6 cost/production curves), the wire carries parameters, not
+      results — so pin the two implementations with **matched tests that name
+      each other**, as `production_follows_a_true_compounding_curve...` and
+      "the production curve mirrors the server's compounding sequence" do.
 - [ ] `deno task format`, `deno task check`, and `deno task lint` pass.
 - [ ] Run **`/verify`** and drive the new action in the dev app — there is no
       scene-level test coverage, so the running app is the only end-to-end

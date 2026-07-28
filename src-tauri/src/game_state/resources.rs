@@ -59,6 +59,16 @@ impl TradeKind {
     }
 }
 
+/// The four material resources, in wire order — the iteration order for any
+/// pass that has to touch every material (production accrual, sub-unit
+/// carry). Credits are excluded: they are trade-only, never produced.
+pub(super) const MATERIAL_KINDS: [ResourceKind; 4] = [
+    ResourceKind::Construction,
+    ResourceKind::HighTech,
+    ResourceKind::Biological,
+    ResourceKind::Fuel,
+];
+
 /// Player-facing name of a trade-eligible type for error/notification text.
 pub(super) fn trade_display_name(kind: TradeKind) -> &'static str {
     match kind.material() {
@@ -105,6 +115,18 @@ impl ResourceCounts {
         *slot = slot.saturating_add(amount);
     }
 
+    pub(super) fn set(&mut self, kind: ResourceKind, amount: u64) {
+        *self.slot_mut(kind) = amount;
+    }
+
+    pub(super) const ZERO: Self = Self {
+        construction: 0,
+        high_tech: 0,
+        biological: 0,
+        fuel: 0,
+        credits: 0,
+    };
+
     /// Add at most what fits under `cap`, returning the amount actually
     /// stored — income past the storage cap is lost (ROADMAP P1.11). Stock
     /// already above the cap is never confiscated; it just leaves no room.
@@ -127,6 +149,40 @@ impl ResourceCounts {
             ));
         }
         *self.slot_mut(kind) -= amount;
+        Ok(())
+    }
+
+    /// Deduct a verified multi-material cost atomically: every material is
+    /// checked before any balance changes, so a rejected mixed cost never
+    /// partially spends the player's resources.
+    ///
+    /// The cost is a `ResourceCounts` — one keyed slot per material —
+    /// rather than a list of (kind, amount) line items, deliberately. A list
+    /// can name the same material twice, and each entry would then be
+    /// checked against the *full* balance while both are subtracted: 100
+    /// construction "affords" two 60-construction entries and then
+    /// underflows. Keyed slots make that unrepresentable, and match the
+    /// client's `ModuleCost` map shape so the two sides can't disagree about
+    /// what a mixed cost means.
+    ///
+    /// Credits are not spendable here — they are trade-only (P1.12) and go
+    /// through the trade path. A credits cost would be a new concept, so it
+    /// trips in tests rather than being silently free.
+    pub(super) fn spend_all(&mut self, costs: &ResourceCounts) -> Result<(), String> {
+        debug_assert_eq!(costs.credits, 0, "credits are trade-only, not a cost");
+        for kind in MATERIAL_KINDS {
+            let amount = costs.get(kind);
+            if self.get(kind) < amount {
+                return Err(format!(
+                    "not enough {}: need {amount}, have {}",
+                    resource_display_name(kind),
+                    self.get(kind)
+                ));
+            }
+        }
+        for kind in MATERIAL_KINDS {
+            *self.slot_mut(kind) -= costs.get(kind);
+        }
         Ok(())
     }
 

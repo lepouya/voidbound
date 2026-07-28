@@ -16,20 +16,30 @@ import {
   SHIP_ROOM_GRID,
 } from "../scene/grid-math.ts";
 import {
+  canAffordModuleCost,
   COMMAND_MODULE_TYPE,
   costAtLevel,
   CREW_QUARTERS_MODULE_TYPE,
   crewCapacityForModules,
   crewRequiredForModules,
   crewScaledAmount,
+  formatModuleCost,
   hireCostAt,
+  hireTimeMs,
+  maxModuleLevel,
   MODULE_CATALOG,
   moduleCatalogEntry,
   TRADING_POST_MODULE_TYPE,
 } from "./module-catalog.ts";
 import { TileActor } from "../scene/tile-actor.ts";
 import { TileGridGeometry } from "../scene/grid-math.ts";
-import { ButtonDef, errorToast, roundButton, ToastDef } from "../ui/index.ts";
+import {
+  ButtonDef,
+  errorToast,
+  formatDuration,
+  roundButton,
+  ToastDef,
+} from "../ui/index.ts";
 
 /**
  * Modules occupy the 4*4 center of their 6*6 room. Mirrors MODULE_SPAN in
@@ -45,9 +55,9 @@ const MODULE_SPAN = 4;
 const MODULE_ART_TYPE = "base";
 
 /** Result of levelUpStatus(): whether/why a module's Level Up button would
- *  currently be enabled. "capped" (blocked by the Command Module's own
- *  level) is kept distinct from "unaffordable" so the UI can say which one
- *  it is. */
+ *  currently be enabled. "capped" (by either the global ceiling or the
+ *  Command Module's level) is kept distinct from "unaffordable" so the UI
+ *  can say which one it is. */
 type LevelUpStatus = "unavailable" | "capped" | "unaffordable" | "ready";
 
 /** Result of hireStatus(): whether/why the Command Module's Hire Crew button
@@ -267,10 +277,10 @@ export class ModuleSync {
 
   /**
    * Whether/why a Level Up button for this module would currently be
-   * enabled — "capped" (README § Ship design: a non-Command module can never
-   * level past the Command Module's own level) is distinct from
-   * "unaffordable" so the UI can tell the player which one it is, instead of
-   * showing a cost badge that looks unmet when the real blocker is the cap.
+   * enabled — "capped" (by the global ceiling or, for non-Command modules,
+   * the Command Module's own level) is distinct from "unaffordable" so the
+   * UI can tell the player which one it is, instead of showing a cost badge
+   * that looks unmet when the real blocker is the cap.
    * Shared by createActor (button label/disabled) and sync() (to decide
    * whether a resource or Command-level change alone should trigger a
    * rebuild). Takes the Command Module's level as a parameter — callers
@@ -283,10 +293,14 @@ export class ModuleSync {
     const entry = moduleCatalogEntry(data.moduleType);
     if (!entry) return "unavailable";
     const nextLevel = data.level + 1;
+    if (nextLevel > maxModuleLevel()) return "capped";
     if (entry.moduleType !== COMMAND_MODULE_TYPE && nextLevel > commandLevel) {
       return "capped";
     }
-    return gameState.resources.construction >= costAtLevel(entry, nextLevel)
+    return canAffordModuleCost(
+        gameState.resources,
+        costAtLevel(entry, nextLevel),
+      )
       ? "ready"
       : "unaffordable";
   }
@@ -357,11 +371,14 @@ export class ModuleSync {
       // differently from a cost badge that looks unmet — say so.
       buttons.push(roundButton({
         icon: "crew",
+        // How long recruiting takes is part of the decision, not just
+        // something to watch afterwards — say it up front, the way the cost
+        // badge does, so the wait is never a surprise mid-hire.
         label: hireStatus === "recruiting"
           ? recruitingLabel(gameState.pendingHire?.completesAt ?? now, now)
           : hireStatus === "full"
           ? "Quarters Full"
-          : "Hire Crew",
+          : `Hire Crew (${formatDuration(hireTimeMs())})`,
         badge: hireStatus === "ready" || hireStatus === "unaffordable"
           ? `${hireCostAt(gameState.crew)}`
           : undefined,
@@ -383,15 +400,17 @@ export class ModuleSync {
     if (data.pending === null && entry) {
       const nextLevel = data.level + 1;
       const cost = costAtLevel(entry, nextLevel);
+      const atGlobalCap = nextLevel > maxModuleLevel();
       buttons.push(roundButton({
         icon: "upgrade",
-        // "capped" (blocked by the Command Module's own level, README § Ship
-        // design) reads very differently from "unaffordable" — say so rather
-        // than showing a cost badge that looks unmet either way.
-        label: status === "capped"
+        // A global cap has no next-level price at all. The distinct Command
+        // Module gate still tells a player what progression unlocks it.
+        label: atGlobalCap
+          ? "Max Level"
+          : status === "capped"
           ? `Needs Command Lv${nextLevel}`
           : "Level Up",
-        badge: `${cost}`,
+        badge: atGlobalCap ? undefined : formatModuleCost(cost),
         disabled: status !== "ready",
         onPressed: () => void this.levelUp(data.moduleId),
       }));
@@ -501,8 +520,8 @@ export class ModuleSync {
           label: entry.displayName,
           // Cost shown as the button badge; affordability is re-checked by
           // the backend on request — this disable is just UX.
-          badge: `${cost}`,
-          disabled: gameState.resources.construction < cost,
+          badge: formatModuleCost(cost),
+          disabled: !canAffordModuleCost(gameState.resources, cost),
           onPressed: () =>
             void this.build(anchor.col, anchor.row, entry.moduleType),
         });

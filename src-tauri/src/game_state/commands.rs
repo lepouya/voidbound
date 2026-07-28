@@ -19,6 +19,29 @@ pub(crate) fn load_game_state(
     Ok(Revisioned::new(revision, data))
 }
 
+/// Development-only: throw away the entire local system and reseed it, then
+/// return the fresh snapshot so the client can adopt it without a relaunch.
+/// Destroys every local profile and all world progress.
+///
+/// Refused outright in release builds — this is a developer data-management
+/// control, never part of an online protocol. The client only offers it from
+/// the load-failure dialog in dev builds, and both halves disappear once
+/// Phase 3 owns the authoritative state (SERVER.md).
+#[tauri::command]
+pub(crate) fn reset_local_system(
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
+) -> Result<Revisioned<GameStateData>, String> {
+    if !cfg!(debug_assertions) {
+        return Err("reset_local_system is a development-only control".to_string());
+    }
+    server.reset_system(now_ms())?;
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let data = s.snapshot(now_ms());
+    let revision = finish_command(&app, server.inner(), s);
+    Ok(Revisioned::new(revision, data))
+}
+
 /// Re-center the client's interest-area window on the given tile as the
 /// camera pans (ROADMAP P1.13) and return the entities inside it — the
 /// client replaces its world tables wholesale, unloading everything that

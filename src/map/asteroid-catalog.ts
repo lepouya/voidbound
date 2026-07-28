@@ -1,12 +1,13 @@
-import { AsteroidData, MaterialResourceKind } from "../state/game-state.ts";
+import {
+  AsteroidData,
+  BalanceCatalogData,
+  MaterialResourceKind,
+} from "../state/game-state.ts";
 
 /**
- * Asteroid tier catalog (ROADMAP P1.6) — display/UX mirror of the Rust
- * `ASTEROID_TIERS` + `MINE_UNITS_PER_HOUR` in src-tauri/src/game_state/world.rs
- * — keep the two in sync. The backend is what actually verifies mining and
- * derives harvests; this module only lets the map scene name asteroids,
- * tint their placeholder sprites, and show deposit/duration estimates
- * without a round-trip.
+ * Asteroid tier catalog (ROADMAP P1.6), received in the versioned authoritative
+ * balance snapshot. The backend verifies mining and derives harvests; this
+ * module only renders names, placeholder tints, and duration estimates.
  *
  * Pure module — no Excalibur/Vite imports — so it stays unit-testable under
  * Deno (see tests/asteroid_catalog_test.ts).
@@ -22,11 +23,19 @@ export interface AsteroidTierEntry {
   maxAmount: number;
 }
 
-export const ASTEROID_TIERS: readonly AsteroidTierEntry[] = [
-  { tier: "small", span: 1, minAmount: 60, maxAmount: 240 },
-  { tier: "medium", span: 2, minAmount: 240, maxAmount: 960 },
-  { tier: "large", span: 3, minAmount: 960, maxAmount: 2880 },
-];
+export let ASTEROID_TIERS: readonly AsteroidTierEntry[] = [];
+
+let mineUnitsPerHour: number | null = null;
+
+/**
+ * Install the asteroid half of an already-validated balance payload. Call
+ * `applyBalanceCatalog` (src/state/balance-catalog.ts) instead — it owns the
+ * validation and installs every catalog together.
+ */
+export function installAsteroidBalance(balance: BalanceCatalogData): void {
+  ASTEROID_TIERS = balance.asteroids.tiers.map((tier) => ({ ...tier }));
+  mineUnitsPerHour = balance.asteroids.mineUnitsPerHour;
+}
 
 export function asteroidTierEntry(
   tier: string,
@@ -37,13 +46,12 @@ export function asteroidTierEntry(
 /**
  * Mining extraction rate in resource units per hour, shared by every tier —
  * a full mine-out takes amount / rate (small 15–60 min, medium 1–4 h, large
- * 4–12 h). Stub balancing, like scaleForLevel.
+ * 4–12 h at grade 1; deeper radial grades multiply the server-seeded deposit.
  */
-export const MINE_UNITS_PER_HOUR = 240;
-
 /** How long mining the given amount takes at MINE_UNITS_PER_HOUR. */
 export function mineDurationMs(amount: number): number {
-  return Math.floor((amount * 3_600_000) / MINE_UNITS_PER_HOUR);
+  if (!mineUnitsPerHour) return 0;
+  return Math.floor((amount * 3_600_000) / mineUnitsPerHour);
 }
 
 /**

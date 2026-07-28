@@ -1,11 +1,14 @@
-import { ModuleData, ResourceKind } from "../state/game-state.ts";
+import {
+  BalanceCatalogData,
+  ModuleData,
+  ResourceCounts,
+  ResourceKind,
+} from "../state/game-state.ts";
 
 /**
- * Module type catalog (ROADMAP P1.4) — display/UX mirror of the Rust
- * `MODULE_CATALOG` in src-tauri/src/game_state/modules.rs — keep the two in
- * sync. The backend is what actually verifies and derives cost/time/production;
- * this module only lets buttons show cost badges and pre-check affordability
- * without a round-trip.
+ * Module type catalog (ROADMAP P1.4), received in the versioned authoritative
+ * balance snapshot. The backend verifies and derives every result; this module
+ * only renders cost badges and performs optimistic affordability previews.
  *
  * Pure module — no Excalibur/Vite imports — so it stays unit-testable under
  * Deno (see tests/module_catalog_test.ts).
@@ -14,26 +17,30 @@ export interface ModuleCatalogEntry {
   /** Catalog key — the wire `moduleType` on `ModuleData` and build requests. */
   moduleType: string;
   displayName: string;
-  /** Resources produced per production tick at level 1; doubles per level
-   *  thereafter (see scaleForLevel). */
+  /** Resources produced **per minute** at level 1; `productionAtLevel`
+   *  applies the level curve. */
   produces: Partial<Record<ResourceKind, number>>;
-  /** Storage capacity contributed per resource at level 1 (ROADMAP P1.11);
-   *  doubles per level thereafter. Income past a resource's total cap is
-   *  lost — the backend clamps; this mirror only drives the cap display. */
-  stores: Partial<Record<ResourceKind, number>>;
-  /** Crew berths contributed per settled level (ROADMAP P1.10) — summed
-   *  linearly (level * this), not scaleForLevel: capacity is a head count,
-   *  not a production curve. */
+  /** Storage granted once settled at any level, plus storage added per
+   *  settled level: `base + perLevel * level`. */
+  storesBase: Partial<Record<ResourceKind, number>>;
+  storesPerLevel: Partial<Record<ResourceKind, number>>;
+  /** Crew berths (ROADMAP P1.10), same base + per-level shape as stores. */
+  crewCapacityBase: number;
   crewCapacityPerLevel: number;
   /** Crew wanted per settled level to run at full output (ROADMAP P1.10),
    *  summed linearly ship-wide; 0 means never damped. */
   crewRequiredPerLevel: number;
-  /** Construction-material cost to build (or level up to) level 1; doubles
-   *  per level thereafter. Every module cost is stubbed as construction-only
-   *  for now — fine-tuned to a real per-resource mix later. */
-  baseCostConstruction: number;
-  /** Build/level-up time in ms at level 1; doubles per level thereafter. */
-  baseBuildTimeMs: number;
+  /** Extra materials added from the operational threshold onward, each at
+   *  the supplemental fraction of the construction amount. Empty means
+   *  construction-only until the high-tech threshold. */
+  operationalCosts: ResourceKind[];
+  /** Exact multiplier over the shared construction-cost curve, reaching the
+   *  supplemental materials derived from it. */
+  costNumerator: number;
+  costDenominator: number;
+  /** Exact multiplier over the shared construction-time table. */
+  buildTimeNumerator: number;
+  buildTimeDenominator: number;
   /** Minimum Command Module level required before this type can be built. */
   unlockCommandLevel: number;
 }
@@ -52,130 +59,50 @@ export const CREW_QUARTERS_MODULE_TYPE = "crew-quarters";
  *  Trade button that opens the deal-shop dialog. */
 export const TRADING_POST_MODULE_TYPE = "trading-post";
 
-export const MODULE_CATALOG: readonly ModuleCatalogEntry[] = [
-  {
-    moduleType: COMMAND_MODULE_TYPE,
-    displayName: "Command Module",
-    produces: { construction: 1, highTech: 1, biological: 1, fuel: 1 },
-    // Baseline storage, mirroring the baseline production: the player
-    // always has some cap even with no Storage Bay built.
-    stores: {
-      construction: 1_000,
-      highTech: 1_000,
-      biological: 1_000,
-      fuel: 1_000,
-    },
-    crewCapacityPerLevel: 2,
-    crewRequiredPerLevel: 0,
-    baseCostConstruction: 20,
-    baseBuildTimeMs: 30_000,
-    unlockCommandLevel: 0,
-  },
-  {
-    moduleType: "ore-refinery",
-    displayName: "Ore Refinery",
-    produces: { construction: 2 },
-    stores: {},
-    crewCapacityPerLevel: 0,
-    crewRequiredPerLevel: 1,
-    baseCostConstruction: 10,
-    baseBuildTimeMs: 15_000,
-    unlockCommandLevel: 1,
-  },
-  {
-    moduleType: "electronics-fabricator",
-    displayName: "Electronics Fabricator",
-    produces: { highTech: 2 },
-    stores: {},
-    crewCapacityPerLevel: 0,
-    crewRequiredPerLevel: 1,
-    baseCostConstruction: 10,
-    baseBuildTimeMs: 15_000,
-    unlockCommandLevel: 1,
-  },
-  {
-    moduleType: "hydroponics-bay",
-    displayName: "Hydroponics Bay",
-    produces: { biological: 2 },
-    stores: {},
-    crewCapacityPerLevel: 0,
-    crewRequiredPerLevel: 1,
-    baseCostConstruction: 10,
-    baseBuildTimeMs: 15_000,
-    unlockCommandLevel: 1,
-  },
-  {
-    moduleType: "fusion-reactor",
-    displayName: "Fusion Reactor",
-    produces: { fuel: 2 },
-    stores: {},
-    crewCapacityPerLevel: 0,
-    crewRequiredPerLevel: 1,
-    baseCostConstruction: 10,
-    baseBuildTimeMs: 15_000,
-    unlockCommandLevel: 1,
-  },
-  {
-    moduleType: "storage-bay",
-    displayName: "Storage Bay",
-    produces: {},
-    stores: {
-      construction: 2_000,
-      highTech: 2_000,
-      biological: 2_000,
-      fuel: 2_000,
-    },
-    crewCapacityPerLevel: 0,
-    crewRequiredPerLevel: 0,
-    baseCostConstruction: 15,
-    baseBuildTimeMs: 20_000,
-    unlockCommandLevel: 1,
-  },
-  {
-    moduleType: CREW_QUARTERS_MODULE_TYPE,
-    displayName: "Crew Quarters",
-    produces: {},
-    stores: {},
-    crewCapacityPerLevel: 1,
-    crewRequiredPerLevel: 0,
-    baseCostConstruction: 15,
-    baseBuildTimeMs: 20_000,
-    unlockCommandLevel: 1,
-  },
-  {
-    moduleType: TRADING_POST_MODULE_TYPE,
-    displayName: "Trading Post",
-    // No production or storage — its function is the deal shop (ROADMAP
-    // P1.12); leveling it adds deal slots instead.
-    produces: {},
-    stores: {},
-    crewCapacityPerLevel: 0,
-    crewRequiredPerLevel: 1,
-    baseCostConstruction: 15,
-    baseBuildTimeMs: 20_000,
-    // Low-mid unlock; the exact level is a balancing stub → P2.6.
-    unlockCommandLevel: 2,
-  },
-];
+/** Loaded from the server snapshot before scene subscribers run. */
+export let MODULE_CATALOG: readonly ModuleCatalogEntry[] = [];
+
+let balanceCatalog: BalanceCatalogData | null = null;
 
 /**
- * Biological-material cost of one crew hire, multiplied by the new head
- * count (linear — hiring is a repeat purchase). Display mirror of the Rust
- * HIRE_COST_BIOLOGICAL in src-tauri/src/game_state/crew.rs — keep the two in
- * sync; the backend does the actual verification. Balancing stub → P2.6.
+ * Install the module half of an already-validated balance payload. Call
+ * `applyBalanceCatalog` (src/state/balance-catalog.ts) instead — it owns the
+ * validation and installs every catalog together.
  */
-export const HIRE_COST_BIOLOGICAL = 20;
+export function installModuleBalance(balance: BalanceCatalogData): void {
+  const entries = balance.modules.map((entry) => ({
+    ...entry,
+    produces: Object.fromEntries(entry.produces),
+    storesBase: Object.fromEntries(entry.storesBase),
+    storesPerLevel: Object.fromEntries(entry.storesPerLevel),
+    operationalCosts: [...entry.operationalCosts],
+  }));
+  MODULE_CATALOG = entries;
+  balanceCatalog = balance;
+}
+
+/** Biological-material cost of one crew hire, multiplied by the new head
+ * count (linear — hiring is a repeat purchase). */
+export function hireCostBiological(): number {
+  return balanceCatalog?.hireCostBiological ?? 0;
+}
 
 /**
- * Recruitment time per hire, ms. Display mirror of the Rust HIRE_TIME_MS in
- * src-tauri/src/game_state/crew.rs — keep the two in sync. Balancing stub → P2.6.
+ * Recruitment time per hire, ms.
  */
-export const HIRE_TIME_MS = 30_000;
+export function hireTimeMs(): number {
+  return balanceCatalog?.hireTimeMs ?? 0;
+}
+
+/** The server-authoritative progression ceiling for every module. */
+export function maxModuleLevel(): number {
+  return balanceCatalog?.maxModuleLevel ?? 0;
+}
 
 /** Biological cost of hiring one more crew member on top of `crew` heads —
  *  the linear rule the backend charges (HIRE_COST_BIOLOGICAL * new count). */
 export function hireCostAt(crew: number): number {
-  return HIRE_COST_BIOLOGICAL * (crew + 1);
+  return hireCostBiological() * (crew + 1);
 }
 
 export function moduleCatalogEntry(
@@ -184,43 +111,145 @@ export function moduleCatalogEntry(
   return MODULE_CATALOG.find((e) => e.moduleType === moduleType);
 }
 
-/**
- * Doubles `base` for every level above 1 — the stub scaling rule shared by
- * cost, build time, and production until real balancing lands (ROADMAP
- * P1.4). Level 0 (not yet built) scales to 0.
- */
-export function scaleForLevel(base: number, level: number): number {
-  return level <= 0 ? 0 : base * 2 ** (level - 1);
+export type ModuleCost = Partial<Record<ResourceKind, number>>;
+
+function ceilRatio(
+  value: number,
+  numerator: number,
+  denominator: number,
+): number {
+  return Math.ceil((value * numerator) / denominator);
 }
 
-export function costAtLevel(entry: ModuleCatalogEntry, level: number): number {
-  return scaleForLevel(entry.baseCostConstruction, level);
+/** 25 construction at level 1, then rounded-up 1.5x per target level. */
+export function constructionCostAtLevel(level: number): number {
+  const balance = balanceCatalog;
+  if (!balance) return 0;
+  let amount = balance.constructionCostLevelOne;
+  for (let target = 1; target < level; target++) {
+    amount = ceilRatio(
+      amount,
+      balance.constructionCostNumerator,
+      balance.constructionCostDenominator,
+    );
+  }
+  return amount;
+}
+
+/** Display-only preview of the authoritative mixed-material module cost. */
+export function costAtLevel(
+  entry: ModuleCatalogEntry,
+  level: number,
+): ModuleCost {
+  const balance = balanceCatalog;
+  if (!balance) return {};
+  // The entry multiplier applies to construction, and so reaches the
+  // supplemental materials derived from it — mirroring `module_cost`.
+  const construction = ceilRatio(
+    constructionCostAtLevel(level),
+    entry.costNumerator,
+    entry.costDenominator,
+  );
+  const supplemental = ceilRatio(
+    construction,
+    balance.supplementalCostNumerator,
+    balance.supplementalCostDenominator,
+  );
+  const cost: ModuleCost = {};
+  // Amounts accumulate per material rather than overwriting, so a type
+  // listing highTech operationally still shows the universal high-tech
+  // charge on top of it — mirroring module_cost's keyed sum exactly.
+  const charge = (kind: ResourceKind, amount: number) => {
+    cost[kind] = (cost[kind] ?? 0) + amount;
+  };
+  charge("construction", construction);
+  if (level >= balance.operationalCostStartLevel) {
+    for (const kind of entry.operationalCosts) charge(kind, supplemental);
+  }
+  if (level >= balance.highTechCostStartLevel) {
+    charge("highTech", supplemental);
+  }
+  return cost;
+}
+
+export function canAffordModuleCost(
+  resources: ResourceCounts,
+  cost: ModuleCost,
+): boolean {
+  if (!balanceCatalog) return false;
+  return Object.entries(cost).every(([kind, amount]) =>
+    resources[kind as ResourceKind] >= (amount ?? 0)
+  );
+}
+
+/** Compact unambiguous labels for world-space cost badges. */
+export function formatModuleCost(cost: ModuleCost): string {
+  const labels: Record<ResourceKind, string> = {
+    construction: "C",
+    highTech: "H",
+    biological: "B",
+    fuel: "F",
+    credits: "$",
+  };
+  return Object.entries(cost).map(([kind, amount]) =>
+    `${amount}${labels[kind as ResourceKind]}`
+  ).join("+");
 }
 
 export function buildTimeAtLevel(
   entry: ModuleCatalogEntry,
   level: number,
 ): number {
-  return scaleForLevel(entry.baseBuildTimeMs, level);
+  const balance = balanceCatalog;
+  if (!balance) return 0;
+  const baseline = balance.baseBuildTimesMs[level - 1] ??
+    balance.postLevel10BuildTimeMs;
+  return ceilRatio(
+    baseline,
+    entry.buildTimeNumerator,
+    entry.buildTimeDenominator,
+  );
 }
 
+/**
+ * Production per minute at a settled level: `base * 1.15^(level-1)`, rounded
+ * up **once** at the end.
+ *
+ * Compounds in fixed point rather than rounding at every level — rounding each
+ * step up on a small integer base turns "+15% per level" into "+1 per level".
+ * Deliberately the same integer algorithm as `production_at_level` in
+ * src-tauri/src/game_state/modules.rs, using the server's own precision
+ * constant, so the preview never disagrees with what the player is credited.
+ */
 export function productionAtLevel(
   entry: ModuleCatalogEntry,
   level: number,
 ): Partial<Record<ResourceKind, number>> {
   const out: Partial<Record<ResourceKind, number>> = {};
+  const balance = balanceCatalog;
+  if (!balance) return out;
   for (const [kind, amount] of Object.entries(entry.produces)) {
-    out[kind as ResourceKind] = scaleForLevel(amount, level);
+    if (level <= 0) {
+      out[kind as ResourceKind] = 0;
+      continue;
+    }
+    let scaled = amount * balance.productionPrecision;
+    for (let settled = 1; settled < level; settled++) {
+      scaled = Math.floor(
+        (scaled * balance.productionNumerator) / balance.productionDenominator,
+      );
+    }
+    out[kind as ResourceKind] = Math.ceil(scaled / balance.productionPrecision);
   }
   return out;
 }
 
 /**
- * Total storage cap per resource (ROADMAP P1.11): the sum of every module's
- * catalog `stores` contribution scaled by its settled level — the display
- * mirror of the Rust `ServerState::storage_caps`, which is what actually
- * clamps income. A pending build/upgrade doesn't count until it settles.
- * Credits are trade-only and uncapped (Infinity).
+ * Total storage cap per resource (ROADMAP P1.11): every settled module's
+ * catalog baseline plus its per-level contribution — the display preview of
+ * the Rust `ServerState::storage_caps`, which is what actually clamps income.
+ * A pending build/upgrade (level 0) contributes neither half until it
+ * settles. Credits are trade-only and uncapped (Infinity).
  */
 export function storageCapsForModules(
   modules: Iterable<Pick<ModuleData, "moduleType" | "level">>,
@@ -234,17 +263,20 @@ export function storageCapsForModules(
   };
   for (const module of modules) {
     const entry = moduleCatalogEntry(module.moduleType);
-    if (!entry) continue;
-    for (const [kind, base] of Object.entries(entry.stores)) {
-      caps[kind as ResourceKind] += scaleForLevel(base, module.level);
+    if (!entry || module.level < 1) continue;
+    for (const [kind, base] of Object.entries(entry.storesBase)) {
+      caps[kind as ResourceKind] += base;
+    }
+    for (const [kind, perLevel] of Object.entries(entry.storesPerLevel)) {
+      caps[kind as ResourceKind] += perLevel * module.level;
     }
   }
   return caps;
 }
 
 /**
- * Total crew berths (ROADMAP P1.10): every module's crewCapacityPerLevel
- * times its settled level, summed linearly — the display mirror of the Rust
+ * Total crew berths (ROADMAP P1.10): every settled module's catalog baseline
+ * plus its per-level contribution — the display preview of the Rust
  * `ServerState::crew_capacity`, which is what actually verifies hires. A
  * pending build/upgrade doesn't count until it settles.
  */
@@ -254,15 +286,16 @@ export function crewCapacityForModules(
   let capacity = 0;
   for (const module of modules) {
     const entry = moduleCatalogEntry(module.moduleType);
-    if (!entry) continue;
-    capacity += entry.crewCapacityPerLevel * module.level;
+    if (!entry || module.level < 1) continue;
+    capacity += entry.crewCapacityBase +
+      entry.crewCapacityPerLevel * module.level;
   }
   return capacity;
 }
 
 /**
  * Ship-wide crew demand (ROADMAP P1.10): every module's crewRequiredPerLevel
- * times its settled level, summed linearly — the display mirror of the Rust
+ * times its settled level, summed linearly — the display preview of the Rust
  * `ServerState::crew_required`.
  */
 export function crewRequiredForModules(
@@ -280,9 +313,9 @@ export function crewRequiredForModules(
 /**
  * Damp a production amount by the pooled crew staffing ratio (ROADMAP
  * P1.10): amount * (required + staffed) / (2 * required), integer-floored —
- * exactly 0.5 + 0.5 * ratio with a 50% floor. Display mirror of the Rust
- * `crew_scaled` in src-tauri/src/game_state/modules.rs — keep the two in sync; the
- * backend does the actual damping. `required <= 0` means nothing wants crew:
+ * exactly 0.5 + 0.5 * ratio with a 50% floor. Display preview of the Rust
+ * `crew_scaled` in src-tauri/src/game_state/modules.rs; the backend does the
+ * actual damping. `required <= 0` means nothing wants crew:
  * no damping.
  */
 export function crewScaledAmount(

@@ -103,6 +103,15 @@ export class GameState {
   loaded = false;
 
   /**
+   * Set while a load attempt has failed and not yet been recovered. Incoming
+   * pushes are dropped meanwhile: without a snapshot baseline there is
+   * nothing to reconcile them against, and without a balance catalog the
+   * scenes cannot render what they describe. Cleared by the next successful
+   * load, whose snapshot restores the baseline.
+   */
+  suspended = false;
+
+  /**
    * The local player. Synced from the backend during the loader phase (see
    * game-state-loader.ts); the mothership and dispatched vessels are stamped
    * with it. New-player default until load() lands.
@@ -546,8 +555,18 @@ export class GameState {
    * socket handler will do; only the transport delivering the push changes.
    * Idempotent like everything it dispatches to: replaying a push (or
    * receiving one already reflected in a snapshot) merges by id.
+   *
+   * Deliberately *not* gated on `loaded`. The listener subscribes before the
+   * snapshot is requested precisely so nothing emitted in between is missed
+   * (game-state-loader-order.ts), and `load()` reconciles per entity by
+   * revision — so a push that beats the snapshot is kept, not overwritten.
+   * `suspended` is the narrower guard: it stops pushes only once a load has
+   * definitively *failed*, where there is no baseline to reconcile against
+   * and no balance catalog to render with. A successful retry lifts it, and
+   * that snapshot re-establishes the baseline.
    */
   applyServerPush(message: Revisioned<ServerPush>): void {
+    if (this.suspended) return;
     const { revision, data: push } = message;
     switch (push.type) {
       case "resources":

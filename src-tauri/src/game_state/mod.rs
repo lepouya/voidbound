@@ -1,3 +1,4 @@
+mod balance;
 mod commands;
 mod crew;
 mod deals;
