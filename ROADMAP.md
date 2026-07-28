@@ -180,11 +180,9 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       level-30 module cap; radial asteroid grades and outer-band spawning. Still
       open: asteroid-grade presentation → P2.11; verification UI defects →
       P2.12; startup-only developer reset controls → P2.10.
-- [ ] **P2.7 — Diminishing returns** _(moved from P1.7)_. Repeated actions yield
-      less over the course of a day and reset at a fixed point — the README's
-      alternative to hard energy caps. Local implementation first; the server
-      re-verifies it in phase 3. Mining is the first action worth damping. Needs
-      P2.5; lands naturally alongside P2.6.
+- [x] **P2.7 — Diminishing returns** _(moved from P1.7)_. Mining's extraction
+      time, travel, single-slot deposits, and fleet cap already provide the
+      intended soft limit. Battle/raid tuning remains with combat → P5.5.
 - [ ] **P2.8 — Crew understaffing UX pass** _(split from P1.10, playtest
       feedback, July 2026)_. Richer understaffing UX — per-module indicators
       (today's single ship-wide output-percent badge doesn't say which modules
