@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::collections::BTreeMap;
 
 use super::resources::{ResourceCounts, ResourceKind};
 use super::state::{deadline_after, scaled_ms, NotificationPayload, ServerPush, ServerState};
@@ -25,6 +26,20 @@ pub struct PendingHire {
 pub struct CrewData {
     pub crew: u32,
     pub pending_hire: Option<PendingHire>,
+    /// Complete server-calculated staffing state for every settled module
+    /// that demands crew. P2.8's client renders this directly rather than
+    /// reproducing allocation rules locally.
+    pub assignments: Vec<CrewAssignmentData>,
+}
+
+/// One module's current crew allocation. Mirrors `CrewAssignmentData` in
+/// `src/state/game-state-types.ts` — keep the two in sync.
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CrewAssignmentData {
+    pub module_id: String,
+    pub assigned: u32,
+    pub required: u32,
 }
 
 /// Result of a verified hire request: the crew state with the recruitment
@@ -36,6 +51,15 @@ pub struct CrewActionResponse {
     pub resources: ResourceCounts,
 }
 
+/// Result of a verified P2.8 crew reassignment. `CrewData` is its own
+/// snapshot event: the response and a future server push take the same
+/// client apply path.
+#[derive(Serialize, Debug)]
+pub struct CrewAssignmentResponse {
+    pub action_id: String,
+    pub crew: CrewData,
+}
+
 /// Biological-material cost of one crew hire, multiplied by the new head
 /// count — linear, not the doubling stub: hiring is a repeat purchase
 /// (ROADMAP P1.10). Sent to the client in the server-owned balance catalog.
@@ -43,7 +67,7 @@ pub(super) const HIRE_COST_BIOLOGICAL: u64 = 20;
 
 /// Recruitment time per hire. Sent to the client in the server-owned balance
 /// catalog.
-pub(super) const HIRE_TIME_MS: u64 = 300_000;
+pub(super) const HIRE_TIME_MS: u64 = 60_000;
 
 /// A new player starts with no crew (ROADMAP P1.10) and hires from scratch —
 /// the first recruitment is a natural early goal (and a future tutorial
@@ -57,7 +81,85 @@ impl ServerState {
         CrewData {
             crew: self.crew,
             pending_hire: self.pending_hire.clone(),
+            assignments: self.crew_assignments_data(),
         }
+    }
+
+    fn crew_assignments_data(&self) -> Vec<CrewAssignmentData> {
+        let mut assignments = BTreeMap::new();
+        for module in self.modules.values() {
+            let required = self.crew_required_for_module(module);
+            if required == 0 {
+                continue;
+            }
+            assignments.insert(
+                module.module_id.clone(),
+                CrewAssignmentData {
+                    module_id: module.module_id.clone(),
+                    assigned: self
+                        .crew_assignments
+                        .get(&module.module_id)
+                        .copied()
+                        .unwrap_or(0),
+                    required,
+                },
+            );
+        }
+        assignments.into_values().collect()
+    }
+
+    pub(super) fn assigned_crew(&self, module_id: &str) -> u32 {
+        self.crew_assignments.get(module_id).copied().unwrap_or(0)
+    }
+
+    /// Verify and apply one module's requested head count. Production is
+    /// accrued first, so a reassignment only affects time after its server
+    /// timestamp. No client can assign more than the current crew pool or a
+    /// module's own demand.
+    pub(super) fn assign_crew(
+        &mut self,
+        module_id: &str,
+        assigned: u32,
+        now_ms: u64,
+    ) -> Result<CrewAssignmentResponse, String> {
+        self.accrue_production(now_ms);
+        self.settle_hire(now_ms);
+        let module = self
+            .modules
+            .get(module_id)
+            .ok_or_else(|| format!("unknown module: {module_id:?}"))?;
+        let required = self.crew_required_for_module(module);
+        if required == 0 {
+            return Err(format!("module {module_id:?} does not use crew"));
+        }
+        if assigned > required {
+            return Err(format!(
+                "module {module_id:?} needs at most {required} crew"
+            ));
+        }
+        let assigned_elsewhere = self
+            .crew_assignments
+            .iter()
+            .filter(|(id, _)| id.as_str() != module_id)
+            .map(|(_, count)| *count)
+            .sum::<u32>();
+        if assigned_elsewhere.saturating_add(assigned) > self.crew {
+            return Err(format!(
+                "only {} unassigned crew available",
+                self.crew.saturating_sub(assigned_elsewhere)
+            ));
+        }
+        if assigned == 0 {
+            self.crew_assignments.remove(module_id);
+        } else {
+            self.crew_assignments
+                .insert(module_id.to_string(), assigned);
+        }
+        let action_id = self.next_event_id();
+        Ok(CrewAssignmentResponse {
+            action_id,
+            crew: self.crew_data(),
+        })
     }
 
     /// Verify and execute a hire request (ROADMAP P1.10): one recruitment at
@@ -190,27 +292,42 @@ mod tests {
     }
 
     #[test]
-    fn hire_settles_after_production_so_the_ratio_is_not_retroactive() {
+    fn hiring_crew_does_not_implicitly_staff_a_module() {
         let mut s = ServerState::new(0);
         s.resources.construction = 0;
-        // A level-4 refinery (37 construction/minute) with no crew at all,
-        // running at the 50% floor.
+        // A level-4 refinery (37 construction/minute) with no assigned crew.
         insert_settled(&mut s, "module-refinery", "ore-refinery", 4);
         s.crew = 0;
         s.resources.biological = HIRE_COST_BIOLOGICAL;
         s.hire_crew(0).unwrap();
-        // Settling exactly at the completion accrues every elapsed tick at
-        // the *old* staffing first; only then does the new head land.
+        // Settling exactly at completion accrues every elapsed tick before the
+        // new head arrives. The head remains in the unassigned pool until the
+        // player deliberately allocates it.
         s.settle(HIRE_TIME_MS);
-        let ticks = HIRE_TIME_MS / TICK;
-        // 60 ticks of the floor rate plus the undamped command baseline:
-        // (37 * 60 * 4 / 8 + 12 * 60) / 12.
-        assert_eq!(s.resources.construction, (37 * ticks / 2 + 12 * ticks) / 12);
-        assert_eq!(s.resources.construction, 152);
+        assert_eq!(s.resources.construction, 19);
         assert_eq!(s.crew, 1);
-        // The next tick runs at the improved ratio: 37 * (4 + 1) / 8 = 23, so
-        // (23 + 12 + 6 carried) / 12 = 3.
+        // The next tick has the Command Module plus the refinery's unassigned
+        // 1/(level+1) baseline output.
         s.accrue_production(HIRE_TIME_MS + TICK);
-        assert_eq!(s.resources.construction, 152 + 3);
+        assert_eq!(s.resources.construction, 20);
+    }
+
+    #[test]
+    fn assigning_crew_settles_old_production_before_changing_output() {
+        let mut s = ServerState::new(0);
+        s.resources.construction = 0;
+        s.crew = 1;
+        insert_settled(&mut s, "module-refinery", "ore-refinery", 1);
+        s.assign_crew("module-refinery", 1, 0).unwrap();
+
+        // Removing the crew at one tick first credits that full staffed
+        // interval: Command Module 12 + refinery 24 = 36/minute.
+        let response = s.assign_crew("module-refinery", 0, TICK).unwrap();
+        assert_eq!(s.resources.construction, 3);
+        assert_eq!(response.crew.assignments[0].assigned, 0);
+
+        // The following interval keeps the refinery's 1/(level+1) baseline.
+        s.accrue_production(2 * TICK);
+        assert_eq!(s.resources.construction, 5);
     }
 }

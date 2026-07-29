@@ -206,7 +206,7 @@ review to add them:
 - **Timed actions show a live countdown**, never a static "in progress" label
   (e.g. "Recruiting (12s)"). `TileActor.setButtonLabel()` exists for per-second
   label ticks without rebuilding the actor. They also **state the wait before it
-  is committed to** — `Hire Crew (5m)` next to its cost badge — so the duration
+  is committed to** — `Hire Crew (1m)` next to its cost badge — so the duration
   is part of the decision rather than something the player discovers only once
   the timer is already running (P2.6 review). Use `formatDuration` on both, so
   one action never reports its time two different ways.
@@ -519,15 +519,12 @@ new commands and push variants.
   (`crew_capacity_per_level` summed over settled module levels), and a linear
   biological cost (scales with the new head count — a repeat purchase, not a
   per-level curve) gates it; returns `CrewData` (head count + pending
-  recruitment) plus updated counts (`CrewActionResponse`). Crew berths damp
-  producer output through a pooled ship-wide staffing ratio at production
-  accrual — `output * (0.5 + 0.5 * staffed/required)` — floored at 50% so
-  understaffing punishes but never kills; the Command Module's baseline output
-  is never damped (the anti-stuck guarantee: a new player can progress at 0
-  crew). P2.6 settled hire cost/time (20 biological per new head, 5 minutes) and
-  kept the 50% floor deliberately; lowering it waits on the richer understaffing
-  UX (per-module indicators, crew prioritization, temporary reassignment)
-  tracked by ROADMAP P2.8, so a shortage can be seen before it bites harder.
+  recruitment) plus updated counts (`CrewActionResponse`). P2.8's explicit
+  per-module assignments scale producer output at production accrual by
+  `output * (assigned + 1) / (required + 1)`: a level-N producer retains 1/(N+1)
+  output while unassigned and reaches 100% at N heads. The Command Module
+  remains crew-independent. Crew recruitment costs 20 biological per new head
+  and takes one minute; Details panels expose the assignment controls.
 - `request_dispatch_vessel(dest_col, dest_row)` /
   `request_recall_vessel(vessel_id)` — verify the move, derive dock, speed, and
   arrival time (recalls depart from the server-lerped current position), record

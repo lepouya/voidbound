@@ -35,10 +35,12 @@ pub struct ModuleCatalogEntry {
     /// baseline so hiring works before one exists.
     pub crew_capacity_base: u32,
     pub crew_capacity_per_level: u32,
-    /// Crew wanted per settled level to run at full output (ROADMAP P1.10),
-    /// summed linearly ship-wide. Modules with 0 are never damped; the
-    /// Command Module's baseline production stays 0 so the player can never
-    /// get stuck (README § Ship design).
+    /// Crew wanted by a settled module to run at full output or operate:
+    /// `base + per_level * level`. P2.8 makes that demand explicitly
+    /// assignable per module. The Command Module's baseline production stays
+    /// crew-independent so the player can never get stuck (README § Ship
+    /// design).
+    pub crew_required_base: u32,
     pub crew_required_per_level: u32,
     /// Extra materials this type needs from `OPERATIONAL_COST_START_LEVEL`
     /// on, each at the supplemental fraction of the construction amount.
@@ -96,6 +98,7 @@ pub struct ModuleCatalogData {
     pub stores_per_level: &'static [(ResourceKind, u64)],
     pub crew_capacity_base: u32,
     pub crew_capacity_per_level: u32,
+    pub crew_required_base: u32,
     pub crew_required_per_level: u32,
     pub operational_costs: &'static [ResourceKind],
     pub cost_numerator: u64,
@@ -138,6 +141,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         // exists (ROADMAP P1.10).
         crew_capacity_base: 2,
         crew_capacity_per_level: 0,
+        crew_required_base: 0,
         crew_required_per_level: 0,
         operational_costs: &[ResourceKind::Biological],
         cost_numerator: 1,
@@ -154,6 +158,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         stores_per_level: &[],
         crew_capacity_base: 0,
         crew_capacity_per_level: 0,
+        crew_required_base: 0,
         crew_required_per_level: 1,
         operational_costs: &[ResourceKind::Fuel],
         // Producers are the cheap, fast half of the catalog: half cost and
@@ -172,6 +177,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         stores_per_level: &[],
         crew_capacity_base: 0,
         crew_capacity_per_level: 0,
+        crew_required_base: 0,
         crew_required_per_level: 1,
         operational_costs: &[ResourceKind::Fuel],
         // Producers are the cheap, fast half of the catalog: half cost and
@@ -190,6 +196,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         stores_per_level: &[],
         crew_capacity_base: 0,
         crew_capacity_per_level: 0,
+        crew_required_base: 0,
         crew_required_per_level: 1,
         operational_costs: &[ResourceKind::Biological],
         // Producers are the cheap, fast half of the catalog: half cost and
@@ -208,6 +215,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         stores_per_level: &[],
         crew_capacity_base: 0,
         crew_capacity_per_level: 0,
+        crew_required_base: 0,
         crew_required_per_level: 1,
         operational_costs: &[ResourceKind::Fuel],
         // Producers are the cheap, fast half of the catalog: half cost and
@@ -233,6 +241,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         ],
         crew_capacity_base: 0,
         crew_capacity_per_level: 0,
+        crew_required_base: 0,
         crew_required_per_level: 0,
         operational_costs: &[ResourceKind::Fuel],
         cost_numerator: 1,
@@ -250,6 +259,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         // Per-level only, for the same reason as the Storage Bay's capacity.
         crew_capacity_base: 0,
         crew_capacity_per_level: 5,
+        crew_required_base: 0,
         crew_required_per_level: 0,
         operational_costs: &[ResourceKind::Biological],
         cost_numerator: 1,
@@ -268,7 +278,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         stores_per_level: &[],
         crew_capacity_base: 0,
         crew_capacity_per_level: 0,
-        crew_required_per_level: 1,
+        crew_required_base: 1,
+        crew_required_per_level: 0,
         operational_costs: &[ResourceKind::Biological],
         cost_numerator: 1,
         cost_denominator: 1,
@@ -298,6 +309,7 @@ pub(super) fn module_catalog_data() -> Vec<ModuleCatalogData> {
             stores_per_level: entry.stores_per_level,
             crew_capacity_base: entry.crew_capacity_base,
             crew_capacity_per_level: entry.crew_capacity_per_level,
+            crew_required_base: entry.crew_required_base,
             crew_required_per_level: entry.crew_required_per_level,
             operational_costs: entry.operational_costs,
             cost_numerator: entry.cost_numerator,
@@ -437,22 +449,19 @@ fn production_at_level(base: u64, level: u32) -> u64 {
     scaled.div_ceil(PRODUCTION_PRECISION)
 }
 
-/// Damp a production amount by the pooled crew staffing ratio (ROADMAP
-/// P1.10): output * (0.5 + 0.5 * staffed/required), as exact integer math —
-/// `amount * (required + staffed) / (2 * required)`. Fully staffed passes
-/// through unchanged; a ship with no crew still runs at half speed (the 50%
-/// floor — understaffing punishes, it never kills). `required == 0` means
-/// nothing wants crew: no damping. P2.6 deliberately kept the 50% floor;
-/// lowering it waits on P2.8's per-module shortage UX, so a shortage can be
-/// seen and acted on before it bites harder. The client recomputes this
-/// display preview from the server-delivered catalog in
-/// `src/ship/module-catalog.ts`.
-fn crew_scaled(amount: u64, staffed: u32, required: u32) -> u64 {
+/// Scale one module's production by its explicit P2.8 assignment:
+/// `amount * (assigned + 1) / (required + 1)`. Fully staffed passes through
+/// unchanged; an unassigned level-N producer retains 1/(N+1) output, so the
+/// Command Module is no longer the only anti-stuck source. `required == 0`
+/// means this module has no staffing dependency, so its output is unchanged.
+/// The client renders the assignment snapshot the server computes rather than
+/// inferring it.
+fn crew_scaled(amount: u64, assigned: u32, required: u32) -> u64 {
     if required == 0 {
         return amount;
     }
-    let (staffed, required) = (staffed as u64, required as u64);
-    amount.saturating_mul(required + staffed) / (2 * required)
+    amount.saturating_mul(u64::from(assigned.min(required)).saturating_add(1))
+        / u64::from(required).saturating_add(1)
 }
 
 /// A module placed in the ship, with its catalog type and current level.
@@ -614,16 +623,27 @@ impl ServerState {
             .sum()
     }
 
-    /// Ship-wide crew demand (ROADMAP P1.10): every module's catalog
-    /// `crew_required_per_level` times its settled level, summed linearly.
-    /// The pooled staffing ratio against this damps producer output.
+    /// Crew demand for one settled module. P2.8 uses it for server-verified,
+    /// per-module assignments rather than one pooled staffing ratio.
+    pub(super) fn crew_required_for_module(&self, module: &ModuleData) -> u32 {
+        let Some(entry) = catalog_entry(&module.module_type) else {
+            return 0;
+        };
+        if module.level == 0 {
+            return 0;
+        }
+        entry
+            .crew_required_base
+            .saturating_add(entry.crew_required_per_level.saturating_mul(module.level))
+    }
+
+    /// Ship-wide crew demand (ROADMAP P1.10), retained for capacity/readout
+    /// purposes. Production itself reads each module's assignment.
+    #[cfg(test)]
     fn crew_required(&self) -> u32 {
         self.modules
             .values()
-            .filter_map(|m| {
-                catalog_entry(&m.module_type)
-                    .map(|e| e.crew_required_per_level.saturating_mul(m.level))
-            })
+            .map(|module| self.crew_required_for_module(module))
             .sum()
     }
 
@@ -664,6 +684,16 @@ impl ServerState {
                 },
                 now_ms,
             );
+        }
+        // A newly settled or upgraded crew-demanding module changes the
+        // complete staffing snapshot (its required count, even when its
+        // assignment is still zero). Keep Details panels and actor badges in
+        // sync without waiting for another crew action.
+        if settled
+            .iter()
+            .any(|(module, _)| self.crew_required_for_module(module) > 0)
+        {
+            self.queue_push(ServerPush::Crew(self.crew_data()));
         }
         // A Trading Post level-up can raise the deal slot count mid-batch —
         // make the reward visible now rather than at the next reroll
@@ -707,14 +737,6 @@ impl ServerState {
         // raises the cap from the next accrual on — stub precision, fine at
         // a 5 s tick.
         let caps = self.storage_caps();
-        // The crew staffing ratio (ROADMAP P1.10) reads the same window-start
-        // state — head count and demand as of the last settle. A hire or
-        // level-up completing mid-window shifts the ratio only from the next
-        // accrual on (settle_hire runs after this, and the scheduler wakes at
-        // those deadlines anyway, so straddling windows stay tiny) — the same
-        // stub precision as the caps above.
-        let required = self.crew_required();
-        let staffed = self.crew.min(required);
         // Settling (bumping `level`) happens only after this loop: a module
         // whose pending build/upgrade completes partway through this window
         // must be credited its OLD level for the whole ticks fully elapsed
@@ -746,22 +768,19 @@ impl ServerState {
             let Some(entry) = catalog_entry(&module.module_type) else {
                 continue;
             };
-            // Only modules that want crew are damped by the staffing ratio
-            // (ROADMAP P1.10) — the Command Module's baseline production
-            // (crew_required_per_level 0) always runs at full output.
-            let damped = entry.crew_required_per_level > 0;
-            let (damp_staffed, damp_required) = if damped { (staffed, required) } else { (0, 0) };
+            let required = self.crew_required_for_module(module);
+            let assigned = self.assigned_crew(&module.module_id).min(required);
             if old_level > 0 && old_ticks > 0 {
                 for &(kind, base) in entry.produces {
                     let amount = production_at_level(base, old_level).saturating_mul(old_ticks);
-                    let amount = crew_scaled(amount, damp_staffed, damp_required);
+                    let amount = crew_scaled(amount, assigned, required);
                     earned.add(kind, amount);
                 }
             }
             if new_level > 0 && new_ticks > 0 {
                 for &(kind, base) in entry.produces {
                     let amount = production_at_level(base, new_level).saturating_mul(new_ticks);
-                    let amount = crew_scaled(amount, damp_staffed, damp_required);
+                    let amount = crew_scaled(amount, assigned, required);
                     earned.add(kind, amount);
                 }
             }
@@ -1255,15 +1274,17 @@ mod tests {
         // production_is_not_retroactively_credited_before_a_build_completes.
         let mut s = ServerState::new(0);
         s.resources.construction = 0;
-        // Fully staffed throughout — the crew damping has its own tests.
+        // Fully assigned throughout — explicit allocation has its own tests.
         s.crew = 4;
         insert_settled(&mut s, "module-refinery", "ore-refinery", 1);
+        assign_crew(&mut s, "module-refinery", 1);
         s.accrue_production(TICK);
         // Command Module (12/minute) + refinery (24/minute) = 36 a minute,
         // which divides evenly into the 12 ticks a minute: +3 this tick.
         assert_eq!(s.resources.construction, 3);
 
         s.modules.get_mut("module-refinery").unwrap().level = 2;
+        assign_crew(&mut s, "module-refinery", 2);
         // Level 2 refinery: ceil(24 * 1.15) = 28/minute, so the ship now makes
         // 40 a minute — 3 whole units a tick with 4/12 left over. The carry is
         // what keeps that fraction from being truncated away every tick.
@@ -1384,6 +1405,7 @@ mod tests {
             stores_per_level: &[],
             crew_capacity_base: 0,
             crew_capacity_per_level: 0,
+            crew_required_base: 0,
             crew_required_per_level: 0,
             operational_costs: operational,
             cost_numerator: 1,
@@ -1493,6 +1515,7 @@ mod tests {
         s.resources.construction = 0;
         s.crew = 4;
         insert_settled(&mut s, "module-refinery", "ore-refinery", 2);
+        assign_crew(&mut s, "module-refinery", 2);
 
         // 40/minute over one tick: 3 credited, 4 carried.
         s.settle(TICK);
@@ -1505,27 +1528,29 @@ mod tests {
     }
 
     #[test]
-    fn understaffed_production_is_damped_with_a_half_floor() {
+    fn production_scales_linearly_with_each_modules_explicit_assignment() {
         let mut s = ServerState::new(0);
         s.resources.construction = 0;
         // A level-4 refinery wants 4 crew and makes ceil(24 * 1.15^3) = 37
-        // construction/minute at full staff; the Command Module's 12/minute
-        // baseline is never damped. Damping is applied in per-minute space,
-        // before the tick division, so a floored ratio costs a fraction of a
-        // unit a minute rather than a whole unit a tick.
+        // construction/minute at full staff. The Command Module's 12/minute
+        // baseline is never crew-gated. Assignment is applied in per-minute
+        // space before tick division, so partial output keeps its fraction.
         insert_settled(&mut s, "module-refinery", "ore-refinery", 4);
         s.crew = 4;
+        assign_crew(&mut s, "module-refinery", 4);
         s.accrue_production(TICK);
         // Fully staffed: (37 + 12) / 12 = 4, carrying 1.
         assert_eq!(s.resources.construction, 4);
-        // Half staffed: 37 * (4 + 2) / (2 * 4) = 27, so (27 + 12 + 1) / 12 = 3.
-        s.crew = 2;
+        // Half assigned: 37 * (2 + 1) / (4 + 1) = 22, so
+        // (22 + 12 + 1) / 12 = 2.
+        assign_crew(&mut s, "module-refinery", 2);
         s.accrue_production(2 * TICK);
-        assert_eq!(s.resources.construction, 4 + 3);
-        // No crew at all still runs at the 50% floor: 37 * 4 / 8 = 18, so
-        // (18 + 12 + 4) / 12 = 2.
-        s.crew = 0;
+        assert_eq!(s.resources.construction, 4 + 2);
+        assert_eq!(production_carry(&s, ResourceKind::Construction), 11);
+        // No assigned crew leaves the refinery at its 1/(required+1)
+        // baseline, alongside the Command Module and retained carry.
+        assign_crew(&mut s, "module-refinery", 0);
         s.accrue_production(3 * TICK);
-        assert_eq!(s.resources.construction, 4 + 3 + 2);
+        assert_eq!(s.resources.construction, 4 + 2 + 2);
     }
 }

@@ -211,6 +211,20 @@ impl ServerState {
             .unwrap_or(0)
     }
 
+    /// P2.8 makes the post's fixed one-head demand operational: deals may be
+    /// generated while it is empty, but trade requests require its assigned
+    /// crew member. The requirement is catalog-driven (`1 + 0 * level`) so a
+    /// future post variant can change it without special-case command logic.
+    fn trading_post_operational(&self) -> bool {
+        self.modules
+            .values()
+            .find(|module| module.module_type == TRADING_POST_MODULE_TYPE)
+            .is_some_and(|module| {
+                let required = self.crew_required_for_module(module);
+                required > 0 && self.assigned_crew(&module.module_id) >= required
+            })
+    }
+
     fn deals_data(&self) -> DealsData {
         DealsData {
             day_index: self.deals_day_index,
@@ -331,6 +345,9 @@ impl ServerState {
         if self.trading_post_level() < 1 {
             return Err("no settled Trading Post to trade at".to_string());
         }
+        if !self.trading_post_operational() {
+            return Err("Trading Post needs 1 assigned crew member".to_string());
+        }
         let deal = self
             .deals
             .iter()
@@ -380,6 +397,9 @@ impl ServerState {
         if self.trading_post_level() < 1 {
             return Err("no settled Trading Post to trade at".to_string());
         }
+        if !self.trading_post_operational() {
+            return Err("Trading Post needs 1 assigned crew member".to_string());
+        }
         let used = self.deal_refreshes_used as usize;
         let Some(&cost) = DEAL_REFRESH_COSTS_CREDITS.get(used) else {
             return Err(format!(
@@ -413,6 +433,12 @@ mod tests {
     use super::super::modules::ModulePendingBuild;
     use super::super::test_support::*;
     use super::*;
+
+    fn staff_trading_post(s: &mut ServerState, level: u32) {
+        insert_settled(s, "module-tp", TRADING_POST_MODULE_TYPE, level);
+        s.crew = s.crew.max(1);
+        assign_crew(s, "module-tp", 1);
+    }
 
     // -- Trading Post deals (ROADMAP P1.12) -----------------------------------
 
@@ -484,6 +510,11 @@ mod tests {
         insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 0);
         assert!(s.accept_deal(&deal_id, 0).is_err());
         assert!(s.refresh_deals(0).is_err());
+        // A settled post still needs its one assigned operator.
+        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        let err = s.accept_deal(&deal_id, 0).unwrap_err();
+        assert!(err.contains("needs 1 assigned crew"), "{err}");
+        assert!(s.refresh_deals(0).is_err());
     }
 
     #[test]
@@ -496,7 +527,7 @@ mod tests {
             fuel: 0,
             credits: 0,
         };
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        staff_trading_post(&mut s, 1);
         let deal = s.deals[1].clone();
         let give = deal.give.unwrap();
         // Fund exactly the give side.
@@ -521,7 +552,7 @@ mod tests {
             fuel: 0,
             credits: 0,
         };
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        staff_trading_post(&mut s, 1);
         let deal = s.deals[1].clone();
         // One short of the give amount: rejected, nothing gained.
         let give = deal.give.unwrap();
@@ -541,7 +572,7 @@ mod tests {
             fuel: 0,
             credits: 0,
         };
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        staff_trading_post(&mut s, 1);
         let freebie = s.deals[0].clone();
         assert!(freebie.give.is_none());
         s.accept_deal(&freebie.deal_id, 0).unwrap();
@@ -551,7 +582,7 @@ mod tests {
     #[test]
     fn accept_rejects_when_the_get_side_overflows_storage() {
         let mut s = ServerState::new(0);
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        staff_trading_post(&mut s, 1);
         // Hand-rolled deal so the get side and its overflow are exact: an
         // explicit player action must reject, never clamp-and-lose (P1.11's
         // rule is for passive production only).
@@ -582,7 +613,7 @@ mod tests {
     #[test]
     fn accept_rejects_a_malformed_same_type_deal() {
         let mut s = ServerState::new(0);
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        staff_trading_post(&mut s, 1);
         s.deals.push(DealData {
             deal_id: "deal-test-same".to_string(),
             slot: 99,
@@ -605,7 +636,7 @@ mod tests {
     #[test]
     fn refresh_costs_follow_the_doubling_table_and_cap() {
         let mut s = ServerState::new(0);
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        staff_trading_post(&mut s, 1);
         s.resources.credits = 150; // 0 + 10 + 20 + 40 + 80
         let first = s.refresh_deals(0).unwrap();
         assert_eq!(s.resources.credits, 150); // first is free
@@ -626,7 +657,7 @@ mod tests {
         // deal_refreshes_used is bumped, so an unaffordable paid refresh must
         // leave the day's refresh count and credits untouched.
         let mut s = ServerState::new(0);
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        staff_trading_post(&mut s, 1);
         s.refresh_deals(0).unwrap(); // first refresh is free
         assert_eq!(s.deal_refreshes_used, 1);
         s.resources.credits = 5; // second refresh costs 10 — not enough
@@ -639,7 +670,7 @@ mod tests {
     #[test]
     fn refresh_replaces_accepted_deals_and_scales_slots_with_level() {
         let mut s = ServerState::new(0);
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 5);
+        staff_trading_post(&mut s, 5);
         let freebie_id = s.deals[0].deal_id.clone();
         s.accept_deal(&freebie_id, 0).unwrap();
         let response = s.refresh_deals(0).unwrap();
@@ -656,7 +687,7 @@ mod tests {
     #[test]
     fn a_new_utc_day_rolls_the_shop_over() {
         let mut s = ServerState::new(0);
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 1);
+        staff_trading_post(&mut s, 1);
         s.resources.credits = 10;
         s.refresh_deals(0).unwrap();
         s.refresh_deals(0).unwrap(); // paid: credits now 0
@@ -684,7 +715,7 @@ mod tests {
         assert_eq!(s.deals.len(), 3);
         // A settled level-2 post with a level-up to 3 in flight (3 → 4
         // slots once it settles).
-        insert_settled(&mut s, "module-tp", TRADING_POST_MODULE_TYPE, 2);
+        staff_trading_post(&mut s, 2);
         s.modules.get_mut("module-tp").unwrap().pending = Some(ModulePendingBuild {
             action_id: "event-test".to_string(),
             level: 3,

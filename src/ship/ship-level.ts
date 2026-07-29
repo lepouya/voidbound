@@ -32,6 +32,7 @@ export class ShipLevel extends TiledScene {
    *  button opens. */
   private details = new ModuleDetailsDialog({
     openDialog: (def) => this.openDialog(def),
+    showToast: (toast) => this.showToast(toast),
   });
 
   override onInitialize(engine: ex.Engine): void {

@@ -129,6 +129,18 @@ runtime fields, so Phase 2 serializes an explicit persistent DTO rather than
 deriving `Serialize` for that type. Runtime-only outbox, dirty/coalescing state,
 AOI subscriptions, and derived indexes are rebuilt after load.
 
+Crew head count and per-module assignments are durable player state. An
+assignment request names one owned, settled crew-demanding module and its target
+head count; the server settles production through the request timestamp, then
+validates that no module exceeds its demand and total assignments do not exceed
+the player's heads. `CrewData` is the full calculated staffing snapshot (module
+ID, assigned, required), so clients render allocation without inventing an
+allocator. Production uses `(assigned + 1) / (required + 1)`, preserving an
+unassigned level-N producer's 1/(N+1) baseline. New heads and newly
+crew-demanding modules start unassigned. The Trading Post's catalog demand is
+exactly one head at every level, and its deal actions verify that operator is
+assigned.
+
 Phase 2 has one local persistent system containing multiple developer players.
 `--player <name>` selects a session identity at startup; names are trimmed,
 matched case-insensitively, and created on first use. A session identity never

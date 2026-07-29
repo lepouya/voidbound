@@ -247,6 +247,7 @@ Deno.test("load replaces state with backend data, sets loaded, notifies", () => 
         dispatchedAt: 500,
         completesAt: 30_500,
       },
+      assignments: [],
     },
     deals: sampleDeals(),
   }));
@@ -330,7 +331,7 @@ Deno.test("applyMapWindow replaces the world tables and window, notifies", () =>
     vessels: [sampleVessel("vessel-own")],
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-1")],
-    crew: { crew: 2, pendingHire: null },
+    crew: { crew: 2, pendingHire: null, assignments: [] },
     deals: sampleDeals(),
   }));
   let notified = 0;
@@ -426,7 +427,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     vessels: [],
     modules: [sampleModule("module-command")],
     notifications: [sampleNotification("notif-old")],
-    crew: { crew: 2, pendingHire: null },
+    crew: { crew: 2, pendingHire: null, assignments: [] },
     deals: sampleDeals(),
   }, 1));
 
@@ -440,7 +441,7 @@ Deno.test("load replaces the vessel, mothership, and module tables wholesale", (
     vessels: [sampleVessel("vessel-live")],
     modules: [sampleModule("module-command"), sampleModule("module-a")],
     notifications: [],
-    crew: { crew: 2, pendingHire: null },
+    crew: { crew: 2, pendingHire: null, assignments: [] },
     deals: sampleDeals({ refreshesUsed: 0 }),
   }, 2));
 
@@ -566,7 +567,7 @@ Deno.test("applyServerPush routes each variant to the right table", () => {
   // A recruitment completing lands crew state like a command response.
   state.applyServerPush(serverPush({
     type: "crew",
-    data: { crew: 3, pendingHire: null },
+    data: { crew: 3, pendingHire: null, assignments: [] },
   }));
   assertEquals(state.crew, 3);
   assertEquals(state.pendingHire, null);
@@ -679,17 +680,28 @@ Deno.test("applyCrewEvent replaces the crew state and notifies", () => {
       dispatchedAt: 1_000,
       completesAt: 31_000,
     },
+    assignments: [{ moduleId: "module-refinery", assigned: 1, required: 2 }],
   }));
   assertEquals(state.crew, 2);
   assertEquals(state.pendingHire?.completesAt, 31_000);
+  assertEquals(state.crewAssignments.get("module-refinery"), {
+    moduleId: "module-refinery",
+    assigned: 1,
+    required: 2,
+  });
 
   // The completion push: one more head, nothing pending — re-applying the
   // full-snapshot payload is idempotent.
-  const completed = { crew: 3, pendingHire: null };
+  const completed = {
+    crew: 3,
+    pendingHire: null,
+    assignments: [{ moduleId: "module-refinery", assigned: 2, required: 2 }],
+  };
   state.applyCrewEvent(revisioned(completed));
   state.applyCrewEvent(revisioned(completed));
   assertEquals(state.crew, 3);
   assertEquals(state.pendingHire, null);
+  assertEquals(state.crewAssignments.get("module-refinery")?.assigned, 2);
   assertEquals(notified, 3);
 });
 
@@ -782,7 +794,7 @@ Deno.test("subscribeToNotifications fires once per fresh push, never for a repla
     vessels: [],
     modules: [],
     notifications: [sampleNotification("notif-backlog")],
-    crew: { crew: 0, pendingHire: null },
+    crew: { crew: 0, pendingHire: null, assignments: [] },
     deals: sampleDeals(),
   }));
   assertEquals(seen, []);

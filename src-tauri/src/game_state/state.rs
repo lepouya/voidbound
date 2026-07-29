@@ -35,7 +35,9 @@ const MAX_NOTIFICATIONS: usize = 100;
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum NotificationPayload {
     ModuleCompleted {
+        #[serde(rename = "moduleId", alias = "module_id")]
         module_id: String,
+        #[serde(rename = "moduleType", alias = "module_type")]
         module_type: String,
         level: u32,
         operation: ModuleCompletionOperation,
@@ -370,9 +372,13 @@ pub struct ServerState {
     /// transition. P2.1 persists this counter with the durable player state.
     pub(super) next_event_seq: u64,
     /// Ship's crew head count (ROADMAP P1.10). Capacity derives from the
-    /// module table (crew_capacity); the pooled staffing ratio against
-    /// crew_required damps producer output in accrue_production.
+    /// module table (crew_capacity). P2.8 assigns those heads explicitly to
+    /// crew-demanding modules before production accrues.
     pub(super) crew: u32,
+    /// Assigned heads by module id. Missing entries mean zero assigned; the
+    /// persistent profile validates that every stored entry names a current
+    /// crew-demanding module and that the total never exceeds `crew`.
+    pub(super) crew_assignments: HashMap<String, u32>,
     /// The one crew recruitment in flight, if any — same timer shape as a
     /// module's pending build, settled by settle_hire.
     pub(super) pending_hire: Option<PendingHire>,
@@ -495,6 +501,7 @@ impl ServerState {
             asteroids,
             next_event_seq: 0,
             crew: STARTING_CREW,
+            crew_assignments: HashMap::new(),
             pending_hire: None,
             notifications: Vec::new(),
             next_notification_seq: 0,
@@ -543,6 +550,7 @@ impl ServerState {
             asteroids: system.world.asteroids.into_iter().collect(),
             next_event_seq: player.next_event_seq,
             crew: player.crew,
+            crew_assignments: player.crew_assignments.into_iter().collect(),
             pending_hire: player.pending_hire,
             notifications: player.notifications,
             next_notification_seq: player.next_notification_seq,
@@ -661,6 +669,7 @@ impl ServerState {
         self.next_vessel_seq = profile.next_vessel_seq;
         self.next_event_seq = profile.next_event_seq;
         self.crew = profile.crew;
+        self.crew_assignments = profile.crew_assignments.into_iter().collect();
         self.pending_hire = profile.pending_hire;
         self.notifications = profile.notifications;
         self.next_notification_seq = profile.next_notification_seq;
@@ -1003,6 +1012,34 @@ mod tests {
     use super::super::test_support::*;
     use super::super::world::{AsteroidMining, AOI_SPAN, HOUR_MS};
     use super::*;
+
+    #[test]
+    fn module_notifications_use_camel_case_and_read_legacy_fields() {
+        let payload = NotificationPayload::ModuleCompleted {
+            module_id: "module-refinery".to_string(),
+            module_type: "ore-refinery".to_string(),
+            level: 1,
+            operation: ModuleCompletionOperation::Build,
+        };
+        let wire = serde_json::to_value(&payload).expect("serialize notification");
+        assert_eq!(wire["moduleId"], "module-refinery");
+        assert_eq!(wire["moduleType"], "ore-refinery");
+        assert!(wire.get("module_id").is_none());
+        assert!(wire.get("module_type").is_none());
+
+        let legacy: NotificationPayload = serde_json::from_value(serde_json::json!({
+            "kind": "module-completed",
+            "module_id": "module-refinery",
+            "module_type": "ore-refinery",
+            "level": 1,
+            "operation": "build",
+        }))
+        .expect("read pre-fix notification");
+        assert!(matches!(
+            legacy,
+            NotificationPayload::ModuleCompleted { .. }
+        ));
+    }
 
     #[test]
     fn snapshots_are_windowed_to_the_interest_area() {

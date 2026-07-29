@@ -778,16 +778,16 @@ establishes a later progression cap or revised timers.
 
 **First-pass production and storage — decided:** the Command Module produces 12
 units/minute of each material at level 1; a fully staffed refinery produces 24
-units/minute of its material (12/minute at the 50% understaffing floor).
-Production grows by a configurable, rounded-up **1.15x per-level** curve, slower
-than the 1.5x upgrade-cost curve. This keeps levels 1–5 within roughly 2–5
-minutes of passive production, while making mining the practical accelerator
-from level 6 onward; P2.6 has mining but no quests/events yet. Command storage
-remains a 1,000-unit material baseline, and Storage Bay contributes a
-configurable, linear 2,000 units per settled level rather than doubling.
+units/minute of its material before its per-module staffing curve. Production
+grows by a configurable, rounded-up **1.15x per-level** curve, slower than the
+1.5x upgrade-cost curve. This keeps levels 1–5 within roughly 2–5 minutes of
+passive production, while making mining the practical accelerator from level 6
+onward; P2.6 has mining but no quests/events yet. Command storage remains a
+1,000-unit material baseline, and Storage Bay contributes a configurable, linear
+2,000 units per settled level rather than doubling.
 
 **First-pass crew and module timers — decided:** recruitment remains a linear 20
-biological times the new crew head count, with a 5-minute recruitment timer.
+biological times the new crew head count, with a 1-minute recruitment timer.
 Resource refineries use the construction-time baseline at an exact `1/2`
 multiplier; Command Module, utilities, and Trading Post use `1/1` until their
 roles justify distinct pacing.
@@ -798,10 +798,36 @@ roles justify distinct pacing.
 - Crew Quarters supplies **5 berths per settled level**. This supports the four
   resource producers plus the staffed Trading Post at a matching progression
   level, with two reserve berths.
-- The 50% pooled-output floor remains in P2.6, with no biological upkeep. P2.8
-  first adds per-module shortage visibility, prioritization, and reassignment;
-  only then may it impose a lower floor without making a shortage opaque or a
-  death spiral.
+- Crew has no biological upkeep. P2.8 replaces the pooled floor with a visible,
+  per-module baseline curve rather than letting an unassigned producer stop.
+
+##### P2.8 crew-assignment model — decided
+
+P2.8 replaces the pooled staffing ratio with explicit, per-module crew
+assignments. A crew-demanding module's Details panel shows its assigned and
+required heads, with `+` assigning one unassigned crew member and `-` returning
+one to the ship-wide unassigned pool. Moving a crew member between modules is
+therefore an immediate, reversible player action rather than a hidden allocator
+or an arbitrary timed focus mode. These assignments are the player's priority
+decision: a module receives the scarce crew only when the player puts them
+there.
+
+Production for a crew-demanding module scales by
+`(assigned + 1) / (required +
+1)`. A level-N producer therefore retains 1/(N+1)
+output with no crew and reaches 100% at N assigned heads; the Command Module
+remains crew-independent. The server persists and validates assignments, settles
+production through the reassignment timestamp before changing them, and sends a
+complete calculated staffing snapshot to the client. New crew and newly
+crew-demanding modules begin unassigned; raising a module's level preserves its
+current assignment and leaves its new demand unfilled. The module actor and
+Details panel must surface both assigned heads and the actual output percentage.
+
+The Trading Post needs exactly **one assigned crew member** to operate,
+regardless of its level. While unstaffed, its existing deals remain generated
+but the shop cannot open, accept a deal, or refresh. This requires crew demand
+to use the same `base + per_level * level` shape as crew capacity: producers
+keep `0 + 1 * level`, while the Trading Post uses `1 + 0 * level`.
 
 #### Radial asteroid grades and the central system
 
@@ -887,10 +913,9 @@ does not mistake "unchanged" for "overlooked":
   the deep bands something to unlock toward.
 - **Asteroid density stays at 1,920 nodes** — retuned by P1.13's interest-area
   work already, and unrelated to the deposit-value question P2.6 was asking.
-- **Crew keep no biological upkeep, and the 50% output floor holds.** Lowering
-  the floor waits on P2.8's per-module shortage visibility; punishing a shortage
-  harder before the player can see which modules are shorted is the death-spiral
-  risk the roadmap warns about.
+- **Crew keep no biological upkeep.** P2.8's explicit assignment UI now makes
+  staffing visible, and its `(assigned + 1) / (required + 1)` curve retains a
+  level-scaled baseline rather than the former 50% pooled floor.
 - **Large asteroids keep one miner.** The README leaves multi-miner open;
   nothing in P2.6 needs it, and `max_miners` is already read from the catalog
   rather than assumed, so the door stays open.

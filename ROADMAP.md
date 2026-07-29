@@ -86,10 +86,8 @@ Goal: a playable single-player loop, no persistence yet.
 - [x] **P1.9 — Minimap + full-size space map.** Geometry-only 1000\*1000 space
       map with minimap navigation (entity dots, viewport rect, tap-to-jump).
 - [x] **P1.10 — Crew Quarters + crew capacity.** Crew as the third catalog stat:
-      berths, a pooled ship-wide staffing ratio damping producer output, timed
-      hire recruitment, HUD surfacing (bar, hire buttons, understaffed badges);
-      players start at 0 crew. Crew specialization and manual stationing were
-      deliberately deferred.
+      berths, timed recruitment, HUD surfacing, and a 0-crew start. P2.8 later
+      replaced the initial pooled staffing rule with explicit module assignment.
 - [x] **P1.11 — Storage Bay capacity caps.** Per-resource caps as a catalog
       `stores` field, enforced server-side on production and mining deposits
       (overflow is lost, and notified); the resource bar shows count/cap.
@@ -183,13 +181,10 @@ notes here; keep the durable/server contracts in `SERVER.md`.
 - [x] **P2.7 — Diminishing returns** _(moved from P1.7)_. Mining's extraction
       time, travel, single-slot deposits, and fleet cap already provide the
       intended soft limit. Battle/raid tuning remains with combat → P5.5.
-- [ ] **P2.8 — Crew understaffing UX pass** _(split from P1.10, playtest
-      feedback, July 2026)_. Richer understaffing UX — per-module indicators
-      (today's single ship-wide output-percent badge doesn't say which modules
-      are shorted), crew prioritization (choosing which modules get scarce crew
-      first), and temporary reassignment — plus a lower output floor than P2.6's
-      50% once one of those exists to soften the hit. Needs its own design pass
-      first. Needs P1.10, P2.6.
+- [x] **P2.8 — Crew understaffing UX pass** _(split from P1.10)_. Server-verified
+      per-module assignment controls, visible allocation/output, a 1-minute hire,
+      and the `(assigned + 1) / (required + 1)` unstaffed baseline; Trading Post
+      operation requires its one assigned crew member.
 - [ ] **P2.9 — Storage Bay production-boost perk** _(split from P1.11)_. The
       README describes a Storage Bay perk that boosts production; P1.11 shipped
       only the capacity-cap half. Needs P1.11.

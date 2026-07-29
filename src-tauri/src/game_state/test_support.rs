@@ -50,6 +50,17 @@ pub(super) fn insert_settled(s: &mut ServerState, id: &str, module_type: &str, l
     );
 }
 
+/// Give a settled module an explicit crew allocation for tests that need its
+/// production or operation to be live. Production does not infer staffing
+/// from the size of the overall crew pool after P2.8.
+pub(super) fn assign_crew(s: &mut ServerState, module_id: &str, assigned: u32) {
+    if assigned == 0 {
+        s.crew_assignments.remove(module_id);
+    } else {
+        s.crew_assignments.insert(module_id.to_string(), assigned);
+    }
+}
+
 /// The kind of every feed entry, oldest first.
 pub(super) fn notification_kinds(s: &ServerState) -> Vec<&str> {
     s.notifications.iter().map(|n| n.payload.kind()).collect()

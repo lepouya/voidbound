@@ -70,6 +70,8 @@ export interface ModuleCatalogData {
   /** Crew berths, same base + per-level shape as `stores`. */
   crewCapacityBase: number;
   crewCapacityPerLevel: number;
+  /** Crew required by a settled module: `base + perLevel * level`. */
+  crewRequiredBase: number;
   crewRequiredPerLevel: number;
   /** Extra materials charged from `operationalCostStartLevel` on, each at
    *  the supplemental fraction. A list, not one material: some types are
@@ -357,6 +359,15 @@ export interface PendingHire {
 export interface CrewData {
   crew: number;
   pendingHire: PendingHire | null;
+  /** Complete server-calculated assignment state for settled modules that
+   * require crew. Mirrors Rust `CrewAssignmentData`. */
+  assignments: CrewAssignmentData[];
+}
+
+export interface CrewAssignmentData {
+  moduleId: string;
+  assigned: number;
+  required: number;
 }
 
 /**
@@ -481,6 +492,12 @@ export interface CrewActionResponse {
   crew: CrewData;
   /** Authoritative counts after the cost was deducted. */
   resources: ResourceCounts;
+}
+
+/** Result of the server-verified P2.8 reassignment command. */
+export interface CrewAssignmentResponse {
+  actionId: string;
+  crew: CrewData;
 }
 
 /**

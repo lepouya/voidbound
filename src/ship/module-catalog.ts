@@ -27,8 +27,8 @@ export interface ModuleCatalogEntry {
   /** Crew berths (ROADMAP P1.10), same base + per-level shape as stores. */
   crewCapacityBase: number;
   crewCapacityPerLevel: number;
-  /** Crew wanted per settled level to run at full output (ROADMAP P1.10),
-   *  summed linearly ship-wide; 0 means never damped. */
+  /** Crew wanted by a settled module: `base + perLevel * level`. */
+  crewRequiredBase: number;
   crewRequiredPerLevel: number;
   /** Extra materials added from the operational threshold onward, each at
    *  the supplemental fraction of the construction amount. Empty means
@@ -305,25 +305,38 @@ export function crewRequiredForModules(
   for (const module of modules) {
     const entry = moduleCatalogEntry(module.moduleType);
     if (!entry) continue;
-    required += entry.crewRequiredPerLevel * module.level;
+    if (module.level < 1) continue;
+    required += entry.crewRequiredBase +
+      entry.crewRequiredPerLevel * module.level;
   }
   return required;
 }
 
+/** Crew demand for one settled module, mirroring Rust's
+ * `ServerState::crew_required_for_module`. */
+export function crewRequiredAtLevel(
+  entry: Pick<ModuleCatalogEntry, "crewRequiredBase" | "crewRequiredPerLevel">,
+  level: number,
+): number {
+  return level < 1
+    ? 0
+    : entry.crewRequiredBase + entry.crewRequiredPerLevel * level;
+}
+
 /**
- * Damp a production amount by the pooled crew staffing ratio (ROADMAP
- * P1.10): amount * (required + staffed) / (2 * required), integer-floored —
- * exactly 0.5 + 0.5 * ratio with a 50% floor. Display preview of the Rust
- * `crew_scaled` in src-tauri/src/game_state/modules.rs; the backend does the
- * actual damping. `required <= 0` means nothing wants crew:
- * no damping.
+ * Scale one module's production by its explicit P2.8 assignment:
+ * `amount * (assigned + 1) / (required + 1)`, integer-floored. An unassigned
+ * level-N producer keeps 1/(N+1) output; `required <= 0` means the module has
+ * no crew dependency. Display preview of Rust's `crew_scaled` in
+ * game_state/modules.rs; the backend remains authoritative.
  */
 export function crewScaledAmount(
   amount: number,
-  crew: number,
+  assigned: number,
   required: number,
 ): number {
   if (required <= 0) return amount;
-  const staffed = Math.min(crew, required);
-  return Math.floor((amount * (required + staffed)) / (2 * required));
+  return Math.floor(
+    (amount * (Math.min(assigned, required) + 1)) / (required + 1),
+  );
 }

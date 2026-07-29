@@ -13,7 +13,7 @@ use super::resources::ResourceCounts;
 use super::state::{NotificationData, PlayerIdentity, ServerState, MAP_COLS, MAP_ROWS};
 use super::world::{AsteroidData, MothershipData, VesselMoveEventData, ASTEROID_TIERS};
 
-pub(super) const SAVE_SCHEMA_VERSION: u32 = 1;
+pub(super) const SAVE_SCHEMA_VERSION: u32 = 2;
 const BACKUP_COUNT: usize = 5;
 
 /// The complete durable local-system snapshot. Runtime delivery state, AOI,
@@ -60,6 +60,7 @@ pub(super) struct PersistentPlayerV1 {
     pub last_production_at: u64,
     pub modules: BTreeMap<String, ModuleData>,
     pub crew: u32,
+    pub crew_assignments: BTreeMap<String, u32>,
     pub pending_hire: Option<PendingHire>,
     pub notifications: Vec<NotificationData>,
     pub deals: Vec<DealData>,
@@ -177,6 +178,29 @@ fn validate_player(player: &PersistentPlayerV1) -> Result<(), String> {
         if pending.action_id.is_empty() || pending.completes_at < pending.dispatched_at {
             return Err("invalid pending crew hire".to_string());
         }
+    }
+    let mut assigned = 0u32;
+    for (module_id, count) in &player.crew_assignments {
+        let Some(module) = player.modules.get(module_id) else {
+            return Err(format!("crew assignment names no module {module_id:?}"));
+        };
+        let Some(entry) = catalog_entry(&module.module_type) else {
+            return Err(format!("crew assignment has unknown module {module_id:?}"));
+        };
+        let required = if module.level == 0 {
+            0
+        } else {
+            entry
+                .crew_required_base
+                .saturating_add(entry.crew_required_per_level.saturating_mul(module.level))
+        };
+        if *count == 0 || *count > required {
+            return Err(format!("invalid crew assignment for {module_id:?}"));
+        }
+        assigned = assigned.saturating_add(*count);
+    }
+    if assigned > player.crew {
+        return Err("crew assignments exceed available crew".to_string());
     }
     for notification in &player.notifications {
         if notification.notification_id.is_empty()
@@ -301,6 +325,7 @@ impl PersistentPlayerV1 {
             last_production_at: state.last_production_at,
             modules: state.modules.clone().into_iter().collect(),
             crew: state.crew,
+            crew_assignments: state.crew_assignments.clone().into_iter().collect(),
             pending_hire: state.pending_hire.clone(),
             notifications: state.notifications.clone(),
             deals: state.deals.clone(),
@@ -472,12 +497,45 @@ fn decode_save(text: &str) -> Result<SaveEnvelopeV1, String> {
     match header.schema_version {
         SAVE_SCHEMA_VERSION => {
             let envelope: SaveEnvelopeV1 =
-                serde_json::from_str(text).map_err(|err| format!("parse v1 save: {err}"))?;
+                serde_json::from_str(text).map_err(|err| format!("parse v2 save: {err}"))?;
+            envelope.system.validate()?;
+            Ok(envelope)
+        }
+        1 => {
+            let migrated = migrate_v1_to_v2(text)?;
+            let envelope: SaveEnvelopeV1 = serde_json::from_value(migrated)
+                .map_err(|err| format!("parse migrated v2 save: {err}"))?;
             envelope.system.validate()?;
             Ok(envelope)
         }
         version => Err(format!("unsupported save schema version {version}")),
     }
+}
+
+/// P2.8 adds explicit crew assignments. Existing pooled-staffing saves carry
+/// no equivalent per-module choice, so migration deliberately starts every
+/// assignment empty and lets the player make the now-visible decision.
+fn migrate_v1_to_v2(text: &str) -> Result<serde_json::Value, String> {
+    let mut value: serde_json::Value =
+        serde_json::from_str(text).map_err(|err| format!("parse v1 save: {err}"))?;
+    let players = value
+        .pointer_mut("/system/players")
+        .and_then(serde_json::Value::as_object_mut)
+        .ok_or("v1 save has no player table")?;
+    for player in players.values_mut() {
+        let player = player
+            .as_object_mut()
+            .ok_or("v1 save player is not an object")?;
+        player.insert("crewAssignments".to_string(), serde_json::json!({}));
+    }
+    let envelope = value
+        .as_object_mut()
+        .ok_or("v1 save envelope is not an object")?;
+    envelope.insert(
+        "schemaVersion".to_string(),
+        serde_json::Value::from(SAVE_SCHEMA_VERSION),
+    );
+    Ok(value)
 }
 
 fn write_synced(path: &Path, bytes: &[u8]) -> Result<(), String> {
@@ -562,11 +620,20 @@ mod tests {
     }
 
     #[test]
-    fn decodes_the_hand_authored_current_version_fixture() {
+    fn migrates_the_hand_authored_v1_fixture_to_empty_assignments() {
         let envelope =
             decode_save(include_str!("fixtures/save-v1.json")).expect("decode v1 fixture");
+        assert_eq!(envelope.schema_version, SAVE_SCHEMA_VERSION);
         assert_eq!(envelope.system.players.len(), 1);
         assert_eq!(envelope.system.world.motherships.len(), 1);
+        assert!(envelope
+            .system
+            .players
+            .values()
+            .next()
+            .expect("one migrated player")
+            .crew_assignments
+            .is_empty());
     }
 
     #[test]

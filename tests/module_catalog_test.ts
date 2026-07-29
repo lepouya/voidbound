@@ -7,6 +7,7 @@ import {
   constructionCostAtLevel,
   costAtLevel,
   crewCapacityForModules,
+  crewRequiredAtLevel,
   crewRequiredForModules,
   crewScaledAmount,
   hireCostAt,
@@ -221,7 +222,7 @@ catalogTest(
 );
 
 catalogTest(
-  "crew capacity and requirement sum linearly by settled level",
+  "crew capacity and requirement sum by their catalog shapes",
   () => {
     // No modules: nothing to berth, nothing to staff.
     assertEquals(crewCapacityForModules([]), 0);
@@ -234,33 +235,39 @@ catalogTest(
       // Producers want 1 crew per level.
       { moduleType: "ore-refinery", level: 3 },
       { moduleType: "fusion-reactor", level: 1 },
+      // Trading Post keeps its one fixed operator at every level.
+      { moduleType: TRADING_POST_MODULE_TYPE, level: 5 },
       // Level 0 (first build pending) and unknown types contribute nothing.
       { moduleType: "crew-quarters", level: 0 },
       { moduleType: "not-in-catalog", level: 5 },
     ];
     assertEquals(crewCapacityForModules(modules), 2 + 10);
-    assertEquals(crewRequiredForModules(modules), 3 + 1);
+    assertEquals(crewRequiredForModules(modules), 3 + 1 + 1);
     // Berths follow the same rule as storage: the Command Module's two are a
     // flat baseline that never grows, so housing crew stays Crew Quarters' job.
     assertEquals(
       crewCapacityForModules([{ moduleType: COMMAND_MODULE_TYPE, level: 10 }]),
       2,
     );
+    const post = moduleCatalogEntry(TRADING_POST_MODULE_TYPE)!;
+    assertEquals(crewRequiredAtLevel(post, 0), 0);
+    assertEquals(crewRequiredAtLevel(post, 1), 1);
+    assertEquals(crewRequiredAtLevel(post, 5), 1);
   },
 );
 
 catalogTest(
-  "crewScaledAmount damps by the pooled ratio with a 50% floor",
+  "crewScaledAmount uses each module's explicit linear assignment",
   () => {
     // Nothing wants crew: pass-through.
     assertEquals(crewScaledAmount(16, 0, 0), 16);
     // Fully staffed (or overstaffed): full output.
     assertEquals(crewScaledAmount(16, 4, 4), 16);
     assertEquals(crewScaledAmount(16, 9, 4), 16);
-    // Half staffed: 16 * (4 + 2) / 8 = 12.
-    assertEquals(crewScaledAmount(16, 2, 4), 12);
-    // No crew: the 50% floor.
-    assertEquals(crewScaledAmount(16, 0, 4), 8);
+    // Half assigned: 16 * (2 + 1) / (4 + 1) = 9.
+    assertEquals(crewScaledAmount(16, 2, 4), 9);
+    // No assignment retains the 1/(level+1) baseline.
+    assertEquals(crewScaledAmount(16, 0, 4), 3);
     // Integer-floored, matching the Rust u64 math.
     assertEquals(crewScaledAmount(1, 0, 4), 0);
   },

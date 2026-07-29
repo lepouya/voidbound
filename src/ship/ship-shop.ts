@@ -9,7 +9,12 @@ import {
   ResourceKind,
   Revisioned,
 } from "../state/game-state.ts";
-import { storageCapsForModules } from "./module-catalog.ts";
+import {
+  crewRequiredAtLevel,
+  moduleCatalogEntry,
+  storageCapsForModules,
+  TRADING_POST_MODULE_TYPE,
+} from "./module-catalog.ts";
 import { RESOURCE_ICON_TILESET } from "../scene/tiled-scene.ts";
 import {
   DEAL_RARITY_STYLE,
@@ -50,6 +55,12 @@ export class ShopDialog {
   constructor(private readonly host: ShopDialogHost) {}
 
   open(): void {
+    if (!this.tradingPostOperational()) {
+      this.host.showToast(
+        errorToast("Trading Post needs 1 assigned crew member"),
+      );
+      return;
+    }
     const buildRows = () => this.buildRows();
     // onClose below closes over `unbind` before it's assigned (it's only
     // known once `handle` exists), so it can't be a single const init.
@@ -65,12 +76,29 @@ export class ShopDialog {
 
   /** One row per deal, then the refresh footer. */
   private buildRows(): DialogRowDef[] {
+    if (!this.tradingPostOperational()) {
+      return [{
+        cells: [{ label: "Needs 1 assigned crew member", weight: 1 }],
+      }];
+    }
     const caps = storageCapsForModules(gameState.modules.values());
     const rows: DialogRowDef[] = gameState.deals.deals.map((deal) =>
       this.buildDealRow(deal, caps)
     );
     rows.push(this.buildRefreshRow());
     return rows;
+  }
+
+  private tradingPostOperational(): boolean {
+    const post = [...gameState.modules.values()].find(
+      (module) =>
+        module.moduleType === TRADING_POST_MODULE_TYPE && module.level >= 1,
+    );
+    const entry = moduleCatalogEntry(TRADING_POST_MODULE_TYPE);
+    if (!post || !entry) return false;
+    const required = crewRequiredAtLevel(entry, post.level);
+    return (gameState.crewAssignments.get(post.moduleId)?.assigned ?? 0) >=
+      required;
   }
 
   /**

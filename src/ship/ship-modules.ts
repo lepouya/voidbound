@@ -21,7 +21,7 @@ import {
   costAtLevel,
   CREW_QUARTERS_MODULE_TYPE,
   crewCapacityForModules,
-  crewRequiredForModules,
+  crewRequiredAtLevel,
   crewScaledAmount,
   formatModuleCost,
   hireCostAt,
@@ -170,10 +170,10 @@ export class ModuleSync {
    *  biological change must flip the Hire Crew button even when the module
    *  itself didn't change. Null for modules that don't host the button. */
   private appliedHireStatus = new Map<string, HireStatus | null>();
-  /** The last staffing percentage applied per moduleId (ROADMAP P1.10) —
-   *  producers show an understaffed badge, so a crew or demand change must
-   *  rebuild them even when the module itself didn't change. */
-  private appliedStaffPct = new Map<string, number>();
+  /** The last explicit staffing state applied per moduleId (ROADMAP P2.8) —
+   *  assignment changes must rebuild the actor even when its module data did
+   *  not change. */
+  private appliedStaffing = new Map<string, string>();
   /** Actors currently hosting the Hire Crew button (Command Module + settled
    *  Crew Quarters), keyed by moduleId — drives the once-a-frame recruiting
    *  countdown in tick() via setButtonLabel. */
@@ -202,20 +202,13 @@ export class ModuleSync {
         this.appliedModules.delete(id);
         this.appliedLevelUpStatus.delete(id);
         this.appliedHireStatus.delete(id);
-        this.appliedStaffPct.delete(id);
+        this.appliedStaffing.delete(id);
         this.hireHosts.delete(id);
         this.pendingModules.delete(id);
       }
     }
     const commandLevel = this.commandModuleLevel();
     const hire = this.hireStatus();
-    // The pooled staffing ratio (ROADMAP P1.10) is ship-wide: every producer
-    // shows the same output percentage when crew is short.
-    const staffPct = crewScaledAmount(
-      100,
-      gameState.crew,
-      crewRequiredForModules(gameState.modules.values()),
-    );
     for (const data of gameState.modules.values()) {
       const entry = moduleCatalogEntry(data.moduleType);
       const status = this.levelUpStatus(data, commandLevel);
@@ -224,22 +217,21 @@ export class ModuleSync {
       const hostsHire = data.moduleType === COMMAND_MODULE_TYPE ||
         (data.moduleType === CREW_QUARTERS_MODULE_TYPE && data.level >= 1);
       const hireForModule = hostsHire ? hire : null;
-      // Only settled producers wear the understaffed badge — a
-      // crew-demanding non-producer (the Trading Post) has no output
-      // percentage to report, so a "50%" badge would be noise.
-      const staffPctForModule = (entry?.crewRequiredPerLevel ?? 0) > 0 &&
-          data.level >= 1 &&
-          Object.keys(entry?.produces ?? {}).length > 0
-        ? staffPct
+      const staffing = gameState.crewAssignments.get(data.moduleId);
+      const required = entry ? crewRequiredAtLevel(entry, data.level) : 0;
+      const assigned = staffing?.assigned ?? 0;
+      const staffPctForModule = required > 0
+        ? crewScaledAmount(100, assigned, required)
         : 100;
+      const staffingKey = assigned + "/" + required + "/" + staffPctForModule;
       const applied = this.appliedModules.get(data.moduleId);
       const appliedStatus = this.appliedLevelUpStatus.get(data.moduleId);
       const appliedHire = this.appliedHireStatus.get(data.moduleId);
-      const appliedPct = this.appliedStaffPct.get(data.moduleId);
+      const appliedStaffing = this.appliedStaffing.get(data.moduleId);
       if (
         applied !== undefined && sameModule(applied, data) &&
         appliedStatus === status && appliedHire === hireForModule &&
-        appliedPct === staffPctForModule
+        appliedStaffing === staffingKey
       ) continue;
       const existing = this.modules.get(data.moduleId);
       // A rebuild (e.g. a poll landing a build/level-up completion) replaces
@@ -253,13 +245,12 @@ export class ModuleSync {
         data,
         status,
         hireForModule,
-        staffPctForModule,
       );
       this.modules.set(data.moduleId, actor);
       this.appliedModules.set(data.moduleId, data);
       this.appliedLevelUpStatus.set(data.moduleId, status);
       this.appliedHireStatus.set(data.moduleId, hireForModule);
-      this.appliedStaffPct.set(data.moduleId, staffPctForModule);
+      this.appliedStaffing.set(data.moduleId, staffingKey);
       if (hireForModule !== null) {
         this.hireHosts.set(data.moduleId, actor);
       } else {
@@ -354,7 +345,6 @@ export class ModuleSync {
     data: ModuleData,
     status: LevelUpStatus,
     hireStatus: HireStatus | null,
-    staffPct: number,
   ): TileActor {
     const now = serverNow();
     const entry = moduleCatalogEntry(data.moduleType);
@@ -391,9 +381,14 @@ export class ModuleSync {
     // level-up doesn't block trading — the module keeps functioning at its
     // settled level.
     if (data.moduleType === TRADING_POST_MODULE_TYPE && data.level >= 1) {
+      const required = entry ? crewRequiredAtLevel(entry, data.level) : 0;
+      const assigned = gameState.crewAssignments.get(data.moduleId)?.assigned ??
+        0;
+      const operational = assigned >= required;
       buttons.push(roundButton({
         icon: "buy",
-        label: "Trade",
+        label: operational ? "Trade" : `Needs Crew (${assigned}/${required})`,
+        disabled: !operational,
         onPressed: () => this.host.openShop(),
       }));
     }
@@ -451,16 +446,17 @@ export class ModuleSync {
             backgroundColor: ex.Color.ExcaliburBlue,
           },
         },
-        // Understaffed producer (ROADMAP P1.10): show how far below full
-        // output the pooled crew shortage puts it. Hiring (or leveling Crew
-        // Quarters) is the fix, so the badge clears itself via the rebuild
-        // diff as crew lands.
-        ...(staffPct < 100
+        // Explicit P2.8 staffing: crew-demanding modules show their own
+        // allocation rather than one opaque ship-wide percentage.
+        ...(data.level >= 1 && entry &&
+            crewRequiredAtLevel(entry, data.level) > 0
           ? [
             {
               anchor: "top-right" as const,
               badge: {
-                text: `${staffPct}%`,
+                text: (gameState.crewAssignments.get(data.moduleId)?.assigned ??
+                  0) +
+                  "/" + crewRequiredAtLevel(entry, data.level),
                 backgroundColor: ex.Color.Orange,
               },
             },

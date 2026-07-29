@@ -48,6 +48,7 @@ pub fn run() {
             game_state::request_relocate_mothership,
             game_state::request_mine_asteroid,
             game_state::request_hire_crew,
+            game_state::request_assign_crew,
             game_state::request_accept_deal,
             game_state::request_refresh_deals,
             game_state::mark_notifications_read

@@ -188,6 +188,10 @@ export class GameState {
    */
   crew = 0;
 
+  /** Explicit per-module staffing assignments, calculated and authorized by
+   * the backend (ROADMAP P2.8). Missing module ids mean no assigned crew. */
+  crewAssignments = new Map<string, CrewData["assignments"][number]>();
+
   /**
    * The one crew recruitment in flight, if any (ROADMAP P1.10) — drives the
    * Hire button's "Recruiting…" state; completion arrives as a crew push.
@@ -460,6 +464,9 @@ export class GameState {
     this.update((s) => {
       s.crew = data.crew;
       s.pendingHire = data.pendingHire;
+      s.crewAssignments = new Map(
+        data.assignments.map((assignment) => [assignment.moduleId, assignment]),
+      );
     });
   }
 
@@ -700,6 +707,11 @@ export class GameState {
       if (crewAccepted) {
         s.crew = data.crew.crew;
         s.pendingHire = data.crew.pendingHire;
+        s.crewAssignments = new Map(
+          data.crew.assignments.map((
+            assignment,
+          ) => [assignment.moduleId, assignment]),
+        );
       }
       if (dealsAccepted) s.deals = data.deals;
       if (windowAccepted) s.mapWindow = data.mapWindow;

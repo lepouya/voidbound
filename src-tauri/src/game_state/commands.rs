@@ -1,4 +1,4 @@
-use super::crew::CrewActionResponse;
+use super::crew::{CrewActionResponse, CrewAssignmentResponse};
 use super::deals::DealActionResponse;
 use super::modules::ModuleActionResponse;
 use super::scheduler::{finish_command, GameServer};
@@ -173,6 +173,24 @@ pub(crate) fn request_hire_crew(
 ) -> Result<Revisioned<CrewActionResponse>, String> {
     let mut s = server.state.lock().map_err(|e| e.to_string())?;
     let result = s.hire_crew(now_ms());
+    let revision = finish_command(&app, server.inner(), s);
+    result.map(|data| Revisioned::new(revision, data))
+}
+
+/// Assign an exact number of available crew to one settled crew-demanding
+/// module (ROADMAP P2.8). The backend settles production before changing the
+/// allocation, verifies both the module demand and the ship-wide free crew
+/// pool, then returns the complete CrewData snapshot for the shared apply
+/// path.
+#[tauri::command]
+pub(crate) fn request_assign_crew(
+    app: tauri::AppHandle,
+    server: tauri::State<'_, GameServer>,
+    module_id: String,
+    assigned: u32,
+) -> Result<Revisioned<CrewAssignmentResponse>, String> {
+    let mut s = server.state.lock().map_err(|e| e.to_string())?;
+    let result = s.assign_crew(&module_id, assigned, now_ms());
     let revision = finish_command(&app, server.inner(), s);
     result.map(|data| Revisioned::new(revision, data))
 }

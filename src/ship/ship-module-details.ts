@@ -1,14 +1,18 @@
 import * as ex from "excalibur";
 
+import { invoke } from "@tauri-apps/api/core";
+
 import {
+  CrewAssignmentResponse,
   gameState,
   ModuleData,
   ResourceKind,
+  Revisioned,
   serverNow,
 } from "../state/game-state.ts";
 import {
   costAtLevel,
-  crewRequiredForModules,
+  crewRequiredAtLevel,
   crewScaledAmount,
   formatModuleCost,
   maxModuleLevel,
@@ -21,8 +25,11 @@ import {
   DialogDef,
   DialogHandle,
   DialogRowDef,
+  errorToast,
   formatCompactCount,
   formatDuration,
+  squareButton,
+  ToastDef,
 } from "../ui/index.ts";
 
 /** Muted styling for the read-only field-name column — matches
@@ -51,22 +58,20 @@ function goneRow(message: string): DialogRowDef {
   return { cells: [{ label: { text: message, ...FIELD_LABEL } }] };
 }
 
-/** Scene services ModuleDetailsDialog needs — the modal slot only; unlike
- *  map-details.ts's DetailsDialog this panel is read-only, so there's no
- *  toast/rejection path to surface. */
+/** Scene services ModuleDetailsDialog needs — the modal slot plus server
+ * reassignment rejection surfacing. */
 export interface ModuleDetailsHost {
   openDialog(def: DialogDef): DialogHandle;
+  showToast(toast: string | ToastDef): void;
 }
 
 /**
  * Ship-scene module details panel (ROADMAP P1.20): extends the P1.16
  * details-panel pattern (map-details.ts's DetailsDialog) to every module —
- * Command Module included. Read-only: level, build/upgrade status with a
- * live countdown, and per-type stats (production, storage, crew) already in
- * the catalog. The Level Up/Hire Crew/Trade actions stay on the module's own
- * map buttons (ModuleSync.createActor) rather than duplicating them here —
- * unlike the map scene's own-mothership panel, every ship module already has
- * its action buttons in view without opening Details.
+ * Command Module included. It shows level, build/upgrade status with a live
+ * countdown, and per-type catalog stats; P2.8 adds the one mutable setting:
+ * explicit crew allocation. Level Up/Hire Crew/Trade remain on the module's
+ * own map buttons rather than duplicating them here.
  */
 export class ModuleDetailsDialog {
   /** The open panel's row builder + handle, for the tick() re-render; null
@@ -126,23 +131,19 @@ export class ModuleDetailsDialog {
     ];
     if (!entry) return rows;
 
-    // Ship-wide staffing ratio (ROADMAP P1.10) — same pooled calc as
-    // ModuleSync.sync's understaffed badge — applied to this module's
-    // production only if it actually demands crew. `staffPct` is derived
-    // separately from the scaled amount below (rather than driving it) so the
-    // amount readout doesn't double-floor.
-    const crewRequired = entry.crewRequiredPerLevel > 0
-      ? crewRequiredForModules(gameState.modules.values())
-      : 0;
+    // P2.8 staffing is explicit per module, not an opaque ship-wide ratio.
+    const crewRequired = crewRequiredAtLevel(entry, data.level);
+    const assigned = gameState.crewAssignments.get(data.moduleId)?.assigned ??
+      0;
     const staffPct = crewRequired > 0
-      ? crewScaledAmount(100, gameState.crew, crewRequired)
+      ? crewScaledAmount(100, assigned, crewRequired)
       : 100;
     if (data.level >= 1) {
       const produced = productionAtLevel(entry, data.level);
       for (const [kind, amount] of Object.entries(produced)) {
         if (!amount) continue;
         const scaled = crewRequired > 0
-          ? crewScaledAmount(amount, gameState.crew, crewRequired)
+          ? crewScaledAmount(amount, assigned, crewRequired)
           : amount;
         rows.push({
           cells: [
@@ -162,11 +163,13 @@ export class ModuleDetailsDialog {
       if (berths > 0) {
         rows.push(fieldRow("Crew berths", `${berths}`));
       }
-      if (entry.crewRequiredPerLevel > 0) {
+      if (crewRequired > 0) {
         rows.push(
-          fieldRow(
-            "Crew required",
-            `${entry.crewRequiredPerLevel * data.level}`,
+          this.crewAssignmentRow(
+            data.moduleId,
+            assigned,
+            crewRequired,
+            staffPct,
           ),
         );
       }
@@ -183,6 +186,64 @@ export class ModuleDetailsDialog {
       rows.push(fieldRow("Upgrade", "Maximum reached"));
     }
     return rows;
+  }
+
+  private crewAssignmentRow(
+    moduleId: string,
+    assigned: number,
+    required: number,
+    staffPct: number,
+  ): DialogRowDef {
+    return {
+      cells: [
+        { label: { text: "Crew assigned", ...FIELD_LABEL } },
+        { label: assigned + "/" + required + " (" + staffPct + "%)" },
+        {
+          button: squareButton({
+            icon: "crew",
+            width: 34,
+            height: 34,
+            label: "-1",
+            disabled: assigned === 0,
+            onPressed: () => void this.assignCrew(moduleId, assigned - 1),
+          }),
+        },
+        {
+          button: squareButton({
+            icon: "crew",
+            width: 34,
+            height: 34,
+            label: "+1",
+            disabled: assigned >= required || this.unassignedCrew() === 0,
+            onPressed: () => void this.assignCrew(moduleId, assigned + 1),
+          }),
+        },
+      ],
+    };
+  }
+
+  private unassignedCrew(): number {
+    let assigned = 0;
+    for (const staffing of gameState.crewAssignments.values()) {
+      assigned += staffing.assigned;
+    }
+    return Math.max(0, gameState.crew - assigned);
+  }
+
+  private async assignCrew(moduleId: string, assigned: number): Promise<void> {
+    try {
+      const response = await invoke<Revisioned<CrewAssignmentResponse>>(
+        "request_assign_crew",
+        { moduleId, assigned },
+      );
+      gameState.applyCrewEvent({
+        revision: response.revision,
+        data: response.data.crew,
+      });
+    } catch (error) {
+      console.warn("request_assign_crew rejected:", error);
+      this.host.showToast(errorToast("Crew assignment failed: " + error));
+    }
   }
 
   /** Live one-line status: a running build/upgrade timer with its countdown,
