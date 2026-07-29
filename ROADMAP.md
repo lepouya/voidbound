@@ -192,16 +192,8 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       reset, player listing, and timer-speed controls with explicit logs and CLI
       validation. Still open: retire local-only controls when online sessions
       replace the local backend (no task yet).
-- [ ] **P2.11 — Surface asteroid resource grade** _(split from P2.6 review,
-      July 2026)_. P2.6 seeds four radial grades that multiply a deposit by up
-      to 4x, but nothing in the UI ever names one: richness is inferable only by
-      comparing raw deposit numbers, and only between asteroids of the same size
-      tier, so the band structure the whole map is built around is invisible to
-      the player. Decide what they see — a badge on the actor, a row in the
-      asteroid panel, a minimap tint, or map-wide banding — and render it.
-      `ASTEROID_TIERS`/`asteroidTierEntry` are deliberately kept alive
-      client-side for this; if the answer is "never surface it", delete them.
-      Needs P2.6.
+- [x] **P2.11 — Surface asteroid resource grade.** Asteroid actors show their
+      radial grade and Details explains its deposit multiplier.
 - [ ] **P2.12 — UI defects found verifying P2.6** _(July 2026)_. Five unrelated
       presentation bugs seen during the P2.6 runtime verification; none are P2.6
       regressions, and none block it: - Build-offer arc labels collide when a

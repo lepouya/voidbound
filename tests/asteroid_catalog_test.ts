@@ -5,6 +5,8 @@ import {
   ASTEROID_TIERS,
   ASTEROID_TINTS,
   asteroidDisplayName,
+  asteroidGradeMultiplier,
+  asteroidResourceGrade,
   asteroidTierEntry,
   mineDurationMs,
 } from "../src/map/asteroid-catalog.ts";
@@ -79,4 +81,24 @@ catalogTest("asteroidDisplayName composes tier and class", () => {
     asteroidDisplayName({ tier: "large", resource: "highTech" }),
     "Large Metallic Asteroid",
   );
+});
+
+Deno.test("asteroid resource grades follow the four radial map bands", () => {
+  const dimensions = [1_000, 1_000] as const;
+  assertEquals(asteroidResourceGrade(0, 500, ...dimensions), 1);
+  assertEquals(asteroidResourceGrade(99, 500, ...dimensions), 1);
+  assertEquals(asteroidResourceGrade(100, 500, ...dimensions), 2);
+  assertEquals(asteroidResourceGrade(250, 500, ...dimensions), 3);
+  assertEquals(asteroidResourceGrade(399, 500, ...dimensions), 4);
+  assertEquals(asteroidResourceGrade(400, 500, ...dimensions), null);
+  assertEquals(asteroidResourceGrade(999, 500, ...dimensions), 1);
+  assertEquals(asteroidResourceGrade(-1, 500, ...dimensions), null);
+});
+
+Deno.test("asteroid grade multiplier labels match the seeded deposits", () => {
+  assertEquals(asteroidGradeMultiplier(1), 1);
+  assertEquals(asteroidGradeMultiplier(2), 1.5);
+  assertEquals(asteroidGradeMultiplier(3), 2);
+  assertEquals(asteroidGradeMultiplier(4), 4);
+  assertEquals(asteroidGradeMultiplier(5), undefined);
 });

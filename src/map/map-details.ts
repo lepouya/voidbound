@@ -2,7 +2,12 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { asteroidDisplayName, mineDurationMs } from "./asteroid-catalog.ts";
+import {
+  asteroidDisplayName,
+  asteroidGradeMultiplier,
+  asteroidResourceGrade,
+  mineDurationMs,
+} from "./asteroid-catalog.ts";
 import {
   AsteroidData,
   gameState,
@@ -58,6 +63,12 @@ const FIELD_LABEL: { fontSize: number; color: ex.Color } = {
 /** Amber for advisory rows — a warning the player can still act against,
  *  distinct from an outright rejection (which is an error toast). */
 const WARNING_COLOR = ex.Color.fromHex("#e8b23a");
+
+/** Space-map geometry is server-owned and fixed at 1000*1000 tiles. Grade is
+ * position-derived rather than part of AsteroidData, so the details dialog
+ * needs these dimensions to explain the same grade shown on the map actor. */
+const MAP_COLUMNS = 1_000;
+const MAP_ROWS = 1_000;
 
 /** A "Name   value" readout row. */
 function fieldRow(name: string, value: string): DialogRowDef {
@@ -328,6 +339,15 @@ export class DetailsDialog {
   private buildAsteroidRows(asteroidId: string): DialogRowDef[] {
     const asteroid = gameState.asteroids.get(asteroidId);
     if (!asteroid) return [goneRow("Mined out or out of scanner range")];
+    const grade = asteroidResourceGrade(
+      asteroid.col,
+      asteroid.row,
+      MAP_COLUMNS,
+      MAP_ROWS,
+    );
+    const multiplier = grade === null
+      ? undefined
+      : asteroidGradeMultiplier(grade);
     return [
       {
         cells: [
@@ -341,6 +361,12 @@ export class DetailsDialog {
           },
         ],
       },
+      fieldRow(
+        "Resource grade",
+        grade === null || multiplier === undefined
+          ? "Unclassified"
+          : `Grade ${grade} (${multiplier}x deposit)`,
+      ),
       fieldRow("Status", this.asteroidStatusText(asteroid)),
       fieldRow("Location", `(${asteroid.col}, ${asteroid.row})`),
       ...this.storageWarningRows(asteroid),

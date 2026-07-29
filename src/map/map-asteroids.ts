@@ -2,7 +2,11 @@ import * as ex from "excalibur";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { ASTEROID_TINTS, asteroidDisplayName } from "./asteroid-catalog.ts";
+import {
+  ASTEROID_TINTS,
+  asteroidDisplayName,
+  asteroidResourceGrade,
+} from "./asteroid-catalog.ts";
 import { reconcileActors } from "../scene/actor-sync.ts";
 import {
   AsteroidData,
@@ -81,12 +85,18 @@ export class AsteroidSync {
 
   /**
    * Builds the map actor for one asteroid: the placeholder sprite tinted by
-   * yielded resource, a remaining-deposit badge, and the Mine action —
-   * disabled while a vessel holds the asteroid's single mining slot (the
-   * actor is rebuilt when the slot changes, so the button state stays
-   * current).
+   * yielded resource, resource-grade and remaining-deposit badges, and the
+   * Mine action — disabled while a vessel holds the asteroid's single mining
+   * slot (the actor is rebuilt when the slot changes, so the button state
+   * stays current).
    */
   private createActor(grid: TileGridGeometry, data: AsteroidData): TileActor {
+    const grade = asteroidResourceGrade(
+      data.col,
+      data.row,
+      grid.columns,
+      grid.rows,
+    );
     return new TileActor({
       grid,
       tile: {
@@ -100,6 +110,9 @@ export class AsteroidSync {
       ownerName: asteroidDisplayName(data),
       onPressed: this.host.onTilePressed,
       badges: [
+        ...(grade === null
+          ? []
+          : [{ anchor: "top-left" as const, badge: `G${grade}` }]),
         { anchor: "top-right", badge: formatCompactCount(data.remaining) },
       ],
       buttons: [

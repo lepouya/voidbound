@@ -27,6 +27,15 @@ export let ASTEROID_TIERS: readonly AsteroidTierEntry[] = [];
 
 let mineUnitsPerHour: number | null = null;
 
+/** Width, in map tiles, of each radial asteroid-resource band. Keep this in
+ * sync with the server's `GRADE_BAND_WIDTH`: grade derives from immutable map
+ * position, so neither snapshots nor the balance payload need carry it. */
+export const ASTEROID_GRADE_BAND_WIDTH = 100;
+
+/** Deposit multipliers for grades 1 through 4, ordered from the outer map
+ * edge inward. The reserved central system has no ordinary asteroid grade. */
+export const ASTEROID_GRADE_MULTIPLIERS = [1, 1.5, 2, 4] as const;
+
 /**
  * Install the asteroid half of an already-validated balance payload. Call
  * `applyBalanceCatalog` (src/state/balance-catalog.ts) instead — it owns the
@@ -41,6 +50,46 @@ export function asteroidTierEntry(
   tier: string,
 ): AsteroidTierEntry | undefined {
   return ASTEROID_TIERS.find((t) => t.tier === tier);
+}
+
+/**
+ * Derive an asteroid's resource grade from its immutable top-left tile.
+ *
+ * The map is a set of radial Chebyshev bands measured from its nearest edge:
+ * 1 at the outer rim through 4 deepest, then an ungraded reserved core. The
+ * server uses the same rule while seeding; this presentation-only mirror keeps
+ * grade out of save data and the gameplay wire contract.
+ */
+export function asteroidResourceGrade(
+  col: number,
+  row: number,
+  mapColumns: number,
+  mapRows: number,
+): number | null {
+  const nearestEdge = Math.min(
+    col,
+    row,
+    mapColumns - 1 - col,
+    mapRows - 1 - row,
+  );
+  if (
+    !Number.isInteger(col) ||
+    !Number.isInteger(row) ||
+    !Number.isInteger(mapColumns) ||
+    !Number.isInteger(mapRows) ||
+    mapColumns <= 0 ||
+    mapRows <= 0 ||
+    nearestEdge < 0
+  ) {
+    return null;
+  }
+  const grade = Math.floor(nearestEdge / ASTEROID_GRADE_BAND_WIDTH) + 1;
+  return grade <= ASTEROID_GRADE_MULTIPLIERS.length ? grade : null;
+}
+
+/** Human-readable deposit multiplier for a valid resource grade. */
+export function asteroidGradeMultiplier(grade: number): number | undefined {
+  return ASTEROID_GRADE_MULTIPLIERS[grade - 1];
 }
 
 /**
