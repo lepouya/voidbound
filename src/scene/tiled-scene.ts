@@ -445,6 +445,11 @@ export abstract class TiledScene extends ex.Scene {
     this.add(emptyActor);
     this.selectedActor = emptyActor;
     emptyActor.select();
+    // Empty-tile actions (Build, Move, Deploy) can contain a wide action
+    // arc. Unlike a real actor tap, this path used to leave the camera where
+    // it was, so an offer opened near a viewport edge could put its buttons
+    // off-screen. Center the selected action target before showing its arc.
+    this.sceneCamera.focusOn(emptyActor.pos, this.camera.zoom);
   }
 
   /** Register the pointer/wheel/resize listeners for this scene (delegated

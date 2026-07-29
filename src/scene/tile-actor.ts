@@ -4,6 +4,7 @@ import { TileGridGeometry } from "./grid-math.ts";
 import {
   anchorFractions,
   ButtonDef,
+  LABEL_FONT_SIZE,
   LABEL_PAD,
   makeBadgeActor,
   makeButtonGraphic,
@@ -571,8 +572,13 @@ export class TileActor extends ex.Actor {
     const actorVisualH = this.height;
 
     // Arc radius: one full tile of clearance beyond the actor's largest
-    // half-dimension, so buttons clear the sprite at any angle.
-    const R = Math.max(actorVisualW, actorVisualH) / 2 + tileH;
+    // half-dimension, so buttons clear the sprite at any angle. Actors with
+    // an owner label need one more label-height of clearance: otherwise the
+    // middle action button can obscure that label on large actors.
+    const baseRadius = Math.max(actorVisualW, actorVisualH) / 2 + tileH +
+      (this.ownerName === undefined ? 0 : LABEL_FONT_SIZE + LABEL_PAD);
+
+    const R = baseRadius;
 
     // Angular step: chord between adjacent button centers = 1.5 * tileW,
     // giving half a tile of visible gap between button edges (each button is

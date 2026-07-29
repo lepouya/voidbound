@@ -194,19 +194,9 @@ notes here; keep the durable/server contracts in `SERVER.md`.
       replace the local backend (no task yet).
 - [x] **P2.11 — Surface asteroid resource grade.** Asteroid actors show their
       radial grade and Details explains its deposit multiplier.
-- [ ] **P2.12 — UI defects found verifying P2.6** _(July 2026)_. Five unrelated
-      presentation bugs seen during the P2.6 runtime verification; none are P2.6
-      regressions, and none block it: - Build-offer arc labels collide when a
-      room offers all six module types — "Electronics Fabricator" overruns both
-      its own cost badge and its neighbours. - `Hire Crew (5m)` overlaps the
-      Command Module's owner-name label. - The recruiting countdown reads
-      `Recruiting (288s)` in raw seconds while the pre-commit label uses
-      `formatDuration` ("5m") — `recruitingLabel` should use the same helper so
-      one action doesn't report its time two ways. - Load-failure dialog buttons
-      render as blank grey squares (no icon). - `ModuleDetailsDialog` renders no
-      storage row at all, though its own doc comment promises "production,
-      storage, crew" — and P2.6's capacity split made storage a first-class
-      `base` + `per_level` catalog pair with no UI surface anywhere.
+- [x] **P2.12 — UI defect cleanup** _(July 2026)_. Compact, screen-safe build
+      offers; consistent recruitment timing; recovery icons; human-readable Mail
+      module names; and per-module storage Details.
 
 ## Phase 3 — Server-authoritative events
 
@@ -449,7 +439,4 @@ art or missing panels start hurting playtests.
 
 # Unsorted playtesting feedback
 
-- The name of the modules in notifications needs better display values -- e.h.
-  "Storage Bay" vs "storage-bay"
 - Cost of hiring crew show slowly rise as we go deeper in, instead of being flat
-- The reload and reset buttons on loading-failure dialog need icons

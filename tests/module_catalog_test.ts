@@ -15,10 +15,12 @@ import {
   maxModuleLevel,
   MODULE_CATALOG,
   moduleCatalogEntry,
+  moduleDisplayName,
   productionAtLevel,
   productionBoostedAmount,
   productionBoostPctAtLevel,
   productionBoostPctForModules,
+  storageAtLevel,
   storageCapsForModules,
   TRADING_POST_MODULE_TYPE,
 } from "../src/ship/module-catalog.ts";
@@ -50,6 +52,14 @@ catalogTest(
     assert(refinery);
     assertEquals(refinery.displayName, "Ore Refinery");
     assertEquals(moduleCatalogEntry("does-not-exist"), undefined);
+  },
+);
+
+catalogTest(
+  "moduleDisplayName turns wire keys into player-facing catalog names",
+  () => {
+    assertEquals(moduleDisplayName("storage-bay"), "Storage Bay");
+    assertEquals(moduleDisplayName("future-module"), "future-module");
   },
 );
 
@@ -184,6 +194,28 @@ catalogTest("the catalog has one entry per type with no duplicates", () => {
   assert(types.includes(COMMAND_MODULE_TYPE));
   assertEquals(maxModuleLevel(), 30);
 });
+
+catalogTest(
+  "storageAtLevel exposes one module's base plus per-level capacity",
+  () => {
+    const command = moduleCatalogEntry(COMMAND_MODULE_TYPE)!;
+    const storage = moduleCatalogEntry("storage-bay")!;
+    assertEquals(storageAtLevel(command, 1), {
+      construction: 1_000,
+      highTech: 1_000,
+      biological: 1_000,
+      fuel: 1_000,
+    });
+    assertEquals(storageAtLevel(command, 30), storageAtLevel(command, 1));
+    assertEquals(storageAtLevel(storage, 2), {
+      construction: 4_000,
+      highTech: 4_000,
+      biological: 4_000,
+      fuel: 4_000,
+    });
+    assertEquals(storageAtLevel(storage, 0), {});
+  },
+);
 
 catalogTest(
   "storageCapsForModules sums stores by settled level, credits uncapped",

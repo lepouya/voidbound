@@ -21,6 +21,7 @@ import {
   productionBoostedAmount,
   productionBoostPctAtLevel,
   productionBoostPctForModules,
+  storageAtLevel,
 } from "./module-catalog.ts";
 import { RESOURCE_ICON_TILESET } from "../scene/tiled-scene.ts";
 import {
@@ -163,6 +164,19 @@ export class ModuleDetailsDialog {
               }${
                 productionBoostPct > 0 ? ` (+${productionBoostPct}% boost)` : ""
               }`,
+              weight: 2,
+            },
+          ],
+        });
+      }
+      const storage = storageAtLevel(entry, data.level);
+      for (const [kind, amount] of Object.entries(storage)) {
+        rows.push({
+          cells: [
+            { label: { text: "Storage", ...FIELD_LABEL } },
+            {
+              tile: `${RESOURCE_ICON_TILESET[kind as ResourceKind]}:0`,
+              label: `+${formatCompactCount(amount)} cap`,
               weight: 2,
             },
           ],

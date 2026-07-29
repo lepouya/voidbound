@@ -9,6 +9,7 @@ import {
   DialogRowDef,
   formatTimeAgo,
 } from "../ui/index.ts";
+import { moduleDisplayName } from "../ship/module-catalog.ts";
 import {
   gameState,
   NotificationData,
@@ -142,10 +143,15 @@ export class MailDialog {
  * the fallback while a client upgrade is pending. */
 export function formatNotification(notification: NotificationData): string {
   switch (notification.kind) {
-    case "module-completed":
+    case "module-completed": {
+      // Module types are wire-stable catalog keys. Mail is player-facing, so
+      // resolve the server-issued display name rather than exposing kebab
+      // case (for example, "Storage Bay", never "storage-bay").
+      const moduleName = moduleDisplayName(notification.moduleType);
       return notification.operation === "build"
-        ? `${notification.moduleType} construction complete`
-        : `${notification.moduleType} upgraded to level ${notification.level}`;
+        ? `${moduleName} construction complete`
+        : `${moduleName} upgraded to level ${notification.level}`;
+    }
     case "crew-hired":
       return `A new crew member came aboard (${notification.crew} total)`;
     case "mining-started":

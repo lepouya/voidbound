@@ -3,7 +3,7 @@ import {
   LoadFailure,
   resetLocalSystem,
 } from "../state/game-state-loader.ts";
-import { DialogDef, DialogRowDef } from "../ui/index.ts";
+import { DialogDef, DialogRowDef, squareButton } from "../ui/index.ts";
 
 /**
  * The blocking dialog a scene shows when the initial game-state load failed
@@ -82,19 +82,25 @@ export function loadFailureDialog(
   const buttons: DialogRowDef = {
     cells: [
       {
-        button: {
+        button: squareButton({
+          icon: "refresh",
           label: "Retry",
+          width: 32,
+          height: 32,
           onPressed: () => void attempt(() => attemptGameStateLoad())(),
-        },
+        }),
       },
     ],
   };
   if (allowReset) {
     buttons.cells.push({
-      button: {
+      button: squareButton({
+        icon: "refresh",
         label: "Reset (dev)",
+        width: 32,
+        height: 32,
         onPressed: () => void attempt(resetLocalSystem)(),
-      },
+      }),
     });
   }
   rows.push(buttons);

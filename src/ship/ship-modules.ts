@@ -117,8 +117,14 @@ function buildCountdownLabel(
 
 /** Hire button label while a recruitment timer runs (ROADMAP P1.10). */
 function recruitingLabel(completesAt: number, nowMs: number): string {
-  const remaining = Math.max(0, Math.ceil((completesAt - nowMs) / 1000));
-  return `Recruiting (${remaining}s)`;
+  return `Recruiting (${formatDuration(Math.max(0, completesAt - nowMs))})`;
+}
+
+/** Two-line build labels keep six offers readable without stretching their
+ * action arc away from the selected room. Catalog display names are currently
+ * two words; preserving the full name is clearer than an abbreviation. */
+function buildOfferLabel(displayName: string): string {
+  return displayName.replace(" ", "\n");
 }
 
 /** The Hire Crew button's index in its host actor's `buttons` array — always
@@ -513,7 +519,7 @@ export class ModuleSync {
         const cost = costAtLevel(entry, 1);
         return roundButton({
           icon: "build",
-          label: entry.displayName,
+          label: buildOfferLabel(entry.displayName),
           // Cost shown as the button badge; affordability is re-checked by
           // the backend on request — this disable is just UX.
           badge: formatModuleCost(cost),

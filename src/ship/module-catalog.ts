@@ -116,6 +116,12 @@ export function moduleCatalogEntry(
   return MODULE_CATALOG.find((e) => e.moduleType === moduleType);
 }
 
+/** Player-facing name for a stable wire catalog key. Unknown keys stay
+ * readable while a newer server catalog awaits a client update. */
+export function moduleDisplayName(moduleType: string): string {
+  return moduleCatalogEntry(moduleType)?.displayName ?? moduleType;
+}
+
 export type ModuleCost = Partial<Record<ResourceKind, number>>;
 
 function ceilRatio(
@@ -269,14 +275,37 @@ export function storageCapsForModules(
   for (const module of modules) {
     const entry = moduleCatalogEntry(module.moduleType);
     if (!entry || module.level < 1) continue;
-    for (const [kind, base] of Object.entries(entry.storesBase)) {
-      caps[kind as ResourceKind] += base;
-    }
-    for (const [kind, perLevel] of Object.entries(entry.storesPerLevel)) {
-      caps[kind as ResourceKind] += perLevel * module.level;
+    for (
+      const [kind, amount] of Object.entries(
+        storageAtLevel(entry, module.level),
+      )
+    ) {
+      caps[kind as ResourceKind] += amount;
     }
   }
   return caps;
+}
+
+/** Storage a single settled module contributes at `level`, matching Rust's
+ * `ModuleCatalogEntry::storage_at_level`. Kept separate from the whole-ship
+ * sum so Details can surface the catalog's base + per-level contribution. */
+export function storageAtLevel(
+  entry: Pick<ModuleCatalogEntry, "storesBase" | "storesPerLevel">,
+  level: number,
+): Partial<Record<ResourceKind, number>> {
+  if (level < 1) return {};
+  const storage: Partial<Record<ResourceKind, number>> = {};
+  const kinds = new Set([
+    ...Object.keys(entry.storesBase),
+    ...Object.keys(entry.storesPerLevel),
+  ]);
+  for (const kind of kinds) {
+    const resource = kind as ResourceKind;
+    const amount = (entry.storesBase[resource] ?? 0) +
+      (entry.storesPerLevel[resource] ?? 0) * level;
+    if (amount > 0) storage[resource] = amount;
+  }
+  return storage;
 }
 
 /**
