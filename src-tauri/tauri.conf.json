@@ -36,6 +36,16 @@
         {
           "name": "restore-backup",
           "takesValue": true
+        },
+        {
+          "name": "reset-player",
+          "takesValue": true
+        },
+        {
+          "name": "reset-system"
+        },
+        {
+          "name": "list-players"
         }
       ]
     }

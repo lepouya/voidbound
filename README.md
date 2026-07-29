@@ -128,8 +128,24 @@ deno install
 Run in dev mode:
 
 ```
-deno task tauri dev
+deno task dev:app
 ```
+
+Local-development startup controls:
+
+- `--player <name>` selects (or creates) a local profile.
+- `--time-scale <factor>` runs local scheduler timers at a positive speed
+  multiplier (for example, `60`); it affects new durations and live production
+  cadence without rewriting existing deadlines.
+- `--list-players` prints saved local profiles and their Command Module levels,
+  then exits.
+- `--reset-player <name>` destructively recreates and selects one profile while
+  preserving the shared local world and other profiles.
+- `--reset-system` destructively replaces every local profile and all world
+  progress with the deterministic fresh system.
+
+The reset controls are startup-only and local; they are not gameplay actions or
+part of the future online protocol.
 
 ### Other platforms
 

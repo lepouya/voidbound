@@ -188,10 +188,10 @@ notes here; keep the durable/server contracts in `SERVER.md`.
 - [x] **P2.9 — Storage Bay production-boost perk** _(split from P1.11)_. A
       staffed Bay grants +5% passive building production per settled level;
       capacity remains unconditional and mining is unaffected.
-- [ ] **P2.10 — Developer reset controls.** Startup-only, destructive
-      `--reset-player <name>` (fresh profile in the existing shared local
-      system) and `--reset-system` (fresh deterministic test system), with
-      explicit logs and mutually exclusive arguments. Needs P2.1.
+- [x] **P2.10 — Developer reset controls.** Local startup-only profile/system
+      reset, player listing, and timer-speed controls with explicit logs and CLI
+      validation. Still open: retire local-only controls when online sessions
+      replace the local backend (no task yet).
 - [ ] **P2.11 — Surface asteroid resource grade** _(split from P2.6 review,
       July 2026)_. P2.6 seeds four radial grades that multiply a deposit by up
       to 4x, but nothing in the UI ever names one: richness is inferable only by

@@ -1,7 +1,7 @@
 mod game_state;
 mod map;
 
-use game_state::GameServer;
+use game_state::{GameServer, StartupReset};
 use tauri::Manager;
 use tauri_plugin_cli::{CliExt, Matches};
 
@@ -13,16 +13,36 @@ pub fn run() {
         .setup(|app| {
             let matches = app.cli().matches().map_err(|error| error.to_string())?;
             let startup = startup_config(matches)?;
-            game_state::configure_time_scale(startup.time_scale)?;
             let save_path = app
                 .path()
                 .app_local_data_dir()
                 .map_err(|error| format!("resolve local save directory: {error}"))?
                 .join("local-system.json");
+            if startup.list_players {
+                let players = GameServer::list_players(save_path)?;
+                if players.is_empty() {
+                    println!("No local player profiles.");
+                } else {
+                    println!("Local player profiles:");
+                    for player in players {
+                        let pending = player
+                            .pending_command_level
+                            .map_or_else(String::new, |level| format!(" (upgrading to {level})"));
+                        println!(
+                            "- {} — Command Module level {}{pending}",
+                            player.name, player.command_level
+                        );
+                    }
+                }
+                app.handle().exit(0);
+                return Ok(());
+            }
+            game_state::configure_time_scale(startup.time_scale)?;
             let server = GameServer::open(
                 save_path,
                 startup.player,
                 startup.restore_backup,
+                startup.reset,
                 game_state::now_ms(),
             )?;
             app.manage(server);
@@ -57,7 +77,9 @@ pub fn run() {
         .expect("error while building Tauri application");
     app.run(|app_handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
-            app_handle.state::<GameServer>().persist_on_exit();
+            if let Some(server) = app_handle.try_state::<GameServer>() {
+                server.persist_on_exit();
+            }
         }
     });
 }
@@ -66,16 +88,72 @@ struct StartupConfig {
     player: String,
     time_scale: f64,
     restore_backup: Option<usize>,
+    reset: Option<StartupReset>,
+    list_players: bool,
 }
 
 fn startup_config(matches: Matches) -> Result<StartupConfig, String> {
-    let player = matches
+    let explicit_player = matches
         .args
         .get("player")
         .and_then(|argument| argument.value.as_str())
-        .unwrap_or("Player 1")
-        .trim()
-        .to_string();
+        .map(str::trim)
+        .map(str::to_string);
+    let reset_player = matches
+        .args
+        .get("reset-player")
+        .and_then(|argument| argument.value.as_str())
+        .map(str::trim)
+        .map(str::to_string);
+    let reset_system = boolean_flag(&matches, "reset-system");
+    let list_players = boolean_flag(&matches, "list-players");
+    if reset_system && reset_player.is_some() {
+        return Err("--reset-player and --reset-system cannot be used together".to_string());
+    }
+    if reset_player.is_some() && explicit_player.is_some() {
+        return Err("--reset-player already selects its player; omit --player".to_string());
+    }
+    if list_players
+        && (reset_system
+            || reset_player.is_some()
+            || explicit_player.is_some()
+            || matches
+                .args
+                .get("restore-backup")
+                .and_then(|argument| argument.value.as_str())
+                .is_some()
+            || matches
+                .args
+                .get("time-scale")
+                .and_then(|argument| argument.value.as_str())
+                .is_some())
+    {
+        return Err(
+            "--list-players cannot be combined with player, reset, restore, or time-scale options"
+                .to_string(),
+        );
+    }
+    if (reset_system || reset_player.is_some())
+        && matches
+            .args
+            .get("restore-backup")
+            .and_then(|argument| argument.value.as_str())
+            .is_some()
+    {
+        return Err(
+            "--reset-player/--reset-system cannot be combined with --restore-backup".to_string(),
+        );
+    }
+    let reset = if reset_system {
+        Some(StartupReset::System)
+    } else if reset_player.is_some() {
+        Some(StartupReset::Player)
+    } else {
+        None
+    };
+    let player = reset_player
+        .or(explicit_player)
+        .unwrap_or_else(|| "Player 1".to_string());
     let mut time_scale = 1.0;
     let mut restore_backup = None;
     if let Some(raw) = matches
@@ -108,5 +186,15 @@ fn startup_config(matches: Matches) -> Result<StartupConfig, String> {
         player,
         time_scale,
         restore_backup,
+        reset,
+        list_players,
     })
+}
+
+fn boolean_flag(matches: &Matches, name: &str) -> bool {
+    matches
+        .args
+        .get(name)
+        .and_then(|argument| argument.value.as_bool())
+        .unwrap_or(false)
 }

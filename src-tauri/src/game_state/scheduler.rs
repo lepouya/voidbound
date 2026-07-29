@@ -4,8 +4,24 @@ use std::time::Duration;
 
 use tauri::{Emitter, Manager};
 
+use super::modules::COMMAND_MODULE_TYPE;
 use super::persistence::{normalize_player_name, SaveEnvelopeV1, SaveStore, SAVE_SCHEMA_VERSION};
 use super::state::{now_ms, Revisioned, ServerPush, ServerState, SERVER_PUSH_EVENT};
+
+/// A destructive local-development reset requested before a gameplay session
+/// starts. Neither variant is part of the player-action protocol.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StartupReset {
+    System,
+    Player,
+}
+
+/// One profile visible to the startup-only `--list-players` control.
+pub(crate) struct LocalPlayerSummary {
+    pub(crate) name: String,
+    pub(crate) command_level: u32,
+    pub(crate) pending_command_level: Option<u32>,
+}
 
 /// The managed Tauri state: the authoritative ServerState behind a mutex,
 /// plus the condvar that wakes the scheduler thread early when a command
@@ -36,46 +52,59 @@ impl GameServer {
         save_path: PathBuf,
         player_name: String,
         restore_backup: Option<usize>,
+        startup_reset: Option<StartupReset>,
         now_ms: u64,
     ) -> Result<Self, String> {
         let save_store = Arc::new(SaveStore::open(save_path)?);
-        let loaded = match restore_backup {
-            Some(index) => Some(save_store.restore_backup(index)?),
-            None => match save_store.load() {
-                Ok(envelope) => envelope,
-                Err(error) => {
-                    eprintln!("local-system recovery exhausted: {error}; creating a fresh system");
-                    None
-                }
-            },
+        let loaded = if startup_reset == Some(StartupReset::System) {
+            None
+        } else {
+            match restore_backup {
+                Some(index) => Some(save_store.restore_backup(index)?),
+                None => match save_store.load() {
+                    Ok(envelope) => envelope,
+                    Err(error) => {
+                        eprintln!(
+                            "local-system recovery exhausted: {error}; creating a fresh system"
+                        );
+                        None
+                    }
+                },
+            }
         };
         let saved_at = loaded.as_ref().map(|envelope| envelope.saved_at);
         let is_fresh_system = loaded.is_none();
         let session_player = player_name.clone();
-        let mut state = match loaded {
-            Some(envelope) => {
-                let requested = normalize_player_name(&player_name);
-                if envelope.system.players.contains_key(&requested) {
-                    ServerState::from_persistent(envelope.system, &player_name)?
-                } else {
-                    let fallback = envelope
-                        .system
-                        .players
-                        .values()
-                        .next()
-                        .ok_or_else(|| "persistent system has no player profiles".to_string())?
-                        .identity
-                        .name
-                        .clone();
-                    let mut state = ServerState::from_persistent(envelope.system, &fallback)?;
-                    state.create_player_profile(player_name.clone(), now_ms)?;
-                    state
+        let mut state = if startup_reset == Some(StartupReset::System) {
+            Self::fresh_system(&player_name, now_ms)?
+        } else {
+            match loaded {
+                Some(envelope) => {
+                    let requested = normalize_player_name(&player_name);
+                    if envelope.system.players.contains_key(&requested) {
+                        ServerState::from_persistent(envelope.system, &player_name)?
+                    } else {
+                        let fallback = envelope
+                            .system
+                            .players
+                            .values()
+                            .next()
+                            .ok_or_else(|| "persistent system has no player profiles".to_string())?
+                            .identity
+                            .name
+                            .clone();
+                        let mut state = ServerState::from_persistent(envelope.system, &fallback)?;
+                        state.create_player_profile(player_name.clone(), now_ms)?;
+                        state
+                    }
                 }
+                None => ServerState::new(now_ms),
             }
-            None => ServerState::new(now_ms),
         };
-        if normalize_player_name(&state.player.name) != normalize_player_name(&player_name) {
-            state.create_player_profile(player_name, now_ms)?;
+        if startup_reset != Some(StartupReset::System)
+            && normalize_player_name(&state.player.name) != normalize_player_name(&player_name)
+        {
+            state.create_player_profile(player_name.clone(), now_ms)?;
             if is_fresh_system {
                 state.parked_players.remove("player 1");
                 state.motherships.remove("player-1");
@@ -89,6 +118,21 @@ impl GameServer {
             state.outbox.clear();
             state.resources_dirty = false;
         }
+        match startup_reset {
+            Some(StartupReset::System) => {
+                println!(
+                    "--reset-system — replaced the local system with its fresh deterministic seed"
+                );
+            }
+            Some(StartupReset::Player) => {
+                state.reset_active_player_profile(now_ms)?;
+                println!(
+                    "--reset-player {:?} — recreated that profile in the existing local system",
+                    player_name
+                );
+            }
+            None => {}
+        }
         let server = Self {
             state: Mutex::new(state),
             save_store,
@@ -100,6 +144,40 @@ impl GameServer {
         Ok(server)
     }
 
+    pub(crate) fn list_players(save_path: PathBuf) -> Result<Vec<LocalPlayerSummary>, String> {
+        let store = SaveStore::open(save_path)?;
+        let Some(envelope) = store.load()? else {
+            return Ok(Vec::new());
+        };
+        Ok(envelope
+            .system
+            .players
+            .values()
+            .map(|player| {
+                let command = player
+                    .modules
+                    .values()
+                    .find(|module| module.module_type == COMMAND_MODULE_TYPE);
+                LocalPlayerSummary {
+                    name: player.identity.name.clone(),
+                    command_level: command.map_or(0, |module| module.level),
+                    pending_command_level: command
+                        .and_then(|module| module.pending.as_ref().map(|pending| pending.level)),
+                }
+            })
+            .collect())
+    }
+
+    fn fresh_system(player_name: &str, now_ms: u64) -> Result<ServerState, String> {
+        let mut fresh = ServerState::new(now_ms);
+        if normalize_player_name(&fresh.player.name) != normalize_player_name(player_name) {
+            fresh.create_player_profile(player_name.to_string(), now_ms)?;
+            fresh.parked_players.remove("player 1");
+            fresh.motherships.remove("player-1");
+        }
+        Ok(fresh)
+    }
+
     /// Replace the whole local system with a fresh deterministic seed,
     /// keeping the session's selected identity. Development-only: this
     /// destroys every profile and all world progress, and exists so a
@@ -109,14 +187,7 @@ impl GameServer {
     pub(crate) fn reset_system(&self, now_ms: u64) -> Result<(), String> {
         {
             let mut state = self.state.lock().map_err(|error| error.to_string())?;
-            let mut fresh = ServerState::new(now_ms);
-            if normalize_player_name(&fresh.player.name) != normalize_player_name(&self.player_name)
-            {
-                fresh.create_player_profile(self.player_name.clone(), now_ms)?;
-                fresh.parked_players.remove("player 1");
-                fresh.motherships.remove("player-1");
-            }
-            *state = fresh;
+            *state = Self::fresh_system(&self.player_name, now_ms)?;
         }
         // The fresh system restarts at revision 0, which the save-progress
         // guard would read as stale and skip — clear it so the reset
@@ -302,6 +373,102 @@ mod tests {
         assert_eq!(saved.system.state_revision, 2);
 
         drop(store);
+        fs::remove_dir_all(directory).expect("remove test directory");
+    }
+
+    #[test]
+    fn startup_system_reset_bypasses_an_unreadable_save() {
+        let directory = test_path();
+        fs::create_dir_all(&directory).expect("create test directory");
+        let path = directory.join("local-system.json");
+        fs::write(&path, "not a save").expect("write unreadable save");
+
+        let server = GameServer::open(
+            path,
+            "Reset Pilot".to_string(),
+            None,
+            Some(StartupReset::System),
+            10,
+        )
+        .expect("reset system without loading the damaged save");
+        let state = server.state.lock().expect("lock fresh system");
+        assert_eq!(state.player.name, "Reset Pilot");
+        assert_eq!(state.parked_players.len(), 0);
+        assert_eq!(state.motherships.len(), 1);
+
+        drop(state);
+        drop(server);
+        fs::remove_dir_all(directory).expect("remove test directory");
+    }
+
+    #[test]
+    fn startup_player_reset_rebuilds_the_selected_profile_only() {
+        let directory = test_path();
+        let path = directory.join("local-system.json");
+        let server = GameServer::open(path.clone(), "Ada".to_string(), None, None, 0)
+            .expect("create local system");
+        let asteroid_count;
+        {
+            let mut state = server.state.lock().expect("lock state");
+            state.resources.construction = 99;
+            asteroid_count = state.asteroids.len();
+            state
+                .create_player_profile("Bea".to_string(), 0)
+                .expect("create second profile");
+            state.advance_revision();
+        }
+        server.persist().expect("persist two profiles");
+        drop(server);
+
+        let reset = GameServer::open(
+            path,
+            "Ada".to_string(),
+            None,
+            Some(StartupReset::Player),
+            10,
+        )
+        .expect("reset the selected profile");
+        let state = reset.state.lock().expect("lock reset state");
+        assert_eq!(state.player.name, "Ada");
+        assert_eq!(
+            state.resources.construction,
+            ServerState::new(10).resources.construction
+        );
+        assert!(state.parked_players.contains_key("bea"));
+        assert_eq!(state.motherships.len(), 2);
+        assert_eq!(state.asteroids.len(), asteroid_count);
+        assert!(state.persistent_system().validate().is_ok());
+
+        drop(state);
+        drop(reset);
+        fs::remove_dir_all(directory).expect("remove test directory");
+    }
+
+    #[test]
+    fn list_players_reports_command_module_levels_without_starting_a_session() {
+        let directory = test_path();
+        let path = directory.join("local-system.json");
+        let server = GameServer::open(path.clone(), "Ada".to_string(), None, None, 0)
+            .expect("create local system");
+        {
+            let mut state = server.state.lock().expect("lock state");
+            let command = state
+                .modules
+                .get_mut("module-command")
+                .expect("starter command module");
+            command.level = 2;
+            command.pending = None;
+            state.advance_revision();
+        }
+        server.persist().expect("persist command level");
+        drop(server);
+
+        let players = GameServer::list_players(path).expect("list saved profiles");
+        assert_eq!(players.len(), 1);
+        assert_eq!(players[0].name, "Ada");
+        assert_eq!(players[0].command_level, 2);
+        assert_eq!(players[0].pending_command_level, None);
+
         fs::remove_dir_all(directory).expect("remove test directory");
     }
 }

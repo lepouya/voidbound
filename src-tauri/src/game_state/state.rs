@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -612,6 +612,49 @@ impl ServerState {
         self.parked_players
             .insert(normalize_player_name(&self.player.name), current);
 
+        let (identity, profile) = Self::fresh_player_profile(display_name, now_ms);
+        let (col, row) = self.place_mothership(&identity)?;
+        self.load_active_profile(profile);
+        self.aoi = MapWindow::centered_at(col + 2, row + 2);
+        Ok(())
+    }
+
+    /// Discard the selected profile and every world entity it owns, then
+    /// recreate that same identity in the unchanged shared system. This is a
+    /// startup-only developer operation (P2.10), not a gameplay action.
+    pub(super) fn reset_active_player_profile(&mut self, now_ms: u64) -> Result<(), String> {
+        let identity = self.player.clone();
+        let removed_vessels: HashSet<String> = self
+            .vessels
+            .values()
+            .filter(|vessel| vessel.owner_id == identity.id)
+            .map(|vessel| vessel.vessel_id.clone())
+            .collect();
+        self.motherships.remove(&identity.id);
+        self.vessels
+            .retain(|_, vessel| vessel.owner_id != identity.id);
+        for asteroid in self.asteroids.values_mut() {
+            if asteroid
+                .mining
+                .as_ref()
+                .is_some_and(|mining| removed_vessels.contains(&mining.vessel_id))
+            {
+                asteroid.mining = None;
+            }
+        }
+
+        let (fresh_identity, profile) = Self::fresh_player_profile(identity.name.clone(), now_ms);
+        let (col, row) = self.place_mothership(&fresh_identity)?;
+        self.load_active_profile(profile);
+        self.aoi = MapWindow::centered_at(col + 2, row + 2);
+        Ok(())
+    }
+
+    fn fresh_player_profile(
+        display_name: String,
+        now_ms: u64,
+    ) -> (PlayerIdentity, PersistentPlayerV1) {
+        let normalized = normalize_player_name(&display_name);
         let identity_hash = player_seed_hash(&normalized);
         let identity = PlayerIdentity {
             id: format!("player-{identity_hash:016x}"),
@@ -625,7 +668,11 @@ impl ServerState {
         }
         template.regenerate_deals(template.deals_day_index, 0, true);
         let profile = PersistentPlayerV1::from_state(&template);
+        (identity, profile)
+    }
 
+    fn place_mothership(&mut self, identity: &PlayerIdentity) -> Result<(i64, i64), String> {
+        let identity_hash = player_seed_hash(&normalize_player_name(&identity.name));
         let mut rng = SeedRng(self.system_seed ^ identity_hash);
         let spawn = plan_outer_band_spawn(&mut rng, 4, |col, row| {
             self.motherships
@@ -655,9 +702,7 @@ impl ServerState {
                 span: 4,
             },
         );
-        self.load_active_profile(profile);
-        self.aoi = MapWindow::centered_at(col + 2, row + 2);
-        Ok(())
+        Ok((col, row))
     }
 
     fn load_active_profile(&mut self, profile: PersistentPlayerV1) {
