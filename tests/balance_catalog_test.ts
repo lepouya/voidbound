@@ -142,6 +142,18 @@ Deno.test("nested catalog data is validated before either display catalog change
   );
 
   assertThrows(
+    () => {
+      const invalid = sampleBalance({
+        modules: base.modules.map((module) => ({ ...module })),
+      });
+      invalid.modules[0].productionBoostPctPerLevel = -1;
+      applyBalanceCatalog(invalid);
+    },
+    Error,
+    "invalid balance catalog command.productionBoostPctPerLevel",
+  );
+
+  assertThrows(
     () =>
       applyBalanceCatalog(sampleBalance({
         operationalCostStartLevel: 11,

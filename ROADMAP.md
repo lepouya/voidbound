@@ -181,13 +181,13 @@ notes here; keep the durable/server contracts in `SERVER.md`.
 - [x] **P2.7 — Diminishing returns** _(moved from P1.7)_. Mining's extraction
       time, travel, single-slot deposits, and fleet cap already provide the
       intended soft limit. Battle/raid tuning remains with combat → P5.5.
-- [x] **P2.8 — Crew understaffing UX pass** _(split from P1.10)_. Server-verified
-      per-module assignment controls, visible allocation/output, a 1-minute hire,
-      and the `(assigned + 1) / (required + 1)` unstaffed baseline; Trading Post
-      operation requires its one assigned crew member.
-- [ ] **P2.9 — Storage Bay production-boost perk** _(split from P1.11)_. The
-      README describes a Storage Bay perk that boosts production; P1.11 shipped
-      only the capacity-cap half. Needs P1.11.
+- [x] **P2.8 — Crew understaffing UX pass** _(split from P1.10)_.
+      Server-verified per-module assignment controls, visible allocation/output,
+      a 1-minute hire, and the `(assigned + 1) / (required + 1)` unstaffed
+      baseline; Trading Post operation requires its one assigned crew member.
+- [x] **P2.9 — Storage Bay production-boost perk** _(split from P1.11)_. A
+      staffed Bay grants +5% passive building production per settled level;
+      capacity remains unconditional and mining is unaffected.
 - [ ] **P2.10 — Developer reset controls.** Startup-only, destructive
       `--reset-player <name>` (fresh profile in the existing shared local
       system) and `--reset-system` (fresh deterministic test system), with
@@ -454,3 +454,10 @@ art or missing panels start hurting playtests.
       window observation ports), Trading Post / Storage Bays right near docking
       ports, and engineering / fusion reactors (`fusion-reactor`) at the aft
       above the engines. Needs P1.23.
+
+# Unsorted playtesting feedback
+
+- The name of the modules in notifications needs better display values -- e.h.
+  "Storage Bay" vs "storage-bay"
+- Cost of hiring crew show slowly rise as we go deeper in, instead of being flat
+- The reload and reset buttons on loading-failure dialog need icons

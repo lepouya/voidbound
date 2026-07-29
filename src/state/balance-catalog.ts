@@ -27,7 +27,7 @@ import { installAsteroidBalance } from "../map/asteroid-catalog.ts";
  * LoadFailureKind). Bump in step with `BALANCE_SCHEMA_VERSION` in
  * src-tauri/src/game_state/balance.rs.
  */
-export const BALANCE_SCHEMA_VERSION = 4;
+export const BALANCE_SCHEMA_VERSION = 5;
 
 const MATERIAL_KINDS = new Set([
   "construction",
@@ -179,6 +179,14 @@ export function validateBalanceCatalog(balance: BalanceCatalogData): void {
     nonNegativeInteger(
       module.crewRequiredPerLevel,
       `${module.moduleType}.crewRequiredPerLevel`,
+    );
+    nonNegativeInteger(
+      module.productionBoostPctBase,
+      `${module.moduleType}.productionBoostPctBase`,
+    );
+    nonNegativeInteger(
+      module.productionBoostPctPerLevel,
+      `${module.moduleType}.productionBoostPctPerLevel`,
     );
     nonNegativeInteger(
       module.unlockCommandLevel,

@@ -42,6 +42,12 @@ pub struct ModuleCatalogEntry {
     /// design).
     pub crew_required_base: u32,
     pub crew_required_per_level: u32,
+    /// Ship-wide passive-production bonus, expressed in whole percentage
+    /// points. A settled module contributes `base + per_level * level`, then
+    /// its own crew assignment scales that contribution with `crew_scaled`.
+    /// Storage Bay is the first support-module consumer (P2.9).
+    pub production_boost_pct_base: u64,
+    pub production_boost_pct_per_level: u64,
     /// Extra materials this type needs from `OPERATIONAL_COST_START_LEVEL`
     /// on, each at the supplemental fraction of the construction amount.
     /// Construction is universal and never listed here; high-tech is added
@@ -100,6 +106,8 @@ pub struct ModuleCatalogData {
     pub crew_capacity_per_level: u32,
     pub crew_required_base: u32,
     pub crew_required_per_level: u32,
+    pub production_boost_pct_base: u64,
+    pub production_boost_pct_per_level: u64,
     pub operational_costs: &'static [ResourceKind],
     pub cost_numerator: u64,
     pub cost_denominator: u64,
@@ -143,6 +151,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         crew_capacity_per_level: 0,
         crew_required_base: 0,
         crew_required_per_level: 0,
+        production_boost_pct_base: 0,
+        production_boost_pct_per_level: 0,
         operational_costs: &[ResourceKind::Biological],
         cost_numerator: 1,
         cost_denominator: 1,
@@ -160,6 +170,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         crew_capacity_per_level: 0,
         crew_required_base: 0,
         crew_required_per_level: 1,
+        production_boost_pct_base: 0,
+        production_boost_pct_per_level: 0,
         operational_costs: &[ResourceKind::Fuel],
         // Producers are the cheap, fast half of the catalog: half cost and
         // half time, so the early production loop is quick to stand up.
@@ -179,6 +191,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         crew_capacity_per_level: 0,
         crew_required_base: 0,
         crew_required_per_level: 1,
+        production_boost_pct_base: 0,
+        production_boost_pct_per_level: 0,
         operational_costs: &[ResourceKind::Fuel],
         // Producers are the cheap, fast half of the catalog: half cost and
         // half time, so the early production loop is quick to stand up.
@@ -198,6 +212,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         crew_capacity_per_level: 0,
         crew_required_base: 0,
         crew_required_per_level: 1,
+        production_boost_pct_base: 0,
+        production_boost_pct_per_level: 0,
         operational_costs: &[ResourceKind::Biological],
         // Producers are the cheap, fast half of the catalog: half cost and
         // half time, so the early production loop is quick to stand up.
@@ -217,6 +233,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         crew_capacity_per_level: 0,
         crew_required_base: 0,
         crew_required_per_level: 1,
+        production_boost_pct_base: 0,
+        production_boost_pct_per_level: 0,
         operational_costs: &[ResourceKind::Fuel],
         // Producers are the cheap, fast half of the catalog: half cost and
         // half time, so the early production loop is quick to stand up.
@@ -241,8 +259,13 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         ],
         crew_capacity_base: 0,
         crew_capacity_per_level: 0,
+        // The capacity is structural and always available, but its P2.9
+        // production perk is operational: one crew member per settled level
+        // reaches the full linear +5% ship-wide passive-production bonus.
         crew_required_base: 0,
-        crew_required_per_level: 0,
+        crew_required_per_level: 1,
+        production_boost_pct_base: 0,
+        production_boost_pct_per_level: 5,
         operational_costs: &[ResourceKind::Fuel],
         cost_numerator: 1,
         cost_denominator: 1,
@@ -261,6 +284,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         crew_capacity_per_level: 5,
         crew_required_base: 0,
         crew_required_per_level: 0,
+        production_boost_pct_base: 0,
+        production_boost_pct_per_level: 0,
         operational_costs: &[ResourceKind::Biological],
         cost_numerator: 1,
         cost_denominator: 1,
@@ -280,6 +305,8 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         crew_capacity_per_level: 0,
         crew_required_base: 1,
         crew_required_per_level: 0,
+        production_boost_pct_base: 0,
+        production_boost_pct_per_level: 0,
         operational_costs: &[ResourceKind::Biological],
         cost_numerator: 1,
         cost_denominator: 1,
@@ -311,6 +338,8 @@ pub(super) fn module_catalog_data() -> Vec<ModuleCatalogData> {
             crew_capacity_per_level: entry.crew_capacity_per_level,
             crew_required_base: entry.crew_required_base,
             crew_required_per_level: entry.crew_required_per_level,
+            production_boost_pct_base: entry.production_boost_pct_base,
+            production_boost_pct_per_level: entry.production_boost_pct_per_level,
             operational_costs: entry.operational_costs,
             cost_numerator: entry.cost_numerator,
             cost_denominator: entry.cost_denominator,
@@ -462,6 +491,18 @@ fn crew_scaled(amount: u64, assigned: u32, required: u32) -> u64 {
     }
     amount.saturating_mul(u64::from(assigned.min(required)).saturating_add(1))
         / u64::from(required).saturating_add(1)
+}
+
+/// Configured passive-production bonus for one settled support module.
+fn production_boost_pct_at_level(entry: &ModuleCatalogEntry, level: u32) -> u64 {
+    if level == 0 {
+        return 0;
+    }
+    entry.production_boost_pct_base.saturating_add(
+        entry
+            .production_boost_pct_per_level
+            .saturating_mul(u64::from(level)),
+    )
 }
 
 /// A module placed in the ship, with its catalog type and current level.
@@ -637,6 +678,27 @@ impl ServerState {
             .saturating_add(entry.crew_required_per_level.saturating_mul(module.level))
     }
 
+    /// Total active ship-wide passive-production bonus (P2.9). Every support
+    /// module contributes its settled-level percentage after its own explicit
+    /// crew assignment scales it by the P2.8 rule. The catalog is generic so
+    /// later support modules can participate, though one-per-type ownership
+    /// currently permits only one Storage Bay.
+    fn production_boost_pct(&self) -> u64 {
+        self.modules
+            .values()
+            .filter_map(|module| {
+                let entry = catalog_entry(&module.module_type)?;
+                let configured = production_boost_pct_at_level(entry, module.level);
+                if configured == 0 {
+                    return None;
+                }
+                let required = self.crew_required_for_module(module);
+                let assigned = self.assigned_crew(&module.module_id).min(required);
+                Some(crew_scaled(configured, assigned, required))
+            })
+            .sum()
+    }
+
     /// Ship-wide crew demand (ROADMAP P1.10), retained for capacity/readout
     /// purposes. Production itself reads each module's assignment.
     #[cfg(test)]
@@ -737,6 +799,10 @@ impl ServerState {
         // raises the cap from the next accrual on — stub precision, fine at
         // a 5 s tick.
         let caps = self.storage_caps();
+        // P2.9 applies support-module bonuses only here, to passive building
+        // production. Asteroid mining, vessel cargo, and trade never touch
+        // this path, so their yields stay unboosted by construction.
+        let production_boost_pct = self.production_boost_pct();
         // Settling (bumping `level`) happens only after this loop: a module
         // whose pending build/upgrade completes partway through this window
         // must be credited its OLD level for the whole ticks fully elapsed
@@ -774,6 +840,8 @@ impl ServerState {
                 for &(kind, base) in entry.produces {
                     let amount = production_at_level(base, old_level).saturating_mul(old_ticks);
                     let amount = crew_scaled(amount, assigned, required);
+                    let amount =
+                        amount.saturating_mul(100_u64.saturating_add(production_boost_pct)) / 100;
                     earned.add(kind, amount);
                 }
             }
@@ -781,6 +849,8 @@ impl ServerState {
                 for &(kind, base) in entry.produces {
                     let amount = production_at_level(base, new_level).saturating_mul(new_ticks);
                     let amount = crew_scaled(amount, assigned, required);
+                    let amount =
+                        amount.saturating_mul(100_u64.saturating_add(production_boost_pct)) / 100;
                     earned.add(kind, amount);
                 }
             }
@@ -1407,6 +1477,8 @@ mod tests {
             crew_capacity_per_level: 0,
             crew_required_base: 0,
             crew_required_per_level: 0,
+            production_boost_pct_base: 0,
+            production_boost_pct_per_level: 0,
             operational_costs: operational,
             cost_numerator: 1,
             cost_denominator: 1,
@@ -1552,5 +1624,27 @@ mod tests {
         assign_crew(&mut s, "module-refinery", 0);
         s.accrue_production(3 * TICK);
         assert_eq!(s.resources.construction, 4 + 2 + 2);
+    }
+
+    #[test]
+    fn storage_bay_boost_is_linear_and_scaled_by_its_own_crew_assignment() {
+        // P2.9: capacity itself remains structural, but the +5% per level
+        // support perk follows P2.8's `(assigned + 1) / (required + 1)` rule.
+        let mut s = ServerState::new(0);
+        insert_settled(&mut s, "module-storage", "storage-bay", 3);
+        assert_eq!(s.storage_caps().construction, 7_000);
+        assert_eq!(s.crew_required_for_module(&s.modules["module-storage"]), 3);
+        assert_eq!(s.production_boost_pct(), 3); // 15 * 1 / 4
+        assign_crew(&mut s, "module-storage", 1);
+        assert_eq!(s.production_boost_pct(), 7); // 15 * 2 / 4
+        assign_crew(&mut s, "module-storage", 3);
+        assert_eq!(s.production_boost_pct(), 15);
+
+        // The multiplier is applied by passive production accrual, not the
+        // storage-cap or mining paths. Over twenty minutes the +15% Command
+        // Module income is exact despite tick remainders: 12 * 20 * 1.15.
+        s.resources.construction = 0;
+        s.accrue_production(20 * TICKS_PER_MINUTE * TICK);
+        assert_eq!(s.resources.construction, 276);
     }
 }

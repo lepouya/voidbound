@@ -16,6 +16,9 @@ import {
   MODULE_CATALOG,
   moduleCatalogEntry,
   productionAtLevel,
+  productionBoostedAmount,
+  productionBoostPctAtLevel,
+  productionBoostPctForModules,
   storageCapsForModules,
   TRADING_POST_MODULE_TYPE,
 } from "../src/ship/module-catalog.ts";
@@ -270,6 +273,38 @@ catalogTest(
     assertEquals(crewScaledAmount(16, 0, 4), 3);
     // Integer-floored, matching the Rust u64 math.
     assertEquals(crewScaledAmount(1, 0, 4), 0);
+  },
+);
+
+catalogTest(
+  "Storage Bay boosts passive production by its own staffed linear bonus",
+  () => {
+    const storage = moduleCatalogEntry("storage-bay")!;
+    assertEquals(crewRequiredAtLevel(storage, 3), 3);
+    assertEquals(productionBoostPctAtLevel(storage, 0), 0);
+    assertEquals(productionBoostPctAtLevel(storage, 3), 15);
+    const modules = [{
+      moduleId: "module-storage",
+      moduleType: "storage-bay",
+      level: 3,
+    }];
+    assertEquals(productionBoostPctForModules(modules, new Map()), 3);
+    assertEquals(
+      productionBoostPctForModules(
+        modules,
+        new Map([["module-storage", { assigned: 1 }]]),
+      ),
+      7,
+    );
+    assertEquals(
+      productionBoostPctForModules(
+        modules,
+        new Map([["module-storage", { assigned: 3 }]]),
+      ),
+      15,
+    );
+    // Only building production calls this helper; mining has no call site.
+    assertEquals(productionBoostedAmount(24, 15), 27);
   },
 );
 

@@ -18,6 +18,9 @@ import {
   maxModuleLevel,
   moduleCatalogEntry,
   productionAtLevel,
+  productionBoostedAmount,
+  productionBoostPctAtLevel,
+  productionBoostPctForModules,
 } from "./module-catalog.ts";
 import { RESOURCE_ICON_TILESET } from "../scene/tiled-scene.ts";
 import {
@@ -138,13 +141,18 @@ export class ModuleDetailsDialog {
     const staffPct = crewRequired > 0
       ? crewScaledAmount(100, assigned, crewRequired)
       : 100;
+    const productionBoostPct = productionBoostPctForModules(
+      gameState.modules.values(),
+      gameState.crewAssignments,
+    );
     if (data.level >= 1) {
       const produced = productionAtLevel(entry, data.level);
       for (const [kind, amount] of Object.entries(produced)) {
         if (!amount) continue;
-        const scaled = crewRequired > 0
+        const staffed = crewRequired > 0
           ? crewScaledAmount(amount, assigned, crewRequired)
           : amount;
+        const scaled = productionBoostedAmount(staffed, productionBoostPct);
         rows.push({
           cells: [
             { label: { text: "Production", ...FIELD_LABEL } },
@@ -152,6 +160,8 @@ export class ModuleDetailsDialog {
               tile: `${RESOURCE_ICON_TILESET[kind as ResourceKind]}:0`,
               label: `${formatCompactCount(scaled)}/min${
                 staffPct < 100 ? ` (${staffPct}% staffed)` : ""
+              }${
+                productionBoostPct > 0 ? ` (+${productionBoostPct}% boost)` : ""
               }`,
               weight: 2,
             },
@@ -162,6 +172,20 @@ export class ModuleDetailsDialog {
         entry.crewCapacityPerLevel * data.level;
       if (berths > 0) {
         rows.push(fieldRow("Crew berths", `${berths}`));
+      }
+      const configuredBoost = productionBoostPctAtLevel(entry, data.level);
+      if (configuredBoost > 0) {
+        const activeBoost = crewScaledAmount(
+          configuredBoost,
+          assigned,
+          crewRequired,
+        );
+        rows.push(
+          fieldRow(
+            "Production boost",
+            `+${activeBoost}% ship-wide (+${configuredBoost}% fully staffed)`,
+          ),
+        );
       }
       if (crewRequired > 0) {
         rows.push(

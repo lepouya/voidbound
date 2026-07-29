@@ -30,6 +30,11 @@ export interface ModuleCatalogEntry {
   /** Crew wanted by a settled module: `base + perLevel * level`. */
   crewRequiredBase: number;
   crewRequiredPerLevel: number;
+  /** Ship-wide passive-production percentage points granted by a settled
+   * module: `base + perLevel * level`, then scaled by its own crew assignment.
+   * Storage Bay is the first consumer (P2.9). */
+  productionBoostPctBase: number;
+  productionBoostPctPerLevel: number;
   /** Extra materials added from the operational threshold onward, each at
    *  the supplemental fraction of the construction amount. Empty means
    *  construction-only until the high-tech threshold. */
@@ -321,6 +326,50 @@ export function crewRequiredAtLevel(
   return level < 1
     ? 0
     : entry.crewRequiredBase + entry.crewRequiredPerLevel * level;
+}
+
+/** Configured passive-production bonus for one settled support module. */
+export function productionBoostPctAtLevel(
+  entry: Pick<
+    ModuleCatalogEntry,
+    "productionBoostPctBase" | "productionBoostPctPerLevel"
+  >,
+  level: number,
+): number {
+  return level < 1
+    ? 0
+    : entry.productionBoostPctBase + entry.productionBoostPctPerLevel * level;
+}
+
+/**
+ * Total active ship-wide passive-production bonus. Each support module's
+ * configured percentage is scaled by its own explicit crew assignment before
+ * the contributions sum. This deliberately excludes mining and all other
+ * non-building income: only `accrue_production` consumes the result.
+ */
+export function productionBoostPctForModules(
+  modules: Iterable<Pick<ModuleData, "moduleId" | "moduleType" | "level">>,
+  assignments: ReadonlyMap<string, { assigned: number }>,
+): number {
+  let bonus = 0;
+  for (const module of modules) {
+    const entry = moduleCatalogEntry(module.moduleType);
+    if (!entry || module.level < 1) continue;
+    const configured = productionBoostPctAtLevel(entry, module.level);
+    if (configured === 0) continue;
+    const required = crewRequiredAtLevel(entry, module.level);
+    const assigned = assignments.get(module.moduleId)?.assigned ?? 0;
+    bonus += crewScaledAmount(configured, assigned, required);
+  }
+  return bonus;
+}
+
+/** Apply a whole-percentage ship-wide passive-production bonus. */
+export function productionBoostedAmount(
+  amount: number,
+  bonusPct: number,
+): number {
+  return Math.floor((amount * (100 + bonusPct)) / 100);
 }
 
 /**

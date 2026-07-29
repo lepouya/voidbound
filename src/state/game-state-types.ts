@@ -73,6 +73,11 @@ export interface ModuleCatalogData {
   /** Crew required by a settled module: `base + perLevel * level`. */
   crewRequiredBase: number;
   crewRequiredPerLevel: number;
+  /** Ship-wide passive-production percentage points granted by a settled
+   * module: `base + perLevel * level`, then scaled by its own crew assignment.
+   * Storage Bay is the first consumer. */
+  productionBoostPctBase: number;
+  productionBoostPctPerLevel: number;
   /** Extra materials charged from `operationalCostStartLevel` on, each at
    *  the supplemental fraction. A list, not one material: some types are
    *  honestly both "houses humans" and "houses robotics". Amounts sum into

@@ -16,7 +16,7 @@ use super::world::{asteroid_balance_data, AsteroidBalanceData};
 /// cannot render them. Bump this whenever the payload's shape or the meaning
 /// of a field changes, in step with `BALANCE_SCHEMA_VERSION` in
 /// `src/state/balance-catalog.ts`.
-pub(super) const BALANCE_SCHEMA_VERSION: u32 = 4;
+pub(super) const BALANCE_SCHEMA_VERSION: u32 = 5;
 
 /// The authoritative balance rules, projected for the client (ROADMAP P2.6).
 ///
