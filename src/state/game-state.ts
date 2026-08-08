@@ -55,12 +55,12 @@ export function serverNow(): number {
 }
 
 /**
- * Mirrors `MAX_NOTIFICATIONS` in src-tauri/src/game_state/state.rs — keep the
- * two in sync. The backend evicts past this cap silently (no removal push),
- * so the client must cap its own `notifications` table the same way or it
- * grows unbounded over a long session that never opens Mail (CR1.2).
+ * Maximum retained feed entries; mirrors `MAX_NOTIFICATIONS` in
+ * src-tauri/src/game_state/state.rs. The backend evicts past this cap silently
+ * (no removal push), so the client must do the same in a long session that
+ * never opens Mail. Contract-pinned in tests/fixtures/cross-language-contracts.json.
  */
-const MAX_NOTIFICATIONS = 100;
+export const MAX_NOTIFICATIONS = 100;
 
 interface EntityRevisionTracker {
   /** Revision of the newest authoritative whole-table replacement. */

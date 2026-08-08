@@ -1064,6 +1064,22 @@ mod tests {
     use super::super::world::{AsteroidMining, AOI_SPAN, HOUR_MS};
     use super::*;
 
+    /// Paired with tests/cross_language_contract_test.ts. AOI span and feed
+    /// retention affect client reconciliation, so their shared bounds stay
+    /// visible even though neither needs a dedicated gameplay wire field.
+    #[test]
+    fn cross_language_state_contract_matches_the_shared_fixture() {
+        let contracts: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/cross-language-contracts.json"
+        ))
+        .expect("read cross-language contract fixture");
+        assert_eq!(AOI_SPAN, contracts["aoi"]["span"].as_i64().unwrap());
+        assert_eq!(
+            MAX_NOTIFICATIONS,
+            contracts["maxNotifications"].as_u64().unwrap() as usize
+        );
+    }
+
     #[test]
     fn module_notifications_use_camel_case_and_read_legacy_fields() {
         let payload = NotificationPayload::ModuleCompleted {

@@ -93,6 +93,17 @@ pub struct MothershipActionResponse {
 /// now would be throwaway work. Fuel's broader economy is P4.9.
 const WARP_FUEL_PER_TILE: u64 = 1;
 
+/// Fuel cost for a straight-line mothership warp. The client mirrors this for
+/// its picker preview, while `relocate_mothership` re-derives it before spend.
+fn warp_fuel_cost(src_col: i64, src_row: i64, dest_col: i64, dest_row: i64) -> u64 {
+    let distance = ((dest_col - src_col) as f64).hypot((dest_row - src_row) as f64);
+    if distance == 0.0 {
+        0
+    } else {
+        (distance * WARP_FUEL_PER_TILE as f64).ceil().max(1.0) as u64
+    }
+}
+
 /// Center tile of the ship's inner 2*2 that is closest to the given position
 /// — the spawn/dock point for vessels. Positions are fractional because
 /// recalls depart from a lerped mid-flight position. Mirrors closestDockTile
@@ -799,12 +810,7 @@ impl ServerState {
         if occupied {
             return Err(format!("({dest_col}, {dest_row}) is occupied"));
         }
-        let dist = ((dest_col - src_col) as f64).hypot((dest_row - src_row) as f64);
-        let cost = if dist == 0.0 {
-            0
-        } else {
-            (dist * WARP_FUEL_PER_TILE as f64).ceil().max(1.0) as u64
-        };
+        let cost = warp_fuel_cost(src_col, src_row, dest_col, dest_row);
         self.resources.spend(ResourceKind::Fuel, cost)?;
         self.resources_dirty = true;
         let ship = self
@@ -1221,6 +1227,138 @@ impl ServerState {
 mod tests {
     use super::super::test_support::*;
     use super::*;
+
+    /// Paired with tests/cross_language_contract_test.ts. These are internal
+    /// geometry and preview values, so a shared fixture makes their mirrors
+    /// explicit without adding them to the gameplay wire format.
+    #[test]
+    fn cross_language_world_contracts_match_the_shared_fixture() {
+        let contracts: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/cross-language-contracts.json"
+        ))
+        .expect("read cross-language contract fixture");
+
+        let asteroids = &contracts["asteroids"];
+        let map = asteroids["map"]
+            .as_array()
+            .expect("asteroid map dimensions");
+        assert_eq!(
+            [MAP_COLS, MAP_ROWS],
+            [map[0].as_i64().unwrap(), map[1].as_i64().unwrap()]
+        );
+        assert_eq!(
+            GRADE_BAND_WIDTH,
+            asteroids["gradeBandWidth"].as_i64().unwrap()
+        );
+        let multipliers: Vec<(u64, u64)> = asteroids["gradeMultipliers"]
+            .as_array()
+            .expect("grade multipliers")
+            .iter()
+            .map(|pair| {
+                let pair = pair.as_array().expect("grade multiplier pair");
+                (pair[0].as_u64().unwrap(), pair[1].as_u64().unwrap())
+            })
+            .collect();
+        assert_eq!(GRADE_MULTIPLIERS.as_slice(), multipliers.as_slice());
+        for point in asteroids["grades"].as_array().expect("grade samples") {
+            let expected = point["grade"].as_u64().map(|grade| (grade - 1) as usize);
+            assert_eq!(
+                asteroid_grade(
+                    point["col"].as_i64().unwrap(),
+                    point["row"].as_i64().unwrap()
+                ),
+                expected,
+                "grade sample {point}"
+            );
+        }
+
+        let ship = &contracts["ship"];
+        let mothership = MothershipData {
+            mothership_id: "contract-ship".to_string(),
+            owner_id: "contract-player".to_string(),
+            owner_name: "Contract Player".to_string(),
+            ship_type: "mothership-1".to_string(),
+            damaged: false,
+            col: ship["mothership"]["col"].as_i64().unwrap(),
+            row: ship["mothership"]["row"].as_i64().unwrap(),
+            span: ship["mothership"]["span"].as_i64().unwrap(),
+        };
+        for point in ship["docks"].as_array().expect("dock samples") {
+            assert_eq!(
+                is_dock_tile(
+                    &mothership,
+                    point["col"].as_i64().unwrap(),
+                    point["row"].as_i64().unwrap()
+                ),
+                point["isDock"].as_bool().unwrap()
+            );
+        }
+        for point in ship["closestDocks"]
+            .as_array()
+            .expect("closest dock samples")
+        {
+            let dest = point["dest"].as_array().expect("dock destination");
+            let dock = point["dock"].as_array().expect("expected dock");
+            assert_eq!(
+                closest_dock_tile(
+                    &mothership,
+                    dest[0].as_f64().unwrap(),
+                    dest[1].as_f64().unwrap()
+                ),
+                (dock[0].as_i64().unwrap(), dock[1].as_i64().unwrap())
+            );
+        }
+
+        let vessel = &contracts["vessel"];
+        let src = vessel["src"].as_array().expect("vessel source");
+        let dest = vessel["dest"].as_array().expect("vessel destination");
+        let leg = VesselMoveEventData {
+            event_id: "contract-event".to_string(),
+            vessel_id: "contract-vessel".to_string(),
+            owner_id: "contract-player".to_string(),
+            owner_name: "Contract Player".to_string(),
+            mothership_id: "contract-ship".to_string(),
+            vessel_type: VESSEL_TYPE.to_string(),
+            src_col: src[0].as_f64().unwrap(),
+            src_row: src[1].as_f64().unwrap(),
+            dest_col: dest[0].as_i64().unwrap(),
+            dest_row: dest[1].as_i64().unwrap(),
+            speed: VESSEL_SPEED_PX_S,
+            dispatched_at: vessel["dispatchedAt"].as_u64().unwrap(),
+            arrival_at: vessel["arrivalAt"].as_u64().unwrap(),
+            returning: false,
+            mining_asteroid_id: None,
+            cargo: None,
+            arrival_settled: false,
+        };
+        for sample in vessel["samples"].as_array().expect("vessel samples") {
+            let position = sample["position"].as_array().expect("vessel position");
+            assert_eq!(
+                move_progress(&leg, sample["now"].as_u64().unwrap()),
+                sample["progress"].as_f64().unwrap()
+            );
+            assert_eq!(
+                vessel_position(&leg, sample["now"].as_u64().unwrap()),
+                (position[0].as_f64().unwrap(), position[1].as_f64().unwrap())
+            );
+        }
+
+        let warp = &contracts["warp"];
+        assert_eq!(WARP_FUEL_PER_TILE, warp["fuelPerTile"].as_u64().unwrap());
+        for sample in warp["cases"].as_array().expect("warp samples") {
+            let from = sample["from"].as_array().expect("warp source");
+            let to = sample["to"].as_array().expect("warp destination");
+            assert_eq!(
+                warp_fuel_cost(
+                    from[0].as_i64().unwrap(),
+                    from[1].as_i64().unwrap(),
+                    to[0].as_i64().unwrap(),
+                    to[1].as_i64().unwrap()
+                ),
+                sample["cost"].as_u64().unwrap()
+            );
+        }
+    }
 
     #[test]
     fn dispatch_departs_from_the_closest_dock_with_arrival_time() {

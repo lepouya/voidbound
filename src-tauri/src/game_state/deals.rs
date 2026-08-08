@@ -434,6 +434,23 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
 
+    /// Paired with tests/cross_language_contract_test.ts; refresh prices are
+    /// display-only on the client but must remain legible and correct there.
+    #[test]
+    fn cross_language_refresh_contract_matches_the_shared_fixture() {
+        let contracts: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/cross-language-contracts.json"
+        ))
+        .expect("read cross-language contract fixture");
+        let expected: Vec<u64> = contracts["dealRefreshCostsCredits"]
+            .as_array()
+            .expect("refresh prices")
+            .iter()
+            .map(|cost| cost.as_u64().unwrap())
+            .collect();
+        assert_eq!(DEAL_REFRESH_COSTS_CREDITS.as_slice(), expected.as_slice());
+    }
+
     fn staff_trading_post(s: &mut ServerState, level: u32) {
         insert_settled(s, "module-tp", TRADING_POST_MODULE_TYPE, level);
         s.crew = s.crew.max(1);

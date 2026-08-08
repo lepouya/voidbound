@@ -86,7 +86,7 @@ self-relative paths.
 
 ## 5. Test-coverage additions
 
-- [ ] **CR5.1 [hardening] — Give every remaining cross-language numeric mirror a
+- [x] **CR5.1 [hardening] — Give every remaining cross-language numeric mirror a
       deliberate contract test or wire source.** The balance payload eliminated
       most drift, but grade-band geometry (`world.rs` ↔ `asteroid-catalog.ts`),
       AOI span (`world.rs` ↔ `aoi-config.ts`), ship-room/dock geometry, vessel
@@ -96,6 +96,11 @@ self-relative paths.
       carrying player-visible parameters on the existing balance/map payload;
       where that is not worthwhile, add explicitly paired tests and document the
       counterpart.
+
+      Done: added `tests/fixtures/cross-language-contracts.json`, with paired
+      TypeScript and Rust checks covering all listed numeric mirrors. The
+      fixture is explicitly documented in each counterpart test, avoiding new
+      wire fields for server-internal geometry.
 
 - [ ] **CR5.2 [hardening] — CI never exercises the production frontend build.**
       `.github/workflows/ci.yml` runs Deno checks/tests and Rust checks against

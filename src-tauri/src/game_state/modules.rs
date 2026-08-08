@@ -1038,6 +1038,41 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
 
+    /// Paired with tests/cross_language_contract_test.ts; the fixture makes
+    /// this client-rendered interior geometry mirror explicit.
+    #[test]
+    fn cross_language_room_contract_matches_the_shared_fixture() {
+        let contracts: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/cross-language-contracts.json"
+        ))
+        .expect("read cross-language contract fixture");
+        let ship = &contracts["ship"];
+        let room_grid = &ship["roomGrid"];
+        assert_eq!(ROOM_ORIGIN, room_grid["origin"].as_i64().unwrap());
+        assert_eq!(ROOM_SPAN, room_grid["span"].as_i64().unwrap());
+        assert_eq!(ROOM_PITCH, room_grid["pitch"].as_i64().unwrap());
+        assert_eq!(ROOM_COUNT, room_grid["count"].as_i64().unwrap());
+        assert_eq!(MODULE_SPAN, ship["moduleSpan"].as_i64().unwrap());
+
+        for point in ship["roomOrigins"].as_array().expect("room samples") {
+            let expected = point["origin"]
+                .as_array()
+                .map(|origin| (origin[0].as_i64().unwrap(), origin[1].as_i64().unwrap()));
+            let col = point["col"].as_i64().unwrap();
+            let row = point["row"].as_i64().unwrap();
+            assert_eq!(room_origin_at(col, row), expected, "room sample {point}");
+            assert_eq!(
+                module_anchor_at(col, row),
+                expected.map(|(room_col, room_row)| {
+                    (
+                        room_col + (ROOM_SPAN - MODULE_SPAN) / 2,
+                        room_row + (ROOM_SPAN - MODULE_SPAN) / 2,
+                    )
+                })
+            );
+        }
+    }
+
     #[test]
     fn room_origin_maps_room_tiles_and_rejects_the_rest() {
         // Every tile of the center room resolves to its origin.
