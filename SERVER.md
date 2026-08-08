@@ -194,11 +194,17 @@ an arrival or completion.
 Phase 2's notification vocabulary is closed and client-rendered: module
 completion (`moduleId`, `moduleType`, level, build/level-up operation), crew
 hire (head count), mining start (vessel, asteroid, destination), asteroid
-depletion (asteroid, tier, resource, position), vessel return (optional cargo
-accepted/lost amounts), mothership warp (source/destination), and daily deal
-refresh (day index). Add a typed variant in both Rust and TypeScript for every
-future kind; clients retain a defensive display fallback during staggered
-upgrades.
+depletion (asteroid, tier, resource, position), vessel return (optional full
+cargo amount), mothership warp (source/destination), and daily deal refresh (day
+index). Add a typed variant in both Rust and TypeScript for every future kind;
+clients retain a defensive display fallback during staggered upgrades.
+
+Storage capacity is a per-resource **protected threshold**, not a deletion
+limit. Authoritative explicit gains (mining, deals, and future action rewards)
+may exceed it; passive module production pauses for that resource at or above
+the threshold and resumes after spending below it. The above-threshold surplus
+remains in authoritative state and is P5.5's only future resource-looting pool;
+the protected amount is never a raid target.
 
 The scheduler advances all players, but delivery is session/audience scoped. A
 Player 1 completion while a local Player 2 session is active is appended to

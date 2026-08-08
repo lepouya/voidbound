@@ -771,10 +771,11 @@ impl ServerState {
     /// Accrue production for every whole interval elapsed since the last
     /// applied tick, summed across every settled (level >= 1) module's
     /// catalog `produces` entry, scaled by its current level. Each resource
-    /// accrues only up to its storage cap (ROADMAP P1.11) — production past
-    /// the cap is lost. A clock that went backwards re-anchors instead of
-    /// freezing production. Credits are earned through trade (P1.12), never
-    /// produced.
+    /// pauses at its protected storage threshold (P2.13); non-passive gains
+    /// above that threshold remain available, but do not make production
+    /// accumulate for later. A clock that went backwards re-anchors instead
+    /// of freezing production. Credits are earned through trade (P1.12),
+    /// never produced.
     pub(super) fn accrue_production(&mut self, now_ms: u64) {
         self.accrue_production_until(now_ms);
         self.settle_modules(now_ms);
@@ -864,7 +865,7 @@ impl ServerState {
         for kind in MATERIAL_KINDS {
             let numerator = earned.get(kind).saturating_add(carry.get(kind));
             self.resources
-                .add_capped(kind, numerator / TICKS_PER_MINUTE, caps.get(kind));
+                .add_passive_capped(kind, numerator / TICKS_PER_MINUTE, caps.get(kind));
             carry.set(kind, numerator % TICKS_PER_MINUTE);
         }
         self.production_carry.insert(carry_key, carry);
@@ -1155,16 +1156,19 @@ mod tests {
         // Command Module baseline (level 1): 1000 per material resource.
         let cap = s.storage_caps().construction;
         assert_eq!(cap, 1_000);
-        // Far more ticks than the cap holds: every resource clamps at it.
+        // Far more ticks than the threshold holds: passive production pauses.
         s.accrue_production((cap + 500) * TICK);
         assert_eq!(s.resources.construction, cap);
         assert_eq!(s.resources.fuel, cap);
-        // Stock already above the cap is never confiscated — accrual just
-        // has no room.
+        // Exposed stock is never confiscated — passive accrual just pauses.
         s.resources.construction = cap + 123;
         s.accrue_production((cap + 600) * TICK);
         assert_eq!(s.resources.construction, cap + 123);
         assert_eq!(s.resources.fuel, cap);
+        // Spending below the threshold resumes future passive production.
+        s.resources.construction = cap - 1;
+        s.accrue_production((cap + 601) * TICK);
+        assert_eq!(s.resources.construction, cap);
     }
 
     #[test]

@@ -92,8 +92,8 @@ Goal: a playable single-player loop, no persistence yet.
 - [x] **P1.11 — Storage Bay capacity caps.** Per-resource caps as a catalog
       `stores` field, enforced server-side on production and mining deposits
       (current mining overflow is lost and notified); the resource bar shows
-      count/cap. P2.13 resolves whether an explicit mining dispatch must instead
-      prevent that loss.
+      count/cap. P2.13 reframes caps as protected stockpile thresholds instead
+      of deleting an explicit gain.
 - [x] **P1.12 — Trading Post + NPC shop.** Server-generated daily deal slots on
       the new Trading Post module (give ≠ get, rarity-boosted gets, a once-daily
       freebie, doubling-cost refreshes, slot count scaling with the post's
@@ -204,12 +204,10 @@ P5.11, and the planning audit promoted P2.13.
 - [x] **P2.12 — UI defect cleanup** _(July 2026)_. Compact, screen-safe build
       offers; consistent recruitment timing; recovery icons; human-readable Mail
       module names; and per-module storage Details.
-- [ ] **P2.13 — Mining storage safety.** Resolve the P1.6/P1.11 exception where
-      an explicit mining dispatch can return cargo that overflows storage. The
-      existing asteroid-details warning makes the risk visible but still permits
-      unchosen loss. Set and implement a server-verified policy that makes the
-      full-harvest storage outcome clear before dispatch while preserving valid
-      early recalls. Needs P1.6, P1.11, P2.6.
+- [x] **P2.13 — Protected storage overflow.** Storage caps are now protected
+      thresholds: mining and deal gains retain an exposed surplus while passive
+      production pauses at the threshold; HUD and asteroid Details explain it.
+      P5.5 may loot only exposed surplus.
 
 ## Phase 3 — Server-authoritative events
 
@@ -335,11 +333,13 @@ Goal: the README's Technologies, Combat, and Defence module categories.
       mothership's resources sit in its counts, a mothership raid or catching a
       vessel mid-mining/mid-return is a looting opportunity, not just a damage
       exchange — needs its own design pass (what's stealable, whether a raid
-      needs to "win" first, defender recourse). Committed by P2.6: combat is
-      also how a contested asteroid is settled. Asteroids keep a single mining
-      slot at every tier, so taking a rich deposit someone else is working means
-      beating their vessel and sending it home, rather than sharing the rock.
-      Needs P3.1, P5.4.
+      needs to "win" first, defender recourse). P2.13 sets the first loot
+      boundary: raids may target only the resource surplus above storage's
+      protected threshold, never the protected stockpile itself. Committed by
+      P2.6: combat is also how a contested asteroid is settled. Asteroids keep a
+      single mining slot at every tier, so taking a rich deposit someone else is
+      working means beating their vessel and sending it home, rather than
+      sharing the rock. Needs P3.1, P5.4.
 - [ ] **P5.6 — Repair Shop.** Repairs weapon/vessel damage from P5.5 combat
       using resources and time, mirroring the P1.3 build-timer pattern. Needs
       P5.5.

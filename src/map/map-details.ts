@@ -17,6 +17,7 @@ import {
   serverNow,
   VesselMoveEvent,
 } from "../state/game-state.ts";
+import { storageThreshold } from "../state/storage-threshold.ts";
 // Same deliberate cross-domain exception as tiled-scene.ts: the
 // own-mothership panel reads out and upgrades the Command Module, so the map
 // scene reaches into ship/'s catalog for this one panel.
@@ -366,34 +367,49 @@ export class DetailsDialog {
       ),
       fieldRow("Status", this.asteroidStatusText(asteroid)),
       fieldRow("Location", `(${asteroid.col}, ${asteroid.row})`),
-      ...this.storageWarningRows(asteroid),
+      ...this.storageOverflowRows(asteroid),
     ];
   }
 
-  /** Warn when the deposit is worth more than the player can actually bank.
-   *  A harvest lands as one lump on the vessel's return and is clamped at
-   *  the storage cap, with the overflow lost — and a deep-band asteroid can
-   *  hold many times a starting cap, so a multi-hour job can silently return
-   *  a fraction of its yield. P2.6 chose to warn rather than to reject the
-   *  dispatch or clamp the job; if that changes, this row goes with it. */
-  private storageWarningRows(asteroid: AsteroidData): DialogRowDef[] {
+  /** Explain P2.13's protected threshold before a mining job: a full harvest
+   *  is retained, but stock above the threshold is exposed and pauses passive
+   *  production until the player spends below it. */
+  private storageOverflowRows(asteroid: AsteroidData): DialogRowDef[] {
     const caps = storageCapsForModules(gameState.modules.values());
-    const room = Math.max(
-      0,
-      caps[asteroid.resource] - gameState.resources[asteroid.resource],
+    const current = storageThreshold(
+      gameState.resources[asteroid.resource],
+      caps[asteroid.resource],
     );
-    if (asteroid.remaining <= room) return [];
-    return [{
+    const afterHarvest = storageThreshold(
+      gameState.resources[asteroid.resource] + asteroid.remaining,
+      caps[asteroid.resource],
+    );
+    const rows: DialogRowDef[] = [];
+    if (current.exposedAmount > 0) {
+      rows.push({
+        cells: [{
+          label: {
+            text: formatCompactCount(current.exposedAmount, 1_000) +
+              " exposed — passive production paused",
+            fontSize: 10,
+            color: WARNING_COLOR,
+          },
+        }],
+      });
+    }
+    if (afterHarvest.exposedAmount === 0) return rows;
+    rows.push({
       cells: [{
         label: {
-          text: `Storage holds ${formatCompactCount(room, 1_000)} more — ${
-            formatCompactCount(asteroid.remaining - room, 1_000)
-          } of a full harvest would be lost`,
+          text: "Full harvest retains " +
+            formatCompactCount(afterHarvest.exposedAmount, 1_000) +
+            " exposed stock — not lost",
           fontSize: 10,
           color: WARNING_COLOR,
         },
       }],
-    }];
+    });
+    return rows;
   }
 
   /** Live one-line asteroid status: the mining slot's phase (miner inbound

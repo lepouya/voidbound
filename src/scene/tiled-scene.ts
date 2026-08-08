@@ -27,6 +27,7 @@ import {
   RESOURCE_KINDS,
   ResourceKind,
 } from "../state/game-state.ts";
+import { storageThreshold } from "../state/storage-threshold.ts";
 import { formatNotification, MailDialog } from "./mail-dialog.ts";
 import { currentLoadFailure } from "../state/game-state-loader.ts";
 import { loadFailureDialog } from "./load-failure-dialog.ts";
@@ -608,20 +609,31 @@ export abstract class TiledScene extends ex.Scene {
     // (see GameState.subscribe). The zero labelOffset cancels the default
     // upward button-label nudge, which would overlap the count onto these
     // small frameless icons.
-    // Each count renders as "count/cap" (ROADMAP P1.11) with the cap
-    // display-derived from the module snapshot (storageCapsForModules) —
-    // the backend does the actual clamping. Credits are uncapped (Infinity)
-    // and show the bare count.
+    // Each count renders its protected threshold (P2.13), display-derived
+    // from the module snapshot. Explicit gains can remain above the threshold;
+    // passive production pauses there. Credits are uncapped (Infinity) and
+    // show the bare count.
     const resourceCaps = () =>
       storageCapsForModules(gameState.modules.values());
     // Both halves compact from 1000 up ("985/1k", "3k/3k") — the full
     // "3000/3000" overflows the bar's per-icon spacing.
     const resourceLabel = (kind: ResourceKind, cap: number): LabelDef => {
       const count = formatCompactCount(gameState.resources[kind], 1_000);
+      const threshold = storageThreshold(gameState.resources[kind], cap);
+      const protectedCount = formatCompactCount(
+        threshold.protectedAmount,
+        1_000,
+      );
+      const exposedCount = formatCompactCount(threshold.exposedAmount, 1_000);
       return {
         text: cap === Infinity
           ? count
-          : `${count}/${formatCompactCount(cap, 1_000)}`,
+          : threshold.exposedAmount > 0
+          ? protectedCount + "+" + exposedCount
+          : count + "/" + formatCompactCount(cap, 1_000),
+        color: threshold.exposedAmount > 0
+          ? ex.Color.fromHex("#e8b23a")
+          : undefined,
         labelOffset: ex.vec(0, 0),
       };
     };

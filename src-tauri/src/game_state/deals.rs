@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use super::modules::TRADING_POST_MODULE_TYPE;
-use super::resources::{trade_display_name, ResourceCounts, TradeKind, TRADE_KINDS};
+use super::resources::{ResourceCounts, TradeKind, TRADE_KINDS};
 use super::state::{NotificationPayload, SeedRng, ServerPush, ServerState};
 
 /// One UTC day in ms. The deal shop resets at fixed 00:00 UTC boundaries
@@ -330,11 +330,11 @@ impl ServerState {
 
     /// Verify and execute a deal acceptance (ROADMAP P1.12): a settled
     /// Trading Post, a current deal not yet accepted, give ≠ get (a
-    /// malformed request can never trade a type against itself), the give
-    /// side affordable, and the get side fitting in storage — an explicit
-    /// player action is rejected outright rather than clamp-and-lose
-    /// (contrast P1.11's passive production overflow). Applies the exchange
-    /// and returns the full deal state plus updated counts.
+    /// malformed request can never trade a type against itself) and the give
+    /// side affordable. The get side is an explicit gain, so it may exceed
+    /// protected storage; only passive production pauses at that threshold
+    /// (P2.13). Applies the exchange and returns the full deal state plus
+    /// updated counts.
     pub(super) fn accept_deal(
         &mut self,
         deal_id: &str,
@@ -359,15 +359,6 @@ impl ServerState {
         }
         if deal.give.is_some_and(|give| give.kind == deal.get.kind) {
             return Err("malformed deal: give and get types match".to_string());
-        }
-        let cap = self.storage_caps().get_trade(deal.get.kind);
-        let have = self.resources.get_trade(deal.get.kind);
-        if have.saturating_add(deal.get.amount) > cap {
-            return Err(format!(
-                "not enough storage for {} {}: {have} of {cap} used",
-                deal.get.amount,
-                trade_display_name(deal.get.kind),
-            ));
         }
         if let Some(give) = deal.give {
             self.resources.spend_trade(give.kind, give.amount)?;
@@ -597,12 +588,11 @@ mod tests {
     }
 
     #[test]
-    fn accept_rejects_when_the_get_side_overflows_storage() {
+    fn accept_allows_an_explicit_gain_above_the_protected_threshold() {
         let mut s = ServerState::new(0);
         staff_trading_post(&mut s, 1);
-        // Hand-rolled deal so the get side and its overflow are exact: an
-        // explicit player action must reject, never clamp-and-lose (P1.11's
-        // rule is for passive production only).
+        // Hand-rolled deal so the overflow is exact: P2.13 retains explicit
+        // gains above the protected threshold, while passive production pauses.
         s.deals.push(DealData {
             deal_id: "deal-test-overflow".to_string(),
             slot: 99,
@@ -618,13 +608,11 @@ mod tests {
             accepted: false,
         });
         s.resources.credits = 10;
-        s.resources.construction = 900; // cap 1000 — 300 won't fit
-        let err = s.accept_deal("deal-test-overflow", 0).unwrap_err();
-        assert!(err.contains("storage"), "unexpected error: {err}");
-        // Nothing was spent or gained, and the deal stays open.
-        assert_eq!(s.resources.credits, 10);
-        assert_eq!(s.resources.construction, 900);
-        assert!(!s.deals.last().unwrap().accepted);
+        s.resources.construction = 900; // protected threshold 1000
+        s.accept_deal("deal-test-overflow", 0).unwrap();
+        assert_eq!(s.resources.credits, 0);
+        assert_eq!(s.resources.construction, 1_200);
+        assert!(s.deals.last().unwrap().accepted);
     }
 
     #[test]

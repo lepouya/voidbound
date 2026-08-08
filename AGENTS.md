@@ -549,14 +549,12 @@ new commands and push variants.
   `gameState.applyDealsEvent()` from command responses and the daily-reset
   `deals` push alike (`settle_deals`: fresh batch with the freebie in slot 0,
   refresh counter reset). Give ≠ get is enforced at generation _and_ acceptance;
-  accept additionally verifies a settled Trading Post, the give-side cost, and
-  that the get side fits storage — rejected outright, never clamp-and-lose:
-  explicit player actions differ deliberately from P1.11's passive-overflow
-  rule. **Mining is the known exception**: a harvest is an explicit action too,
-  but its cargo still clamps at the cap on deposit with the overflow lost. P2.6
-  added a warning row to the asteroid panel instead of reconciling the two;
-  P2.13 tracks the server-verified policy that will resolve this, rather than
-  treating the warning as a settled difference. Refreshes replace every slot (an
+  accept additionally verifies a settled Trading Post and the give-side cost.
+  **P2.13 protected storage:** a cap protects stock from later PvP looting and
+  pauses that resource's passive production at/above it; it never deletes an
+  explicit gain. Mining cargo and deal gets can therefore exceed the cap, and
+  the HUD/asteroid Details report the exposed surplus. P5.5 may loot only that
+  surplus, never the protected stockpile. Refreshes replace every slot (an
   unclaimed freebie is forfeited; a refresh batch never mints one) at a doubling
   credits cost, hard-capped per day; slot count grows with the post's settled
   level, and a mid-batch level-up appends the new slots immediately

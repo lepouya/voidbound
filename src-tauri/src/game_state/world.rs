@@ -677,19 +677,17 @@ impl ServerState {
                 self.vessels.remove(&vessel.vessel_id);
                 let cargo = match &vessel.cargo {
                     Some(cargo) => {
-                        // Deposit clamps at the storage cap (ROADMAP P1.11);
-                        // whatever doesn't fit is lost, and the notification
-                        // says so.
-                        let cap = self.storage_caps().get(cargo.resource);
-                        let accepted = self.resources.add_capped(cargo.resource, cargo.amount, cap);
-                        if accepted > 0 {
+                        // Mining is an explicit, player-authorized gain: it
+                        // may exceed protected storage, where passive
+                        // production pauses, but it is never deleted (P2.13).
+                        self.resources.add(cargo.resource, cargo.amount);
+                        if cargo.amount > 0 {
                             self.resources_dirty = true;
                         }
-                        let lost = cargo.amount - accepted;
                         Some(NotificationCargo {
                             resource: cargo.resource,
-                            accepted,
-                            lost,
+                            accepted: cargo.amount,
+                            lost: 0,
                         })
                     }
                     None => None,
@@ -1856,19 +1854,19 @@ mod tests {
     }
 
     #[test]
-    fn cargo_deposit_clamps_at_the_cap_and_reports_the_loss() {
-        // mining_state's Storage Bay caps biological at 2000; leave only 100
-        // of room before the 240-unit harvest docks.
+    fn cargo_deposit_retains_overflow_above_the_protected_threshold() {
+        // mining_state's Storage Bay protects 2000 biological; leave only 100
+        // below it before the 240-unit harvest docks.
         let mut s = mining_state(240);
         s.resources.biological = 1_900;
         let out = s.mine_asteroid("asteroid-x", 0).unwrap();
         s.settle(10_000 + HOUR_MS);
         let back = s.vessels[&out.vessel_id].clone();
         s.settle(back.arrival_at);
-        assert_eq!(s.resources.biological, 2_000);
+        assert_eq!(s.resources.biological, 2_140);
         let last = s.notifications.last().unwrap();
         assert!(
-            matches!(&last.payload, NotificationPayload::VesselReturned { cargo: Some(cargo), .. } if cargo.lost == 140)
+            matches!(&last.payload, NotificationPayload::VesselReturned { cargo: Some(cargo), .. } if cargo.accepted == 240 && cargo.lost == 0)
         );
     }
 

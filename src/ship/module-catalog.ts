@@ -258,7 +258,8 @@ export function productionAtLevel(
 /**
  * Total storage cap per resource (ROADMAP P1.11): every settled module's
  * catalog baseline plus its per-level contribution — the display preview of
- * the Rust `ServerState::storage_caps`, which is what actually clamps income.
+ * the Rust `ServerState::storage_caps`, the protected threshold where passive
+ * production pauses (P2.13).
  * A pending build/upgrade (level 0) contributes neither half until it
  * settles. Credits are trade-only and uncapped (Infinity).
  */

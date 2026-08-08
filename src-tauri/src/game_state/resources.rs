@@ -69,14 +69,6 @@ pub(super) const MATERIAL_KINDS: [ResourceKind; 4] = [
     ResourceKind::Fuel,
 ];
 
-/// Player-facing name of a trade-eligible type for error/notification text.
-pub(super) fn trade_display_name(kind: TradeKind) -> &'static str {
-    match kind.material() {
-        Some(res) => resource_display_name(res),
-        None => "credits",
-    }
-}
-
 /// The player's stock of the four material resources plus the generic trade
 /// currency ("credits" — placeholder term, renamed in the display layer if
 /// needed). Mirrors the TS `ResourceCounts` in `src/state/game-state-types.ts` — keep
@@ -127,10 +119,10 @@ impl ResourceCounts {
         credits: 0,
     };
 
-    /// Add at most what fits under `cap`, returning the amount actually
-    /// stored — income past the storage cap is lost (ROADMAP P1.11). Stock
-    /// already above the cap is never confiscated; it just leaves no room.
-    pub(super) fn add_capped(&mut self, kind: ResourceKind, amount: u64, cap: u64) -> u64 {
+    /// Add passive production only until the protected storage threshold.
+    /// Explicit gains are added through `add` and may exceed the threshold;
+    /// passive production pauses there until spending creates room (P2.13).
+    pub(super) fn add_passive_capped(&mut self, kind: ResourceKind, amount: u64, cap: u64) -> u64 {
         let accepted = amount.min(cap.saturating_sub(self.get(kind)));
         self.add(kind, accepted);
         accepted
@@ -188,6 +180,7 @@ impl ResourceCounts {
 
     /// Trade-side accessors (ROADMAP P1.12) — like get/add/spend, but over
     /// the five trade-eligible types: the four materials plus credits.
+    #[cfg(test)]
     pub(super) fn get_trade(&self, kind: TradeKind) -> u64 {
         match kind.material() {
             Some(res) => self.get(res),
