@@ -42,14 +42,16 @@ append a `Done:` note, check it, rerun affected gates, and commit as
       unprefixed `event-N` IDs remain valid so pre-profile local saves continue
       to load; runtime verification loaded an existing save into the ship scene.
 
-- [ ] **CR1.2 [hardening] — `advance_to(u64::MAX)` does not make progress at a
+- [x] **CR1.2 [hardening] — `advance_to(u64::MAX)` does not make progress at a
       saturated deadline.** In `src-tauri/src/game_state/state.rs`, when the
       next transition and `now_ms` are both `u64::MAX`, `next > now_ms` is
       false; `advance_at(u64::MAX)` then leaves the saturated deadline in place
       and the loop repeats forever. Saturating deadline construction makes this
       reachable from an extreme but otherwise valid persisted timer. Detect the
       terminal deadline/no-progress case, settle it once, and regression-test
-      it.
+      it. **Done:** Saturated transition deadlines now take one terminal
+      settlement pass and exit. A regression builds a module whose completion
+      clamps to `u64::MAX`, then proves settlement completes it without looping.
 
 ## 2. Client bugs
 

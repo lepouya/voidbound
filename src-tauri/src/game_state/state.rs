@@ -839,7 +839,12 @@ impl ServerState {
             self.for_each_profile(|state| {
                 next = next.min(state.next_transition_deadline());
             });
-            if next > now_ms {
+            // `u64::MAX` is both the sentinel for "no transition" and the
+            // saturated form of a real deadline. It can therefore be due when
+            // `now_ms` is also MAX. Advance once to settle that terminal work,
+            // then stop instead of selecting the same non-progressing deadline
+            // forever.
+            if next == u64::MAX || next > now_ms {
                 self.advance_at(now_ms);
                 break;
             }
@@ -1246,6 +1251,26 @@ mod tests {
         assert_eq!(s.next_deadline(), out.arrival_at);
         s.settle(out.arrival_at);
         assert_eq!(s.next_deadline(), 5 * TICK);
+    }
+
+    #[test]
+    fn saturated_transition_deadline_settles_once_without_looping() {
+        let now = u64::MAX - 1;
+        let mut s = funded_state(1, now);
+        let response = s
+            .build_module(2, 2, "ore-refinery".to_string(), now)
+            .expect("build at the timestamp limit");
+        let module = response.module;
+        assert_eq!(
+            module.pending.expect("pending build").completes_at,
+            u64::MAX
+        );
+
+        s.settle(u64::MAX);
+
+        let module = s.modules.get(&module.module_id).expect("built module");
+        assert_eq!(module.level, 1);
+        assert!(module.pending.is_none());
     }
 
     #[test]
