@@ -36,11 +36,13 @@ run the right pipeline script — art scripts write directly to `src/assets/`.
 If the filename matches one of these patterns, you're **done** after step 1 —
 `src/resources/resources.ts` discovers it automatically:
 
-| Filename pattern | Auto-registered as                                     |
-| ---------------- | ------------------------------------------------------ |
-| `ui-frame-*.png` | static, 3*1 grid (normal/active/disabled), 64 px cells |
-| `ui-icon-*.png`  | static, 3*1 grid (normal/active/disabled), 64 px cells |
-| `module-*.png`   | animated, 6*6 grid, 256 px cells, 32 frames @ 66 ms    |
+| Filename pattern   | Auto-registered as                                     |
+| ------------------ | ------------------------------------------------------ |
+| `ui-frame-*.png`   | static, 3*1 grid (normal/active/disabled), 64 px cells |
+| `ui-icon-*.png`    | static, 3*1 grid (normal/active/disabled), 64 px cells |
+| `mothership-*.png` | animated, 6*6 grid, 256 px cells, 32 frames @ 66 ms    |
+| `vessel-*.png`     | animated, 6*6 grid, 64 px cells, 32 frames @ 66 ms     |
+| `module-*.png`     | animated, 6*6 grid, 256 px cells, 32 frames @ 66 ms    |
 
 So `src/assets/ui-icon-trade.png` immediately becomes usable as the `TileRef`
 `"ui-icon-trade:0"` (normal), `":1"` (active), `":2"` (disabled) with no edit to

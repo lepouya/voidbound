@@ -266,11 +266,12 @@ pub(crate) fn configure_time_scale(scale: f64) -> Result<(), String> {
         .map_err(|_| "time scale was configured more than once".to_string())
 }
 
-/// Dev-speed multiplier (ROADMAP P0.13), read once from `VOIDBOUND_TIME_SCALE`
-/// at first use. Unset — the normal `deno task tauri dev` — behaves as 1.0
-/// (real-time); `deno task dev:fast` sets it so build/hire/mine timers
-/// and the production tick complete N* faster, for playtesting the core loop
-/// without waiting out real-time timers.
+/// Dev-speed multiplier (ROADMAP P0.13), configured once from the startup
+/// `--time-scale` argument. The normal `deno task tauri dev` passes 1.0;
+/// `deno task dev:fast` passes 5 so build/hire/mine timers and the production
+/// tick complete N* faster for core-loop playtests. The environment read below
+/// remains a fallback only if an embedding path reads this before startup
+/// configuration.
 pub(crate) fn time_scale() -> f64 {
     *TIME_SCALE.get_or_init(|| {
         std::env::var("VOIDBOUND_TIME_SCALE")

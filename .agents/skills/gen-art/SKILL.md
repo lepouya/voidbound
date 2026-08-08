@@ -126,9 +126,9 @@ root-relative `SCRIPT_DIR`/`ROOT_DIR` derivation; reconciled — CR-T.3).
 
 - [ ] New/updated files are in `src/assets/` (not committed to `art/`).
 - [ ] Regeneration rewrites **every** output PNG with byte-level churn (renderer
-      nondeterminism) even when visually unchanged — after a regen,
-      `git checkout --` the semantically untouched PNGs so the diff only shows
-      real changes.
+      nondeterminism) even when visually unchanged — inspect the diff and keep
+      only intentional generated-asset changes. Restoring an existing asset is
+      destructive, so obtain the user's approval before doing so.
 - [ ] If a `tools/*.py` script changed, run
       `deno task format`/`check`/`lint`/`test` (their `:py` halves cover
       `ruff format`/`mypy tools/`/`ruff check`/

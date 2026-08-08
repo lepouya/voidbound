@@ -589,9 +589,13 @@ guessed at. Server-side-only parameters (asteroid `seed_count`/`max_miners`)
 deliberately stay off the wire. Test suites share one complete fixture,
 `sampleBalance()` in [tests/balance_fixture.ts](tests/balance_fixture.ts), since
 whole-payload validation means even an asteroid-only suite needs valid module
-data. The remaining hand-synced pair is `src/ship/trade-catalog.ts` (deal
-refresh costs and rarity styling; deal sizing has no mirror, amounts arrive on
-the wire), plus `crewScaledAmount`'s staffing formula — comments mark those.
+data. Narrow display/math mirrors remain where a value is not part of that
+payload — for example `src/ship/trade-catalog.ts` (deal refresh costs and rarity
+styling; deal sizing has no mirror, amounts arrive on the wire),
+`crewScaledAmount`'s staffing formula, asteroid grade-band geometry, map/AOI
+geometry, vessel interpolation, and warp-cost previews. Their source comments
+name the Rust counterpart and tests pin the player-visible behavior; update both
+halves together.
 
 The balance curves are independently configurable, not one shared rule (P2.6
 replaced the `scale_for_level`/`scaleForLevel` doubling stub): construction cost

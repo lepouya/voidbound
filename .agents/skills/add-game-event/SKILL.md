@@ -175,11 +175,11 @@ scheduler must settle the deadline later and broadcast the result. In
   variant in `gameState.applyServerPush()` into the **same** apply/sync entry
   point the command response uses (`applyVesselEvent`, `applyModuleEvent`, …) so
   pushed and locally-triggered changes are indistinguishable to scenes.
-- **Player-visible completions** get a
-  `push_notification(kind, message,
-  now_ms)` — it queues both the notification
-  push and the snapshot-riding feed entry (capped at 100); the Mail HUD badge
-  updates automatically.
+- **Player-visible completions** get a typed
+  `push_notification(source_event_id, payload, now_ms)` — it queues both the
+  notification push and the snapshot-riding feed entry (capped at 100); the Mail
+  HUD badge updates automatically. Add the matching Rust and TypeScript
+  tagged-union member plus client formatter.
 - **Tests**: extend the `#[cfg(test)]` suite — at minimum that `next_deadline()`
   tracks the new deadline and that settling drains the expected pushes (see
   `next_deadline_tracks_ticks_builds_and_arrivals`).
@@ -208,16 +208,16 @@ auto-recall `ServerPush::Vessel`.
       Rust is the source of truth and applies the rule; the client only previews
       it. **Prefer sending the values over the wire** rather than hand-copying
       them: `load_game_state`'s versioned `balance` payload
-      (`module_balance_data` in game_state/modules.rs → `applyBalanceCatalog` in
-      src/ship/module-catalog.ts) is the template — add the field there, bump
-      `schemaVersion`, and validate it client-side before install. ROADMAP P2.6
-      moved the module and asteroid catalogs onto this path precisely because
-      hand-synced copies meant editing every balance number twice, with only
-      review to catch a miss.
+      (`balance_catalog_data` in game_state/balance.rs → `applyBalanceCatalog`
+      in src/state/balance-catalog.ts) is the template — add the field there,
+      bump `schemaVersion`, and validate it client-side before install. ROADMAP
+      P2.6 moved the module and asteroid catalogs onto this path precisely
+      because hand-synced copies meant editing every balance number twice, with
+      only review to catch a miss.
 
       A hand-synced mirror is still acceptable for values the UI styles rather
-      than computes (`src/ship/trade-catalog.ts` ↔ game_state/deals.rs is the
-      remaining one). If you write one, put it in a **pure module** (no
+      than computes (`src/ship/trade-catalog.ts` ↔ game_state/deals.rs is one
+      example). If you write one, put it in a **pure module** (no
       Excalibur/Vite imports, unit-tested under plain `deno test`), give every
       field a `// keep the two in sync` comment naming the exact Rust constant
       and file, and diff them field-by-field before finishing — there is no

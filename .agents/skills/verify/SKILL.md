@@ -60,8 +60,8 @@ with the timestamps `verify_capture.sh` prints per frame.
 
 ### App CLI flags (`start` passes trailing args through)
 
-`src-tauri/src/lib.rs` parses three startup flags, and `verify_dev.sh start`
-forwards anything after the subcommand to the app binary:
+`src-tauri/src/lib.rs` parses the declared startup flags, and
+`verify_dev.sh start` forwards anything after the subcommand to the app binary:
 
 ```bash
 tools/verify_dev.sh start --time-scale 60   # scheduler timers run 60x
