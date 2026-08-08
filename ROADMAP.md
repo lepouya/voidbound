@@ -153,6 +153,10 @@ The pre-implementation planning companion was reconciled and retired after the
 phase. Keep task status and completion notes here; keep durable/server contracts
 in `SERVER.md`.
 
+**Phase 2 review:** whole-repository review findings and fixes landed in
+`f36463f..120cca9`; its remaining optional details-dialog refactor moved to
+P5.11, and the planning audit promoted P2.13.
+
 - [x] **P2.2 — Notification message structure.** Typed notification payloads,
       source event IDs, client formatting, and durable movement completion
       markers. Still open: per-player persistence and audience routing → P2.1;
@@ -360,6 +364,12 @@ Goal: the README's Technologies, Combat, and Defence module categories.
       because a level gate was the only lever available; gates like that should
       move onto this system and further into the game once it exists. Needs
       P1.4, P5.1.
+- [ ] **P5.11 — Live countdown-details controller** _(from CR4.1)_. When the
+      Research Lab introduces the third 1 Hz, state-bound details dialog,
+      extract the shared open/close, `bindDialogRows`, and per-second rebuild
+      lifecycle from the map and ship module panels. Preserve scene-owned tick
+      dispatch and avoid adding another controller copy. Needs P1.16, P1.20,
+      P5.1.
 
 ## Phase 6 — Presentation and platforms
 
