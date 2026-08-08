@@ -54,8 +54,9 @@ Goal: the technical foundation everything else is built on.
       `load_game_state` during the loader phase; scenes tolerate slow/failed
       loads (AGENTS.md § Startup / loader phase).
 - [x] **P0.13 — Dev-speed build/run target.** `deno task dev:fast` scales every
-      scheduler timer (production, build/hire, mining, vessel travel) via
-      `VOIDBOUND_TIME_SCALE`; normal `deno task tauri dev` is unaffected.
+      scheduler timer (production, build/hire, mining, vessel travel) through
+      the startup `--time-scale 5` argument; normal `deno task tauri dev` is
+      unaffected.
 - [x] **P0.14 — Raster/AI-art → vector migration.** Mothership-1 (was `ss1`),
       vessel-1 (was `cs1`, plus its multi-faction/idle-flourish system),
       module-base, asteroids (now 64-frame tumbling), selection reticles, and
@@ -90,7 +91,9 @@ Goal: a playable single-player loop, no persistence yet.
       replaced the initial pooled staffing rule with explicit module assignment.
 - [x] **P1.11 — Storage Bay capacity caps.** Per-resource caps as a catalog
       `stores` field, enforced server-side on production and mining deposits
-      (overflow is lost, and notified); the resource bar shows count/cap.
+      (current mining overflow is lost and notified); the resource bar shows
+      count/cap. P2.13 resolves whether an explicit mining dispatch must instead
+      prevent that loss.
 - [x] **P1.12 — Trading Post + NPC shop.** Server-generated daily deal slots on
       the new Trading Post module (give ≠ get, rarity-boosted gets, a once-daily
       freebie, doubling-cost refreshes, slot count scaling with the post's
@@ -146,9 +149,9 @@ Goal: game state survives a restart, and the stubbed numbers become real.
 Balancing lives in this phase because progression tuning is only meaningful once
 progress persists — the reason P1.7 moved here.
 
-Detailed decisions, rationale, and implementation edge cases for this phase live
-in [PHASE_2_PLANNING.md](PHASE_2_PLANNING.md). Keep task status and completion
-notes here; keep the durable/server contracts in `SERVER.md`.
+The pre-implementation planning companion was reconciled and retired after the
+phase. Keep task status and completion notes here; keep durable/server contracts
+in `SERVER.md`.
 
 - [x] **P2.2 — Notification message structure.** Typed notification payloads,
       source event IDs, client formatting, and durable movement completion
@@ -197,6 +200,12 @@ notes here; keep the durable/server contracts in `SERVER.md`.
 - [x] **P2.12 — UI defect cleanup** _(July 2026)_. Compact, screen-safe build
       offers; consistent recruitment timing; recovery icons; human-readable Mail
       module names; and per-module storage Details.
+- [ ] **P2.13 — Mining storage safety.** Resolve the P1.6/P1.11 exception where
+      an explicit mining dispatch can return cargo that overflows storage. The
+      existing asteroid-details warning makes the risk visible but still permits
+      unchosen loss. Set and implement a server-verified policy that makes the
+      full-harvest storage outcome clear before dispatch while preserving valid
+      early recalls. Needs P1.6, P1.11, P2.6.
 
 ## Phase 3 — Server-authoritative events
 

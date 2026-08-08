@@ -328,7 +328,8 @@ fn touches_reserved_core(col: i64, row: i64, span: i64) -> bool {
 }
 
 /// Deterministic seed for `local-system-1` — the world generator and every
-/// per-player spawn plan derive from it (PHASE_2_PLANNING § P2.1).
+/// per-player spawn plan derive from it (SERVER.md § Persistent state,
+/// sessions, and local development).
 pub(super) const SYSTEM_SEED: u64 = 0x9E37_79B9_7F4A_7C15;
 
 /// Tiles kept clear of the map boundary so a spawn is never flush against

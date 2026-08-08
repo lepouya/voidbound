@@ -114,7 +114,7 @@ self-relative paths.
 
 ## 6. ROADMAP additions to consider
 
-- [ ] **CR6.1 [hardening] — Reconcile `PHASE_2_PLANNING.md` with the implemented
+- [x] **CR6.1 [hardening] — Reconcile `PHASE_2_PLANNING.md` with the implemented
       phase and retire or promote it.** Review every proposed, decided, and open
       item in `PHASE_2_PLANNING.md` against the code and the canonical
       README/SERVER/AGENTS/ROADMAP documents. For any Phase-2 commitment or
@@ -126,6 +126,11 @@ self-relative paths.
       to its proper home, then delete `PHASE_2_PLANNING.md` once no information
       needs to persist there. Record the precise outcome in this item's Done
       note.
+
+      Done: audited every settled, proposed, and open entry. Durable Phase 2
+      contracts were already in `SERVER.md`; the unresolved explicit-mining
+      storage-loss policy became P2.13. Retired `PHASE_2_PLANNING.md` and
+      repointed its remaining references to the canonical docs/task.
 
 ## 7. Skills and steering improvements
 

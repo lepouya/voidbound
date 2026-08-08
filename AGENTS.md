@@ -555,11 +555,11 @@ new commands and push variants.
   rule. **Mining is the known exception**: a harvest is an explicit action too,
   but its cargo still clamps at the cap on deposit with the overflow lost. P2.6
   added a warning row to the asteroid panel instead of reconciling the two;
-  which rule mining should follow is an open question recorded in
-  `PHASE_2_PLANNING.md`, not a settled difference. Refreshes replace every slot
-  (an unclaimed freebie is forfeited; a refresh batch never mints one) at a
-  doubling credits cost, hard-capped per day; slot count grows with the post's
-  settled level, and a mid-batch level-up appends the new slots immediately
+  P2.13 tracks the server-verified policy that will resolve this, rather than
+  treating the warning as a settled difference. Refreshes replace every slot (an
+  unclaimed freebie is forfeited; a refresh batch never mints one) at a doubling
+  credits cost, hard-capped per day; slot count grows with the post's settled
+  level, and a mid-batch level-up appends the new slots immediately
   (`top_up_deal_slots` — append-only: existing deals and their accepted state
   are never rerolled, so leveling can't dodge the refresh cost). The shop dialog
   is opened from the settled post's Trade button (`ShipLevel.openShopDialog`)
