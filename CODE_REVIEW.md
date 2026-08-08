@@ -26,7 +26,7 @@ append a `Done:` note, check it, rerun affected gates, and commit as
 
 ## 1. Backend bugs
 
-- [ ] **CR1.1 [fix] — Save validation accepts domain states the authoritative
+- [x] **CR1.1 [fix] — Save validation accepts domain states the authoritative
       commands cannot create.** `validate_player()` in
       `src-tauri/src/game_state/persistence.rs` checks room uniqueness and one
       Command Module, but not the P1.18 one-module-per-type invariant, module
@@ -36,7 +36,11 @@ append a `Done:` note, check it, rerun affected gates, and commit as
       This contradicts the P2.3 semantic-validation contract: a corrupt save can
       load as a game state commands would have rejected. Extend validation for
       those invariants and add hand-authored rejected-save fixtures/tests for
-      each class.
+      each class. **Done:** `validate_player()` and `validate_world()` now
+      enforce the command/module progression, entity-footprint, generated-ID,
+      and sequence invariants, with rejected-state regression coverage. Legacy
+      unprefixed `event-N` IDs remain valid so pre-profile local saves continue
+      to load; runtime verification loaded an existing save into the ship scene.
 
 - [ ] **CR1.2 [hardening] — `advance_to(u64::MAX)` does not make progress at a
       saturated deadline.** In `src-tauri/src/game_state/state.rs`, when the

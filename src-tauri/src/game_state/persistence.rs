@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 
 use super::crew::PendingHire;
 use super::deals::DealData;
-use super::modules::{catalog_entry, module_anchor_at, ModuleData, COMMAND_MODULE_TYPE};
+use super::modules::{
+    catalog_entry, module_anchor_at, ModuleData, COMMAND_MODULE_TYPE, MAX_MODULE_LEVEL,
+};
 use super::resources::ResourceCounts;
 use super::state::{NotificationData, PlayerIdentity, ServerState, MAP_COLS, MAP_ROWS};
 use super::world::{AsteroidData, MothershipData, VesselMoveEventData, ASTEROID_TIERS};
@@ -145,39 +147,89 @@ impl PersistentSystemV1 {
 
 fn validate_player(player: &PersistentPlayerV1) -> Result<(), String> {
     let mut rooms = HashSet::new();
+    let mut module_types = HashSet::new();
     let mut notification_ids = HashSet::new();
+    let mut highest_module_seq = 0;
+    let mut highest_event_seq = 0;
+    let mut highest_notification_seq = 0;
     for module in player.modules.values() {
         let Some(_) = catalog_entry(&module.module_type) else {
             return Err(format!("unknown module type {:?}", module.module_type));
         };
         if module.owner_name != player.identity.name
             || module.level == 0 && module.pending.is_none()
+            || module.level > MAX_MODULE_LEVEL
             || module.pending.as_ref().is_some_and(|pending| {
-                pending.level <= module.level
+                module.level.checked_add(1) != Some(pending.level)
+                    || pending.level > MAX_MODULE_LEVEL
                     || pending.action_id.is_empty()
                     || pending.completes_at < pending.dispatched_at
             })
             || module_anchor_at(module.col, module.row) != Some((module.col, module.row))
             || !rooms.insert((module.col, module.row))
+            || !module_types.insert(&module.module_type)
         {
             return Err(format!("invalid module {:?}", module.module_id));
         }
+        if module.module_type == COMMAND_MODULE_TYPE {
+            let command_anchor = module_anchor_at(18, 18).expect("command module room");
+            if module.module_id != "module-command" || (module.col, module.row) != command_anchor {
+                return Err("command module has an invalid identity or placement".to_string());
+            }
+        } else {
+            highest_module_seq =
+                highest_module_seq.max(generated_id_sequence(&module.module_id, "module")?);
+        }
+        if let Some(pending) = &module.pending {
+            highest_event_seq =
+                highest_event_seq.max(event_sequence(&pending.action_id, &player.identity.id)?);
+        }
     }
-    let command_modules = player
+    let mut command_modules = player
         .modules
         .values()
         .filter(|module| module.module_type == COMMAND_MODULE_TYPE)
-        .count();
-    if command_modules != 1 {
+        .peekable();
+    let Some(command_module) = command_modules.next() else {
         return Err(format!(
-            "player {:?} has {command_modules} command modules",
+            "player {:?} has 0 command modules",
             player.identity.id
         ));
+    };
+    if command_modules.next().is_some() {
+        return Err(format!(
+            "player {:?} has multiple command modules",
+            player.identity.id
+        ));
+    }
+    if command_module.level == 0 {
+        return Err("command module cannot be unbuilt".to_string());
+    }
+    for module in player.modules.values() {
+        let entry = catalog_entry(&module.module_type).expect("catalog validated above");
+        if module.module_type != COMMAND_MODULE_TYPE
+            && (module.level > command_module.level
+                || module
+                    .pending
+                    .as_ref()
+                    .is_some_and(|pending| pending.level > command_module.level)
+                || entry.unlock_command_level > command_module.level)
+        {
+            return Err(format!(
+                "module {:?} exceeds the Command Module progression",
+                module.module_id
+            ));
+        }
+    }
+    if player.next_module_seq < highest_module_seq {
+        return Err("next module sequence would reuse an existing id".to_string());
     }
     if let Some(pending) = &player.pending_hire {
         if pending.action_id.is_empty() || pending.completes_at < pending.dispatched_at {
             return Err("invalid pending crew hire".to_string());
         }
+        highest_event_seq =
+            highest_event_seq.max(event_sequence(&pending.action_id, &player.identity.id)?);
     }
     let mut assigned = 0u32;
     for (module_id, count) in &player.crew_assignments {
@@ -209,6 +261,14 @@ fn validate_player(player: &PersistentPlayerV1) -> Result<(), String> {
         {
             return Err("invalid notification entry".to_string());
         }
+        highest_notification_seq = highest_notification_seq.max(generated_id_sequence(
+            &notification.notification_id,
+            "notif",
+        )?);
+        highest_event_seq = highest_event_seq.max(event_sequence(
+            &notification.source_event_id,
+            &player.identity.id,
+        )?);
     }
     let mut deal_slots = HashSet::new();
     let mut deal_ids = HashSet::new();
@@ -225,6 +285,12 @@ fn validate_player(player: &PersistentPlayerV1) -> Result<(), String> {
             return Err(format!("invalid deal {:?}", deal.deal_id));
         }
     }
+    if player.next_event_seq < highest_event_seq {
+        return Err("next event sequence would reuse an existing id".to_string());
+    }
+    if player.next_notification_seq < highest_notification_seq {
+        return Err("next notification sequence would reuse an existing id".to_string());
+    }
     Ok(())
 }
 
@@ -232,14 +298,15 @@ fn validate_world(
     world: &PersistentWorldV1,
     players: &BTreeMap<String, PersistentPlayerV1>,
 ) -> Result<(), String> {
-    for asteroid in world.asteroids.values() {
+    for (id, asteroid) in &world.asteroids {
         let Some(tier) = ASTEROID_TIERS
             .iter()
             .find(|tier| tier.tier == asteroid.tier)
         else {
             return Err(format!("unknown asteroid tier {:?}", asteroid.tier));
         };
-        if asteroid.asteroid_id.is_empty()
+        if id != &asteroid.asteroid_id
+            || asteroid.asteroid_id.is_empty()
             || asteroid.span != tier.span
             || !in_bounds(asteroid.col, asteroid.row, asteroid.span)
             || asteroid.total == 0
@@ -263,14 +330,15 @@ fn validate_world(
             }
         }
     }
-    for vessel in world.vessels.values() {
+    for (id, vessel) in &world.vessels {
         let Some(owner) = players
             .values()
             .find(|player| player.identity.id == vessel.owner_id)
         else {
             return Err(format!("vessel {:?} has no owner", vessel.vessel_id));
         };
-        if vessel.event_id.is_empty()
+        if id != &vessel.vessel_id
+            || vessel.event_id.is_empty()
             || vessel.vessel_id.is_empty()
             || vessel.owner_name != owner.identity.name
             || vessel.mothership_id != vessel.owner_id
@@ -290,6 +358,34 @@ fn validate_world(
         {
             return Err(format!("invalid vessel {:?}", vessel.vessel_id));
         }
+        if generated_id_sequence(&vessel.vessel_id, "vessel")? > owner.next_vessel_seq {
+            return Err("next vessel sequence would reuse an existing id".to_string());
+        }
+        if event_sequence(&vessel.event_id, &owner.identity.id)? > owner.next_event_seq {
+            return Err("next event sequence would reuse an existing id".to_string());
+        }
+    }
+    let motherships: Vec<_> = world.motherships.values().collect();
+    for (index, ship) in motherships.iter().enumerate() {
+        for other in &motherships[index + 1..] {
+            if footprints_overlap(
+                (ship.col, ship.row, ship.span),
+                (other.col, other.row, other.span),
+            ) {
+                return Err("motherships overlap".to_string());
+            }
+        }
+    }
+    let asteroids: Vec<_> = world.asteroids.values().collect();
+    for (index, asteroid) in asteroids.iter().enumerate() {
+        for other in &asteroids[index + 1..] {
+            if footprints_overlap(
+                (asteroid.col, asteroid.row, asteroid.span),
+                (other.col, other.row, other.span),
+            ) {
+                return Err("asteroids overlap".to_string());
+            }
+        }
     }
     for ship in world.motherships.values() {
         for asteroid in world.asteroids.values() {
@@ -302,6 +398,46 @@ fn validate_world(
         }
     }
     Ok(())
+}
+
+fn generated_id_sequence(id: &str, kind: &str) -> Result<u64, String> {
+    let prefix = format!("{kind}-");
+    let Some(rest) = id.strip_prefix(&prefix) else {
+        return Err(format!("invalid {kind} id {id:?}"));
+    };
+    let Some((timestamp, sequence)) = rest.rsplit_once('-') else {
+        return Err(format!("invalid {kind} id {id:?}"));
+    };
+    if timestamp.parse::<u64>().is_err() {
+        return Err(format!("invalid {kind} id {id:?}"));
+    }
+    let sequence = sequence
+        .parse::<u64>()
+        .map_err(|_| format!("invalid {kind} id {id:?}"))?;
+    if sequence == 0 {
+        return Err(format!("invalid {kind} id {id:?}"));
+    }
+    Ok(sequence)
+}
+
+fn event_sequence(id: &str, player_id: &str) -> Result<u64, String> {
+    let prefix = format!("{player_id}:event-");
+    // Early local saves predate per-profile IDs and used the unprefixed form.
+    // Keep accepting it: the durable sequence still prevents a future ID from
+    // colliding, while newly created events retain the owner prefix.
+    let Some(sequence) = id
+        .strip_prefix(&prefix)
+        .or_else(|| id.strip_prefix("event-"))
+    else {
+        return Err(format!("invalid event id {id:?}"));
+    };
+    let sequence = sequence
+        .parse::<u64>()
+        .map_err(|_| format!("invalid event id {id:?}"))?;
+    if sequence == 0 {
+        return Err(format!("invalid event id {id:?}"));
+    }
+    Ok(sequence)
 }
 
 fn in_bounds(col: i64, row: i64, span: i64) -> bool {
@@ -674,6 +810,230 @@ mod tests {
             completes_at: 1,
         });
         assert!(invalid_timer.system.validate().is_err());
+    }
+
+    #[test]
+    fn rejects_unreachable_module_types_levels_and_command_placement() {
+        let mut duplicate_type = envelope(1);
+        let player = duplicate_type
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player");
+        player.next_module_seq = 2;
+        for (id, col) in [("module-1-1", 2), ("module-1-2", 10)] {
+            player.modules.insert(
+                id.to_string(),
+                ModuleData {
+                    module_id: id.to_string(),
+                    owner_id: player.identity.id.clone(),
+                    owner_name: player.identity.name.clone(),
+                    module_type: "ore-refinery".to_string(),
+                    col,
+                    row: 2,
+                    level: 1,
+                    pending: None,
+                },
+            );
+        }
+        assert!(duplicate_type.system.validate().is_err());
+
+        let mut over_cap = envelope(1);
+        over_cap
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player")
+            .modules
+            .get_mut("module-command")
+            .expect("command")
+            .level = MAX_MODULE_LEVEL + 1;
+        assert!(over_cap.system.validate().is_err());
+
+        let mut skipped_pending_level = envelope(1);
+        let player = skipped_pending_level
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player");
+        player.next_event_seq = 1;
+        player
+            .modules
+            .get_mut("module-command")
+            .expect("command")
+            .pending = Some(super::super::modules::ModulePendingBuild {
+            level: 3,
+            action_id: "player-1:event-1".to_string(),
+            dispatched_at: 1,
+            completes_at: 2,
+        });
+        assert!(skipped_pending_level.system.validate().is_err());
+
+        let mut moved_command = envelope(1);
+        let command = moved_command
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player")
+            .modules
+            .get_mut("module-command")
+            .expect("command");
+        command.col = 2;
+        command.row = 2;
+        assert!(moved_command.system.validate().is_err());
+    }
+
+    #[test]
+    fn rejects_overlapping_mothership_and_asteroid_footprints() {
+        let mut overlapping_motherships = envelope(1);
+        let first_player = overlapping_motherships
+            .system
+            .players
+            .get("player 1")
+            .expect("starter player")
+            .clone();
+        let mut second_player = first_player.clone();
+        second_player.identity.id = "player-2".to_string();
+        second_player.identity.name = "Player 2".to_string();
+        for module in second_player.modules.values_mut() {
+            module.owner_id = second_player.identity.id.clone();
+            module.owner_name = second_player.identity.name.clone();
+        }
+        overlapping_motherships
+            .system
+            .players
+            .insert("player 2".to_string(), second_player);
+        let first_ship = overlapping_motherships
+            .system
+            .world
+            .motherships
+            .get("player-1")
+            .expect("starter mothership")
+            .clone();
+        overlapping_motherships.system.world.motherships.insert(
+            "player-2".to_string(),
+            super::super::world::MothershipData {
+                mothership_id: "player-2".to_string(),
+                owner_id: "player-2".to_string(),
+                owner_name: "Player 2".to_string(),
+                ..first_ship
+            },
+        );
+        assert!(overlapping_motherships.system.validate().is_err());
+
+        let mut overlapping_asteroids = envelope(1);
+        let first_asteroid = overlapping_asteroids
+            .system
+            .world
+            .asteroids
+            .values()
+            .next()
+            .expect("seeded asteroid")
+            .clone();
+        overlapping_asteroids.system.world.asteroids.insert(
+            "asteroid-duplicate".to_string(),
+            super::super::world::AsteroidData {
+                asteroid_id: "asteroid-duplicate".to_string(),
+                ..first_asteroid
+            },
+        );
+        assert!(overlapping_asteroids.system.validate().is_err());
+    }
+
+    #[test]
+    fn rejects_sequence_counters_behind_durable_identifiers() {
+        let mut module_counter = envelope(1);
+        let player = module_counter
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player");
+        player.modules.insert(
+            "module-1-2".to_string(),
+            ModuleData {
+                module_id: "module-1-2".to_string(),
+                owner_id: player.identity.id.clone(),
+                owner_name: player.identity.name.clone(),
+                module_type: "ore-refinery".to_string(),
+                col: 2,
+                row: 2,
+                level: 1,
+                pending: None,
+            },
+        );
+        player.next_module_seq = 1;
+        assert!(module_counter.system.validate().is_err());
+
+        let mut vessel_counter = envelope(1);
+        let player = vessel_counter
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player");
+        player.next_vessel_seq = 1;
+        player.next_event_seq = 2;
+        vessel_counter.system.world.vessels.insert(
+            "vessel-1-2".to_string(),
+            super::super::world::VesselMoveEventData {
+                event_id: "player-1:event-2".to_string(),
+                vessel_id: "vessel-1-2".to_string(),
+                owner_id: player.identity.id.clone(),
+                owner_name: player.identity.name.clone(),
+                mothership_id: player.identity.id.clone(),
+                vessel_type: "vessel-1".to_string(),
+                src_col: 0.0,
+                src_row: 0.0,
+                dest_col: 1,
+                dest_row: 1,
+                speed: 1.0,
+                dispatched_at: 1,
+                arrival_at: 2,
+                returning: false,
+                mining_asteroid_id: None,
+                cargo: None,
+                arrival_settled: false,
+            },
+        );
+        assert!(vessel_counter.system.validate().is_err());
+
+        let mut notification_counter = envelope(1);
+        let player = notification_counter
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player");
+        player.notifications.push(NotificationData {
+            notification_id: "notif-1-2".to_string(),
+            source_event_id: "player-1:event-2".to_string(),
+            payload: super::super::state::NotificationPayload::DealsRefreshed { day_index: 1 },
+            created_at: 1,
+            read: false,
+        });
+        player.next_event_seq = 1;
+        player.next_notification_seq = 1;
+        assert!(notification_counter.system.validate().is_err());
+    }
+
+    #[test]
+    fn accepts_legacy_unprefixed_event_ids() {
+        let mut legacy = envelope(1);
+        let player = legacy
+            .system
+            .players
+            .get_mut("player 1")
+            .expect("starter player");
+        player.next_event_seq = 1;
+        player
+            .modules
+            .get_mut("module-command")
+            .expect("command")
+            .pending = Some(super::super::modules::ModulePendingBuild {
+            level: 2,
+            action_id: "event-1".to_string(),
+            dispatched_at: 1,
+            completes_at: 2,
+        });
+        assert!(legacy.system.validate().is_ok());
     }
 
     #[test]
