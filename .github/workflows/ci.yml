@@ -18,6 +18,11 @@ jobs:
       - name: Install npm dependencies
         run: deno install
 
+      # Production compilation catches Vite config, asset-resolution, and
+      # bundling failures that source-level Deno checks cannot exercise.
+      - name: Production frontend build
+        run: deno task build
+
       - name: Format check
         run: deno fmt --check
 

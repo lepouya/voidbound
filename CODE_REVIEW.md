@@ -102,12 +102,15 @@ self-relative paths.
       fixture is explicitly documented in each counterpart test, avoiding new
       wire fields for server-internal geometry.
 
-- [ ] **CR5.2 [hardening] — CI never exercises the production frontend build.**
+- [x] **CR5.2 [hardening] — CI never exercises the production frontend build.**
       `.github/workflows/ci.yml` runs Deno checks/tests and Rust checks against
       a stub `dist`, but does not run `deno task build` (TypeScript's `tsc` plus
       Vite production bundling). Add a frontend build step after dependency
       installation so a production-only Vite/config/asset regression cannot
       merge unnoticed.
+
+      Done: added the documented `deno task build` wrapper and runs it in the
+      frontend CI job after dependency installation.
 
 ## 6. ROADMAP additions to consider
 

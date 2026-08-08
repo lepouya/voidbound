@@ -16,6 +16,7 @@
     "test:ts": "deno test --allow-read tests/",
     "test:rs": "cd src-tauri && cargo test",
     "test:py": "python3 -m unittest discover -s tools",
+    "build": "npm run build",
     "dev:app": "deno task tauri dev -- --",
     "dev:fast": "deno task tauri dev -- -- --time-scale 5",
     "gen-art": "bash -c 'for f in art/gen_*.sh; do \"$f\"; done'"
