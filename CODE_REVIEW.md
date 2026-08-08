@@ -55,14 +55,17 @@ append a `Done:` note, check it, rerun affected gates, and commit as
 
 ## 2. Client bugs
 
-- [ ] **CR2.1 [hardening] — Asteroid Details has an independent 1000*1000 map
+- [x] **CR2.1 [hardening] — Asteroid Details has an independent 1000*1000 map
       mirror.** `src/map/map-details.ts` uses private `MAP_COLUMNS`/`MAP_ROWS`
       constants solely to derive resource grade, while the running scene already
       obtains server-owned grid geometry through `generate_map`. A map-size
       change can leave Details showing a grade different from the actor/server
       seeding. Pass the map dimensions through the dialog host (or
       derive/include the grade in authoritative data) and remove this extra
-      numeric mirror.
+      numeric mirror. **Done:** `MapLevel` now supplies its server-loaded grid
+      dimensions to `DetailsDialog`, so its grade calculation shares the actor's
+      geometry; the local `1000*1000` constants are gone. Runtime verification
+      rendered an asteroid's Details panel with its grade row.
 
 ## 3. Tools and pipeline
 

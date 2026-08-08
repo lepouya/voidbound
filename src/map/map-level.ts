@@ -22,6 +22,10 @@ export class MapLevel extends TiledScene {
   private details = new DetailsDialog({
     openDialog: (def) => this.openDialog(def),
     showToast: (toast) => this.showToast(toast),
+    mapDimensions: () => ({
+      columns: this.grid.columns,
+      rows: this.grid.rows,
+    }),
   });
   /** Reconciles mothership actors against gameState.motherships and tracks
    *  the local player's own ship (this.mothershipSync.ownShip) for camera
