@@ -273,7 +273,7 @@ fn emit_pushes(app: &tauri::AppHandle, pushes: Vec<Revisioned<ServerPush>>) {
 /// settles whatever came due, and emits the queued pushes. This thread is
 /// what turns the lazily-settling ServerState into a server that *tells*
 /// clients when something happens instead of waiting to be asked — the
-/// in-process prototype of SERVER.md's broadcast loop (ROADMAP P3.1 moves it
+/// in-process prototype of SERVER.md's broadcast loop (ROADMAP P4.1 moves it
 /// behind a WebSocket). A poisoned lock (a panicked command) is recovered,
 /// not propagated: state is plain data and pushes must keep flowing.
 pub fn run_scheduler(app: tauri::AppHandle) {

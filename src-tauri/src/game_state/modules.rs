@@ -315,7 +315,7 @@ pub const MODULE_CATALOG: &[ModuleCatalogEntry] = &[
         // Unlock so trade arrives after the first production loop is really
         // running: P2.6's pacing puts Command level 2 around 2.5 minutes in —
         // too early for that intent — and level 3 nearer 6. Expected to move
-        // later still once modules can express real prerequisites (P5.10)
+        // later still once modules can express real prerequisites (P3.6)
         // rather than only a Command-level gate.
         unlock_command_level: 3,
     },
@@ -555,7 +555,7 @@ pub struct ModuleActionResponse {
 // The backend owns all resource math and build verification: the client can
 // be tampered with, so it only renders what these commands return and asks
 // for actions — it never computes or mutates resource values on its own.
-// This is the phase-3 server model (SERVER.md) running in-process for now.
+// This is the phase-4 server model (SERVER.md) running in-process for now.
 
 /// Length of one production interval — also the cadence at which the
 /// scheduler thread pushes accrued resources to the client (the client never
@@ -621,7 +621,7 @@ impl ServerState {
     /// baseline plus its per-level contribution, summed. A build/upgrade
     /// raises the cap only once it settles, like production — an unbuilt
     /// module (level 0) contributes neither half. Credits are trade-only and
-    /// uncapped (their economy is P1.12/P4.6 design), expressed here as a
+    /// uncapped (their economy is P1.12/P5.6 design), expressed here as a
     /// u64::MAX cap.
     pub(super) fn storage_caps(&self) -> ResourceCounts {
         let mut caps = ResourceCounts {

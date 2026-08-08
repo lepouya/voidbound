@@ -169,9 +169,9 @@ export class VesselSync {
    * tile. The backend verifies the destination, picks the departure dock,
    * and returns the authoritative VesselMoveEvent (id, speed, and arrival
    * time all server-stamped); merging it into gameState fans it out to
-   * sync() → applyMoveEvent. Already the phase-3 shape: send a request,
+   * sync() → applyMoveEvent. Already the phase-4 shape: send a request,
    * apply the server's event — only the transport changes (Tauri IPC now,
-   * WebSocket in P3.1).
+   * WebSocket in P4.1).
    */
   async dispatch(destCol: number, destRow: number): Promise<void> {
     this.host.deselectActor(); // clear the destination empty tile actor

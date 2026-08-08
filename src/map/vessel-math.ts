@@ -3,7 +3,7 @@
 // same src->dest timestamp lerp was previously duplicated in
 // map-vessels.ts's VesselSync.sync and minimap.ts's vesselWorldPos; this
 // module is their single shared implementation, and (review findings
-// CR2.4/CR4.3) the one TS call site P3.2's clock-offset handshake needs to
+// CR2.4/CR4.3) the one TS call site P4.2's clock-offset handshake needs to
 // change. The Rust mirror is `vessel_position`/`move_progress` in
 // src-tauri/src/game_state/world.rs — keep the two in sync.
 

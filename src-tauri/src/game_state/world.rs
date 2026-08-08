@@ -50,7 +50,7 @@ const VESSEL_TYPE: &str = "vessel-1";
 
 /// Cheap stopgap fleet cap (review finding CR1.5): dispatch is otherwise free
 /// and uncapped today, so nothing stops an unbounded vessel table. Superseded
-/// by P5.3's crew-bound vessel counts; until then this just prevents runaway
+/// by P3.7's crew-bound vessel counts; until then this just prevents runaway
 /// growth.
 const MAX_VESSELS: usize = 20;
 
@@ -88,9 +88,9 @@ pub struct MothershipActionResponse {
 }
 
 /// Fuel cost per tile of straight-line warp distance — the first real fuel
-/// sink (ROADMAP P1.22). P2.6 deliberately left the rate alone: P4.7 replaces
+/// sink (ROADMAP P1.22). P2.6 deliberately left the rate alone: P5.7 replaces
 /// warp's fuel cost with a "warp core" item outright, so tuning this number
-/// now would be throwaway work. Fuel's broader economy is P4.9.
+/// now would be throwaway work. Fuel's broader economy is P3.8.
 const WARP_FUEL_PER_TILE: u64 = 1;
 
 /// Fuel cost for a straight-line mothership warp. The client mirrors this for
@@ -136,7 +136,7 @@ fn is_dock_tile(ship: &MothershipData, col: i64, row: i64) -> bool {
 /// against it; everything the player owns is exempt (a mining vessel must
 /// keep existing beyond the edge — alliance entities join the exemption in
 /// P4). Per-client state: single-client today (`ServerState::aoi`), but
-/// shaped exactly like the per-connection subscriptions P3.1's socket bus
+/// shaped exactly like the per-connection subscriptions P4.1's socket bus
 /// needs (SERVER.md § Interest management). Mirrors the TS `MapWindow` in
 /// `src/state/game-state-types.ts` — keep the two in sync.
 #[derive(Serialize, serde::Deserialize, Clone, Copy, Debug)]
@@ -192,7 +192,7 @@ impl MapWindow {
 /// so it is load-bearing rather than arbitrary — changing it breaks all three
 /// at once. Radial grade multiplies the deposit, so deeper nodes take
 /// proportionally longer by design; future research/upgrades are the intended
-/// lever for bringing those times back down (→ P5.1). Sent to the client in the
+/// lever for bringing those times back down (→ P3.4). Sent to the client in the
 /// server-owned balance catalog.
 pub(super) const MINE_UNITS_PER_HOUR: u64 = 240;
 
@@ -234,7 +234,7 @@ pub struct AsteroidTierEntry {
     pub seed_count: usize,
     /// Simultaneous mining slots. P2.6 settled this at 1 for every tier,
     /// including large: contention over a rich deposit is meant to be
-    /// resolved by combat — driving the occupying vessel home (→ P5.5) —
+    /// resolved by combat — driving the occupying vessel home (→ P6.3) —
     /// rather than by sharing the rock. Verification still reads this
     /// instead of hardcoding the single-slot rule.
     pub max_miners: usize,
@@ -344,7 +344,7 @@ const SPAWN_CANDIDATES: usize = 4096;
 /// band** (grade 1, ROADMAP P2.6).
 ///
 /// Players start on the rim, where asteroids and level-appropriate
-/// opposition live, and push inward toward the richer grades (→ P4.2).
+/// opposition live, and push inward toward the richer grades (→ P3.9).
 /// Uniform whole-map spawning is wrong in both directions: the reserved
 /// central system holds no asteroids at all, so a central spawn starts with
 /// nothing mineable inside its entire interest window, and a grade-4 spawn
@@ -561,7 +561,7 @@ pub struct VesselCargo {
 }
 
 /// A vessel movement authorized by the backend — dispatches, recalls, and
-/// (in phase 3) moves pushed from other players all use this one shape.
+/// (in phase 4) moves pushed from other players all use this one shape.
 /// `src_col`/`src_row` are fractional for recalls, which depart from the
 /// vessel's lerped mid-flight position. Mirrors the TS `VesselMoveEvent` in
 /// `src/state/game-state-types.ts` — keep the two in sync.
@@ -587,7 +587,7 @@ pub struct VesselMoveEventData {
     /// false on an outbound dispatch. Settling reads this flag rather than
     /// re-deriving "is this a return" from `is_dock_tile` against the
     /// mothership's *current* position — geometry that a future relocation
-    /// (voluntary move, P5.8 forced warp) could change between a return's
+    /// (voluntary move, P6.6 forced warp) could change between a return's
     /// dispatch and arrival, stranding the vessel (CR1.4).
     pub returning: bool,
     /// Asteroid this vessel is assigned to mine (ROADMAP P1.6) — present on
@@ -771,7 +771,7 @@ impl ServerState {
     /// other mothership/asteroid (plain overlap — `footprints_clear` at
     /// `gap: 0` — distinct from `seed_asteroids`' wider seeding clearance).
     /// Fuel cost scales with straight-line tile distance. Broader fuel-economy
-    /// tuning is deferred to P4.9. Instant and synchronous like `accept_deal`: no scheduler/timer
+    /// tuning is deferred to P3.8. Instant and synchronous like `accept_deal`: no scheduler/timer
     /// involved, so the returned response is already authoritative. The
     /// occupancy check re-reads `self.motherships`/`self.asteroids` live —
     /// never the client's picker preview — so a same-tick race (another
@@ -779,7 +779,7 @@ impl ServerState {
     /// slip through: every command runs to completion under one lock on
     /// `ServerState` (see `GameServer::state` / `commands.rs`), so there is no
     /// yield point between this check and the mutation below where another
-    /// player's (future, P3.1) command could interleave.
+    /// player's (future, P4.1) command could interleave.
     pub(super) fn relocate_mothership(
         &mut self,
         dest_col: i64,

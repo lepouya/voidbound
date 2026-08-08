@@ -229,8 +229,8 @@ export interface DialogHandle {
 /**
  * Bind an open dialog's rows to a state store: rebuild them wholesale from
  * `buildRows` on every store notify — the scaffolding every server-driven
- * panel needs (first consumer: the P1.12 deal shop; the P6.3 feed, P3.5
- * mail, and P5.1 research panels are the expected next ones). `subscribe` is
+ * panel needs (first consumer: the P1.12 deal shop; the P7.1 feed, P4.4
+ * mail, and P3.4 research panels are the expected next ones). `subscribe` is
  * the store's subscribe function (e.g. `(l) => gameState.subscribe(l)` — the
  * ui/ layer stays store-agnostic). Returns the unsubscribe function: call it
  * from the dialog's onClose so a closed dialog stops re-rendering.

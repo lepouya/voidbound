@@ -35,7 +35,7 @@ export interface MailDialogHost {
  * (`headerRow`) and a scrollable, live-bound list of `gameState.notifications`
  * — the first consumer of dialog.ts's scroll/headerRow additions. Only the
  * Notifications tab has content; Player Mail and System Mail render as
- * disabled placeholders for P3.5 to enable. One instance is owned by
+ * disabled placeholders for P4.4 to enable. One instance is owned by
  * TiledScene and shared by every scene via the common HUD's Mail button.
  */
 export class MailDialog {
@@ -66,7 +66,7 @@ export class MailDialog {
   }
 
   /** The tab strip: only Notifications is live — Player Mail/System Mail
-   *  (P3.5) render disabled so the panel's eventual shape is visible now. */
+   *  (P4.4) render disabled so the panel's eventual shape is visible now. */
   private buildHeaderRow(): DialogRowDef {
     const tab = (
       label: string,

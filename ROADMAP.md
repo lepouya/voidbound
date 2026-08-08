@@ -7,11 +7,13 @@ actions are already event-modeled (see the multiplayer-ready event pattern in
 `AGENTS.md`; the server model is sketched in `SERVER.md`). Phase 0 is the
 engine/tooling scaffolding all of that already sits on.
 
-**How to use this file:** tasks have stable IDs (`P<phase>.<n>`) so sessions and
+**How to use this file:** tasks have IDs (`P<phase>.<n>`) so sessions and
 commits can reference them — check off a task when it's committed and
 `deno task format` + `deno task check` + `deno task lint` + `deno task test`
-pass. IDs never change, even when a task moves phases (e.g. P1.7 now lands in
-Phase 2). Within a phase, tasks are listed in rough dependency order, but
+pass. IDs are normally stable even when a task moves phase (e.g. P1.7 kept its
+historical ID when it first moved); the Phase 3-7 IDs were deliberately
+renumbered in August 2026 when the local playable-alpha phase was inserted ahead
+of networking. Within a phase, tasks are listed in rough dependency order, but
 anything without an explicit "needs" note can be picked up independently. Done
 items keep only a one-line summary; any follow-up work gets its own task ID
 (marked "split from P<phase>.<n>") in whichever phase it belongs to, rather than
@@ -155,12 +157,12 @@ in `SERVER.md`.
 
 **Phase 2 review:** whole-repository review findings and fixes landed in
 `f36463f..120cca9`; its remaining optional details-dialog refactor moved to
-P5.11, and the planning audit promoted P2.13.
+P3.5, and the planning audit promoted P2.13.
 
 - [x] **P2.2 — Notification message structure.** Typed notification payloads,
       source event IDs, client formatting, and durable movement completion
       markers. Still open: per-player persistence and audience routing → P2.1;
-      socket delivery → P3.1.
+      socket delivery → P4.1.
 - [x] **P2.1 — Multi-account local-system save/load.** Versioned JSON snapshots
       persist the complete local system, with launch-selected developer
       profiles, deterministic clear spawns, exclusive ownership, backups, and
@@ -170,7 +172,7 @@ P5.11, and the planning audit promoted P2.13.
 - [x] **P2.3 — Versioned save format + validation.** Version-dispatched save
       decoding, explicit future-version rejection, semantic validation, and
       hand-authored fixtures protect local-system snapshots. Still open: the
-      first real schema migration when a format changes (no task yet); P3.3's
+      first real schema migration when a format changes (no task yet); P4.3's
       snapshot schema builds on this boundary.
 - [x] **P2.4 — Autosave + recovery.** Revision-aware atomic snapshots at
       command/scheduler boundaries plus a best-effort exit flush; five rolling
@@ -187,7 +189,7 @@ P5.11, and the planning audit promoted P2.13.
       P2.12; startup-only developer reset controls → P2.10.
 - [x] **P2.7 — Diminishing returns** _(moved from P1.7)_. Mining's extraction
       time, travel, single-slot deposits, and fleet cap already provide the
-      intended soft limit. Battle/raid tuning remains with combat → P5.5.
+      intended soft limit. Battle/raid tuning remains with combat → P6.3.
 - [x] **P2.8 — Crew understaffing UX pass** _(split from P1.10)_.
       Server-verified per-module assignment controls, visible allocation/output,
       a 1-minute hire, and the `(assigned + 1) / (required + 1)` unstaffed
@@ -197,8 +199,8 @@ P5.11, and the planning audit promoted P2.13.
       capacity remains unconditional and mining is unaffected.
 - [x] **P2.10 — Developer reset controls.** Local startup-only profile/system
       reset, player listing, and timer-speed controls with explicit logs and CLI
-      validation. Still open: retire local-only controls when online sessions
-      replace the local backend (no task yet).
+      validation. Still open: retire local-only controls when P4.6's online
+      sessions replace the local backend.
 - [x] **P2.11 — Surface asteroid resource grade.** Asteroid actors show their
       radial grade and Details explains its deposit multiplier.
 - [x] **P2.12 — UI defect cleanup** _(July 2026)_. Compact, screen-safe build
@@ -207,255 +209,248 @@ P5.11, and the planning audit promoted P2.13.
 - [x] **P2.13 — Protected storage overflow.** Storage caps are now protected
       thresholds: mining and deal gains retain an exposed surplus while passive
       production pauses at the threshold; HUD and asteroid Details explain it.
-      P5.5 may loot only exposed surplus.
+      P6.3 may loot only exposed surplus.
 
-## Phase 3 — Server-authoritative events
+## Phase 3 — Local playable alpha
 
-Goal: the event pattern goes live over the network, per `SERVER.md`.
+Goal: prove that Voidbound is understandable, engaging, and worth returning to
+before freezing its design behind network infrastructure. The target is a
+complete local single-player arc, with optional asynchronous same-device players
+sharing one persisted system. Rust remains authoritative, all mutations keep the
+multiplayer-ready event pattern, and the existing snapshot/revision/scheduler
+boundaries remain intact; WebSockets, authentication, remote databases, and
+simultaneous clients are deliberately deferred to Phase 4.
 
-- [ ] **P3.1 — WebSocket event bus.** Server verifies, timestamps, and
+- [ ] **P3.1 — Playable-alpha experience specification.** Write the product
+      target before adding more systems: the intended first 30 minutes, first 3
+      hours, several-day arc, short/medium/long goals, failure and recovery
+      rules, completion condition, and concrete playtest success criteria. This
+      is a design-review gate for P3.3-P3.11, not a promise to implement every
+      possible campaign feature.
+- [ ] **P3.2 — In-app local profile flow.** Replace launch-flag-only identity
+      selection with a pre-load profile chooser that can create, select, and
+      inspect local players in the shared persisted system. Identity remains
+      fixed after the game loads and only one local process/session owns the
+      world at a time: this is asynchronous same-device play, not simultaneous
+      LAN multiplayer. Preserve the P2.10 developer CLI controls.
+- [ ] **P3.3 — Objectives, rewards, and first-run onboarding.** Add persistent,
+      event-modeled objectives that make the next useful action visible and can
+      grant authoritative rewards. The first campaign walks through hiring the
+      starting crew member, building the first producer, mining, trading, and
+      upgrading; optional goals and milestones continue after the tutorial so
+      the framework is gameplay, not a disposable scripted overlay. Needs P3.1,
+      P1.3, P1.6, P1.10. (Former P6.6; CR6.6)
+- [ ] **P3.4 — Research Lab + tech tree.** Spend resources to unlock module
+      blueprints, vessel stat upgrades, expedition capabilities, and efficiency
+      bonuses. Research supplies meaningful progression choices and gates the
+      rest of the local campaign rather than merely making existing numbers
+      rise. Needs P3.1, P1.4. (Former P5.1)
+- [ ] **P3.5 — Live countdown-details controller** _(from CR4.1)_. When P3.4
+      introduces the third 1 Hz state-bound details dialog, extract the shared
+      open/close, `bindDialogRows`, and per-second rebuild lifecycle from the
+      map and ship module panels. Preserve scene-owned tick dispatch and avoid
+      adding another controller copy. Needs P1.16, P1.20, P3.4. (Former P5.11)
+- [ ] **P3.6 — Module build prerequisites** _(split from P2.6, July 2026)_.
+      Generalize `unlock_command_level` into explicit prerequisites: other
+      modules at a level, research, items, or objectives. Show unmet reasons
+      instead of silently hiding a module. Move stopgap Command Module gates,
+      including the Trading Post's level-3 gate, onto the richer system where
+      the campaign design calls for it. Needs P1.4, P3.3, P3.4. (Former P5.10)
+- [ ] **P3.7 — Vessel Shipyard + vessel stats and multi-tier progression.** Add
+      upgradeable durability, damage, cargo capacity, and speed in place of the
+      flat vessel constants. Research and Shipyard upgrades unlock higher tiers
+      (`vessel-2`, `vessel-3`) or specialized hulls within the existing faction
+      and animation-state system; starter combat loadouts support P3.10 before
+      P6.2 adds the full weapon economy. Vessel crews tie dispatch, mining, and
+      combat capacity to the player's crew pool. Needs P1.6, P3.4. (Former P5.3)
+- [ ] **P3.8 — Expeditions + fuel economy.** Design and implement repeatable
+      exploration, scouting, and salvage missions that send a vessel away for a
+      server-timed duration, consume fuel, expose up-front risk/reward, and
+      return choices or rewards through authoritative events. Settle fuel's
+      broader role across dispatch, expeditions, and P1.22 warp without adding a
+      hard daily-energy cap. Needs P3.1, P3.3, P3.7, P1.22. (Supersedes former
+      P4.9)
+- [ ] **P3.9 — NPC opposition + radial sector progression.** Turn P2.6's radial
+      asteroid grades and reserved center into a solo progression map with
+      persistent NPC factions, hazards, guarded resources, higher-level nodes,
+      and territories toward the center. Introduce the README's moons and
+      planets here. NPC decisions mutate the same authoritative simulation and
+      emit the same event shapes a future remote player would. Needs P3.1, P3.4,
+      P3.7, P2.6. (Local-play half of former P4.2)
+- [ ] **P3.10 — PvE combat vertical slice.** Establish reusable combat rules by
+      letting fitted vessels challenge a bounded set of NPC encounters. Include
+      legible previews, damage and recovery, loss/failure without an
+      unrecoverable save, rewards, and enough opposing behaviors to test
+      tactical choices. Basic dock-side recovery belongs here; the specialized
+      Repair Shop remains P6.4. Keep player raiding, contested player asteroids,
+      anti-cheat, and online concurrency in P6.3. Needs P3.7, P3.8, P3.9.
+- [ ] **P3.11 — Local campaign completion + ascension.** Give the sector a
+      recognizable end condition—such as reaching the center and defeating a
+      major threat—then offer a deliberately designed new-system/ascension loop
+      with a small persistent bonus. Specify exactly what resets before touching
+      saves. This validates the shape of later online seasons without requiring
+      cohort worlds or world merging. Needs P3.3, P3.9, P3.10.
+- [ ] **P3.12 — Dialog columns + Trading Post redesign.** Generalize dialog
+      layout with a real multi-column grid, then render the P1.12 shop as three
+      columns of bordered deal boxes: rarity-colored border and separate
+      get/give rows. Later Mail and Events panels can reuse the layout. Needs
+      P1.12, P1.14. (Former P6.8; playtest feedback, July 2026)
+- [ ] **P3.13 — Minimap two-tier zoom revamp.** At normal zoom show the live
+      100\*100 AOI window; zoomed fully out, show the 1000\*1000 system with
+      player/NPC markers, regions, objectives, and interest-area outlines but
+      omit individual asteroids. Needs P1.9, P1.13, P3.9. (Former P6.9; playtest
+      feedback, July 2026)
+- [ ] **P3.14 — Context-sensitive resource bar + detail dialog.** On the ship,
+      show the three construction materials plus crew; on the map, show fuel.
+      Tapping either group opens the complete resource/cap/production breakdown.
+      Needs P1.2, P1.10, P1.11. (Former P6.10; playtest feedback, July 2026)
+- [ ] **P3.15 — Per-type module art and tiered visual progression.** Replace the
+      shared `module-base` placeholders with bespoke 64-frame animated vector
+      rooms across the current catalog and Phase 3's Research Lab and Vessel
+      Shipyard, with visible tier upgrades as levels rise. Needs P1.23, P3.4,
+      P3.7. (Former P6.1)
+- [ ] **P3.16 — Space map art and visual readability.** Add a real starfield and
+      per-class/per-tier asteroid sprites. Asteroid resource class must remain
+      distinguishable by shape rather than tint alone; extend the same visual
+      language to P3.9 regions, hazards, and NPC affiliations. Needs P1.9, P3.9.
+      (Former P6.2; CR6.8)
+- [ ] **P3.17 — Audio.** Add ambient/music plus SFX for input, construction,
+      hiring, vessels, mining, objectives, expeditions, and combat. Provide
+      independent volume controls and a mute path. (Former P6.7; CR6.7)
+- [ ] **P3.18 — Progressive crew recruitment cost.** Replace the flat biological
+      price with a readable curve that rises gradually with population, include
+      it in the wire-delivered balance catalog, and tune it against campaign
+      progression. (Playtest feedback, July 2026)
+- [ ] **P3.19 — Structured local-alpha playtest + rebalance.** Run repeated
+      fresh-profile tests at normal and accelerated time across the first 30
+      minutes, first 3 hours, offline return, and campaign completion. Record
+      confusion, dead time, dominant choices, unrecoverable states, and weak
+      rewards; revise balance and UX until P3.1's acceptance criteria hold.
+      Exercise multiple same-device profiles in one shared system as a separate
+      test, without treating it as proof of simultaneous multiplayer. Needs the
+      playable path through P3.2-P3.18.
+
+## Phase 4 — Networked server-authoritative events
+
+Goal: after the local game proves its loop, put the existing authoritative event
+pattern onto a real network transport per `SERVER.md`.
+
+- [ ] **P4.1 — WebSocket event bus.** Server verifies, timestamps, and
       broadcasts events; clients feed them into the existing `apply*Event` entry
-      points. Local action methods switch from "build + apply" to "send request,
-      apply the broadcast". Includes the rate limits SERVER.md's verification
-      step sketches, and generalizes P1.13's single-client AOI into
-      per-connection windows at the outbox drain loop. Needs P2.2 — the
-      notification message wire shape must be restructured before this protocol
-      freezes.
-- [ ] **P3.2 — Server-time-offset handshake.** Clients never trust `Date.now()`
-      — pairs with the `arrivalAt` precomputation already in `VesselMoveEvent`.
-      Needs P3.1.
-- [ ] **P3.3 — Snapshot + replay for late joiners.** Server side of the model:
-      snapshot plus log suffix on join. The client half already works
-      (`VesselSync.sync()` interpolates aged events). Needs P3.1; builds on the
-      P2.3 versioned format.
-- **P3.4 — HTTP fallback for `generate_map`.** Moved to Phase 6, alongside P6.4
-  (dependency audit, July 2026) — it has no actual dependency on Phase 3's
-  networking work, only on the web-browser platform effort it unlocks.
-- [ ] **P3.5 — Mail panel: Player Mail + System Mail tabs.** Adds the remaining
-      two tabs to P1.21's Mail panel: **Player Mail** for player-to-player
-      messaging (the enemy-ship "Message" button's real destination, P1.16's
-      stub) and **System Mail** for server-composed announcements/GM messages.
-      Split from the original "player-to-player mail" task (playtest feedback,
-      July 2026) because these two need the networked event bus for real
-      cross-player delivery, unlike P1.21's Notifications tab. The tab strip UI
-      already exists in the Mail panel (P1.21), disabled — this task is the
-      wiring, not new UI. "Events" (P6.3) is a separate, curated-content panel —
-      not notifications. Needs P3.1, P1.21.
-- [ ] **P3.6 — Production hardening.** Set a real CSP in `tauri.conf.json`
-      (currently `null`); drop the unused `withGlobalTauri: true`. Do before the
-      first public/networked build.
-- [ ] **P3.7 — Login / player identity.** Accounts and authentication: the
-      client learns who it is from the server instead of the local seed. Rides
-      the loader phase — the resilience rules in AGENTS.md § Startup already
-      reserve room for a login flow, and identity still never changes
-      mid-session. Pairs with P3.1: the socket needs an authenticated player
-      behind it.
+      points. Local action methods switch from "request + apply response" to
+      "send request + apply broadcast". Add rate limits and generalize P1.13's
+      single-client AOI into per-connection windows at the outbox drain loop.
+      Needs P2.2 and a completed P3 local-alpha gate. (Former P3.1)
+- [ ] **P4.2 — Server-time-offset handshake.** Clients never trust `Date.now()`;
+      pair a ping/pong-derived offset with the authoritative timestamps already
+      carried by events. Needs P4.1. (Former P3.2)
+- [ ] **P4.3 — Snapshot + replay for late joiners.** Send a snapshot plus log
+      suffix on join, replayed through the normal apply entry points. The client
+      half already handles aged events. Needs P4.1; builds on P2.3. (Former
+      P3.3)
+- [ ] **P4.4 — Mail: Player Mail + System Mail.** Wire the two disabled P1.21
+      tabs for cross-player messages and server/GM announcements. Notifications
+      remain a separate existing tab, and P7.1 Events remains curated live
+      content. Needs P4.1, P1.21. (Former P3.5)
+- [ ] **P4.5 — Production hardening.** Set a real CSP in `tauri.conf.json` and
+      drop the unused `withGlobalTauri: true` before the first public/networked
+      build. (Former P3.6)
+- [ ] **P4.6 — Login / player identity.** Add accounts and authentication; the
+      client learns its immutable session identity from the server instead of a
+      local profile seed. Integrate with the loader phase and authenticated
+      socket. Needs P4.1. (Former P3.7)
 
-## Phase 4 — Alliances, seasons, worlds
+## Phase 5 — Alliances, online worlds, and economy
 
-Goal: the MMO layer.
+Goal: add the social and population-dependent MMO layer after network sessions
+exist.
 
-- [ ] **P4.1 — Alliance Embassy gameplay.** Joining, contribution, and alliance
-      boosts — the first alliance mechanics. Alliance entities join the P1.13
-      always-sent AOI exemption here.
-- [ ] **P4.2 — Map difficulty scaling toward the center.** P2.6 establishes
-      radial asteroid resource grades and reserves the empty central system;
-      this task adds higher-level nodes/territories, enemies, and alliance-gated
-      center progression. The README's moons and planets first appear here.
-      Needs P4.1, P2.6.
-- [ ] **P4.3 — Operations Center: fog of war / radar.** The Operations Center
-      module (README § Ship design): visibility radius on the space map tied to
-      its level — P1.13's AOI window shrunk to a radar radius — plus its
-      vessel-speed boost. Matters once other players' fleets share the map.
-      Needs P3.1.
-- [ ] **P4.4 — Cohort worlds.** New players arrive in a fresh star system
-      populated by players who started around the same time, so nobody is
-      unrecoverably behind.
-- [ ] **P4.5 — Seasons.** After a time or milestone, remaining players move on
-      to a new system — the answer to server activity dying off. Enables world
-      merging and ascension bonuses for players carrying over. Needs P4.4.
-- [ ] **P4.6 — Credits economy / player trade.** Flesh out the credits currency
-      beyond the P1.12 NPC shop: player-to-player and alliance-level trade. Also
-      open from P1.12: better exchange ratios at higher Trading Post levels, and
-      featured/limited-stock deals. Design is open — the README calls the
-      currency's exact role "not fleshed out yet" — so settle the design before
-      building. Needs P1.12, P4.1.
-- [ ] **P4.7 — Alliance-aware warp + warp core item.** Refines P1.22's basic
-      warp once alliances exist: the main draw becomes repositioning near your
-      alliance (P4.1), and the fuel cost is swapped for 1 "warp core" — a new
-      minimal item type introduced by this task, ahead of P6.5's full inventory
-      panel (which later becomes the general UI for this and future item types).
-      Needs P4.1, P1.22.
-- [ ] **P4.8 — General item/credits shop.** A standalone shop (HUD "Shop"
-      button, currently unwired) distinct from the per-module P1.12 Trading Post
-      — spends credits on general goods rather than the Trading Post's give/get
-      resource deals. Needs P1.12, and design follows P4.6's credits economy
-      work. (CR6.2)
-- [ ] **P4.9 — Fuel economy design pass** _(split from P1.22)_. Fuel's broader
-      role as the general "leaves the system" currency (vessel dispatch, future
-      "expeditions"), beyond P1.22's and P4.7's warp cost. Design is open — no
-      scope beyond those two usages exists yet — so settle it before building
-      further fuel sinks or sources. Needs P1.22, P4.7.
-- [ ] **P4.10 — Monetization model.** Whether and how real-money purchases fit
-      Voidbound at all — a business decision, not a design pass, and nothing is
-      committed yet. Blocks P5.9's premium vessel-cap-purchase idea until
-      resolved; likely also shapes P4.8's shop.
+- [ ] **P5.1 — Alliance Embassy gameplay.** Joining, contribution, and alliance
+      boosts; alliance entities join the P1.13 always-sent AOI exemption. Needs
+      P4.1. (Former P4.1)
+- [ ] **P5.2 — Alliance territories + contested center progression.** Extend
+      P3.9's solo radial regions with alliance ownership, cooperative
+      objectives, contested resources, and alliance-gated access toward the
+      center. Needs P5.1, P3.9. (Online half of former P4.2)
+- [ ] **P5.3 — Operations Center: fog of war / radar.** Tie map visibility and
+      vessel speed to module level, shrinking P1.13's AOI projection to the
+      player's radar while preserving owned/alliance exemptions. Needs P4.1.
+      (Former P4.3)
+- [ ] **P5.4 — Cohort worlds.** Place new players in systems populated by peers
+      who started around the same time. Needs P4.6. (Former P4.4)
+- [ ] **P5.5 — Online seasons and world merging.** Move surviving players into
+      new systems after a time or milestone, including merges and carry-over
+      bonuses. Use P3.11's local ascension findings rather than assuming its
+      reset rules transfer unchanged. Needs P5.4, P3.11. (Former P4.5)
+- [ ] **P5.6 — Credits economy / player trade.** Extend P1.12's NPC deals into
+      player and alliance trade; also settle higher-level exchange advantages
+      and featured/limited-stock deals. Design before implementation. Needs
+      P1.12, P5.1. (Former P4.6)
+- [ ] **P5.7 — Alliance-aware warp + warp core item.** Make relocation useful
+      for joining an alliance position and replace the temporary fuel cost with
+      one warp core, introducing the minimal item type used later by P7.4. Needs
+      P5.1, P1.22. (Former P4.7)
+- [ ] **P5.8 — General item/credits shop.** Wire the HUD Shop to a standalone
+      credits store for general goods, distinct from Trading Post resource
+      exchanges. Needs P1.12, P5.6. (Former P4.8; CR6.2)
+- [ ] **P5.9 — Monetization model.** Decide whether real-money purchases fit
+      Voidbound at all. This business decision shapes P5.8 and blocks any
+      premium fleet-cap extension in P6.7. (Former P4.10)
 
-## Phase 5 — Technologies, combat, and defence
+## Phase 6 — Weapons, PvP combat, and defence
 
-Goal: the README's Technologies, Combat, and Defence module categories.
+Goal: expand the local progression/combat foundation into adversarial online
+combat and the README's remaining Technologies, Combat, and Defence modules.
 
-- [ ] **P5.1 — Research Lab + tech tree.** Spend resources to unlock module
-      blueprints, vessel stat upgrades, and efficiency bonuses; gates which
-      later Phase 5 modules and vessel stats are available. Needs P1.4.
-- [ ] **P5.2 — Fabrication Bay, Assembly Line, Data Archive.** Speed/cost
-      multipliers applied respectively to module builds (P1.3), weapon
-      production (P5.4), and research (P5.1). Needs P5.1.
-- [ ] **P5.3 — Vessel Shipyard + vessel stats & multi-tier progression.**
-      Durability, damage, cargo capacity, and weapons capacity as per-vessel
-      upgradeable stats, replacing the flat `vesselSpeed` constant with a real
-      stat block. Upgrades, research (P5.1), purchases, and cosmetics will
-      unlock higher vessel tiers (`vessel-2`, `vessel-3`) or specialized custom
-      vector hulls alongside our multi-faction (`self`, `allies`, `neutral`,
-      `enemy`) and 3-state (`base`, `moving`, `idle`) animation system. P1.10's
-      open door lands here too: vessel crews — dispatching/mining requiring crew
-      aboard, tying fleet size to the crew pool. Needs P1.6.
-- [ ] **P5.4 — Weapons Factory, Drone Factory, Plasma Factory + Armory.** Three
-      weapon-type production lines (kinetic, drone, plasma) feeding the vessel
-      weapons capacity from P5.3, plus the Armory's weapon-storage caps (moved
-      out of P1.11's original scope). Event-modeled via `/add-game-event`. Needs
-      P5.3.
-- [ ] **P5.5 — PvP combat resolution.** Attacking another player's mothership or
-      vessels: damage exchange using P5.4 weapons and P5.3 stats, resolved
-      server-side so neither side can lie about the outcome. Crew casualties
-      (P1.10's open door) belong to this resolution. Open design idea, not yet
-      committed: since P1.6 keeps mined cargo on the vessel until it docks and a
-      mothership's resources sit in its counts, a mothership raid or catching a
-      vessel mid-mining/mid-return is a looting opportunity, not just a damage
-      exchange — needs its own design pass (what's stealable, whether a raid
-      needs to "win" first, defender recourse). P2.13 sets the first loot
-      boundary: raids may target only the resource surplus above storage's
-      protected threshold, never the protected stockpile itself. Committed by
-      P2.6: combat is also how a contested asteroid is settled. Asteroids keep a
-      single mining slot at every tier, so taking a rich deposit someone else is
-      working means beating their vessel and sending it home, rather than
-      sharing the rock. Needs P3.1, P5.4.
-- [ ] **P5.6 — Repair Shop.** Repairs weapon/vessel damage from P5.5 combat
-      using resources and time, mirroring the P1.3 build-timer pattern. Needs
-      P5.5.
-- [ ] **P5.7 — Hangar Bay.** Station weapons/vessels at the mothership as a
-      passive defense contribution to P5.5 combat resolution. Needs P5.5.
-- [ ] **P5.8 — Shield Generator.** Protective shielding that absorbs damage in
-      P5.5 combat; when breached, forces the mothership to warp and relocate.
-      Needs P5.5.
-- [ ] **P5.9 — Vessel fleet cap scaling.** Replace CR1.5's flat `MAX_VESSELS`
-      (20) stopgap with a real formula: a small base cap, +N from Hangar Bay
-      (P5.7) and/or Armory (P5.4) levels, +N from a Research Lab (P5.1) unlock.
-      A further +1 via a premium (real-money) shop purchase is a possible
-      extension, gated on P4.10's monetization decision — don't build until
-      that's settled. Needs P5.1, P5.4, P5.7. (CR6.5)
-- [ ] **P5.10 — Module build prerequisites** _(split from P2.6, July 2026)_.
-      Today a module type's availability is a single `unlock_command_level`
-      integer, so "not buildable yet" can only ever mean "the Command Module is
-      too low." Generalize it to real prerequisites — other modules at a level,
-      a research unlock (P5.1), possibly an item or a quest — with the reason a
-      type is unavailable shown to the player rather than the button simply
-      being absent. P2.6 pushed the Trading Post to Command level 3 as a stopgap
-      because a level gate was the only lever available; gates like that should
-      move onto this system and further into the game once it exists. Needs
-      P1.4, P5.1.
-- [ ] **P5.11 — Live countdown-details controller** _(from CR4.1)_. When the
-      Research Lab introduces the third 1 Hz, state-bound details dialog,
-      extract the shared open/close, `bindDialogRows`, and per-second rebuild
-      lifecycle from the map and ship module panels. Preserve scene-owned tick
-      dispatch and avoid adding another controller copy. Needs P1.16, P1.20,
-      P5.1.
+- [ ] **P6.1 — Fabrication Bay, Assembly Line, Data Archive.** Apply speed/cost
+      multipliers respectively to module builds, weapon production, and
+      research. Needs P3.4; the Assembly Line effect also needs P6.2. (Former
+      P5.2)
+- [ ] **P6.2 — Weapons Factory, Drone Factory, Plasma Factory + Armory.** Add
+      kinetic, drone, and plasma production feeding P3.7 vessel capacity, plus
+      Armory weapon storage. Event-model every production action. Needs P3.7.
+      (Former P5.4)
+- [ ] **P6.3 — PvP combat resolution.** Extend P3.10's combat rules to player
+      motherships and vessels with server-authoritative outcomes, crew
+      casualties, contested-asteroid resolution, and explicit defender recourse.
+      Design raiding separately: only P2.13's exposed surplus may be looted,
+      never protected stock. Needs P4.1, P3.10, P6.2. (Former P5.5)
+- [ ] **P6.4 — Repair Shop.** Repair weapon/vessel damage using resources and
+      time, following the build-timer pattern. Needs P6.3. (Former P5.6)
+- [ ] **P6.5 — Hangar Bay.** Station weapons and vessels as passive mothership
+      defence. Needs P6.3. (Former P5.7)
+- [ ] **P6.6 — Shield Generator.** Absorb combat damage; a breached shield
+      forces the mothership to warp and relocate. Needs P6.3. (Former P5.8)
+- [ ] **P6.7 — Vessel fleet-cap scaling.** Replace the flat `MAX_VESSELS` 20
+      stopgap with a base cap plus Hangar Bay, Armory, and research increases.
+      Any premium +1 remains gated on P5.9. Needs P3.4, P6.2, P6.5. (Former
+      P5.9; CR6.5)
 
-## Phase 6 — Presentation and platforms
+## Phase 7 — Online content, presentation, and platforms
 
-Goal: real art, real panels, more platforms. Client-side work that is largely
-independent of the server phases — pull any of these earlier when placeholder
-art or missing panels start hurting playtests.
+Goal: ship the remaining panels, platform work, and presentation features that
+do not gate the local-alpha gameplay evaluation.
 
-- [ ] **P6.1 — Per-type module art and tiered visual progression.** Replace the
-      remaining shared `module-base` placeholders with bespoke 64-frame animated
-      vector interior rooms (`/gen-art`) across all catalog types
-      (`ore-refinery`, `electronics-fabricator`, `hydroponics-bay`,
-      `fusion-reactor`, `storage-bay`, `crew-quarters`, `trading-post`),
-      supporting tiered visual upgrades (adding bunks, containment rings, or
-      assembly arms) as `level` increases. Needs P1.23.
-- [ ] **P6.2 — Space map art.** Real starfield background for the geometry-only
-      map scene, and real asteroid sprites (per class, per tier) replacing the
-      tinted placeholder vectors. **Requirement:** asteroid class must be
-      distinguishable by shape, not tint alone — today's placeholder vectors are
-      colorblind-inaccessible (CR6.8). Needs P1.9.
-- [ ] **P6.3 — Curated Events panel.** Reframed from "notification feed" — that
-      moved to P1.21's Mail panel (playtest feedback, July 2026). This is a
-      distinct feature: server-curated live content (holiday specials, team
-      contests) with its own definitions, scheduling, and participation/rewards
-      — no existing backend to lean on, so needs its own design pass (a
-      `/roadmap-task` design-review pause) before implementation, likely reusing
-      P1.21's scrollable-panel work. Needs its own HUD button (P1.21 renamed the
-      old "Events" button to "Mail", so this reintroduces an Events button
-      pointed at the new panel). Needs P1.21.
-- [ ] **P6.4 — Mobile builds (Android/iOS).** Bring up
-      `deno task tauri android|ios` (README § Other platforms). The game is
-      mobile-first by design — portrait layout and touch input already hold — so
-      this is mostly build wiring, performance, and on-device verification.
-      Worth pulling early once the core loop stabilizes.
-- [ ] **P3.4 — HTTP fallback for `generate_map`** _(moved from Phase 3;
-      dependency audit, July 2026)_. Fetch-based map source behind the same
-      `buildTileMap` signature — unlocks the planned web-browser platform
-      (update the AGENTS.md Platform line when done). No real dependency on
-      Phase 3's networking; it only ever depended on wanting a web build, so it
-      belongs alongside P6.4's other-platforms work instead.
-- [ ] **P6.5 — Items/inventory panel.** A real panel behind the HUD "Items"
-      button (currently unwired), covering item types beyond the 4 core
-      resources — starting with P4.7's "warp core", the first item type
-      introduced. Needs P4.7. (CR6.2)
-- [ ] **P6.6 — Onboarding/tutorial sequence.** A full scripted first-run
-      tutorial walking a new player through the core loop's natural early goals
-      — `STARTING_CREW = 0` (`game_state/crew.rs`) already frames the first crew
-      hire as one such step; the first module build and first mining trip are
-      others. Needs P1.3, P1.6, P1.10. (CR6.6)
-- [ ] **P6.7 — Audio.** Ambient/music plus SFX (button presses, build/level-up
-      and hire completions, vessel arrivals, mining) — no sound exists in the
-      game today. (CR6.7)
-- [ ] **P6.8 — Dialog column layout + Trading Post shop redesign.** Generalize
-      `dialog-layout.ts`/`dialog.ts` with real multi-column grid support (today
-      is row/cell only), then rebuild the P1.12 shop as 3 columns of bordered
-      deal boxes: border color by rarity (green common / blue uncommon / purple
-      rare), two text rows per box ("+" get-side icon/amount, "-" give-side
-      icon/cost). Future panels (P3.5 Mail, P6.3 Events) can reuse the column
-      support. Needs P1.12, P1.14. (Playtest feedback, July 2026)
-- [ ] **P6.9 — Minimap two-tier zoom revamp.** Replace the current fixed view
-      (too small, mostly blank outside the loaded window) with two modes: at
-      normal zoom, show the live 100\*100 P1.13 AOI window (everything loaded);
-      zoomed all the way out, show the full 1000\*1000 map with only player
-      markers, interest-area outlines, and background — omitting individual
-      asteroids, since ~1920 of them at that scale is unreadable clutter, not a
-      useful reference. Needs P1.9, P1.13. (Playtest feedback, July 2026)
-- [ ] **P6.10 — Context-sensitive resource bar + expandable detail dialog.**
-      Trim the always-on-screen resource bar per scene instead of showing all 5
-      `ResourceKind`s everywhere: the ship scene shows the 3 material resources
-      (construction/highTech/biological, no cap shown) plus crew (with cap); the
-      map scene shows only fuel (the travel-relevant resource — P1.22's warp
-      cost), freeing HUD space crew doesn't need there. Tapping either group
-      opens a dialog with the full breakdown: all 5 resources with caps and live
-      production rates. Needs P1.2, P1.10, P1.11. (Playtest feedback, July 2026)
-- [ ] **P6.11 — Mothership warp-out/warp-in animation.** Replace P1.22's instant
-      relocation teleport with a fade/warp visual transition at both the old and
-      new tile, so a relocation reads clearly to anyone watching the map, not
-      just the mover. Split out from P1.22 as presentation polish, not core
-      mechanics (playtest feedback, July 2026). Needs P1.22.
-- [ ] **P6.12 — Canonical ship interior layout.** Re-arrange `ship-level.tmj` /
-      room grid coordinates from a generic grid into a tailored capital ship
-      layout matching `mothership-1`'s hull profile: Command Citadel (`command`)
-      at the bow, Crew Quarters and Hydroponics along the lateral wings (with
-      window observation ports), Trading Post / Storage Bays right near docking
-      ports, and engineering / fusion reactors (`fusion-reactor`) at the aft
-      above the engines. Needs P1.23.
-
-# Unsorted playtesting feedback
-
-- Cost of hiring crew show slowly rise as we go deeper in, instead of being flat
+- [ ] **P7.1 — Curated Events panel.** Add server-curated live content such as
+      holiday specials and cooperative contests, with definitions, scheduling,
+      participation, rewards, and its own HUD button. This is distinct from Mail
+      notifications and requires a design-review pause. Needs P1.21, P4.1.
+      (Former P6.3)
+- [ ] **P7.2 — Mobile builds (Android/iOS).** Bring up
+      `deno task tauri android|ios`, then verify portrait layout, touch input,
+      performance, persistence, and audio on device. (Former P6.4)
+- [ ] **P7.3 — HTTP fallback for `generate_map`.** Put a fetch-based map source
+      behind the existing `buildTileMap` signature to unlock the planned web
+      build. This is platform work, not a networking-phase dependency. Update
+      AGENTS.md's Platform note when it lands. (Former P3.4)
+- [ ] **P7.4 — Items/inventory panel.** Wire the HUD Items button to a panel for
+      non-resource items, beginning with P5.7's warp core. Needs P5.7. (Former
+      P6.5; CR6.2)
+- [ ] **P7.5 — Mothership warp-out/warp-in animation.** Replace P1.22's instant
+      visual teleport with clear transitions at the old and new positions. Needs
+      P1.22. (Former P6.11; playtest feedback, July 2026)
+- [ ] **P7.6 — Canonical ship interior layout.** Rearrange `ship-level.tmj` and
+      room-grid coordinates into a capital-ship layout matching the mothership
+      hull: Command Citadel at the bow, personnel/hydroponics on the wings,
+      trade/storage by docks, and engineering/reactors aft. Needs P1.23. (Former
+      P6.12)

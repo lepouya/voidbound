@@ -17,7 +17,7 @@ import { DialogDef, DialogRowDef, squareButton } from "../ui/index.ts";
  *
  * The two failure kinds need different words. "unreachable" is transient and
  * worth retrying. "incompatible" means the client is out of date — retrying
- * will fail identically, and once Phase 3 serves real clients that case has
+ * will fail identically, and once Phase 4 serves real clients that case has
  * to send the player to an app update or a page reload. Both offer Retry,
  * because a backend that has since been restarted (or updated) can satisfy
  * either without a relaunch.
@@ -52,7 +52,7 @@ function failureText(failure: LoadFailure): string[] {
  * system. It exists because in-progress balance work can leave a local save
  * that no longer loads, and hunting down the file by hand is a bad use of a
  * playtest. The backend refuses the command in release builds regardless of
- * what the client offers, and both halves go away once Phase 3 owns the
+ * what the client offers, and both halves go away once Phase 4 owns the
  * authoritative state.
  */
 export function loadFailureDialog(

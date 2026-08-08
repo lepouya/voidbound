@@ -162,7 +162,7 @@ export interface MothershipData {
 
 /**
  * A vessel movement authorized by the backend — dispatches, recalls, and (in
- * phase 3) moves pushed from other players all use this one shape (see
+ * phase 4) moves pushed from other players all use this one shape (see
  * SERVER.md). Lives here rather than in map-level.ts because it rides the
  * load_game_state snapshot: the shared state holds the vessel table between
  * scenes. srcCol/srcRow may be fractional — a recall departs from the
@@ -600,7 +600,7 @@ export interface GameStateData {
 export const SERVER_PUSH_EVENT = "server-push";
 
 /**
- * A server-initiated state push — the in-process stand-in for the phase-3
+ * A server-initiated state push — the in-process stand-in for the phase-4
  * WebSocket event bus (SERVER.md § append + broadcast). The backend emits one
  * whenever state changes server-side — a production tick landing, a build or
  * level-up completing, a vessel docking, a new feed notification — and

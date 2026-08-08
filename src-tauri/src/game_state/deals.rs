@@ -17,11 +17,11 @@ pub(super) fn utc_day_index(now_ms: u64) -> u64 {
 /// Credits-per-resource-unit exchange rate. With the four resources still
 /// value-equivalent, deal sizing works in "units" and converts a credits side
 /// through this. P2.6 left every trade number alone on purpose: credits have
-/// no designed role yet, so pricing them is P4.6's work.
+/// no designed role yet, so pricing them is P5.6's work.
 const CREDITS_PER_RESOURCE_UNIT: u64 = 1;
 
 /// Deal give-side size in units at Trading Post level 1; it retains its
-/// existing doubling progression until the broader credits pass (P4.6).
+/// existing doubling progression until the broader credits pass (P5.6).
 const DEAL_GIVE_BASE_UNITS: u64 = 40;
 
 fn deal_give_units_at_level(level: u32) -> u64 {
@@ -32,12 +32,12 @@ fn deal_give_units_at_level(level: u32) -> u64 {
 /// cap for the resource (cap / 5 = 20%) — the single rule that keeps deals
 /// affordable at every progression stage and makes "trade a million
 /// resources" structurally impossible. Credits are uncapped and skip it.
-/// Trade tuning → P4.6.
+/// Trade tuning → P5.6.
 const DEAL_GIVE_CAP_DIVISOR: u64 = 5;
 
 /// Freebie get-amount band in units (inclusive) — a separate, deliberately
 /// small band, not the deal-sizing rule: the daily freebie is a growth
-/// nudge, never a big win. Trade tuning → P4.6.
+/// nudge, never a big win. Trade tuning → P5.6.
 const DEAL_FREEBIE_MIN_UNITS: u64 = 10;
 
 const DEAL_FREEBIE_MAX_UNITS: u64 = 30;
@@ -45,7 +45,7 @@ const DEAL_FREEBIE_MAX_UNITS: u64 = 30;
 /// Credits cost of each refresh within a day, indexed by refreshes already
 /// used: the first is free, then doubling, hard-capped at the array length
 /// (5/day). Mirrored display-only as DEAL_REFRESH_COSTS_CREDITS in
-/// `src/ship/trade-catalog.ts` — keep the two in sync. Trade tuning → P4.6.
+/// `src/ship/trade-catalog.ts` — keep the two in sync. Trade tuning → P5.6.
 const DEAL_REFRESH_COSTS_CREDITS: [u64; 5] = [0, 10, 20, 40, 80];
 
 /// Deal slot count by Trading Post level: 3 at level 1, +1 every 2 levels,
@@ -68,7 +68,7 @@ pub enum DealRarity {
 }
 
 /// (rarity, roll weight out of 100, get-side bonus percent). Weights and
-/// bonuses are trade numbers → P4.6; display styling lives in
+/// bonuses are trade numbers → P5.6; display styling lives in
 /// `src/ship/trade-catalog.ts`.
 const DEAL_RARITIES: [(DealRarity, u64, u64); 3] = [
     (DealRarity::Common, 70, 20),

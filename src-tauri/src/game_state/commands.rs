@@ -26,7 +26,7 @@ pub(crate) fn load_game_state(
 /// Refused outright in release builds — this is a developer data-management
 /// control, never part of an online protocol. The client only offers it from
 /// the load-failure dialog in dev builds, and both halves disappear once
-/// Phase 3 owns the authoritative state (SERVER.md).
+/// Phase 4 owns the authoritative online state (SERVER.md).
 #[tauri::command]
 pub(crate) fn reset_local_system(
     app: tauri::AppHandle,

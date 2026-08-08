@@ -16,7 +16,7 @@ import { DealRarity } from "../state/game-state.ts";
  * Credits cost of each deal refresh within a day, indexed by refreshes
  * already used: the first is free, then doubling, hard-capped at the array
  * length. Display mirror of the Rust DEAL_REFRESH_COSTS_CREDITS in
- * src-tauri/src/game_state/deals.rs — keep the two in sync. Trade tuning → P4.6.
+ * src-tauri/src/game_state/deals.rs — keep the two in sync. Trade tuning → P5.6.
  */
 export const DEAL_REFRESH_COSTS_CREDITS: readonly number[] = [
   0,

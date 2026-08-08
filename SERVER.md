@@ -3,7 +3,7 @@
 The intended server model behind the multiplayer-ready event pattern
 (`AGENTS.md` § Conventions, `/add-game-event`). The in-process authoritative
 state, snapshot, scheduler, and Tauri push channel are built; the durable event
-log and network transport remain phase-3 work. This document keeps new event
+log and network transport remain phase-4 work. This document keeps new event
 shapes compatible with that destination. `VesselMoveEvent` (in
 `src/state/game-state-types.ts`) / `gameState.applyVesselEvent()` is the
 reference implementation of the client half, including the snapshot half:
@@ -161,7 +161,7 @@ system. Neither maps to the online protocol.
 
 ## Time and offline settlement
 
-The Phase 3 server scheduler runs while players are offline; reconnecting only
+The Phase 4 server scheduler runs while players are offline; reconnecting only
 projects the already-settled state and its per-player feed. Phase 2 needs local
 startup recovery instead. Its `advance_to(now)` processes the entire local
 system, not just the selected player, in this deterministic same-timestamp
@@ -203,7 +203,7 @@ Storage capacity is a per-resource **protected threshold**, not a deletion
 limit. Authoritative explicit gains (mining, deals, and future action rewards)
 may exceed it; passive module production pauses for that resource at or above
 the threshold and resumes after spending below it. The above-threshold surplus
-remains in authoritative state and is P5.5's only future resource-looting pool;
+remains in authoritative state and is P6.3's only future resource-looting pool;
 the protected amount is never a raid target.
 
 The scheduler advances all players, but delivery is session/audience scoped. A
@@ -215,7 +215,7 @@ badge; historical snapshot entries never replay transient toasts.
 ## Storage delivery path
 
 Phase 2 uses a versioned JSON snapshot with validation, atomic writes, and
-rolling backups. The local networked Phase 3 server uses embedded SQLite so it
+rolling backups. The local networked Phase 4 server uses embedded SQLite so it
 starts with the Rust host and no separately installed database. Online
 production uses PostgreSQL through configuration such as `DATABASE_URL`; the
 game-domain model and persistence boundary, not a Phase 2 save import, bridge
@@ -251,11 +251,11 @@ window** per connection — today one in-process client, the `MapWindow` in
   world footprint at queue time and dropped at outbox drain when they don't
   intersect the subscriber's window; own-entity and global pushes (resources,
   modules, notifications) carry no footprint and always go out. This is exactly
-  the shape P3.1's per-connection subscriptions need: the drain loop gains a
+  the shape P4.1's per-connection subscriptions need: the drain loop gains a
   per-socket window instead of a single field.
 - **The visible view stays strictly smaller than the window.** The client caps
   its zoom so the view never spans more tiles than the window minus the
-  hysteresis margin — unloaded space can never scroll into sight. P4.3's fog of
+  hysteresis margin — unloaded space can never scroll into sight. P5.3's fog of
   war is this same window shrunk to a radar radius.
 
 ## What this implies for new event interfaces
@@ -265,7 +265,7 @@ When writing a new `*Event` via `/add-game-event`, assume:
 - Every field is something the **server** would compute or verify — if the
   client can lie about it, it doesn't belong in the event (send it in the
   request instead and let the server echo the verified value). This matters most
-  for ROADMAP.md phase 5's combat events (P5.5): damage dealt, hit/miss, and
+  for ROADMAP.md phase 6's combat events (P6.3): damage dealt, hit/miss, and
   remaining durability must all be server-computed, never client-declared —
   combat is the first genuinely adversarial user of this model, unlike
   cooperative actions like vessel movement.

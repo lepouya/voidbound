@@ -312,9 +312,10 @@ against. Pushes arriving _before_ a successful snapshot are still applied
 deliberately — the listener subscribes first and `load()` reconciles per entity
 by revision. Dev builds also get a Reset control (`reset_local_system`, refused
 in release) that reseeds the local system when in-progress balance work has left
-an unloadable save; it goes away when Phase 3 owns the state. Player identity
-never changes mid-game (re-launching is the only way to switch users), so this
-resilience only covers the initial load, not live identity swaps.
+an unloadable save; it goes away when Phase 4's online sessions own the state.
+Player identity never changes mid-game (re-launching is the only way to switch
+users), so this resilience only covers the initial load, not live identity
+swaps.
 
 ### UI library (`src/ui/`)
 
@@ -361,7 +362,7 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   scrollable by drag or mouse wheel via `DialogHandle.scrollBy(deltaY)` (wired
   through `SceneInputHandlers.onModalScroll`, `scene-input.ts`) and a
   scroll-position thumb on the content region's right edge — see
-  `dialog-layout.ts`'s `computeScrollWindow`. P6.3's Events panel and P5.1's
+  `dialog-layout.ts`'s `computeScrollWindow`. P7.1's Events panel and P3.4's
   research panel are next to use `bindDialogRows`/`scroll`/`headerRow`
 - `dialog-layout.ts` — pure dialog frame/row/cell math (`layoutDialogFrame`,
   `layoutCellRects`; no runtime imports; unit-tested). Not in the barrel —
@@ -486,7 +487,7 @@ new commands and push variants.
   visible view at 80 tiles on the longer axis — strictly inside the window, so
   unloaded space never scrolls into sight.
 - **Push channel** (`server-push` Tauri event; ROADMAP P1.5) — the backend tells
-  the client when state changes, the in-process prototype of P3.1's WebSocket
+  the client when state changes, the in-process prototype of P4.1's WebSocket
   bus: a scheduler thread (`run_scheduler` in game_state/scheduler.rs) sleeps
   until the next deadline — production tick, build `completesAt`, vessel
   `arrivalAt`, mining `completesAt`, the 00:00 UTC deal reset — settles state,
@@ -553,7 +554,7 @@ new commands and push variants.
   **P2.13 protected storage:** a cap protects stock from later PvP looting and
   pauses that resource's passive production at/above it; it never deletes an
   explicit gain. Mining cargo and deal gets can therefore exceed the cap, and
-  the HUD/asteroid Details report the exposed surplus. P5.5 may loot only that
+  the HUD/asteroid Details report the exposed surplus. P6.3 may loot only that
   surplus, never the protected stockpile. Refreshes replace every slot (an
   unclaimed freebie is forfeited; a refresh batch never mints one) at a doubling
   credits cost, hard-capped per day; slot count grows with the post's settled

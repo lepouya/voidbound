@@ -136,7 +136,7 @@ export class AsteroidSync {
    * given asteroid (ROADMAP P1.6). The backend verifies the free mining
    * slot, reserves it, derives the destination tile and extraction window,
    * and returns the authoritative VesselMoveEvent; the asteroid's own change
-   * (its claimed slot) arrives as a server push. Same phase-3 shape as
+   * (its claimed slot) arrives as a server push. Same phase-4 shape as
    * VesselSync.dispatch: send a request, apply the server's event.
    */
   private async mine(asteroidId: string): Promise<void> {

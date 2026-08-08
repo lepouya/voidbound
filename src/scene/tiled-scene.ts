@@ -677,7 +677,7 @@ export abstract class TiledScene extends ex.Scene {
       resourceBar.setLabel(CREW_INDEX, crewLabel());
     });
 
-    // Top-right is just Shop for now — the Events slot (P6.3's curated-content
+    // Top-right is just Shop for now — the Events slot (P7.1's curated-content
     // panel) stays open until that lands rather than being squatted on by
     // Mail (P1.21 playtest feedback, July 2026: Mail belongs bottom-right).
     const topRight = this.addHudGroup({

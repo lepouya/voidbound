@@ -535,9 +535,9 @@ export class ModuleSync {
    * Asks the backend to start a module build. The backend verifies the
    * catalog type, unlock level, placement, and cost, deducts the resources,
    * and returns the authoritative ModuleData plus updated resource counts;
-   * merging both into gameState fans out to sync(). Already the phase-3
+   * merging both into gameState fans out to sync(). Already the phase-4
    * shape: send a request, apply the server's response — only the transport
-   * changes (Tauri IPC now, WebSocket in P3.1).
+   * changes (Tauri IPC now, WebSocket in P4.1).
    */
   private async build(
     col: number,

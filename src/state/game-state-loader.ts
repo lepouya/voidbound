@@ -51,7 +51,7 @@ export class GameStateResource
  * Why a load attempt failed. The two need different words in front of the
  * player and, later, different recovery: a transport failure is transient
  * and worth retrying, while an incompatible catalog means the client itself
- * is out of date and no amount of retrying will help — once Phase 3 serves
+ * is out of date and no amount of retrying will help — once Phase 4 serves
  * real clients, that case has to tell the player to update the app or
  * reload the page.
  */
@@ -120,7 +120,7 @@ export async function attemptGameStateLoad(
 /**
  * Development-only: reseed the backend's local system and adopt the fresh
  * snapshot. Refused by release builds server-side; the dialog only offers it
- * in dev, and both halves go away once Phase 3 owns the state.
+ * in dev, and both halves go away once Phase 4 owns the state.
  */
 export async function resetLocalSystem(): Promise<LoadFailure | null> {
   let snapshot: Revisioned<GameStateData>;

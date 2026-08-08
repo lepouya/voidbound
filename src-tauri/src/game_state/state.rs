@@ -142,14 +142,14 @@ impl<T> Revisioned<T> {
     }
 }
 
-/// A server-initiated state push — the in-process stand-in for the phase-3
+/// A server-initiated state push — the in-process stand-in for the phase-4
 /// WebSocket event bus (SERVER.md § append + broadcast). Mutations queue
 /// pushes into the ServerState outbox; whichever boundary ran the mutation —
 /// the scheduler thread for time-based settlement, a command handler for
 /// request-triggered settlement — drains the outbox and emits each entry as a
 /// SERVER_PUSH_EVENT. The client routes every variant into the matching
 /// `gameState` apply/sync entry point (`applyServerPush` in
-/// `src/state/game-state.ts`) — the same entry points a phase-3 socket handler will
+/// `src/state/game-state.ts`) — the same entry points a phase-4 socket handler will
 /// call. Mirrors the TS `ServerPush` union in `src/state/game-state-types.ts` — keep the
 /// two in sync.
 #[derive(Serialize, Clone, Debug)]
@@ -163,7 +163,7 @@ pub enum ServerPush {
     #[serde(rename_all = "camelCase")]
     VesselRemoved { vessel_id: String },
     /// A server-initiated vessel move — today the auto-return when mining
-    /// completes; phase 3 adds other players' moves.
+    /// completes; phase 4 adds other players' moves.
     Vessel(VesselMoveEventData),
     /// An asteroid changed server-side (mining started/stopped, deposit
     /// reduced by a harvest).
@@ -235,7 +235,7 @@ pub(crate) const MAP_ROWS: i64 = 1000;
 /// `map.rs::generate_space_map`.
 pub(crate) const MAP_TILE_PX: f64 = 32.0;
 
-/// The local player. Hardcoded until a login flow exists (phase 3).
+/// The local player. Hardcoded until a login flow exists (phase 4).
 pub(super) fn player_identity() -> PlayerIdentity {
     PlayerIdentity {
         id: "player-1".to_string(),
@@ -331,7 +331,7 @@ pub(super) struct OutboxEntry {
 }
 
 /// Authoritative per-player state, held in memory for the app's lifetime.
-/// Phase 2 serializes it to a save file; the phase-3 server owns it remotely.
+/// Phase 2 serializes it to a save file; the phase-4 server owns it remotely.
 pub struct ServerState {
     /// The immutable launch-time session identity. It is runtime context, not
     /// a field in the persistent system snapshot.
@@ -401,7 +401,7 @@ pub struct ServerState {
     pub(super) deal_refreshes_used: u32,
     /// The client's interest-area window (ROADMAP P1.13) — snapshot slices
     /// and entity pushes are filtered against it, own entities exempt.
-    /// Single-client today; the phase-3 server keeps one per connection.
+    /// Single-client today; the phase-4 server keeps one per connection.
     pub(super) aoi: MapWindow,
     /// Pushes queued by mutations since the last drain. Mutations queue,
     /// boundaries (scheduler wake / command return) drain and emit — so every

@@ -66,7 +66,7 @@ Deno.test("frame: panel height clamps to the screen minus margins", () => {
   assertEquals(frame.panel.h, H - 24);
   assertEquals(frame.panel.y, 12);
   // The content rect clamps with it (rows themselves may overflow — no
-  // scrolling until P6.3).
+  // scrolling until P7.1).
   assertEquals(
     frame.content.h,
     frame.panel.h - 44 - 24,

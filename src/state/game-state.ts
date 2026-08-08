@@ -45,9 +45,9 @@ import type {
 /**
  * Best current estimate of server epoch-ms "now" (SERVER.md § Time — "clients
  * never trust Date.now()"). No clock-offset handshake exists yet (that's
- * P3.2), so this is `Date.now()` today, but every comparison against a
+ * P4.2), so this is `Date.now()` today, but every comparison against a
  * server timestamp (`dispatchedAt`, `arrivalAt`, `completesAt`) should read
- * through here rather than calling `Date.now()` directly, so P3.2 only has to
+ * through here rather than calling `Date.now()` directly, so P4.2 only has to
  * change this one function.
  */
 export function serverNow(): number {
@@ -357,7 +357,7 @@ export class GameState {
 
   /**
    * Merge a single authorized vessel event from a command response (or, in
-   * phase 3, a server push), notifying subscribers. The next load() snapshot
+   * phase 4, a server push), notifying subscribers. The next load() snapshot
    * supersedes it — the backend records every event it authorizes, so the
    * snapshot already contains it.
    */
@@ -558,7 +558,7 @@ export class GameState {
 
   /**
    * Route one server push into the matching apply/sync entry point — the
-   * client half of the push channel (see ServerPush). Exactly what a phase-3
+   * client half of the push channel (see ServerPush). Exactly what a phase-4
    * socket handler will do; only the transport delivering the push changes.
    * Idempotent like everything it dispatches to: replaying a push (or
    * receiving one already reflected in a snapshot) merges by id.
@@ -650,7 +650,7 @@ export class GameState {
   /**
    * Replace this state with backend-loaded data, notifying subscribers.
    * Routed through update() so a re-sync at any time (a fresh snapshot, a
-   * post-login refresh, a phase-3 server snapshot) refreshes live scenes the
+   * post-login refresh, a phase-4 server snapshot) refreshes live scenes the
    * same way a local mutation would.
    */
   load(message: Revisioned<GameStateData>): void {
