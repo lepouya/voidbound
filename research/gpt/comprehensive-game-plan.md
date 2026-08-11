@@ -55,8 +55,9 @@ the former and reject the latter. See `comparison.md` and `sources.md`.
 6. **Non-predatory social game.** No aggressive cash shop, deliberate slowdown
    sold as relief, currency proliferation, whale-dominated hierarchy, required
    fixed-time attendance, or mechanics designed to make players angry at one
-   another. Future monetization remains an explicit later decision and must meet
-   these constraints.
+   another. The working P5.9 constraint is **no real-money purchase that grants
+   gameplay power**; cosmetics and non-powerful convenience remain a later
+   product decision. Future monetization must meet these constraints.
 
 ## 3. Player lifecycle vision
 
@@ -69,10 +70,11 @@ This is a player-experience lifecycle, not the numbered development roadmap.
 | 3. Capital contention   | Strong groups converge on scarce inner-system space and contest a visible system center.                      | NPC capital approach, major threat, and campaign climax.       | Alliance capital event and diplomacy.                           |
 | 4. World renewal        | A mature population renews goals through ascension/seasons and eventually cross-world competition.            | P3.11 validates reset/carry-over rules locally.                | Cohort worlds, seasons, merging, and server-versus-server play. |
 
-Target pacing is provisional: early game 1-2 weeks, mid game about 4 weeks, and
-late game about 4 weeks. P3.19 must validate that this duration is earned by
-decisions and discovery rather than timers. The first 30 minutes and first 3
-hours are the first hard proof points.
+The target to a first ascension is the full lifecycle: early game 1-2 weeks, mid
+game about 4 weeks, and late game about 4 weeks. P3.19 must validate that this
+duration is earned by decisions and discovery rather than timers. The first 30
+minutes, first 3 hours, and first several days are intermediate proof points,
+not the intended completion length.
 
 ## 4. System geography and capital
 
@@ -81,7 +83,7 @@ grade-1 resources. Resource value rises inward while usable space becomes
 scarcer, naturally creating route choices, choke points, and eventually
 conflict. The central 200*200 area is the future capital.
 
-The preferred fiction is a **Capital World with orbital infrastructure**:
+The current working fiction is a **Capital World with orbital infrastructure**:
 
 - The **Capital World** provides the emotional heart: a recoverable or inhabited
   world worth reaching and stewarding.
@@ -96,6 +98,10 @@ Each future season can foreground a different layer of the same capital complex:
 survey/reclaim the world, restore relay routes, stabilize the Helios Array, then
 contest stewardship. This preserves a coherent setting instead of inventing a
 new center for every season.
+
+This is a working proposal, not a locked setting decision. P3.9 should not
+hard-code names or irreversible content assumptions until the capital-fiction
+review is complete.
 
 ### Future capital event (not Phase 3)
 
@@ -122,18 +128,21 @@ meaning, but cannot permanently hoard roles or force 10-minute attendance.
 
 Prove that Voidbound is understandable, engaging, recoverable, and worth
 returning to before it gains networking, remote accounts, real alliances, or
-PvP. Rust remains authoritative; every mutation remains event-modeled,
-revisioned, timestamped, and snapshot-replayable so no Phase 3 work becomes a
-dead end for Phase 4.
+live shared-world PvP. Phase 3 includes an asynchronous local-defense arena: one
+profile challenges another profile's published defense snapshot, without
+looting, defender mutation, live opponents, or shared-world contention. Rust
+remains authoritative; every mutation remains event-modeled, revisioned,
+timestamped, and snapshot-replayable so no Phase 3 work becomes a dead end for
+Phase 4.
 
 ### The initial experience spine
 
-| Horizon          | Required player experience                                                                                                                                                           |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| First 5 minutes  | Select a local profile, meet a functioning but sparse Command Module, see clear needs, and complete one visible change.                                                              |
-| First 30 minutes | Hire first crew; build and staff first producer; mine; trade; upgrade the Command Module; take the first vessel expedition; return with a relationship and a building-unlock reward. |
-| First 3 hours    | Make a real research/path choice; improve a vessel; compare a safe resource route with a risky discovery; face the first NPC/hazard; recover from a failed attempt.                  |
-| Several days     | Advance through bands, solve higher-order ship/map constraints, reach the NPC-held capital approach, overcome a major threat, and choose an ascension.                               |
+| Horizon                 | Required player experience                                                                                                                                                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| First 5 minutes         | Select a local profile, meet a functioning but sparse Command Module, see clear needs, and complete one visible change.                                                                                                                  |
+| First 30 minutes        | Hire first crew; build and staff first producer; mine; trade; upgrade the Command Module; take the first vessel expedition; return with a relationship and a building-unlock reward.                                                     |
+| First 3 hours           | Make a real research/path choice; improve a vessel; compare a safe resource route with a risky discovery; face the first NPC/hazard; recover from a failed attempt.                                                                      |
+| Early to late lifecycle | Over roughly 1-2 weeks of early game, 4 weeks of mid game, and 4 weeks of late game: advance through bands, solve higher-order ship/map constraints, reach the NPC-held capital approach, overcome a major threat, and choose ascension. |
 
 ### P3.1 — experience specification (the immediate design gate)
 
@@ -146,25 +155,56 @@ Before implementation, write a testable specification containing:
 - The 1-2/4/4-week provisional arc, completion condition, and absence/return
   behavior.
 - Resource and fuel sinks, failure/recovery rules, core-currency budget, and
-  no-predation boundaries.
+  no-predation boundaries. This must be a source/sink budget: fuel from every
+  source; fuel spent on warp, expeditions, and recovery; expected early
+  shortfall; and the player-visible alternatives that solve it.
+- A content-runway matrix for the first 30 minutes, three hours, several days,
+  and the provisional longer arc. For each horizon, identify the new decision,
+  its active alternative while a timer runs, and the content that follows it.
+  “The guided objectives ended and only larger prices remain” is a P0 pacing
+  failure, not an acceptable genre transition.
+- A readable readiness model for NPC content. It may aggregate Command Module,
+  module, vessel, crew, and research investment into a headline score or tier,
+  but it must never hide a configuration, route, or tactical requirement behind
+  one larger number.
+- A local-defense arena contract: published defense snapshots, loadout
+  validation, challenge resolution, rewards, and the explicit guarantee that a
+  challenge neither loots nor mutates the defender. Its normal opponent pool is
+  other local profiles; curated ghost/NPC defense profiles make it usable during
+  early onboarding. It reuses P3.10's resolver; online matchmaking and live
+  player conflict remain later work.
+- An activity-reward policy. The arena's first challenge in each server day is
+  free; challenges two through five become progressively more expensive but
+  remain worthwhile, and later attempts are chiefly for local ranking/showing
+  off rather than material progression. Apply the same bounded high-value window
+  to recurring solo challenges, while expedition target fatigue remains
+  target-specific. The exact cost/reward curve must be server-authoritative and
+  visible before committing.
 - A content-exclusion list: no live alliance, player raid, cash-shop pressure,
-  real-time appointment, or player competitive ladder is needed to prove the
-  local alpha.
+  real-time appointment, or shared-world player competitive ladder is needed to
+  prove the local alpha.
 - Acceptance tests: comprehension without a guide; no waiting-only dead end;
   distinct research/expedition approaches; recoverability; useful offline
   return; and a recognizable completion/ascension state.
 
 ### P3.2-P3.3 — entry and objective foundation
 
-- **P3.2 profiles:** provide an in-app pre-load local profile chooser. Treat
-  multi-profile state as development scaffolding and asynchronous test coverage,
-  not a social feature. Preserve the CLI tools until real Phase 4 sessions make
-  them unnecessary.
+- **P3.2 profiles:** provide an in-app pre-load local profile chooser. In
+  addition to development scaffolding and asynchronous test coverage, a profile
+  may publish a defense snapshot for the local asynchronous arena. Other local
+  profiles are the normal opponent pool; curated ghost/NPC defense profiles
+  cover the beginning phase. Preserve the CLI tools until real Phase 4 sessions
+  replace the local-profile substrate; do not treat same-device profiles as a
+  substitute for real social play.
 - **P3.3 objectives/rewards:** persistent, event-modeled objectives become the
-  product’s teaching layer, not a disposable tutorial. Use chapters/zones and
-  environmental lore, with optional milestones after onboarding. Every new
-  system appears only when the player can use it immediately. Objectives name
-  the next useful action and why it matters, without replacing prioritization.
+  product’s teaching layer, not a disposable tutorial. The first chapter is
+  deliberately strict and short: expose one actionable objective at a time and
+  introduce a system only when it can be used immediately. After the first
+  expedition, switch to concurrent optional milestones so objectives explain
+  priorities without replacing them. Objective state, progress, reward claims,
+  and unlocks must be authoritative, revisioned snapshot data with an objective
+  push/apply path; the HUD shows the next action and a dialog shows the chapter
+  and claimable rewards.
 
 Suggested first chapter:
 
@@ -190,9 +230,12 @@ Suggested first chapter:
   the interface. Never silently hide a desired future possibility.
 - **P3.7 Vessel Shipyard:** replace flat vessel constants with a small number of
   crew-linked, legible specializations (speed/range, cargo/extraction, and PvE
-  resilience or tactics). Avoid a broad gacha-hero layer. The Shipyard arrives
-  after the research foundation so it is a meaningful application of choices,
-  not a false initial fork.
+  resilience or tactics). Avoid a broad gacha-hero layer. Deterministically
+  earned named captains/specialists are an optional later extension only if the
+  base vessel system proves insufficient; they must not be randomized, rarity
+  stacked, or required for ordinary progression. The Shipyard arrives after the
+  research foundation so it is a meaningful application of choices, not a false
+  initial fork.
 
 ### P3.8 — expeditions and fuel economy
 
@@ -211,7 +254,13 @@ fragments, moons/outposts, asteroid anomalies, and NPC distress signals.
 Outcomes may be route intel, research leads, resources, blueprints,
 relationships, hazards, encounters, or trade opportunities. The content should
 be data-driven and event-modeled so it can later be curated or social without a
-rewrite.
+rewrite. Use a visible outcome-category table and research-gated expedition
+capacity; repeated expeditions to the same target must decline in value so route
+choice stays meaningful. Randomness may cost cargo, time, fuel, or impose a
+recoverable damage/rescue state, but never causes a total irreversible vessel
+loss. Every completed expedition must also advance a visible target-specific
+survey/discovery track, so a streak of adverse outcomes cannot consume fuel
+without yielding a route, story, blueprint, or other bounded form of progress.
 
 ### P3.9-P3.10 — inward NPC campaign and PvE
 
@@ -219,17 +268,34 @@ rewrite.
   different situation—resource relation, route constraint, hazard, NPC behavior,
   or capital clue—rather than just a larger resource number. NPC factions use
   the same authoritative state/event shapes that remote players will one day
-  use.
-- **P3.10:** create bounded PvE encounters with readable preparation/odds,
-  tactical choices, damage/recovery, and rewards. A failed push must suggest a
-  next adjustment (research, crew, route, configuration, or timing). No
-  unrecoverable vessel or save loss.
+  use. Deeper travel/range must itself change the risk/reward proposition, and
+  the readiness model must state whether a player is broadly prepared. Combat
+  dispatch consumes the selected vessel, so choosing combat versus mining,
+  trading, or expedition work is an intentional, clearly advertised tradeoff.
+  Other ship-side planning and objective actions must remain available while
+  that vessel is away. Include a player-initiated recurring solo challenge/boss
+  or wave operation; it must have diminishing progression rewards rather than a
+  fixed-time event calendar or an infinite efficient farm.
+- **P3.10:** combat begins by selecting a fitted vessel and its starter
+  drone/troop loadout, then dispatching it to a target. The vessel is
+  unavailable for economic work until it returns. Resolve the encounter
+  authoritatively from that loadout, readiness, target conditions, and stated
+  preparation choices; no real-time unit micromanagement is required in this
+  first slice. A failed push must suggest a next adjustment (research, crew,
+  route, configuration, or timing) and may damage the dispatched force or cost
+  cargo/fuel, but cannot cause unrecoverable vessel or save loss. Keep the
+  resolver opponent-agnostic: it must serve both NPCs and the P3 local-defense
+  arena.
 
 ### P3.11 — local completion and ascension
 
-The local campaign reaches the NPC-held capital complex and resolves a major
+The local campaign reaches an NPC-held capital approach and resolves a major
 threat or restoration milestone. It then offers an explicit ascension choice.
-The player must understand what resets before accepting it.
+The player must understand what resets before accepting it. Neither the exact
+capital fiction nor the reset contract is decided by SLG research: before this
+task is specified, study finite prestige/New Game+/roguelike carry-over models
+and choose a local-campaign form that does not prematurely hardcode online
+season rules.
 
 Likely carry-over:
 
@@ -239,7 +305,9 @@ Likely carry-over:
 
 Ascension benefits should broaden early strategic choices and remove repeated
 bootstrap tedium, not multiply late power or make a fresh player irrelevant. The
-exact reset/carry-over contract remains an open P3.11 design decision.
+exact reset/carry-over contract remains an open P3.11 design decision, but its
+first use is intentionally the conclusion of the full multi-month lifecycle, not
+a short several-day alpha loop.
 
 ### P3.12-P3.18 — readability and presentation are part of the loop
 
@@ -247,15 +315,25 @@ Ship/module art, starfield/asteroid readability, resource detail, minimap
 context, Trading Post clarity, audio, and progressive crew cost must support the
 campaign rather than wait as unrelated polish. Prioritize P3.12-P3.18 when they
 remove a comprehension problem identified by P3.1/P3.19; do not let presentation
-block the first vertical slice.
+block the first vertical slice. In particular, Command Module growth should
+visibly open useful interior space or a new mothership region where practical,
+so progression is spatially tangible rather than only a level number.
 
 ### P3.19 — playtest and rebalance gate
 
 Run repeated fresh profiles at normal and accelerated time. Observe first 30
-minutes, three hours, offline return, campaign completion, research variety,
-timer dead time, failure recovery, and all three session lengths. Capture player
-confusion and dominant paths. Do not advance to Phase 4 because systems exist;
-advance only when P3.1 acceptance criteria hold.
+minutes, three hours, the early/mid/late lifecycle to campaign completion,
+offline return, research variety, timer dead time, failure recovery, and all
+three session lengths. Capture player confusion and dominant paths. Record where
+scripted content ends, the next meaningful decision available afterward, and
+whether the player encounters a wait/prerequisite wall; treat an abrupt
+post-onboarding wall as a P0 rebalance finding. Sample both first-session and
+multi-hour players rather than averaging their feedback into one signal. Run
+sustained-play simulations against the repeatable expedition, solo-challenge,
+and arena reward curves: a player or automation that runs all day must not earn
+a material progression advantage over a player who completes the first five
+worthwhile challenges in ordinary sessions. Do not advance to Phase 4 because
+systems exist; advance only when P3.1 acceptance criteria hold.
 
 ## 6. Phase 4: networked authoritative game
 
@@ -282,11 +360,15 @@ Phase 5 turns the validated local center journey into cooperative world play:
   assumed from other games.
 - Player/alliance trade and a deliberately designed credits economy.
 - Alliance-aware warp and limited items/inventory.
-- A separate monetization decision that must satisfy the non-predatory charter.
+- A monetization decision that preserves the no-gameplay-power-purchase
+  constraint and the non-predatory charter.
 
 Capital stewardship and ministry systems may begin here only after a dedicated
 fairness design. Early social value should be cooperation, shared projects,
 identity, and optional roles—not forcing every player into fixed-time duties.
+Provide alliance governance and communication tools before attempting to
+hard-code every resource etiquette rule; healthy player-created norms may be
+more durable than brittle mandatory rules.
 
 ## 8. Phase 6: adversarial conflict and defence
 
@@ -295,9 +377,15 @@ Only after networked identity and healthy alliance/world foundations are proven:
 - Add fabrication/assembly/data-archive modifiers and the fuller weapon economy.
 - Extend P3 PvE rules into carefully bounded PvP, with server-authoritative
   resolution and defender recourse.
+- Apply the already chosen 72-hour new-player protection bubble; it ends early
+  only when that player initiates an active synchronous PvP action. It protects
+  early learning without making passive account age the only safety rule.
 - Enforce the protected-storage rule: only explicit exposed surplus may be
   lootable; core protected stock and campaign viability are not raid targets.
-- Add repair, hangar, shield, and fleet-cap systems.
+- Make attacks and expeditions consume fuel and create repair demand. A lost
+  defense may expose only lootable surplus; recovery/repair must be affordable
+  enough that a loss never strands the defender or erases their campaign path.
+  Add repair, hangar, shield, and fleet-cap systems around that loop.
 - Design/operate the capital capture-and-hold event here or at the Phase 5/6
   boundary, with a PvE approach wall, offense-to-defense handoff, short hold
   window, one-week alliance stewardship, and anti-snowball safeguards.
@@ -345,7 +433,10 @@ rewards, a nonattendance-safe baseline, and no cash-shop escalation loop.
 2. First three-hour research and vessel choices, including respec policy.
 3. Initial named sector/band identity and the NPC capital threat.
 4. Core campaign completion condition and the definition of a recoverable loss.
-5. The minimum viable objective/reward and expedition data shapes.
+5. The minimum viable objective/reward and expedition data shapes, including
+   snapshot, push, claim, and apply behavior.
+6. The fuel source/sink budget, expedition outcome categories, readiness model,
+   and content-runway matrix.
 
 ### Must decide before P3.11
 
@@ -358,7 +449,8 @@ rewards, a nonattendance-safe baseline, and no cash-shop escalation loop.
 
 1. Capital-world name, seasonal capital states, and alliance stewardship
    fiction.
-2. Newcomer protection, catch-up, and nonparticipant safety.
+2. Catch-up and nonparticipant safety, plus implementation details for the
+   chosen 72-hour new-player protection rule.
 3. Alliance reward caps, ministry roles, fair automatic rotation, and leader
    powers.
 4. Capture/defense timing, time-zone fairness, anti-snowball rules, and

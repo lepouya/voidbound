@@ -16,12 +16,8 @@ relationship the game.
 Voidbound's value boundary is equally important: it must not use predation,
 monetized roadblocks, currency proliferation, or irreversible progression loss
 as a substitute for compelling content. Future monetization is undecided, but
-the local-alpha economy must be small, legible, and earned through play.
-
-Voidbound's value boundary is equally important: it must not use predation,
-monetized roadblocks, currency proliferation, or irreversible progression loss
-as a substitute for compelling content. Future monetization is undecided, but
-the local-alpha economy must be small, legible, and earned through play.
+the working constraint is no real-money gameplay power. The local-alpha economy
+must be small, legible, and earned through play.
 
 ## Phase 3 experience spine
 
@@ -30,12 +26,12 @@ Voidbound's development-roadmap phase. The reference games' player-lifecycle
 phases are recorded separately in `player-lifecycle-model.md`; their first,
 rapid solo-discovery phase is the immediate target.
 
-| Time horizon     | Player question                                    | Required experience                                                                                                                                                                                                    | Candidate Phase 3 systems                                    |
-| ---------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| First 5 minutes  | “What am I saving, and what do I do?”              | A stranded but functioning Command Module, visible resource needs, one immediate objective, and a choice that produces a visible change.                                                                               | P3.2 profile entry, P3.3 onboarding, current crew/module UI. |
-| First 30 minutes | “Can I operate this ship and make progress?”       | Hire first crew; build and staff first producer; mine; use an NPC trade; upgrade Command Module; complete the first vessel expedition, whose discovery feeds the next choice. State the next reason before every wait. | P3.1, P3.3, P3.4, P3.6, P3.8.                                |
-| First 3 hours    | “What kind of expedition leader am I?”             | Make a meaningful research/path choice; improve a vessel; weigh a safe resource route against a risky discovery; encounter the first NPC/hazard; recover from a setback.                                               | P3.4, P3.7, P3.8, P3.9, P3.10.                               |
-| Several days     | “Can I reach and change the heart of this system?” | Discover progressively harder sectors, overcome a major threat through prepared ship/vessel choices, complete a clear campaign objective, then choose ascension.                                                       | P3.9, P3.10, P3.11, P3.19.                                   |
+| Time horizon     | Player question                                    | Required experience                                                                                                                                                                                                                                         | Candidate Phase 3 systems                                    |
+| ---------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| First 5 minutes  | “What am I saving, and what do I do?”              | A stranded but functioning Command Module, visible resource needs, one immediate objective, and a choice that produces a visible change.                                                                                                                    | P3.2 profile entry, P3.3 onboarding, current crew/module UI. |
+| First 30 minutes | “Can I operate this ship and make progress?”       | Hire first crew; build and staff first producer; mine; use an NPC trade; upgrade Command Module; complete the first vessel expedition, whose discovery feeds the next choice. State the next reason before every wait.                                      | P3.1, P3.3, P3.4, P3.6, P3.8.                                |
+| First 3 hours    | “What kind of expedition leader am I?”             | Make a meaningful research/path choice; improve a vessel; weigh a safe resource route against a risky discovery; encounter the first NPC/hazard; recover from a setback.                                                                                    | P3.4, P3.7, P3.8, P3.9, P3.10.                               |
+| Full lifecycle   | “Can I reach and change the heart of this system?” | Across 1-2 weeks of early game, about 4 weeks of mid game, and about 4 weeks of late game: discover progressively harder sectors, overcome a major threat through prepared ship/vessel choices, complete a clear campaign objective, then choose ascension. | P3.9, P3.10, P3.11, P3.19.                                   |
 
 This is a direction, not yet an approved P3.1 specification. The user’s own
 experience with the three references should set the desired pace and emotional
@@ -48,12 +44,16 @@ tone before targets/numbers are locked.
    must grow through research/prerequisites rather than become a tax.
 2. **Prepare:** choose a vessel configuration and expedition plan with an
    up-front travel time, fuel cost, risk, and expected reward. A player should
-   know what they are committing to before dispatch.
+   know what they are committing to before dispatch. Repeatedly choosing the
+   same target must not be the dominant strategy.
 3. **Explore:** move inward through legible radial sectors. Each region should
    offer a new resource relation, hazard, NPC behavior, or strategic question.
 4. **Resolve:** take bounded PvE decisions with a clear preview and a
-   recoverable failure. P3.10 must validate a reusable combat interaction, not
-   merely add a damage number.
+   recoverable failure. A headline readiness score/tier should make the broad
+   difficulty legible, but preparation, configuration, and route choices must
+   still matter. A combat dispatch occupies its fitted vessel, creating a clear
+   choice against economic work. P3.10 must validate a reusable combat
+   interaction, not merely add a damage number.
 5. **Return and reframe:** harvest/receive outcomes, see the ship visibly
    change, make the next unlock choice, and leave with an explicit return hook.
 
@@ -67,6 +67,10 @@ system before meeting the next.
 - **One visible spine, not one mandatory rush.** The Command Module is the
   central icon, as the furnace is in Whiteout, but module/research choices must
   create alternate approaches rather than a prerequisite conveyor belt.
+- **Strict first chapter, then explained choice.** The first few objectives may
+  intentionally expose one action at a time; once the first expedition returns,
+  the player needs concurrent optional milestones instead of a permanent linear
+  checklist.
 - **Geography should unlock agency.** Borrow Tiles Survive’s outward expansion,
   using inner sectors, routes, moons, planets, and hazards rather than literal
   tiles. A new area must change a decision, not just increase a deposit number.
@@ -89,10 +93,20 @@ system before meeting the next.
 - **Active and idle play are both respected.** Active sessions unlock choices,
   discoveries, and tactical expression; they must not become an unlimited source
   of raw power that invalidates a player who returns in short sessions.
+- **Repeatable content has a visible value curve.** Repeated expeditions to one
+  target and recurring solo challenges lose progression value after their
+  high-value returns. Every expedition still advances bounded target progress,
+  so bad luck cannot turn a normal attempt into no progress at all. Arena and
+  solo-challenge runs have a first-free, progressively costlier first-five
+  server-day window, then become chiefly ranking/show-off play. The curve is
+  visible and player-initiated, not a fixed-time attendance demand.
 - **Build reversal into branching systems.** Research and ascension branches may
   offer different openings, but a player must be able to respec through normal
   play. Do not monetize recovery from a choice that the game allowed them to
   make without sufficient information.
+- **Design against the post-onboarding wall.** The end of a chapter cannot mean
+  the end of meaningful solo content. Every horizon needs a next decision and a
+  credible active alternative while longer commitments resolve.
 
 ## What a successful Phase 3 must contain
 
@@ -110,11 +124,23 @@ system before meeting the next.
   later procedural targets include moons, anomalies, and distress signals. The
   first expedition should establish an NPC relationship and yield an item or
   blueprint that opens the first Research Lab or military/Vessel Shipyard path.
+  Use visible outcome categories, research-gated expedition capacity, and
+  diminishing returns for repeated targets; outcomes may cause recoverable
+  damage or loss, never irreversible vessel deletion.
 - Persistent NPC sectors and hazards that make radial movement feel like a
-  campaign map (P3.9), then a bounded combat vertical slice (P3.10).
+  campaign map (P3.9), including a recurring solo challenge with diminishing
+  returns, then a bounded combat vertical slice (P3.10): select a drone/troop
+  loadout and dispatch it, rather than requiring real-time unit control.
+- A local asynchronous defense arena: published defense snapshots from the
+  same-device profiles P3.2 supplies, with curated ghost/NPC defenses for the
+  beginning phase, a shared P3.10 resolver, and no looting, defender mutation,
+  live opponent, or shared-world contention.
 - A finite completion and explicit ascension/reset contract (P3.11), including
   cosmetics, a better first expedition, and a strictly bounded ascension
   research tree as likely carry-over candidates.
+- A P3.11 design pass informed by finite prestige/New Game+/roguelike carry-over
+  references, since the live-service comparisons do not supply a completion
+  template.
 - Readability/polish necessary to understand the loop: shop layout, minimap,
   resource details, module/map art, audio, and growing crew costs (P3.12-P3.18).
 - Repeated fresh-profile playtests with documented outcome criteria (P3.19).
@@ -131,19 +157,25 @@ system before meeting the next.
 - Any early/mid-campaign failure can be recovered with known actions and bounded
   cost; no reset is required.
 - A campaign has an estimated completion range and a clearly explained ascension
-  choice. It is not merely a promise of future events.
+  choice at the end of its intended multi-month lifecycle. It is not merely a
+  promise of future events.
 - The first three hours contain overlapping ship, resource, map/PvE, and
   research decisions; players never experience the intended core as a single
   waiting queue.
+- Fresh-profile testing identifies when guided content ends and confirms that a
+  new decision, rather than a wait/prerequisite wall, follows it.
+- Sustained-play testing confirms that diminishing returns prevent all-day
+  expedition or recurring-challenge farming from becoming the dominant route to
+  progression.
 
 ## Explicitly defer to later phases
 
-| Do not solve in Phase 3                                                             | Why it waits                                                                     | Planned home |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------ |
-| Simultaneous multiplayer, login, remote storage, web sockets, anti-cheat            | Local loop and state contracts must be proven first.                             | P4.1-P4.6    |
-| Alliances, player territorial conflict, cohort worlds, online seasons, player trade | Value depends on a real population; it would mask rather than validate solo fun. | P5.1-P5.9    |
-| Full weapons economy, player raids, defence modules, adversarial loss               | PvE combat rules need a safe/recoverable vertical slice first.                   | P6.1-P6.7    |
-| Curated live events, mobile release, broad item inventory, map transport work       | Presentation/content/platform scope should not block local-alpha proof.          | P7.1-P7.6    |
+| Do not solve in Phase 3                                                             | Why it waits                                                                                       | Planned home |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------ |
+| Simultaneous multiplayer, login, remote storage, web sockets, anti-cheat            | Local loop and state contracts must be proven first; P3's local-defense arena is not a substitute. | P4.1-P4.6    |
+| Alliances, player territorial conflict, cohort worlds, online seasons, player trade | Value depends on a real population; it would mask rather than validate solo fun.                   | P5.1-P5.9    |
+| Full weapons economy, player raids, defence modules, adversarial loss               | PvE combat rules need a safe/recoverable vertical slice first.                                     | P6.1-P6.7    |
+| Curated live events, mobile release, broad item inventory, map transport work       | Presentation/content/platform scope should not block local-alpha proof.                            | P7.1-P7.6    |
 
 The future capital-control event belongs with the online territorial/conflict
 work, not P3: a first captor shifts to defender, holds against challengers for a

@@ -27,9 +27,10 @@ The provisional target is a long-form progression arc:
 | Mid game        | About 4 weeks   | Deeper research, vessel specialization, inward expansion, meaningful territory/resource choices.      |
 | Late game       | About 4 weeks   | Scarce inner real estate, capital approach, major conflict/cooperation stakes, ascension preparation. |
 
-This is a provisional target to test, not a mandate for idle waits. The P3.1
-first-30-minute/three-hour/several-day targets remain the first validation
-milestones; P3.19 must decide whether the long arc earns its duration.
+This is the intended first-ascension target, not a mandate for idle waits. The
+P3.1 first-30-minute/three-hour/several-day targets remain intermediate
+validation milestones; P3.19 must decide whether the long arc earns its
+duration.
 
 ### 3. First “I get it” moment
 
@@ -125,15 +126,22 @@ The following are product constraints, not merely tuning concerns:
 - Do not allow predation or loss of core player progress.
 
 The future monetization decision in P5.9 remains open, but any model must pass
-these constraints. The player-facing Phase 3 economy should stay small, legible,
-and fully earnable through normal play.
+these constraints. The working direction is no real-money purchase that grants
+gameplay power; cosmetics and non-powerful convenience remain undecided. The
+player-facing Phase 3 economy should stay small, legible, and fully earnable
+through normal play.
 
-### 11. Local profiles are development scaffolding
+### 11. Local profiles and asynchronous defense arena
 
 Asynchronous same-device profiles exist to support local development and
-testing. They are not a player-facing social feature or a substitute for online
-play. By the end of Phase 4, real sessions/networking should replace their
-practical need.
+testing. In Phase 3, they also supply the normal opponent pool for the
+asynchronous defense arena: one profile publishes a defense loadout and another
+profile may challenge that immutable snapshot through the authoritative combat
+resolver. Curated ghost/NPC defense profiles cover the beginning phase before a
+player has useful local opponents. The challenge has no live opponent, looting,
+defender mutation, or shared-world effect. This is a local combat/loadout proof,
+not a substitute for online social play; real sessions/networking replace its
+practical substrate in Phase 4.
 
 ### 12. Expedition interaction
 
@@ -148,6 +156,43 @@ The intended expedition is a **mix**:
 
 This permits both short return sessions and longer active play without turning
 active play into unlimited power grinding.
+
+### 12a. Cross-track expedition constraints
+
+The outcome categories, odds/risk classes, fuel cost, time, and expected value
+must be visible before dispatch. Research may increase the number of expedition
+slots, but repeatedly sending vessels to one target must have diminishing value
+so route choice persists. An adverse outcome may lose cargo, fuel, opportunity,
+or impose a recoverable damage/rescue state; it must never delete a critical
+vessel. Fuel needs an explicit source/sink budget covering mining, trade,
+production, warp, expedition, and recovery before P3.8 numbers are approved.
+
+### 12b. Diminishing-return and variance policy
+
+Repeatable play needs two complementary safeguards. A per-target diminishing
+return curve prevents repeatedly farming one expedition target. Arena and
+recurring solo challenges reset their cost ladder each server day: the first is
+free; attempts two through five become progressively more expensive while still
+worth doing for ordinary players; later attempts should not be material
+progression-positive and exist chiefly for ranking/showing off. The curves must
+be visible, player-initiated, and tested against sustained automated play; their
+low-value tail cannot be an efficient all-day resource farm.
+
+Independently, each expedition advances a visible survey/discovery track for its
+target. Weighted outcomes may vary, but a normal attempt cannot be pure dead
+loss: after bounded progress, it unlocks a route, story, blueprint, or other
+meaningful next choice. This is protection against bad luck, not a new currency
+or an excuse to conceal the odds.
+
+### 12c. First combat interaction
+
+For P3.10, the player selects a fitted vessel and its combat drone/troop loadout
+and dispatches it to an NPC target or a local profile's defense snapshot. That
+vessel is unavailable for mining, trade, or expedition work until it returns.
+The authoritative resolver uses the selected loadout, readiness, target
+conditions, and stated preparation choices; it does not require real-time unit
+micromanagement. Damage, fuel cost, and repair delay create consequences, while
+the recoverable-failure rule still protects the campaign path.
 
 ### 13. Ascension should reduce repeated-bootstrap tedium
 
