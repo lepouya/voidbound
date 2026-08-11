@@ -123,6 +123,51 @@ subset is folded into the P3.4/P3.8/P3.11 sections below.
 - **Research structure:** three initial branches — growth/development, economy,
   and battle/military — matching this track's own P3.4 recommendation
   (Whiteout's Growth/Economy/Battle split) independently.
+- **Vessel/combat dispatch exclusivity (resolved 2026-08-10):** Voidbound has a
+  limited pool of vessels/troops/captains, not a decoupled troops-vs-workers
+  split like Rise of Kingdoms' Expedition mode. Dispatching a vessel to combat
+  makes it unavailable for mining, trade, or expedition work until it returns —
+  `docs/gpt/decision-workshop.md` §12c's rule, confirmed directly by the user.
+  This closes a real disagreement between tracks:
+  `docs/gemini/
+  voidbound_strategy.md` §3.6 states combat "do[es] not lock up
+  or interrupt space map mining," reading RoK's parallel-troop-pool model onto
+  Voidbound without accounting for the limited-pool constraint — that framing
+  doesn't hold here and should not carry into the reconciled plan. See the
+  corrections to P3.9 and P3.10 below.
+- **Refined 2026-08-10 (from `docs/gpt/decision-workshop.md` §19, its own
+  reconciliation pass):** the exclusivity above is per-unit, not a global
+  lockout — "dispatching a fitted vessel occupies that vessel, but construction,
+  objectives, and other available vessels remain usable." This refines the
+  resolution above rather than reopening it: the pool is limited, not infinite,
+  but it's still a pool once the player has more than one vessel/crew/captain.
+  The real risk this surfaces: the first 30 minutes likely has exactly one
+  vessel, so occupying it for combat could function as a whole-game pause during
+  onboarding even though the intent is "opportunity cost, not dead end."
+  `docs/gpt/p3.1-design-gate.md` names this directly ("P3.1 must state the
+  early-vessel availability needed to make that true") — worth folding into this
+  track's own P3.1 recommendation as an explicit check. **Still unresolved as of
+  this pass:** `docs/gemini/voidbound_strategy.md` §3.6 was amended 2026-08-10
+  for other content (the survey-track and daily-ladder backfills adopted below)
+  but did not correct its "do not lock up or interrupt space map mining" line —
+  it still reads as the parallel-pool framing this section rejects. Flag for
+  whoever does the final cross-track reconciliation: two tracks and the user's
+  own direct answer agree here; one track's document is stale on this specific
+  point despite its own reconciliation pass touching the same section.
+- **Partially fixed, still internally inconsistent (second amendment round,
+  2026-08-10):** Gemini's next pass at `voidbound_strategy.md` did add the
+  correct rule in its P3.10 section ("Dispatching a fitted vessel to combat or
+  an expedition occupies that vessel exclusively until it returns; it cannot
+  simultaneously mine asteroids or execute other dispatches") and its own README
+  now describes it the same way. But the document's own "Five Non-Negotiable
+  Local Loops" section, higher up, was never updated to match — it still reads
+  "RoK Expedition style: combat runs in parallel without blocking space map
+  mining," the exact framing the fix above rejects. This is no longer a
+  cross-track disagreement (Gemini's own P3.10 section now agrees with GPT and
+  the user); it's an internal inconsistency inside one file that survived a
+  second reconciliation pass — worth a plainer flag than "still open" for
+  whoever merges these documents, since the fix already exists elsewhere in the
+  same file and just needs to be copied up.
 
 ## Task-by-task notes
 
@@ -221,10 +266,112 @@ in `voidbound-application.md`), or stay purely one-shot.
 **Resolved 2026-08-10 (from `docs/gpt/`'s reconciliation pass):** the chapter
 structure itself is strict-linear-then-branching, not strict-linear throughout.
 Expose exactly one actionable objective at a time through the end of the first
-chapter (up to and including the first expedition returning); after that, switch
-to concurrent optional milestones so objectives explain priorities without
-permanently replacing player choice. This is the answer to the open item
-directly above, not a separate question.
+chapter; after that, switch to concurrent optional milestones so objectives
+explain priorities without permanently replacing player choice. This is the
+answer to the open item directly above, not a separate question.
+
+**Sub-question resolved 2026-08-10 by direct user decision** (this document had
+surfaced it as a genuine three-way disagreement: GPT's `p3.1-design-gate.md` put
+the boundary at Research Lab construction; Gemini's amended
+`plan_p3_3_objectives.md` put it at the first expedition itself). The user's
+answer is a fourth position, later than either: the strict-linear chapter
+extends through **both the first and second expeditions, plus the first base
+research entry completing** — not just building the Research Lab, and not just
+the first expedition. Concretely, chapter 1's tail is now: first expedition
+returns (guaranteed NPC relationship + Research Lab blueprint) → Research Lab
+built → first research entry researched (using the growth/economy/battle branch
+structure from P3.4) → second expedition dispatched and returns → _then_ switch
+to concurrent optional milestones. This gives the player one demonstrated full
+loop of "expedition unlocks research/next expedition" — not just the guaranteed
+first-time sample — before handing over open-ended choice, which is a stronger
+"the player has actually seen this loop repeat" bar than either other track's
+answer. Recorded in `user-notes.md`; supersedes the "resolved from `docs/gpt/`'s
+reconciliation pass" note directly above, which only got the _shape_
+(strict-then-branching) right, not the exact boundary.
+
+**Cross-track status as of the second amendment round (2026-08-10):**
+`docs/gemini/plan_p3_3_objectives.md`'s independently-amended Chapter 1 catalog
+now runs the exact same ten-step sequence as the user's decision above (through
+`ch1_first_tech` and `ch1_second_expedition` before Chapter 1 completes) —
+genuine convergence, not something this document is asserting alone.
+`docs/gpt/decision-workshop.md` §22 and `docs/gpt/p3.1-design-gate.md`, however,
+are now the stale ones: both still describe the strict-linear chapter ending
+"through the first relay-fragment expedition" with no mention of the second
+expedition or the first research entry — the same kind of one-track-
+lagging-behind situation Gemini was in last round on the vessel-exclusivity
+question, just reversed. Worth flagging for whoever does the final
+reconciliation rather than treating GPT's document as still open on this point.
+One loose thread even within Gemini's own file: its `plan_p3_3_objectives.md`
+overview paragraph (above the actual chapter catalog) still says "up through the
+first expedition," not updated to match its own ten-step catalog below it — an
+internal inconsistency in that file, not a second disagreement.
+
+#### Implementation sketch (added 2026-08-10)
+
+`docs/gemini/plan_p3_3_objectives.md` sketched this task to full Rust/TS depth
+independently; recording an equivalent sketch here for consistency with this
+track's own P3.8/arena sketches, adopting Gemini's shape rather than inventing a
+competing one where it already fits this codebase's conventions.
+
+**Wire types (`game-state-types.ts`):**
+
+```typescript
+export type ObjectiveState = "locked" | "in-progress" | "completed" | "claimed";
+
+export interface ObjectiveData {
+  objectiveId: string; // e.g. "ch1_hire_crew"
+  chapterId: string;
+  state: ObjectiveState;
+  currentProgress: number; // for count-based objectives, e.g. "mine N units"
+  targetProgress: number;
+  // reward is claimed via a separate command below rather than granted on
+  // completion — matches this codebase's existing "claimable, not automatic"
+  // reward convention (P1.12 deals, notification-driven Mail claims)
+}
+
+export interface ObjectivesData {
+  activeChapterId: string;
+  objectives: ObjectiveData[]; // the strict-linear phase sends one row; the
+  // concurrent-milestone phase (post-first-expedition, per the Resolved note
+  // above) sends the full active set
+}
+```
+
+`GameStateData` gains `objectives: ObjectivesData`; `ServerPush` gains an
+`objective` variant carrying `Revisioned<ObjectivesData>`.
+
+**Backend (`src-tauri/src/game_state/objectives.rs`, new domain file):**
+
+- An `ObjectiveCatalog` (mirrors `modules.rs`/`expeditions.rs`'s catalog shape)
+  defines the chapter sequence and each objective's completion condition and
+  claim reward — data, not scattered handler-side checks.
+- Objective progress advances as a side effect of other commands settling
+  (hiring crew, a producer's first completed build, a mine completing, a trade
+  accepted, a Command Module level-up, the first expedition returning) rather
+  than its own dispatch command — there's no `request_advance_objective`. Each
+  relevant command handler and scheduler settlement path checks the active
+  objective's completion condition after doing its own work and emits an
+  `objective` push if it now completed, following the same
+  drain-outbox-at-boundaries convention `AGENTS.md` §4 describes for
+  `resources`/`module`/etc. pushes.
+- `request_claim_objective(objective_id)` — verifies `state: "completed"`,
+  deposits the reward, transitions to `claimed`, advances `activeChapterId` if
+  it was the chapter's last objective, and returns the updated `ObjectivesData`.
+
+**Frontend:** `gameState.applyObjectiveEvent()` alongside the existing
+`apply*Event` methods; a persistent HUD widget (`AGENTS.md` §4's `addHudGroup`)
+showing the current actionable objective, tapping into an Objectives dialog
+built on `bindDialogRows` — a `completed` row surfaces a Claim button with its
+reward badge, matching P3.3's "meaningful, visible unlock" requirement rather
+than an automatic silent grant.
+
+**Verification plan (once actually implemented via `/roadmap-task`):** fresh
+profile shows Chapter 1's first objective on load; completing its condition
+(e.g. hiring the first crew member) flips it to `completed` via push without a
+manual refresh; claiming deposits the reward and reveals the next objective;
+restart mid-chapter and confirm `load_game_state` restores the exact
+`ObjectivesData` state; after the first expedition returns, confirm the switch
+from one-at-a-time to the concurrent optional-milestone set.
 
 ### P3.4 — Research Lab + tech tree
 
@@ -322,15 +469,25 @@ expedition fuel cost needs its own pass, per ROADMAP's existing note that P3.8
 should "settle fuel's broader role."
 
 **First target (from "Decisions carried in from parallel tracks" above):** the
-first expedition is a relay fragment or derelict station, not a random roll —
-its outcome is _guaranteed_ to be an NPC relationship plus an item/blueprint,
-matching P3.3's "meaningful unlock every task" convention (design pillar/P3.3
-section above) rather than starting the player on OGame's weighted table cold.
-The weighted-outcome table applies from the second expedition onward, once the
-player has a frame of reference for what a "normal" result looks like. **Decided
-2026-08-10:** the guaranteed blueprint specifically unlocks the **Research Lab**
-(not the Vessel Shipyard, and not a player choice between the two) — resolves
-the "still open" question `docs/gpt/decision-workshop.md` left on this point.
+first expedition target is a relay fragment or derelict station, not a random
+roll — its outcome is _guaranteed_ to be an NPC relationship plus an
+item/blueprint, matching P3.3's "meaningful unlock every task" convention
+(design pillar/P3.3 section above) rather than starting the player on OGame's
+weighted table cold. The weighted-outcome table applies from the second
+expedition onward, once the player has a frame of reference for what a "normal"
+result looks like. **Decided 2026-08-10:** the guaranteed blueprint specifically
+unlocks the **Research Lab** (not the Vessel Shipyard, and not a player choice
+between the two) — resolves the "still open" question
+`docs/gpt/decision-workshop.md` left on this point.
+
+**Narrowed 2026-08-10** (`docs/gpt/decision-workshop.md` §17/§19,
+`docs/gpt/p3.1-design-gate.md`, both from GPT's own reconciliation pass): the
+first-run target is specifically the **relay fragment**, not an "or derelict
+station" fork — "a derelict station remains a normal repeatable-target
+archetype, not the first-run fork." This settles the open either/or above in
+favor of one fixed first target, matching this document's own earlier
+"guaranteed outcome, not a special-cased branch in the command handler"
+implementation note below more cleanly than a two-way fork would have.
 
 #### Implementation sketch (added 2026-08-10)
 
@@ -375,10 +532,22 @@ export interface ExpeditionData {
   arrivesAt: number;
   outcome: ExpeditionOutcome | null; // populated once state === "returned"
 }
+
+// Backfilled 2026-08-10 from docs/gpt/decision-workshop.md §12b: independent of
+// the weighted outcome roll above, every completed expedition also advances a
+// per-target-kind progress track, so a streak of bad rolls still yields a
+// bounded, guaranteed unlock (route intel, a story beat, a blueprint) rather
+// than pure dead loss. Protects against variance; not a new currency.
+export interface ExpeditionProgressData {
+  targetKind: ExpeditionTargetKind;
+  discoveryProgress: number;
+  discoveryThreshold: number; // milestone reward fires at progress >= threshold
+}
 ```
 
-`GameStateData` gains `expeditions: ExpeditionData[]`; `ServerPush` gains an
-`expedition` variant carrying a `Revisioned<ExpeditionData>`, following the
+`GameStateData` gains `expeditions: ExpeditionData[]` and
+`expeditionProgress: ExpeditionProgressData[]`; `ServerPush` gains `expedition`
+and `expeditionProgress` variants carrying `Revisioned<T>`, following the
 existing `vessel`/`asteroid` push pattern exactly.
 
 **Backend (`src-tauri/src/game_state/expeditions.rs`, new domain file):**
@@ -400,7 +569,10 @@ existing `vessel`/`asteroid` push pattern exactly.
   resources, install a blueprint unlock, record an NPC relationship, or flag
   vessel damage — never destroy the vessel outright per the PvE failure rule
   above), and emit a revisioned `expedition` push with `state: "returned"` and
-  `outcome` populated.
+  `outcome` populated. Every settlement also increments that target kind's
+  `ExpeditionProgressData.discoveryProgress` regardless of which outcome rolled;
+  crossing `discoveryThreshold` fires its bounded milestone reward and emits an
+  `expeditionProgress` push alongside the `expedition` push.
 
 **Frontend:** `gameState.applyExpeditionEvent()` alongside the existing
 `apply*Event` methods; an `ExpeditionSync`-shaped reconciler if expeditions get
@@ -434,6 +606,18 @@ NPC encounters even stripped of their alliance-cooperative framing — and per t
 user's 2026-08-10 decision, some version of this returning/escalating structure
 should be **in scope for Phase 3**, not deferred to P7.1.
 
+**Correction (2026-08-10):** the "run alongside, not instead of" default above
+is wrong for Voidbound and should not be adopted — see the vessel/combat
+dispatch exclusivity resolution in "Decisions carried in from parallel tracks."
+RoK's Expedition mode is precedent for the encounter _structure_ (staged,
+scaling, clear win/loss state) only; its "doesn't pull vessels off economic
+tasks" property does not transfer, since Voidbound's vessels are a shared,
+limited pool. Choosing combat over mining/trading/expedition work for a given
+vessel is meant to be "an intentional, clearly advertised tradeoff" (matching
+this same document's P3.10 recommendation, which had this right already) — the
+inconsistency was only in this section's framing of the RoK precedent, not in
+the rest of this track's own conclusions.
+
 **Backing:** `voidbound-application.md` Part 1 and Part 5; `00-task-list.md`
 decisions log (RoK and STFC flags).
 
@@ -464,17 +648,38 @@ peer game's CP is legible against its content.
 **Backing:** `voidbound-application.md` Part 1 (P3.9/P3.10 section) and
 Decisions #1.
 
-**Open items:** the exact formula/weighting for the power stat; whether it's
-player-visible as a raw number (genre-standard) or abstracted into a tier/label
-(more in keeping with Voidbound's current understated-UI conventions) — worth a
-design-review conversation rather than assuming the genre-standard raw-number
-presentation.
+**Confirmed 2026-08-10:** dispatching the fitted vessel for a combat encounter
+occupies it exclusively — the same vessel cannot mine, trade, or run an
+expedition until it returns (see the vessel/combat dispatch exclusivity
+resolution above). The resolver's inputs should assume this, not a parallel-pool
+model.
+
+**Open items:** the exact formula/weighting for the power stat. **Resolved
+2026-08-10** (per `docs/gpt/decision-workshop.md` §20, its own reconciliation
+pass — this closes what this document left open above): display **both** a named
+readiness tier and the numeric Power value, each backed by the same explanatory
+breakdown — not a choice between raw-number-vs-tier presentation, both
+simultaneously. Either form alone was already ruled out from replacing the
+underlying configuration/route/tactical detail (the 2026-08-10 narrowing below);
+this settles the remaining "which one" question by not choosing. **Narrowed
+2026-08-10** (per `docs/gpt/comprehensive-game-plan.md` §5's readiness-model
+rule): whichever presentation is chosen, the aggregate score must never
+_replace_ visibility into the specific configuration, route, or tactical
+requirement behind it — "one number that hides everything else" is ruled out.
 
 **Added 2026-08-10:** design P3.10's combat resolver so it can be pointed at
 either an NPC or a stored defense-team snapshot from another local profile — see
 P3.2's note above and `user-notes.md`'s async-arena reclassification. Not a
 requirement to build the arena mode itself in P3.10, just a reason not to
 hardcode "opponent" as NPC-only in the resolver's shape.
+
+**Backfilled 2026-08-10 (from `docs/gpt/comprehensive-game-plan.md` §5 and
+`docs/gpt/p3.1-design-gate.md`):** a failed encounter must return a combat
+report that names the relevant next adjustment (research, crew, route, loadout,
+or timing) rather than a bare loss — this is the PvE failure rule's UX half, not
+just its mechanical half (failure costs time/fuel/cargo, per the non-negotiable
+product values above, but the report is what turns that cost into a lesson
+instead of a dead end).
 
 #### Arena mode architecture sketch (cross-cutting P3.2 + P3.10, added 2026-08-10)
 
@@ -500,7 +705,18 @@ export interface ArenaResultData {
   defenderProfileId: string;
   outcome: "attackerWin" | "defenderWin";
   resolvedAt: number;
-  rewardSummary: ArenaReward; // ranking points, credits — never resource looting
+  // Resolved by direct user decision (2026-08-10): a win grants deterministic
+  // drone/troop loadout components only — never credits, never base
+  // resources, never a randomized pull. Per GPT's decision-workshop.md §21
+  // reasoning (which the user endorsed over Gemini's re-amended "components
+  // and credit rewards" version): a credits/resource payout would make
+  // repeated same-device arena challenges an efficient shortcut around the
+  // ship/map economy, which the daily cost ladder above is specifically
+  // trying to prevent. A loss grants nothing material; its recoverability
+  // comes from the vessel/save being untouched plus the P3.10 combat report
+  // above, not a consolation prize. Gemini's `voidbound_strategy.md` is the
+  // one that needs correcting to match on the final reconciliation pass.
+  rewardSummary: ArenaReward | null; // null on a loss
 }
 ```
 
@@ -527,6 +743,22 @@ export interface ArenaResultData {
 P3.7's vessel-config UI once it exists) and an opponent-list dialog populated
 from other local profiles' `DefenseTeamData` — both fit the existing
 `bindDialogRows` pattern (`AGENTS.md` §4) rather than needing new UI primitives.
+
+**Activity-reward curve (backfilled 2026-08-10 from
+`docs/gpt/decision-workshop.md` §12b, a real decided constraint this sketch was
+missing):** arena challenges reset their cost ladder every server day — the
+first challenge is free, the second through fifth become progressively more
+expensive but stay worth taking for an ordinary player, and later attempts in
+the same day are not meant to be materially progression-positive, existing
+chiefly for local ranking/showing off. `request_arena_challenge` needs a
+per-profile-per-day challenge counter to derive cost/reward from, and
+`ArenaResultData.rewardSummary` needs to reflect the tapering curve rather than
+a flat payout — per the win/loss reward resolution above, "tapering" means the
+deterministic component payout shrinks with each same-day win, not that later
+wins start paying credits/resources instead. This is the same shape of safeguard
+P3.9's recurring solo challenge needs (diminishing returns so it can't become an
+efficient all-day farm) — both should probably share one cost-ladder helper
+rather than each task inventing its own.
 
 **Open items:** whether local profiles need an opt-in "publish my defense team"
 step before another profile can challenge them (probably yes, so a
@@ -596,6 +828,41 @@ that visible tier progression on buildings (bigger/more detailed visuals at
 higher levels) is universal across every game researched — confirms the
 direction, adds no new specifics.
 
+**Reclassified 2026-08-10:** this track's original research (see "What this
+document deliberately leaves out" below) floated `docs/gemini/`'s tile-clearing
+idea — gating usable ship tiles to Command Module level instead of the full
+40*40 grid being available from minute one — and deliberately deferred it out of
+Phase 3. That deferral was wrong. Both `docs/gpt/comprehensive-game-plan.md` §5
+("Command Module growth should visibly open useful interior space or a new
+mothership region where practical, so progression is spatially tangible rather
+than only a level number") and `docs/gemini/voidbound_strategy.md` §2 ("Tangible
+Spatial Ship Expansion" — CM level-ups "visibly open new interior tile rings and
+physical room slots") independently landed on the same requirement for Phase 3
+itself, not a later phase. Two tracks converging on the same requirement from
+different framings is the same strength-of-signal this document already treats
+as decisive elsewhere (see the non-negotiable product values intro). Fold this
+into P3.15/P3.16's scope: Command Module level-ups should visibly unlock new
+usable ship-interior area (tile rings, room slots, or a new mothership region),
+not just raise a level number in a dialog — this is a room-grid/build-placement
+concern as much as an art one, so it also touches P3.6's prerequisite-visibility
+work (the unmet reason for a locked room should read "reach Command Module level
+N" the same way a locked module type does).
+
+**Cross-track status (second amendment round, 2026-08-10):** GPT's own
+reconciliation pass confirmed this the same way — its "Confirmed" §26
+(`docs/gpt/decision-workshop.md`) and its `p3.1-design-gate.md` "Resolved
+cross-track decisions" both independently state Command Module levels
+mechanically unlock room bands/slots in Phase 3, not individual tile-clearing.
+Three-track convergence now, not two. Gemini's own document, though, still
+carries an unresolved internal contradiction on this exact point even after its
+second amendment: `voidbound_strategy.md`'s new "Synthesis & Gap Review Summary"
+table lists "Gap 3: Spatial CM Ring Expansion & Audio SFX" as "Deferred to
+future visual and audio polishing passes" — directly opposite its own §2
+"Tangible Spatial Ship Expansion," which requires it as a P3.1 spec item. Same
+shape of problem as the vessel-exclusivity note above: not a cross-track
+disagreement anymore (three tracks agree it belongs in Phase 3), just one file
+talking past itself.
+
 ### P3.16 — Space map art and visual readability
 
 No direct peer-game research applies to art direction. Worth noting Rise of
@@ -645,6 +912,20 @@ sentiment.md` Round 2 (bimodal sentiment as a cross-genre pattern).
 **Open items:** none beyond what's already in ROADMAP's own P3.19 description —
 this research mainly sharpens _what to look for_, not new mechanics to test.
 
+**Backfilled 2026-08-10 (`docs/gpt/comprehensive-game-plan.md` §5,
+`docs/gpt/p3.1-design-gate.md`):** the "sharpens what to look for" above was
+still qualitative; GPT's reconciliation pass turned it into a concrete
+instrumentation list worth adopting as P3.19's actual observation checklist
+rather than reinventing one when the task is picked up — time to first
+meaningful ship/map choice and first expedition; first confusing prerequisite
+and time spent with no useful action; the objective completion/claim sequence
+and the point guided content ends; route/research/vessel-choice diversity;
+failure cause, recovery time, and whether the combat/expedition report taught a
+next action; offline-return outcome and time to the next decision; each recorded
+separately for first-session vs. multi-hour-returning cohorts rather than
+averaged. This operationalizes P3.1's own open item above ("what specifically
+constitutes 'content depth exhausted'") rather than leaving it a vibe check.
+
 ## What this document deliberately leaves out
 
 Per `voidbound-application.md` Part 2, this plan does not attempt to design
@@ -658,12 +939,143 @@ as a reference class for P5.1/P5.2 far richer than any mobile SLG's, and **State
 of Survival's State Merge / OGame's Exodus merge process** as two
 independently-converged real-world answers for P5.5.
 
-**Noted for later, not designed now (2026-08-10):** `docs/gemini/`'s original
-research floated adapting _Tiles Survive!_'s tile-clearing mechanic to the ship
-interior itself — gating usable ship tiles to Command Module level instead of
-the fixed 40*40 grid being fully available from minute one. Considered and
-deliberately deferred rather than folded into P3.6/P3.9: worth recording as a
-candidate for a future phase/task rather than designing Phase 3 around it now.
+**Superseded 2026-08-10:** this entry originally deferred `docs/gemini/`'s
+tile-clearing idea (gating usable ship tiles to Command Module level instead of
+the fixed 40*40 grid being available from minute one) to a future phase. That
+was wrong — see P3.15's "Reclassified 2026-08-10" note above, which pulls it
+back into Phase 3 scope once two independent tracks converged on requiring it.
+
+**Future capital-control event, not designed now (backfilled 2026-08-10 from
+`docs/gpt/comprehensive-game-plan.md` §4/§8 and `docs/gpt/decision-workshop.md`
+§15/§18 — this track's own research never captured this, worth recording here so
+a later phase doesn't start from zero):** once a real player population exists,
+the capital is meant to host a periodic alliance-vs-alliance control event, not
+stay a purely solo NPC objective forever. Working shape: an NPC-held approach
+wall establishes a baseline difficulty; the first alliance to capture the
+objective flips immediately from attacker to defender; it must hold for a
+bounded window (a working example is 30 minutes) against all challengers; a
+successful holder gets one week of stewardship before the next cycle reopens the
+contest. The reward is meant to be alliance-wide and capped — explicitly not a
+personal power snowball — and may include temporary, automatically-rotated
+ministry positions (modest, optional convenience bonuses like
+construction/research speed) rather than a durable personal power grant. None of
+this is a Phase 3 concern — it needs its own fairness design pass (time-zone
+equity, participation limits, anti-snowball rules, defender recourse) before
+Phase 5/6 implementation — but P3.9's sector theming and P3.11's campaign climax
+should both avoid choices that would make this later design harder (e.g.
+treating the capital as capturable by a single solo action rather than an
+NPC-defended objective).
+
+**Governance principle for later phases (backfilled 2026-08-10 from
+`docs/gpt/decision-workshop.md` §19 and independently echoed by
+`docs/gemini/voidbound_strategy.md`'s "STFC Rules of Engagement" framing):**
+Phase 5's alliance/social layer should ship communication, cooperation, and
+transparent governance tooling _before_ trying to hard-code every player
+etiquette norm — "healthy player-created norms may be more durable than brittle
+mandatory rules." Two tracks converged on this independently (GPT from first
+principles, Gemini citing Star Trek Fleet Command's specific model); worth
+carrying forward as a design constraint on P5.1/P5.2 alongside the EVE Online
+governance reference already noted above, not just a stray observation.
+
+**Economic-sink hypothesis, upgraded to cross-track candidate (backfilled
+2026-08-10 from `docs/gemini/voidbound_strategy.md` §7, then confirmed by
+`docs/gpt/`'s own second amendment round):** Gemini's amended plan proposes
+vessel/troop repair costs (from expedition anomaly failures and PvE combat
+damage) as the primary natural credits/resource sink — "continuously absorbing
+excess production without artificial fee inflation." This started as one track's
+proposal, but `docs/gpt/decision-workshop.md` §27 and
+`docs/gpt/p3.1-design-gate.md`'s "Resolved cross-track decisions" section now
+independently name repair "the leading primary-sink candidate" too — genuine
+convergence, not a lone idea anymore. Both tracks agree it's still an
+**experiment, not an approved balance answer**: GPT is explicit that "it passes
+only if the model shows recoverable failure is neither a punitive tax nor a
+waiting wall," which is the right bar — flag for the actual P3.1 economy-model
+simulation and P3.19 playtest to prove out, not something to hardcode into an
+implementation yet.
+
+## Decision gates (added 2026-08-10, structure adopted from `docs/gpt/`)
+
+This track's task-by-task notes above carry their open items inline, scattered
+per task — reviewable task-by-task, but harder to audit as a whole before a gate
+is actually approved. `docs/gpt/comprehensive-game-plan.md` §11 consolidates the
+same kind of open items into one pre-gate checklist instead; adopting that
+structure here rather than leaving it as a GPT-only artifact, since the
+reconciled plan will need one regardless of which track's prose wins.
+
+### Must decide before P3.1 is approved
+
+1. Exact first-30-minute objective/expedition sequence — **the chapter-1
+   boundary is resolved** (see P3.3's "Sub-question resolved 2026-08-10" note:
+   both expeditions plus the first research entry, not just one expedition or
+   Research Lab construction); the remaining piece is turning that shape into
+   exact per-step copy/timing, not the boundary itself.
+2. First-three-hour research and vessel choices, including respec policy
+   (P3.4/P3.7).
+3. Initial named sector/band identity and the NPC capital threat (P3.9),
+   informed by the Capital World/Precursor Relay/Helios Array working fiction.
+4. Core campaign completion condition and the definition of a recoverable loss
+   (P3.10/P3.11's failure-rule application).
+5. The objective/expedition wire shapes' exact fields (this document's P3.3/P3.8
+   sketches are a starting point, not a locked schema).
+6. The fuel/credits source-sink budget across mining, trade, production, warp,
+   expedition, repair, and recovery — still genuinely open, though Gemini's
+   repair-cost-as-primary-sink hypothesis above is a candidate answer to
+   evaluate, not adopt untested.
+7. The readiness/CP-score presentation — **resolved 2026-08-10:** display both a
+   named tier and the numeric Power value, backed by one shared breakdown (see
+   P3.10 above); the remaining open piece is the breakdown's exact
+   formula/weighting, not the presentation format.
+8. Backfilled 2026-08-10 (`docs/gpt/comprehensive-game-plan.md` §11, its own
+   reconciliation pass): a data-authoring/content budget — how many objectives,
+   sectors, research entries, expedition target archetypes, NPC behaviors,
+   hazards, and capital clues are needed to sustain the claimed multi-week
+   campaign runway. Without this, the campaign-length claim (design pillar 2's
+   "does this extend the runway or just move the wall earlier" test) is a
+   feature list, not a testable plan.
+9. Backfilled 2026-08-10: the vessel-dispatch-exclusivity early-game risk
+   flagged above — P3.1 must state what vessel availability looks like in the
+   first 30 minutes so combat-vs-economic-work is a real "opportunity cost," not
+   an accidental dead end while the player owns exactly one vessel.
+
+### Must decide before P3.11
+
+1. What ascension resets, preserves, and unlocks (the carry-over categories
+   above are decided; the exact tree shape/ceiling is not).
+2. Which ascension-research branches exist and their normal-play respec cost.
+3. How local ascension validates, without prematurely hardcoding, later
+   seasonal/cohort rules.
+
+### Must decide before Phase 5/6 capital/social work
+
+1. Capital-world name and final fiction (Capital World with orbital
+   infrastructure is the working answer, not locked).
+2. The future capital-control event's participation limits, time-zone fairness,
+   and anti-snowball rules (sketched above under "What this document
+   deliberately leaves out," not designed).
+3. Ministry-role scope, fair automatic rotation, and leader powers.
+4. The 72-hour new-player protection bubble's exact implementation (decided in
+   principle per `user-notes.md`, not yet specified).
+
+## Reconciling disagreements across tracks
+
+Added 2026-08-10; principle adopted from `docs/gpt/comprehensive-game-plan.md`
+§12.
+
+The vessel-dispatch-exclusivity conflict resolved above (this document vs.
+`docs/gemini/`) needed a real tie-break, not just documentation — worth stating
+the standing rule explicitly for whoever does the next reconciliation pass
+across a disagreement this document didn't catch. In priority order: preserve
+the non-negotiable product values first (the "Non-negotiable product values"
+section above), then the Phase 3 proof requirement (does the resolution still
+let Phase 3 prove the loop solo, without silently requiring Phase 5/6 systems),
+then scope/architecture cost (prefer the answer that reuses an existing pattern
+— e.g. the shared combat resolver, the existing self-snapshot event shape — over
+one that invents a new one). The vessel-exclusivity resolution follows this
+order correctly by inspection: it's what the limited-resource-pool product
+reality requires (values), it doesn't require anything beyond local state to
+prove (Phase 3 proof), and it reuses P3.10's resolver as already designed
+(architecture cost) — worth using as the worked example if this principle needs
+re-explaining later.
 
 ## Next steps
 

@@ -150,6 +150,78 @@ P3.2/P3.10 sections and its arena architecture sketch. Needs a ROADMAP task ID �
 not yet assigned, candidate placement adjacent to P3.10 since it shares that
 task's combat resolver.
 
+## 2026-08-10 (cont'd) — Vessel/combat dispatch exclusivity, resolving a track conflict
+
+Asked directly because the three tracks disagreed:
+`docs/gpt/decision-workshop.md` §12c records that a vessel dispatched to combat
+is unavailable for mining, trade, or expedition work until it returns, while
+`docs/gemini/
+voidbound_strategy.md` §3.6 states PvE combat "do[es] not lock up
+or interrupt space map mining" (borrowing Rise of Kingdoms' decoupled
+troops-vs-workers model). This track's own `preliminary-phase3-plan.md` hadn't
+taken a position either way.
+
+**Resolved:** Voidbound has a limited pool of vessels/troops/captains — not a
+decoupled pool like RoK's. Dispatching a vessel to combat occupies it
+exclusively; GPT's rule is correct, Gemini's parallel-combat framing doesn't
+hold for Voidbound. See `preliminary-phase3-plan.md`'s corrections to P3.9 and
+P3.10 and the new "Reconciling disagreements across tracks" section for the
+tie-breaking principle used to settle this.
+
+**Refinement noticed 2026-08-10, same day:** after the user separately asked
+`docs/gpt/` to amend its own plan, GPT's reconciliation pass added the correct
+nuance this note didn't spell out — exclusivity is per-unit, not a global
+lockout. Only the _dispatched_ vessel is occupied; other available vessels/crew
+and all non-vessel work (construction, objectives, research) continue normally.
+This doesn't change the resolution above, but it does surface a real open risk:
+the first 30 minutes likely has exactly one vessel, so P3.1 needs to explicitly
+account for early vessel availability or the "opportunity cost" design intent
+could function as an accidental dead end during onboarding. Also noted:
+`docs/gemini/voidbound_strategy.md` was amended the same day for unrelated
+content but never corrected its "doesn't lock up mining" line — still stale on
+this point as of this entry.
+
+## 2026-08-10 (cont'd) — P3.3 strict-linear chapter boundary, a three-way disagreement resolved
+
+After the user had GPT and Gemini amend their own plans too, this track's own
+`preliminary-phase3-plan.md` re-check turned up a genuine three-way disagreement
+neither prior pass had caught: where does P3.3's strict-linear chapter 1
+actually end and concurrent milestones begin? `docs/gpt/p3.1-design-gate.md`
+puts the boundary at Research Lab construction (one step past the first
+expedition returning). `docs/gemini/
+plan_p3_3_objectives.md`'s amended chapter
+catalog puts it earlier, at the first expedition step itself, moving Research
+Lab construction into the first branching Chapter 2+ milestone.
+
+**Resolved by the user directly**, and later than either: the strict-linear
+chapter extends through **both the first and second expeditions, plus the first
+base research entry completing** — not just one expedition, and not just
+Research Lab construction. This gives the player one full demonstrated cycle of
+"expedition unlocks research/next expedition" before handing over open choice,
+not just the guaranteed first-time sample. See `preliminary-phase3-plan.md`'s
+P3.3 section for the resulting chapter-1 tail sequence.
+
+**Convergence noted after the second amendment round (2026-08-10):** all three
+tracks had another round of user Q&A and re-amended their plans. Gemini's
+independently-amended `plan_p3_3_objectives.md` landed on the identical ten-step
+chapter-1 sequence to the decision above (through the second expedition and
+first research entry) — real convergence, not just this track's record of the
+answer. GPT's `decision-workshop.md`/`p3.1-design-gate.md` have not caught up
+yet and still describe the boundary as ending at the first expedition. Also
+worth recording: this same round, GPT and Gemini both independently confirmed
+the shared-vessel-pool/repair-as-primary-sink points already logged above (no
+longer single-track proposals), while a genuine new disagreement surfaced on
+arena rewards — GPT holds firm that arena wins pay only deterministic
+components, never credits; Gemini's second pass added "credit rewards" back into
+its own arena section.
+
+**Resolved directly by the user (2026-08-10):** arena wins pay deterministic
+components only, matching GPT's position — the user agreed with "the direction
+both [Claude and GPT] are going." Gemini's `voidbound_strategy.md` is the
+document that needs correcting on the final reconciliation pass, not this
+track's or GPT's. See `preliminary-phase3-plan.md`'s arena sketch for the
+resolved wire-type comment.
+
 ## Open items for the user to weigh in on further
 
 - Anything specific to Dark War: Survival, Whiteout Survival, or Tiles Survive!
