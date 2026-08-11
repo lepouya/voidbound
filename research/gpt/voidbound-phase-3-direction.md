@@ -29,7 +29,7 @@ rapid solo-discovery phase is the immediate target.
 | Time horizon     | Player question                                    | Required experience                                                                                                                                                                                                                                         | Candidate Phase 3 systems                                    |
 | ---------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | First 5 minutes  | “What am I saving, and what do I do?”              | A stranded but functioning Command Module, visible resource needs, one immediate objective, and a choice that produces a visible change.                                                                                                                    | P3.2 profile entry, P3.3 onboarding, current crew/module UI. |
-| First 30 minutes | “Can I operate this ship and make progress?”       | Hire first crew; build and staff first producer; mine; use an NPC trade; upgrade Command Module; complete the first vessel expedition, whose discovery feeds the next choice. State the next reason before every wait.                                      | P3.1, P3.3, P3.4, P3.6, P3.8.                                |
+| First 30 minutes | “Can I operate this ship and make progress?”       | Hire first crew; build and staff first producer; mine; use an NPC trade; upgrade Command Module; complete a relay-fragment expedition that returns an NPC relationship and Research Lab blueprint. State the next reason before every wait.                 | P3.1, P3.3, P3.4, P3.6, P3.8.                                |
 | First 3 hours    | “What kind of expedition leader am I?”             | Make a meaningful research/path choice; improve a vessel; weigh a safe resource route against a risky discovery; encounter the first NPC/hazard; recover from a setback.                                                                                    | P3.4, P3.7, P3.8, P3.9, P3.10.                               |
 | Full lifecycle   | “Can I reach and change the heart of this system?” | Across 1-2 weeks of early game, about 4 weeks of mid game, and about 4 weeks of late game: discover progressively harder sectors, overcome a major threat through prepared ship/vessel choices, complete a clear campaign objective, then choose ascension. | P3.9, P3.10, P3.11, P3.19.                                   |
 
@@ -52,8 +52,9 @@ tone before targets/numbers are locked.
    recoverable failure. A headline readiness score/tier should make the broad
    difficulty legible, but preparation, configuration, and route choices must
    still matter. A combat dispatch occupies its fitted vessel, creating a clear
-   choice against economic work. P3.10 must validate a reusable combat
-   interaction, not merely add a damage number.
+   choice against economic work; other ship-side work and other available
+   vessels remain usable. P3.10 must validate a reusable combat interaction, not
+   merely add a damage number.
 5. **Return and reframe:** harvest/receive outcomes, see the ship visibly
    change, make the next unlock choice, and leave with an explicit return hook.
 
@@ -68,9 +69,9 @@ system before meeting the next.
   central icon, as the furnace is in Whiteout, but module/research choices must
   create alternate approaches rather than a prerequisite conveyor belt.
 - **Strict first chapter, then explained choice.** The first few objectives may
-  intentionally expose one action at a time; once the first expedition returns,
-  the player needs concurrent optional milestones instead of a permanent linear
-  checklist.
+  intentionally expose one action at a time; after the first expedition unlocks
+  research, the player completes one research entry and a second expedition
+  before concurrent optional milestones replace the linear checklist.
 - **Geography should unlock agency.** Borrow Tiles Survive’s outward expansion,
   using inner sectors, routes, moons, planets, and hazards rather than literal
   tiles. A new area must change a decision, not just increase a deposit number.
@@ -107,6 +108,16 @@ system before meeting the next.
 - **Design against the post-onboarding wall.** The end of a chapter cannot mean
   the end of meaningful solo content. Every horizon needs a next decision and a
   credible active alternative while longer commitments resolve.
+- **Borrow structures, not harmful numbers.** Expedition tables, slot formulas,
+  CP scores, and reward ladders from competitors are hypotheses. Select their
+  numbers only after a Voidbound source/sink model and sustained-play test prove
+  they respect ordinary session lengths.
+- **Keep the system surface deliberately small.** Deterministic unlocks,
+  explicit prerequisites, and visible vessel roles are more valuable in P3 than
+  another collectible layer, currency, or side mode.
+- **Command Module growth opens real space.** Each level mechanically reveals
+  usable room bands or slots with a visible prerequisite explanation; it is not
+  merely a larger number or an art swap.
 
 ## What a successful Phase 3 must contain
 
@@ -120,13 +131,12 @@ system before meeting the next.
   legible specializations (P3.7), not a broad collectible-hero system.
 - Fuel-powered expeditions whose result is not always a numeric reward (P3.8):
   discovery, choice, resource conversion, a story fragment, or a future route
-  can all be valid outcomes. Start with a relay fragment or derelict station;
-  later procedural targets include moons, anomalies, and distress signals. The
-  first expedition should establish an NPC relationship and yield an item or
-  blueprint that opens the first Research Lab or military/Vessel Shipyard path.
-  Use visible outcome categories, research-gated expedition capacity, and
-  diminishing returns for repeated targets; outcomes may cause recoverable
-  damage or loss, never irreversible vessel deletion.
+  can all be valid outcomes. Start with a relay fragment; later procedural
+  targets include derelicts, moons, anomalies, and distress signals. The first
+  expedition establishes an NPC relationship and yields the blueprint that opens
+  the first Research Lab. Use visible outcome categories, research-gated
+  expedition capacity, and diminishing returns for repeated targets; outcomes
+  may cause recoverable damage or loss, never irreversible vessel deletion.
 - Persistent NPC sectors and hazards that make radial movement feel like a
   campaign map (P3.9), including a recurring solo challenge with diminishing
   returns, then a bounded combat vertical slice (P3.10): select a drone/troop
@@ -144,6 +154,8 @@ system before meeting the next.
 - Readability/polish necessary to understand the loop: shop layout, minimap,
   resource details, module/map art, audio, and growing crew costs (P3.12-P3.18).
 - Repeated fresh-profile playtests with documented outcome criteria (P3.19).
+- A simulated source/sink/reward model and a data-authoring/content budget that
+  make the claimed campaign runway testable before content production expands.
 
 ### Necessary acceptance criteria for P3.1 to make testable
 
@@ -167,6 +179,10 @@ system before meeting the next.
 - Sustained-play testing confirms that diminishing returns prevent all-day
   expedition or recurring-challenge farming from becoming the dominant route to
   progression.
+- A combat loss report identifies the next actionable adjustment, and a player
+  can explain why their readiness summary did not guarantee success.
+- Arena testing confirms that immutable local-profile defenses and curated
+  ghosts are understandable, optional, and never the best material-income loop.
 
 ## Explicitly defer to later phases
 
@@ -197,10 +213,7 @@ while allowing the Phase 3 game to be fully local today.
 
 ## Decisions to take with the user next
 
-1. Rank the three references by the moments the user actually enjoyed, rather
-   than by their feature lists.
-2. Agree on target campaign length, frequency of meaningful return sessions, and
-   desired risk intensity.
-3. Select 2-3 research/expedition archetypes for the first playable arc.
-4. Write P3.1 as a concrete experience specification with explicit content
-   exclusions and playtest measures.
+1. Select 2-3 repeatable research/expedition archetypes after the first relay
+   fragment.
+2. Approve the P3.1 design-gate contents before a full experience specification
+   is written.

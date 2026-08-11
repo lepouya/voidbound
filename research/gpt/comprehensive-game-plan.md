@@ -1,8 +1,8 @@
 # Voidbound comprehensive game plan — GPT proposal
 
-**Status:** planning proposal for later reconciliation with the other research
-agents. This file does not change `ROADMAP.md`, authorize implementation, or
-replace the P3.1 experience-specification gate.
+**Status:** reconciled planning proposal. It incorporates the other research
+tracks' useful findings, but does not change `ROADMAP.md`, authorize
+implementation, or replace the P3.1 experience-specification gate.
 
 **Built from:** project constraints in the root documents; external comparison
 research in this folder; and the user's first-hand genre experience recorded in
@@ -148,8 +148,14 @@ Phase 4.
 
 Before implementation, write a testable specification containing:
 
-- First 30-minute scripted/systemic objective sequence and its expected player
-  questions.
+- The canonical first-30-minute path: stabilize Command Module -> hire/assign
+  crew -> build/staff producer -> mine -> trade -> Command Module capability
+  upgrade -> relay-fragment expedition -> NPC relationship + Research Lab
+  blueprint -> Research Lab -> first research entry -> second expedition with a
+  normal weighted outcome and survey progress. Only then do strict objectives
+  become concurrent explained milestones. This resolves the conflicting order,
+  Lab/Shipyard fork, and chapter-boundary drafts that earlier research left
+  open.
 - First three-hour decision map: choices, information shown, reversible choices,
   expected waits, and available active alternatives.
 - The 1-2/4/4-week provisional arc, completion condition, and absence/return
@@ -163,20 +169,32 @@ Before implementation, write a testable specification containing:
   its active alternative while a timer runs, and the content that follows it.
   “The guided objectives ended and only larger prices remain” is a P0 pacing
   failure, not an acceptable genre transition.
-- A readable readiness model for NPC content. It may aggregate Command Module,
-  module, vessel, crew, and research investment into a headline score or tier,
-  but it must never hide a configuration, route, or tactical requirement behind
-  one larger number.
+- A simulation-ready resource, fuel, reward, and time budget. It includes crew
+  costs, construction/research waits, repair/recovery, expedition target
+  fatigue, bounded discovery progress, recurring-challenge/arena rewards, and
+  the meaningful active alternative during each wait. Do not copy a competitor's
+  odds, capacity formula, or reward ladder before this model passes sustained
+  play. Repair is the leading primary-sink candidate, but it passes only if the
+  model shows recoverable failure is neither a punitive tax nor a waiting wall.
+- A readable readiness model for NPC content. Display both a named tier and a
+  numeric Power value backed by an explanatory breakdown; neither may hide a
+  configuration, route, or tactical requirement behind one larger number.
+  Specify the player inputs, enemy behaviors, counter/route choices, and loss
+  report that make a failed encounter teach the next action.
 - A local-defense arena contract: published defense snapshots, loadout
   validation, challenge resolution, rewards, and the explicit guarantee that a
   challenge neither loots nor mutates the defender. Its normal opponent pool is
   other local profiles; curated ghost/NPC defense profiles make it usable during
   early onboarding. It reuses P3.10's resolver; online matchmaking and live
-  player conflict remain later work.
+  player conflict remain later work. Published defenses are opt-in immutable
+  snapshots, challenges never mutate a defender, and the mode has a curated
+  ghost/NPC pool so local profiles are not a usability dependency.
 - An activity-reward policy. The arena's first challenge in each server day is
   free; challenges two through five become progressively more expensive but
   remain worthwhile, and later attempts are chiefly for local ranking/showing
-  off rather than material progression. Apply the same bounded high-value window
+  off rather than material progression. Arena wins receive deterministic
+  drone/troop upgrade components; losses receive no material consolation, and
+  base resources are not arena prizes. Apply the same bounded high-value window
   to recurring solo challenges, while expedition target fatigue remains
   target-specific. The exact cost/reward curve must be server-authoritative and
   visible before committing.
@@ -186,6 +204,12 @@ Before implementation, write a testable specification containing:
 - Acceptance tests: comprehension without a guide; no waiting-only dead end;
   distinct research/expedition approaches; recoverability; useful offline
   return; and a recognizable completion/ascension state.
+- A data-authoring/content budget for the objectives, sectors, research choices,
+  expedition archetypes, NPC behaviors, hazards, and capital clues needed to
+  sustain the claimed campaign duration.
+- P3.19 instrumentation: time to first expedition, first confusing prerequisite,
+  guided-content endpoint, dead time, route/research/vessel diversity, recovery
+  time, and offline-return time to next decision.
 
 ### P3.2-P3.3 — entry and objective foundation
 
@@ -204,7 +228,9 @@ Before implementation, write a testable specification containing:
   priorities without replacing them. Objective state, progress, reward claims,
   and unlocks must be authoritative, revisioned snapshot data with an objective
   push/apply path; the HUD shows the next action and a dialog shows the chapter
-  and claimable rewards.
+  and claimable rewards. Objective progress is advanced by verified actions and
+  scheduler settlement, not by a client “advance objective” action; a separate
+  server-verified claim deposits the reward.
 
 Suggested first chapter:
 
@@ -214,7 +240,13 @@ Suggested first chapter:
 4. Dispatch a vessel to a grade-1 asteroid and receive its return.
 5. Use a Trade Post deal to solve a resource mismatch.
 6. Upgrade the Command Module as a capability unlock, not merely a level number.
-7. Follow a signal to the first expedition.
+7. Follow a relay signal to the first expedition; receive an NPC relationship
+   and Research Lab blueprint.
+8. Build the Research Lab.
+9. Complete a first research entry.
+10. Complete a second expedition; show its normal weighted outcome and survey
+    progress.
+11. Open concurrent optional milestones.
 
 ### P3.4-P3.7 — choice infrastructure
 
@@ -239,8 +271,7 @@ Suggested first chapter:
 
 ### P3.8 — expeditions and fuel economy
 
-The first expedition investigates a relay fragment or derelict station. It is a
-four-part loop:
+The first expedition investigates a relay fragment. It is a four-part loop:
 
 1. Choose a survey route/target and see time, fuel, risk, and expected value.
 2. Commit to travel using authoritative timed state.
@@ -261,6 +292,8 @@ recoverable damage/rescue state, but never causes a total irreversible vessel
 loss. Every completed expedition must also advance a visible target-specific
 survey/discovery track, so a streak of adverse outcomes cannot consume fuel
 without yielding a route, story, blueprint, or other bounded form of progress.
+The target progress itself is revisioned snapshot data with a push/apply path;
+it is bad-luck protection, not a new currency.
 
 ### P3.9-P3.10 — inward NPC campaign and PvE
 
@@ -285,7 +318,10 @@ without yielding a route, story, blueprint, or other bounded form of progress.
   route, configuration, or timing) and may damage the dispatched force or cost
   cargo/fuel, but cannot cause unrecoverable vessel or save loss. Keep the
   resolver opponent-agnostic: it must serve both NPCs and the P3 local-defense
-  arena.
+  arena. A combat report must identify the relevant next adjustment rather than
+  reporting a bare loss. The P3.1 economy model determines early vessel
+  availability, ensuring occupied-vessel tension does not become a whole-game
+  waiting state.
 
 ### P3.11 — local completion and ascension
 
@@ -315,9 +351,10 @@ Ship/module art, starfield/asteroid readability, resource detail, minimap
 context, Trading Post clarity, audio, and progressive crew cost must support the
 campaign rather than wait as unrelated polish. Prioritize P3.12-P3.18 when they
 remove a comprehension problem identified by P3.1/P3.19; do not let presentation
-block the first vertical slice. In particular, Command Module growth should
-visibly open useful interior space or a new mothership region where practical,
-so progression is spatially tangible rather than only a level number.
+block the first vertical slice. In particular, every Command Module level must
+visibly and mechanically unlock useful interior room bands or slots, with the
+required level stated on locked areas. This makes progression spatially tangible
+without requiring individual tile-clearing or a survival-style land-claim loop.
 
 ### P3.19 — playtest and rebalance gate
 
@@ -334,6 +371,12 @@ and arena reward curves: a player or automation that runs all day must not earn
 a material progression advantage over a player who completes the first five
 worthwhile challenges in ordinary sessions. Do not advance to Phase 4 because
 systems exist; advance only when P3.1 acceptance criteria hold.
+
+Record quantitative observations alongside notes: time to first expedition,
+first unclear prerequisite, time with no useful action, the end of guided
+content, research/route/vessel choice diversity, failure cause/recovery time,
+and time from offline return to the next decision. Report first-session and
+multi-hour-return cohorts separately.
 
 ## 6. Phase 4: networked authoritative game
 
@@ -437,6 +480,8 @@ rewards, a nonattendance-safe baseline, and no cash-shop escalation loop.
    snapshot, push, claim, and apply behavior.
 6. The fuel source/sink budget, expedition outcome categories, readiness model,
    and content-runway matrix.
+7. The local-arena component-reward/loss-consolation policy, plus the
+   data/content budget required to make the multi-week campaign claim credible.
 
 ### Must decide before P3.11
 

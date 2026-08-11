@@ -37,6 +37,23 @@ service/MMO layers of the comparison games.
       content-runway testing, strict-then-branching objectives, authoritative
       objective data, fuel budgeting, readiness, recoverable expeditions, and
       finite-ascension research gaps.
+- [x] Reconcile the wider Claude space/MMORTS set: spatial route risk, a small
+      deterministic progression surface, local asynchronous defence, and future
+      governance tools before hard-coded etiquette.
+- [x] Resolve the first-run expedition as a relay fragment that guarantees an
+      NPC relationship and Research Lab blueprint; retain derelict stations for
+      the repeatable pool.
+- [x] Record cross-track user decisions: strict-through-first-research-and-
+      second-expedition then concurrent objectives; shared vessel-pool combat
+      exclusivity; deterministic arena component rewards with no material loss
+      consolation; and target-specific expedition survey-progress guarantees.
+- [x] Extend the strict objective chapter through the first Research Lab entry
+      and second expedition, then switch to concurrent milestones; this ensures
+      players see the expedition -> research -> expedition loop before choice
+      opens up.
+- [x] Resolve retained cross-track choices: trade and Command Module capability
+      upgrade precede the first expedition; Command Module levels unlock usable
+      room bands/slots; repair is a source/sink experiment, not assumed balance.
 - [ ] Review the dossier with the user; capture their first-hand experience and
       revise contested findings.
 - [ ] Decide the Phase 3 expedition interaction and research-tree boundaries.
@@ -60,6 +77,18 @@ service/MMO layers of the comparison games.
 - [ ] Design future capital ministry roles and automatic fair rotation without
       fixed-time attendance pressure or essential power advantages.
 - [ ] Turn the agreed direction into the P3.1 experience specification.
+- [ ] Write and simulate a single resource/fuel/reward model before choosing
+      expedition odds, capacity formulas, arena rewards, or crew-cost curves.
+- [ ] Define P3.10's combat decision model: player inputs, enemy behaviors,
+      readiness explanation, combat report, failure lesson, and vessel-occupancy
+      test cases.
+- [ ] Define a data-authoring/content budget for objectives, sectors,
+      expeditions, NPCs, and the multi-week campaign so the desired runway is an
+      implementable plan rather than a feature list.
+- [ ] Define P3.19 instrumentation and observation criteria, including first
+      expedition time, confusion points, post-onboarding dead time, route
+      diversity, recovery time, and differences between first-session and
+      returning players.
 
 ## Research method
 

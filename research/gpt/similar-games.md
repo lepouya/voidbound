@@ -12,6 +12,20 @@ planning, or how a live-service layer can distort a good solo loop.
 | Frozen City                | Primarily solo survival management: worker allocation, health/happiness, production chains, exploration, settlement expansion. | Best control comparison for Phase 3: tension can come from legible needs and tradeoffs, not another player.                                    | Store listing explicitly describes worker needs, production ratios, exploration teams, and expansion [S14].                             |
 | Last War: Survival Game    | Base, hero squads, alliances, and an action-forward acquisition hook.                                                          | The first activity needs to be a truthful vertical slice; a compelling mini-mode must feed the main campaign or not be advertised as the game. | Store describes the action opening, base, heroes, and alliances [S16]; players report surprise at the later world/alliance focus [S17]. |
 
+## Broader-reference amendments from the parallel research
+
+The GPT dossier did not independently source the following games. The points
+below are bounded design inferences imported from Claude's wider, separately
+documented research set and must be source-verified before they become factual
+claims or numeric design inputs.
+
+| Reference               | Bounded lesson for Voidbound                                                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Star Trek Fleet Command | Make range, route depth, cargo role, and sector hazard a visible proposition; do not copy its gacha, event pressure, or raid exposure into Phase 3.                                         |
+| OGame                   | Use expeditions as timed, target-specific outcome tables with diminishing returns; replace fleet destruction with a recoverable damage/cargo/fuel setback.                                  |
+| Clash of Clans          | Prefer deterministic unlocks, a finite local milestone, and a small stable system surface. Its asynchronous defense model is a useful arena reference, but not a justification for looting. |
+| EVE Online              | Future social depth can arise from cooperation, communication, and player-made norms. It is a Phase 5+ governance reference, not a Phase 3 onboarding or economy model.                     |
+
 ## Adjacent references worth a later dedicated pass
 
 - **Frostpunk / Frostpunk 2:** stronger authored survival consequences,
@@ -24,6 +38,8 @@ planning, or how a live-service layer can distort a good solo loop.
 - **Surviving Mars / The Alters:** useful space-fiction references for a
   functional, inhabited base and expedition narrative; their pacing and platform
   model differ substantially from Voidbound.
+- **Finite prestige / New Game+ games:** required before P3.11. The current SLG
+  corpus does not answer what resets, persists, or remains fair after ascension.
 
 ## Cross-reference pattern
 

@@ -1,8 +1,9 @@
 # Voidbound Phase 3 research dossier
 
 This folder is the GPT-owned, source-backed working record for Phase 3: the
-local playable alpha. It intentionally does not overlap with or modify
-`docs/gemini/`.
+local playable alpha. It does not modify the Claude or Gemini tracks, but its
+2026-08-10 reconciliation amendments deliberately incorporate their findings
+where they improve the Phase 3 proof plan.
 
 ## Reading order
 
@@ -14,6 +15,8 @@ local playable alpha. It intentionally does not overlap with or modify
 5. `voidbound-phase-3-direction.md` — implications for P3.1 and later phases.
 6. `comprehensive-game-plan.md` — the GPT proposal for reconciling Phase 3 with
    the future networked, social, capital, and season milestones.
+7. `p3.1-design-gate.md` — the narrowed, testable decisions and evidence needed
+   before implementation begins. This is a design gate, not an approved spec.
 
 All factual claims in the evidence notes should cite the source register. A
 finding is marked as either documented/official, community-reported, or an

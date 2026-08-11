@@ -276,16 +276,17 @@ it cannot be an exclusive cash-shop remedy for an avoidable design trap.
 
 ### 17. First expedition and procedural mission pool
 
-The first expedition should investigate either a **relay fragment** or a
-**derelict station**. It establishes the capital's orbital-infrastructure lore,
-delivers a discovery that helps the next route/ship choice, and can introduce a
-short optional PvE or hazard decision.
+The working first expedition investigates a **relay fragment**. It establishes
+the capital's orbital-infrastructure lore, delivers a discovery that helps the
+next route/ship choice, and can introduce a short optional PvE or hazard
+decision. A derelict station remains a normal repeatable-target archetype, not
+the first-run fork.
 
 Its guaranteed outcome is an **NPC relationship**, plus an item or blueprint
-that unlocks the next building—likely the first Research Lab or a military/
-Vessel Shipyard path. The relationship supplies an emotional/systemic reason for
-the expedition; the blueprint turns that discovery into immediate base-building
-momentum.
+that unlocks the first **Research Lab**. The relationship supplies an
+emotional/systemic reason for the expedition; the blueprint turns that discovery
+into immediate base-building momentum. The Vessel Shipyard remains a later
+application of research, rather than a simultaneous first-run choice.
 
 The wider procedural mission pool should include all of the following:
 
@@ -319,9 +320,107 @@ transparent, and no one should need to watch a 10-minute timer to stay viable.
 An automatic fair rotation/queue should be the default; leader discretion may
 add social meaning but cannot become favoritism or a durable power monopoly.
 
+### 19. Cross-track reconciliation amendments
+
+The broader space/MMORTS comparison adds four constraints to the working plan:
+
+- **Small, deterministic system surface:** prioritize direct unlocks, a
+  comprehensible number of concurrent systems, and finite local milestones over
+  collectible-character or currency layers. This is the useful Clash of Clans
+  contrast, not a reason to copy its raids or premium model.
+- **Spatial risk must be legible:** range, route, sector hazard, and vessel role
+  should change the proposition of going deeper. Later PvP may expose only an
+  explicitly chosen surplus; Phase 3 keeps all core progression safe.
+- **Combat is a real opportunity cost, not a global stop:** dispatching a fitted
+  vessel occupies that vessel, but construction, objectives, and other available
+  vessels remain usable. The first P3.1 balance pass must test whether this is
+  interesting tension or merely an early dead end.
+- **Future governance starts with tools, not rigid rules:** Phase 5 should ship
+  communication, cooperation, and transparent governance affordances before it
+  tries to encode every player etiquette norm.
+
+Specific expedition odds, capacity formulas, and combat-power formulas remain
+unselected hypotheses until the P3.1 economy/combat model is simulated and
+playtested. They are not imported merely because another game uses them.
+
 ## Still open
 
 1. Which ministry roles and modest benefits sound interesting beyond
    construction, cost, and research speed?
-2. Should the first expedition unlock the Research Lab, Vessel Shipyard, or let
-   the player choose between their blueprints?
+
+### 20. Readiness presentation
+
+P3.10 displays **both** a named readiness tier and a numeric Power value, with
+an explanatory breakdown. The summary is a quick comparison tool, never a
+substitute for showing the relevant vessel role, loadout, route, target
+condition, and counter/preparation choice.
+
+### 21. Arena reward
+
+Arena victories earn a tangible, capped reward: deterministic **combat
+components** that improve the existing starter drone/troop loadout. This adds no
+randomized pull and does not require a captain-collection system. A loss awards
+no material consolation; recoverability comes from preserving the vessel and
+providing a clear combat report that identifies the next adjustment.
+
+Do not use base resources as the principal reward: that would make repeated
+same-device arena challenges an efficient shortcut around the ship/map economy.
+The first five worthwhile daily attempts remain visible and capped, later runs
+are ranking/practice only, and rewards must be simulated against expedition,
+mining, and trade income before tuning.
+
+### 22. Objectives: authoritative strict-to-branching transition
+
+The first chapter exposes exactly one objective at a time through a complete
+demonstrated loop: first relay-fragment expedition -> Research Lab construction
+-> first research entry completing -> second expedition returning with a normal
+weighted outcome and survey-progress update. Only then does the campaign switch
+to concurrent optional economy, research, and sector milestones.
+
+Objectives are not a client-side tutorial script: their catalog, completion
+checks, claimable rewards, and active chapter state are authoritative data in
+the game-state snapshot. Other action commands and scheduler settlement advance
+the relevant objective as a side effect, then emit a revisioned objective push;
+the player claims a completed reward through a server-verified action. There is
+no client-driven “advance objective” command.
+
+### 23. Expedition survey-progress guarantee
+
+Every completed repeatable expedition advances a visible, target-specific survey
+track regardless of its weighted outcome. Reaching the track's bounded threshold
+guarantees a route, blueprint, story beat, or other meaningful milestone. This
+protects against bad luck without adding a currency or removing target fatigue.
+The progress is revisioned snapshot data with its own push/apply path, so an
+offline return cannot lose or re-roll it.
+
+### 24. Shared vessel-pool confirmation
+
+Combat, mining, trade, and expeditions all use the same limited vessel/troop/
+captain pool. A fitted vessel dispatched to combat is unavailable for every
+other dispatch until it returns. This is a confirmed user decision, not a
+parallel-combat model borrowed from games with separate worker and combat pools.
+
+### 25. First-run sequence confirmation
+
+The canonical first-run order remains: mine -> Trading Post resource-mismatch
+solution -> Command Module capability upgrade -> relay-fragment expedition. The
+expedition then returns the NPC relationship and Research Lab blueprint. The
+trade and Command Module steps stay before the expedition; an alternate draft
+that placed it directly after mining is not adopted.
+
+### 26. Tangible Command Module expansion
+
+Command Module levels mechanically unlock new usable interior room bands or
+slots in Phase 3. This is not merely an art treatment: locked areas state the
+required Command Module level through the prerequisite UI, and each level-up
+visibly expands what can be built. It does not require individual tile-clearing
+or a separate survival-style land-claim loop.
+
+### 27. Repair economy experiment
+
+Vessel/troop repair is the leading candidate for a natural fuel, credit, and
+resource sink: recoverable expedition anomalies and PvE damage can create a
+short repair cycle plus an understandable cost. This remains an experiment, not
+an approved balance answer. The P3.1 source/sink simulation and P3.19 playtests
+must prove that it absorbs excess production without making ordinary failure a
+punitive tax or a waiting wall.

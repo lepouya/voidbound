@@ -29,6 +29,13 @@ the Command Module/mothership and radial star system. Dark War’s structured
 newcomer ladder is a useful onboarding model, but its alliance power dependence
 is specifically out of scope.
 
+The wider parallel research strengthens, rather than replaces, this conclusion:
+space references add legible range/route/vessel-role propositions; Clash of
+Clans reinforces deterministic unlocks and a deliberately small system surface;
+and EVE-like social depth belongs in future cooperation/governance tools, not
+the local alpha. These are design inferences, not independently sourced GPT
+evidence; see `similar-games.md` for their evidence boundary.
+
 ## Similarities and differences
 
 | Dimension          | Dark War                                   | Whiteout                                             | Tiles Survive                                            | Implication for Voidbound                                                                                |
@@ -96,3 +103,7 @@ is specifically out of scope.
 - A failure costs time/opportunity/resources but never strands the local save.
 - A fresh player reaches a distinct “I am exploring the system, not merely
   upgrading a base” moment in the first 30 minutes.
+- A combat outcome explains its result and next adjustment; a headline Power
+  summary never replaces the preparation, route, or counter choice behind it.
+- A local arena is optional and bounded: it can test defense/loadout expression
+  without becoming the best resource-income loop or implying live PvP.
