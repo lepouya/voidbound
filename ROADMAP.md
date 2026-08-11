@@ -5,7 +5,11 @@ principles live there; this file tracks the order features land in. Later phases
 build directly on earlier ones — in particular, everything in phase 3 assumes
 actions are already event-modeled (see the multiplayer-ready event pattern in
 `AGENTS.md`; the server model is sketched in `SERVER.md`). Phase 0 is the
-engine/tooling scaffolding all of that already sits on.
+engine/tooling scaffolding all of that already sits on. **`PHASE3.md`** holds
+the full reconciled gameplay design behind Phase 3's task list below (mechanic
+sketches, wire shapes, decision gates, and the design principles it hands
+forward to Phases 4-7) — read it before picking up any P3.x task; this file
+keeps only the terse per-task summary and dependency order.
 
 **How to use this file:** tasks have IDs (`P<phase>.<n>`) so sessions and
 commits can reference them — check off a task when it's committed and
@@ -219,32 +223,48 @@ complete local single-player arc, with optional asynchronous same-device players
 sharing one persisted system. Rust remains authoritative, all mutations keep the
 multiplayer-ready event pattern, and the existing snapshot/revision/scheduler
 boundaries remain intact; WebSockets, authentication, remote databases, and
-simultaneous clients are deliberately deferred to Phase 4.
+simultaneous clients are deliberately deferred to Phase 4. **See `PHASE3.md` for
+the full design** — mechanic sketches, wire shapes, the non-negotiable product
+values, the capital-fiction working direction, and the decision gates still open
+before numeric tuning. P3.9 is new since the design pass that produced
+`PHASE3.md`: it composes the completed Chapter-1 experience from the objective,
+prerequisite, research, vessel, and expedition systems. This deliberately breaks
+the former dependency cycle; former P3.9-P3.20 shifted to P3.10-P3.21.
 
 - [ ] **P3.1 — Playable-alpha experience specification.** Write the product
-      target before adding more systems: the intended first 30 minutes, first 3
-      hours, several-day arc, short/medium/long goals, failure and recovery
-      rules, completion condition, and concrete playtest success criteria. This
-      is a design-review gate for P3.3-P3.11, not a promise to implement every
-      possible campaign feature.
+      target before adding more systems (`PHASE3.md` §1, §4, §8-§10): the
+      intended first 30 minutes, first 3 hours, several-day arc, a
+      simulation-ready resource/fuel/reward/time budget, a content-authoring
+      budget, the P3.12 arena contract, and concrete playtest acceptance
+      criteria. For every new durable domain, specify ownership/lifecycle, save
+      migration + validation fixture, offline settlement, retention, and
+      revisioned snapshot/push/apply contract. Commit a reproducible, versioned
+      simulation artifact with fixed scenarios and explicit normal/accelerated
+      time assumptions. Confirm the intentional rule that mothership warp
+      requires recalling every vessel, despite otherwise per-vessel dispatch
+      availability. This is a design-review gate for P3.3-P3.13, not a promise
+      to implement every possible campaign feature.
 - [ ] **P3.2 — In-app local profile flow.** Replace launch-flag-only identity
       selection with a pre-load profile chooser that can create, select, and
-      inspect local players in the shared persisted system. Identity remains
+      inspect local players in the shared persisted system. A profile may also
+      publish a defense snapshot for P3.12's local asynchronous arena
+      (`PHASE3.md` §5 P3.2) — design for that from day one. Identity remains
       fixed after the game loads and only one local process/session owns the
       world at a time: this is asynchronous same-device play, not simultaneous
       LAN multiplayer. Preserve the P2.10 developer CLI controls.
 - [ ] **P3.3 — Objectives, rewards, and first-run onboarding.** Add persistent,
-      event-modeled objectives that make the next useful action visible and can
-      grant authoritative rewards. The first campaign walks through hiring the
-      starting crew member, building the first producer, mining, trading, and
-      upgrading; optional goals and milestones continue after the tutorial so
-      the framework is gameplay, not a disposable scripted overlay. Needs P3.1,
-      P1.3, P1.6, P1.10. (Former P6.6; CR6.6)
+      event-modeled objectives that make the next useful action visible and
+      grant authoritative rewards (`PHASE3.md` §6.1 has the shared wire shape).
+      Establish the claim framework and author the strict-linear first five
+      objectives using existing systems: stabilize; hire crew; build/staff a
+      producer; mine and return; trade. P3.9 composes the remaining Chapter-1
+      steps once their systems exist. Needs P3.1, P1.3, P1.6, P1.10, P1.12.
+      (Former P6.6; CR6.6)
 - [ ] **P3.4 — Research Lab + tech tree.** Spend resources to unlock module
       blueprints, vessel stat upgrades, expedition capabilities, and efficiency
-      bonuses. Research supplies meaningful progression choices and gates the
-      rest of the local campaign rather than merely making existing numbers
-      rise. Needs P3.1, P1.4. (Former P5.1)
+      bonuses across three parallel branches gated by Command Module level —
+      growth/development, economy, battle/military (`PHASE3.md` §5 P3.4), not
+      one linear tree. Needs P3.1, P1.4. (Former P5.1)
 - [ ] **P3.5 — Live countdown-details controller** _(from CR4.1)_. When P3.4
       introduces the third 1 Hz state-bound details dialog, extract the shared
       open/close, `bindDialogRows`, and per-second rebuild lifecycle from the
@@ -253,82 +273,139 @@ simultaneous clients are deliberately deferred to Phase 4.
 - [ ] **P3.6 — Module build prerequisites** _(split from P2.6, July 2026)_.
       Generalize `unlock_command_level` into explicit prerequisites: other
       modules at a level, research, items, or objectives. Show unmet reasons
-      instead of silently hiding a module. Move stopgap Command Module gates,
-      including the Trading Post's level-3 gate, onto the richer system where
-      the campaign design calls for it. Needs P1.4, P3.3, P3.4. (Former P5.10)
+      instead of silently hiding a module. Command Module level-ups also
+      mechanically unlock new usable interior room bands/slots through this same
+      prerequisite UI (`PHASE3.md` §5 P3.6, §5 P3.17) — not merely an art
+      treatment. Move stopgap Command Module gates, including the Trading Post's
+      level-3 gate, onto the richer system where the campaign design calls for
+      it. Needs P1.4, P3.3, P3.4. (Former P5.10)
 - [ ] **P3.7 — Vessel Shipyard + vessel stats and multi-tier progression.** Add
+      a durable owned-vessel roster, replacing today's dispatch-created,
+      return-despawned vessel records. Every vessel has an ID, hull/tier,
+      loadout, crew, damage, location, and visible status; dispatch explicitly
+      selects a legal vessel and the ship sidebar reports the whole fleet. Add
       upgradeable durability, damage, cargo capacity, and speed in place of the
-      flat vessel constants. Research and Shipyard upgrades unlock higher tiers
+      flat vessel constants, as a small number of crew-linked, legible
+      specializations rather than a broad collectible-hero system (`PHASE3.md`
+      §5 P3.7 — a non-gacha named-captain layer stays a deliberately open later
+      door, not P3.7 scope). Research and Shipyard upgrades unlock higher tiers
       (`vessel-2`, `vessel-3`) or specialized hulls within the existing faction
-      and animation-state system; starter combat loadouts support P3.10 before
-      P6.2 adds the full weapon economy. Vessel crews tie dispatch, mining, and
-      combat capacity to the player's crew pool. Needs P1.6, P3.4. (Former P5.3)
+      and animation-state system; starter combat loadouts and a durable,
+      non-random component inventory support P3.11 before P6.2 adds the full
+      weapon economy. Vessel crews tie dispatch, mining, and combat capacity to
+      the player's crew pool. Needs P1.6, P3.4. (Former P5.3)
 - [ ] **P3.8 — Expeditions + fuel economy.** Design and implement repeatable
-      exploration, scouting, and salvage missions that send a vessel away for a
-      server-timed duration, consume fuel, expose up-front risk/reward, and
-      return choices or rewards through authoritative events. Settle fuel's
-      broader role across dispatch, expeditions, and P1.22 warp without adding a
-      hard daily-energy cap. Needs P3.1, P3.3, P3.7, P1.22. (Supersedes former
-      P4.9)
-- [ ] **P3.9 — NPC opposition + radial sector progression.** Turn P2.6's radial
-      asteroid grades and reserved center into a solo progression map with
-      persistent NPC factions, hazards, guarded resources, higher-level nodes,
-      and territories toward the center. Introduce the README's moons and
-      planets here. NPC decisions mutate the same authoritative simulation and
-      emit the same event shapes a future remote player would. Needs P3.1, P3.4,
-      P3.7, P2.6. (Local-play half of former P4.2)
-- [ ] **P3.10 — PvE combat vertical slice.** Establish reusable combat rules by
-      letting fitted vessels challenge a bounded set of NPC encounters. Include
-      legible previews, damage and recovery, loss/failure without an
-      unrecoverable save, rewards, and enough opposing behaviors to test
-      tactical choices. Basic dock-side recovery belongs here; the specialized
-      Repair Shop remains P6.4. Keep player raiding, contested player asteroids,
-      anti-cheat, and online concurrency in P6.3. Needs P3.7, P3.8, P3.9.
-- [ ] **P3.11 — Local campaign completion + ascension.** Give the sector a
-      recognizable end condition—such as reaching the center and defeating a
-      major threat—then offer a deliberately designed new-system/ascension loop
-      with a small persistent bonus. Specify exactly what resets before touching
-      saves. This validates the shape of later online seasons without requiring
-      cohort worlds or world merging. Needs P3.3, P3.9, P3.10.
-- [ ] **P3.12 — Dialog columns + Trading Post redesign.** Generalize dialog
+      exploration, scouting, and salvage missions per `PHASE3.md` §5 P3.8 and
+      §6.2's wire shape: a fixed relay-fragment first target with a guaranteed
+      NPC-relationship + Research-Lab-blueprint outcome, a weighted outcome
+      table from the second expedition on, research-gated slot capacity,
+      diminishing returns for repeated targets, and a per-target survey-
+      progress track that guarantees bounded progress regardless of the roll.
+      Adverse outcomes cost cargo/fuel/time or impose a repairable vessel-damage
+      state — never an outright vessel loss. Settle fuel's broader role across
+      dispatch, expeditions, and P1.22 warp without adding a hard daily-energy
+      cap; exact odds/formulas wait on `PHASE3.md` §8's simulation model. Needs
+      P3.1, P3.7, P1.22. (Supersedes former P4.9)
+- [ ] **P3.9 — Chapter-1 completion + branching handoff.** Complete the
+      strict-linear chapter begun in P3.3: Command Module upgrade opens usable
+      room slots; fixed relay-fragment expedition; Research Lab construction;
+      first research choice; then a normal weighted second expedition with
+      target-specific survey progress. Only then open Chapter 2's concurrent
+      optional economy, research, and sector milestones. This composes existing
+      systems; it does not create a second objective engine. Needs P3.3, P3.4,
+      P3.6, P3.8.
+- [ ] **P3.10 — NPC world layer + radial sector progression.** Turn P2.6's four
+      radial asteroid-grade approach bands and reserved central capital district
+      into a solo progression map with persistent NPC factions, hazards, guarded
+      routes/resources, target locations, and named/legible sectors — each a
+      distinct situation, not just a bigger number (`PHASE3.md` §5 P3.10, §3's
+      capital-approach fiction). Introduce the README's moons and planets here.
+      This is world/content scaffolding; P3.11 supplies its combat resolution.
+      NPC decisions mutate the same authoritative simulation and emit the same
+      event shapes a future remote player would. Needs P3.1, P3.4, P3.7, P3.8,
+      P2.6. (Local-play half of former P4.2)
+- [ ] **P3.11 — PvE combat vertical slice.** Establish reusable combat rules
+      (`PHASE3.md` §5 P3.11, §6.11): select a fitted vessel and starter
+      drone/troop loadout, dispatch it, and resolve authoritatively — no
+      real-time micromanagement. Legible previews (a named readiness tier plus a
+      numeric Power value, never replacing the underlying config/route detail),
+      damage and recovery, loss/failure without an unrecoverable save, and a
+      combat report that names the next adjustment on a loss. Basic dock-side
+      recovery belongs here; the specialized Repair Shop remains P6.4. Keep the
+      resolver opponent-agnostic so P3.12 can reuse it unmodified. Add the
+      player-initiated recurring solo challenge/boss/wave operation with the
+      arena's bounded daily ladder. Keep player raiding, contested player
+      asteroids, anti-cheat, and online concurrency in P6.3. Needs P3.7, P3.8,
+      P3.10.
+- [ ] **P3.12 — Local asynchronous defense arena.** Add a same-device
+      asynchronous PvP proof (`PHASE3.md` §5 P3.12, §6.12): a profile publishes
+      an immutable defense snapshot (vessel loadout + crew assignment); another
+      local profile, or a curated NPC/ghost defense before real opponents exist,
+      challenges it through P3.11's resolver. Persist each profile's opt-in
+      snapshot, daily cost/attempt ledger, component inventory, and capped
+      result history; expose only a narrow opponent-list payload. A challenge
+      copies an operational attacker's loadout and never dispatches, damages, or
+      occupies either vessel. Reads across profiles but never mutates the
+      defender — no looting, no live opponent, no shared-world contention. Wins
+      grant deterministic drone/troop components on a daily bounded reward
+      ladder (first free, progressively costlier, later attempts practice-only);
+      losses grant nothing material. Needs P3.2, P3.7, P3.11.
+- [ ] **P3.13 — Local campaign completion + ascension.** Give the sector a
+      recognizable end condition — reaching the center and defeating a major
+      threat — then offer a deliberately designed ascension loop (`PHASE3.md` §5
+      P3.13): cosmetics/badges, historical ship identity, a better first
+      expedition, and a capped ascension-research tree the player chooses a
+      branch of, not a resource stockpile that makes a fresh player irrelevant.
+      Specify exactly what resets before touching saves; study finite
+      prestige/New-Game+ references first, since no researched peer game
+      supplies a completion template. This validates the shape of later online
+      seasons without requiring cohort worlds or world merging. Needs P3.9,
+      P3.10, P3.11.
+- [ ] **P3.14 — Dialog columns + Trading Post redesign.** Generalize dialog
       layout with a real multi-column grid, then render the P1.12 shop as three
       columns of bordered deal boxes: rarity-colored border and separate
       get/give rows. Later Mail and Events panels can reuse the layout. Needs
       P1.12, P1.14. (Former P6.8; playtest feedback, July 2026)
-- [ ] **P3.13 — Minimap two-tier zoom revamp.** At normal zoom show the live
+- [ ] **P3.15 — Minimap two-tier zoom revamp.** At normal zoom show the live
       100\*100 AOI window; zoomed fully out, show the 1000\*1000 system with
       player/NPC markers, regions, objectives, and interest-area outlines but
-      omit individual asteroids. Needs P1.9, P1.13, P3.9. (Former P6.9; playtest
-      feedback, July 2026)
-- [ ] **P3.14 — Context-sensitive resource bar + detail dialog.** On the ship,
+      omit individual asteroids. Needs P1.9, P1.13, P3.3, P3.10. (Former P6.9;
+      playtest feedback, July 2026)
+- [ ] **P3.16 — Context-sensitive resource bar + detail dialog.** On the ship,
       show the three construction materials plus crew; on the map, show fuel.
       Tapping either group opens the complete resource/cap/production breakdown.
       Needs P1.2, P1.10, P1.11. (Former P6.10; playtest feedback, July 2026)
-- [ ] **P3.15 — Per-type module art and tiered visual progression.** Replace the
+- [ ] **P3.17 — Per-type module art and tiered visual progression.** Replace the
       shared `module-base` placeholders with bespoke 64-frame animated vector
       rooms across the current catalog and Phase 3's Research Lab and Vessel
-      Shipyard, with visible tier upgrades as levels rise. Needs P1.23, P3.4,
-      P3.7. (Former P6.1)
-- [ ] **P3.16 — Space map art and visual readability.** Add a real starfield and
+      Shipyard, with visible tier upgrades as levels rise. This is where P3.6's
+      room-band unlock becomes visible: a Command Module level-up should visibly
+      open new interior tile rings, room slots, or ship regions (`PHASE3.md` §5
+      P3.17) — decided by two independently-run research tracks, not a stretch
+      goal. Needs P1.23, P3.4, P3.7. (Former P6.1)
+- [ ] **P3.18 — Space map art and visual readability.** Add a real starfield and
       per-class/per-tier asteroid sprites. Asteroid resource class must remain
       distinguishable by shape rather than tint alone; extend the same visual
-      language to P3.9 regions, hazards, and NPC affiliations. Needs P1.9, P3.9.
-      (Former P6.2; CR6.8)
-- [ ] **P3.17 — Audio.** Add ambient/music plus SFX for input, construction,
+      language to P3.10 regions, hazards, and NPC affiliations. Needs P1.9,
+      P3.10. (Former P6.2; CR6.8)
+- [ ] **P3.19 — Audio.** Add ambient/music plus SFX for input, construction,
       hiring, vessels, mining, objectives, expeditions, and combat. Provide
       independent volume controls and a mute path. (Former P6.7; CR6.7)
-- [ ] **P3.18 — Progressive crew recruitment cost.** Replace the flat biological
+- [ ] **P3.20 — Progressive crew recruitment cost.** Replace the flat biological
       price with a readable curve that rises gradually with population, include
       it in the wire-delivered balance catalog, and tune it against campaign
       progression. (Playtest feedback, July 2026)
-- [ ] **P3.19 — Structured local-alpha playtest + rebalance.** Run repeated
+- [ ] **P3.21 — Structured local-alpha playtest + rebalance.** Run repeated
       fresh-profile tests at normal and accelerated time across the first 30
       minutes, first 3 hours, offline return, and campaign completion. Record
       confusion, dead time, dominant choices, unrecoverable states, and weak
-      rewards; revise balance and UX until P3.1's acceptance criteria hold.
-      Exercise multiple same-device profiles in one shared system as a separate
-      test, without treating it as proof of simultaneous multiplayer. Needs the
-      playable path through P3.2-P3.18.
+      rewards; revise balance and UX until P3.1's acceptance criteria hold
+      (`PHASE3.md` §10 has the full acceptance-test and instrumentation
+      checklist). Treat an abrupt post-onboarding wait/prerequisite wall as a P0
+      finding, and report first-session vs. multi-hour-return cohorts separately
+      rather than averaging them. Exercise multiple same-device profiles in one
+      shared system as a separate test, without treating it as proof of
+      simultaneous multiplayer. Needs the playable path through P3.2-P3.20.
 
 ## Phase 4 — Networked server-authoritative events
 
@@ -366,12 +443,22 @@ Goal: add the social and population-dependent MMO layer after network sessions
 exist.
 
 - [ ] **P5.1 — Alliance Embassy gameplay.** Joining, contribution, and alliance
-      boosts; alliance entities join the P1.13 always-sent AOI exemption. Needs
-      P4.1. (Former P4.1)
+      boosts; alliance entities join the P1.13 always-sent AOI exemption. Ship
+      communication/cooperation/governance tooling before hard-coding player
+      etiquette rules (`PHASE3.md` §11); any temporary ministry-position
+      convenience bonuses must be optional, modest, transparent, and
+      automatically fair-rotated by default, never required for progression or a
+      durable power monopoly. Needs P4.1. (Former P4.1)
 - [ ] **P5.2 — Alliance territories + contested center progression.** Extend
-      P3.9's solo radial regions with alliance ownership, cooperative
+      P3.10's solo radial regions with alliance ownership, cooperative
       objectives, contested resources, and alliance-gated access toward the
-      center. Needs P5.1, P3.9. (Online half of former P4.2)
+      center. A future capital capture-and-hold event (`PHASE3.md` §11) is a
+      design hypothesis for this boundary, not scoped here — needs its own
+      fairness design pass (time-zone equity, participation limits, defender
+      recourse, anti-snowball rules) before any implementation; avoid choices
+      here that would make that later design harder (e.g. a capital capturable
+      by a single solo action rather than an NPC-defended objective). Needs
+      P5.1, P3.10. (Online half of former P4.2)
 - [ ] **P5.3 — Operations Center: fog of war / radar.** Tie map visibility and
       vessel speed to module level, shrinking P1.13's AOI projection to the
       player's radar while preserving owned/alliance exemptions. Needs P4.1.
@@ -380,8 +467,8 @@ exist.
       who started around the same time. Needs P4.6. (Former P4.4)
 - [ ] **P5.5 — Online seasons and world merging.** Move surviving players into
       new systems after a time or milestone, including merges and carry-over
-      bonuses. Use P3.11's local ascension findings rather than assuming its
-      reset rules transfer unchanged. Needs P5.4, P3.11. (Former P4.5)
+      bonuses. Use P3.13's local ascension findings rather than assuming its
+      reset rules transfer unchanged. Needs P5.4, P3.13. (Former P4.5)
 - [ ] **P5.6 — Credits economy / player trade.** Extend P1.12's NPC deals into
       player and alliance trade; also settle higher-level exchange advantages
       and featured/limited-stock deals. Design before implementation. Needs
@@ -394,8 +481,11 @@ exist.
       credits store for general goods, distinct from Trading Post resource
       exchanges. Needs P1.12, P5.6. (Former P4.8; CR6.2)
 - [ ] **P5.9 — Monetization model.** Decide whether real-money purchases fit
-      Voidbound at all. This business decision shapes P5.8 and blocks any
-      premium fleet-cap extension in P6.7. (Former P4.10)
+      Voidbound at all. The working constraint (`PHASE3.md` §2, §11) is no
+      real-money purchase that grants gameplay power; cosmetics and non-powerful
+      convenience remain open within that boundary. This business decision
+      shapes P5.8 and blocks any premium fleet-cap extension in P6.7. (Former
+      P4.10)
 
 ## Phase 6 — Weapons, PvP combat, and defence
 
@@ -410,11 +500,15 @@ combat and the README's remaining Technologies, Combat, and Defence modules.
       kinetic, drone, and plasma production feeding P3.7 vessel capacity, plus
       Armory weapon storage. Event-model every production action. Needs P3.7.
       (Former P5.4)
-- [ ] **P6.3 — PvP combat resolution.** Extend P3.10's combat rules to player
+- [ ] **P6.3 — PvP combat resolution.** Extend P3.11's combat rules to player
       motherships and vessels with server-authoritative outcomes, crew
       casualties, contested-asteroid resolution, and explicit defender recourse.
       Design raiding separately: only P2.13's exposed surplus may be looted,
-      never protected stock. Needs P4.1, P3.10, P6.2. (Former P5.5)
+      never protected stock. Apply the decided 72-hour new-player protection
+      bubble (`PHASE3.md` §11): it ends early only when that player initiates an
+      active, synchronous PvP action, not on a passive timer alone — an accepted
+      tradeoff, not an oversight, since experienced/ascended players can play
+      around it deliberately. Needs P4.1, P3.11, P6.2. (Former P5.5)
 - [ ] **P6.4 — Repair Shop.** Repair weapon/vessel damage using resources and
       time, following the build-timer pattern. Needs P6.3. (Former P5.6)
 - [ ] **P6.5 — Hangar Bay.** Station weapons and vessels as passive mothership

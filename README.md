@@ -75,6 +75,10 @@ game:
 - Set in space. Players arrive as colonizers on a new star system. The
   mothership is constructed in space as they progress through the game, and is
   their "base" in traditional RTS terminology.
+- Hopeful colonization and discovery, not survival. The fiction is settlement,
+  survey, route-making, stewardship, and discovery — not hunger, temperature,
+  panic, or deprivation. Conflict is a consequence of expansion and scarce
+  inner-system geography, not the opening fantasy.
 - Modules are the RTS "buildings": each serves a specific function and is
   upgraded by its own criteria (see Ship design above).
 - Resources come from two places: production inside the base (bays, modules,
@@ -83,21 +87,27 @@ game:
   material — from rocky or iron-rich asteroids, (b) high-tech materials — for
   electronics and reactors, from rare asteroids, (c) biological materials —
   water, food, and such, from icy asteroids or terrariums, and (d) fuel material
-  — like hydrogen or methane, spent on vessel actions that leave the system:
-  mothership warp/relocation is the first sink, with routine vessel dispatch and
-  a future "expeditions" feature planned as further sinks (not yet fleshed out).
-  (Open question: whether uranium fits here or is one resource too many.)
-  Alongside the materials there is a generic trade currency — working name
-  "credits", final name settled in the display layer — earned through trade
-  rather than production or mining. It enters the economy at the Trading Post
-  (credits-get deals are selling, credits-give deals are buying; paid deal
-  refreshes are the sink); its wider role — player-to-player and alliance trade
-  — isn't fleshed out yet.
-- No hard daily energy caps. Repeating actions over the course of a day yields
-  diminishing returns instead, resetting at a fixed point.
+  — like hydrogen or methane, spent on travel and recovery actions: mothership
+  warp/relocation is the first sink, with routine vessel dispatch and
+  expeditions joining it in Phase 3. Uranium is deliberately not a fifth
+  resource; a new currency/resource needs a distinct decision the four materials
+  and credits cannot already express. Alongside the materials there is a generic
+  trade currency — working name "credits", final name settled in the display
+  layer — earned through trade rather than production or mining. It enters the
+  economy at the Trading Post (credits-get deals are selling, credits-give deals
+  are buying; paid deal refreshes are the sink); its wider role —
+  player-to-player and alliance trade — isn't fleshed out yet.
+- No hard daily energy caps. Mining is naturally bounded by travel, extraction
+  time, deposits, and vessel availability; Phase 3 adds transparent per-target
+  expedition fatigue and bounded daily challenge/arena reward ladders rather
+  than a universal daily damping meter.
 - Resource nodes (asteroids, moons, planets) get higher level and more difficult
   toward the center of the map, pacing the game: alliances have to gain power
-  together to push inward.
+  together to push inward. The current working direction (not yet locked; see
+  `PHASE3.md`) for the map's center is a **Capital World with orbital
+  infrastructure** — a recoverable/inhabited planet ringed by Precursor Relay
+  fragments (route/signal restoration) and a Helios Array (inner-system
+  hazard/energy) distributed across the approach bands.
 - Asteroid mining: asteroids come in four classes matching the resource they
   yield — rocky (construction), metallic (high-tech; the "rare" class), icy
   (biological), and carbonaceous (fuel) — and three size tiers: small (1\*1
@@ -114,8 +124,17 @@ game:
   alive as activity declines: after a time or milestone, remaining players move
   on to a new system, with opportunities for world merging and bonuses for
   players ascending from a previous season.
+- Non-predatory by design: no pay-to-win, no gacha/loot boxes, no bait-and-
+  switch marketing, no currency proliferation. PvE failure costs time, fuel,
+  cargo, or temporary vessel damage — never the only critical vessel, never
+  protected progress, never a forced reset. Active play grants choice and
+  expression, never an unbounded raw-power advantage over players who return in
+  short sessions. Any future monetization must grant no gameplay power.
 
-For the order these land in development, see [ROADMAP.md](ROADMAP.md).
+For the order these land in development, see [ROADMAP.md](ROADMAP.md). For the
+full Phase 3+ gameplay design behind that roadmap — mechanic sketches, the
+experience-pacing targets, and the decision gates still open — see
+[PHASE3.md](PHASE3.md).
 
 ## Running
 

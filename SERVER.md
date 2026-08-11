@@ -159,6 +159,29 @@ exclusive, destructive startup controls for local playtests:
 shared world, while `--reset-system` replaces the entire deterministic local
 system. Neither maps to the online protocol.
 
+### Cross-profile reads: the local asynchronous arena
+
+`PHASE3.md`'s P3.12 (local asynchronous defense arena) is a deliberate, narrow
+exception to "the active session owns its own state" above: a
+`request_arena_challenge` command reads **another local profile's** stored
+`DefenseTeamData` snapshot — not the active session's own data — while never
+mutating it. This is safe specifically because the read is of immutable,
+opt-in-published state (a profile explicitly publishes a defense loadout, the
+way P1.12's deal slots are published shop state, not private data) and the
+resolution is synchronous within the command handler with no contested write:
+the challenger's selected operational vessel is copied into a transient attacker
+loadout and goes on one side of P3.11's combat resolver, while the stored
+snapshot goes on the other. The challenge never dispatches, damages, or occupies
+either vessel. Only the challenger's own durable `ArenaStateData` changes: its
+daily attempt/cost ledger, deterministic component inventory, and capped recent
+result history. No lock, queue, or cross-session coordination is needed because
+nothing about the defender's state is ever written. Treat this shape — a
+read-only, opt-in-published snapshot resolved against a transient copy of live
+state — as the pattern for any future same-device, asynchronous cross-profile
+feature; it does not generalize to letting one session mutate another's
+persistent state, which remains exactly as unsupported as the "no attempt is
+made to synchronize two Tauri backends" rule above states.
+
 ## Time and offline settlement
 
 The Phase 4 server scheduler runs while players are offline; reconnecting only
