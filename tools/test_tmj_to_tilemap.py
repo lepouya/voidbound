@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 """Tests for tmj_to_tilemap.py — run with: python3 -m unittest discover -s tools"""
 
-import json
 import io
+import json
 import os
 import sys
 import tempfile

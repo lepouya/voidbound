@@ -2,10 +2,10 @@ import os
 import shutil
 import tempfile
 import unittest
-from PIL import Image
 
 import svg_rasterize
 import svg_ui_gen
+from PIL import Image
 
 # Rasterizer error-path behavior (missing binary, failed exit code, missing
 # output file) is shared by every svg_*_gen.py script via svg_rasterize.py —

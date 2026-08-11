@@ -20,8 +20,8 @@ import math
 import os
 import re
 import tempfile
-from PIL import Image
 
+from PIL import Image
 from svg_rasterize import render_svg_string_to_image
 
 

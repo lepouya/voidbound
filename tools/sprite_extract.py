@@ -54,8 +54,8 @@ Dependencies: Pillow (`pip install Pillow`)
 
 import argparse
 import sys
-from PIL import Image
 
+from PIL import Image
 
 # -- Sprite extraction ---------------------------------------------------------
 

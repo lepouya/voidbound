@@ -44,8 +44,8 @@ Dependencies: Pillow (`pip install Pillow`)
 import argparse
 import math
 import sys
-from PIL import Image
 
+from PIL import Image
 
 # -- Sprite extraction ---------------------------------------------------------
 
@@ -113,9 +113,7 @@ def is_built_in_keyword(spec: str) -> bool:
         return True
     if spec_lower.startswith("color="):
         return True
-    if spec_lower.startswith("#") and len(spec_lower) in (4, 5, 7, 9):
-        return True
-    return False
+    return bool(spec_lower.startswith("#") and len(spec_lower) in (4, 5, 7, 9))
 
 
 def resolve_source_image(spec: str, size: int) -> Image.Image:
@@ -150,7 +148,7 @@ def resolve_source_image(spec: str, size: int) -> Image.Image:
 
     try:
         img = Image.open(spec).convert("RGBA")
-    except Exception as e:
+    except OSError as e:
         print(f"Error opening image '{spec}': {e}", file=sys.stderr)
         sys.exit(1)
     return pad_to_square(img).resize((size, size), Image.Resampling.LANCZOS)

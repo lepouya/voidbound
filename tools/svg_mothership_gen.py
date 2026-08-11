@@ -49,10 +49,9 @@ import os
 import shutil
 import sys
 import tempfile
+
 from PIL import Image
-
 from svg_rasterize import render_svg_string_to_image
-
 
 RELATION_PALETTES = {
     "self": {

@@ -6,9 +6,8 @@ import sys
 import tempfile
 import unittest
 
-from PIL import Image
-
 import sprite_merge
+from PIL import Image
 
 
 class SpriteMergeHelpersTest(unittest.TestCase):

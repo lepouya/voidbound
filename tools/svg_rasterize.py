@@ -21,6 +21,7 @@ import os
 import shutil
 import subprocess
 import uuid
+
 from PIL import Image
 
 # Checked after PATH (shutil.which) — Homebrew's Apple Silicon and Intel
@@ -62,6 +63,7 @@ def render_svg_file_to_image(
             [rsvg_bin, "-w", str(width), "-h", str(height), svg_path, "-o", tmp_png],
             capture_output=True,
             text=True,
+            check=False,
         )
         if result.returncode != 0:
             diagnostics = (

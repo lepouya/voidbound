@@ -18,7 +18,6 @@ import json
 import os
 import sys
 
-
 # Tiled stores these transform bits alongside the tileset-global tile ID.
 # The simplified TileMapData format only accepts string TileRefs, which cannot
 # preserve per-layer transforms, so reject them instead of emitting an invalid

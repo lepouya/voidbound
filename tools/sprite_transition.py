@@ -40,8 +40,8 @@ import argparse
 import math
 import sys
 from dataclasses import dataclass
-from PIL import Image
 
+from PIL import Image
 
 # -- Image resizing ------------------------------------------------------------
 
@@ -190,9 +190,11 @@ def resolve_source_image(spec: str, size: int) -> Image.Image:
     color_str = None
     if spec_lower.startswith("color(") and spec_lower.endswith(")"):
         color_str = spec.strip()[6:-1].strip()
-    elif spec_lower.startswith("color="):
-        color_str = spec.strip()[6:].strip()
-    elif spec_lower.startswith("color:") and len(spec.strip()) > 6:
+    elif (
+        spec_lower.startswith("color=")
+        or spec_lower.startswith("color:")
+        and len(spec.strip()) > 6
+    ):
         color_str = spec.strip()[6:].strip()
     elif spec_lower.startswith("#"):
         color_str = spec.strip()
@@ -216,7 +218,7 @@ def resolve_source_image(spec: str, size: int) -> Image.Image:
 
     try:
         img = Image.open(spec).convert("RGBA")
-    except Exception as e:
+    except OSError as e:
         print(f"Error opening image '{spec}': {e}", file=sys.stderr)
         sys.exit(1)
     return resize_to_square(img, size)

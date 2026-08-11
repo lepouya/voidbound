@@ -38,8 +38,8 @@ import random
 import shutil
 import sys
 import tempfile
-from PIL import Image, ImageDraw
 
+from PIL import Image, ImageDraw
 from svg_rasterize import render_svg_file_to_image as render_svg_to_image
 
 
@@ -216,12 +216,12 @@ def draw_particle_onto_layer(
         if particle.spin_cycles != 0:
             pebble_img = pebble_img.rotate(angle_deg, resample=Image.Resampling.BICUBIC)
 
-        paste_x = int(round(pos_x - pebble_img.width / 2.0))
-        paste_y = int(round(pos_y - pebble_img.height / 2.0))
+        paste_x = round(pos_x - pebble_img.width / 2.0)
+        paste_y = round(pos_y - pebble_img.height / 2.0)
         layer.alpha_composite(pebble_img, (paste_x, paste_y))
     else:
         # Draw soft dust mote
-        sr = max(1, int(round((particle.size_min + particle.size_max) / 2.0)))
+        sr = max(1, round((particle.size_min + particle.size_max) / 2.0))
         draw = ImageDraw.Draw(layer)
         bbox = [pos_x - sr, pos_y - sr, pos_x + sr, pos_y + sr]
         draw.ellipse(bbox, fill=(*particle.color_rgb, alpha))
@@ -252,8 +252,8 @@ def render_asteroid_frame(
     # Anisotropic scaling: width and height oscillate out of phase (sin vs cos)
     scale_x = 1.0 + 0.045 * math.sin(2.0 * math.pi * t)
     scale_y = 1.0 + 0.045 * math.cos(2.0 * math.pi * t)
-    target_w = max(1, int(round(super_size * scale_x)))
-    target_h = max(1, int(round(super_size * scale_y)))
+    target_w = max(1, round(super_size * scale_x))
+    target_h = max(1, round(super_size * scale_y))
 
     scaled_rock = base_rock.resize((target_w, target_h), Image.Resampling.BICUBIC)
 
@@ -264,12 +264,12 @@ def render_asteroid_frame(
     )
 
     # Zero-G Lissajous drift around center
-    drift_x = int(round((super_size / 64.0) * 2.2 * math.sin(2.0 * math.pi * t)))
-    drift_y = int(round((super_size / 64.0) * 1.6 * math.sin(4.0 * math.pi * t)))
+    drift_x = round((super_size / 64.0) * 2.2 * math.sin(2.0 * math.pi * t))
+    drift_y = round((super_size / 64.0) * 1.6 * math.sin(4.0 * math.pi * t))
 
     rock_layer = Image.new("RGBA", (super_size, super_size), (0, 0, 0, 0))
-    paste_x = int(round(center - rotated_rock.width / 2.0)) + drift_x
-    paste_y = int(round(center - rotated_rock.height / 2.0)) + drift_y
+    paste_x = round(center - rotated_rock.width / 2.0) + drift_x
+    paste_y = round(center - rotated_rock.height / 2.0) + drift_y
     rock_layer.alpha_composite(rotated_rock, (paste_x, paste_y))
 
     # 3. Composite all layers: background particles -> rock -> foreground particles

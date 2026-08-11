@@ -6,9 +6,8 @@ import sys
 import tempfile
 import unittest
 
-from PIL import Image
-
 import sprite_transition
+from PIL import Image
 
 
 def transition(

@@ -47,8 +47,8 @@ import os
 import shutil
 import sys
 import tempfile
-from PIL import Image
 
+from PIL import Image
 from svg_rasterize import render_svg_string_to_image as render_svg_to_image
 
 
