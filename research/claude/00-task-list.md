@@ -163,8 +163,8 @@ already cover.
 - [x] Update `voidbound-application.md` if round 2 changes/adds to Parts 1-4
       (expected candidate: EVE Online's alliance/sovereignty economy vs.
       Voidbound's Phase 5 alliance design; Star Trek Fleet Command as maybe the
-      single most load-bearing comparison game given the shared space setting)
-      — landed as a new **Part 5** since round 2 was additive, not corrective
+      single most load-bearing comparison game given the shared space setting) —
+      landed as a new **Part 5** since round 2 was additive, not corrective
 
 ### 5. Preliminary plan document
 
@@ -173,8 +173,7 @@ already cover.
       `voidbound-application.md` (Parts 1-5 + Decisions). Framed at the top as
       one of three inputs pending reconciliation with docs/gemini + docs/gpt,
       per `AGENTS.md`'s review gate. Still subject to `AGENTS.md`'s gate: no
-      code, not a
-      substitute for the user's own read-through.
+      code, not a substitute for the user's own read-through.
 
 ## Open questions / decisions log
 
