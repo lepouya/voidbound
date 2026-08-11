@@ -1,125 +1,195 @@
-# Voidbound: Phase 3 Strategy & Vision
+# Voidbound: Phase 3 Strategy & Vision (Reconciled & Re-architected)
 
-Based on research into games like _Whiteout Survival_ and _Dark War: Survival_,
-this document outlines how those findings relate to Voidbound's design goals,
-specifically for the **Phase 3 Local Playable Alpha**.
+> [!NOTE]
+> **Reconciled 2026-08-10:** This document synthesizes research across all 3 AI
+> agent tracks (`research/gemini/`, `research/claude/`, and `research/gpt/`),
+> integrating primary user playtest notes, widened 12-game competitive
+> precedents (including _OGame_, _Star Trek Fleet Command_, _Rise of Kingdoms_,
+> and _Clash of Clans_), and the strategic setting vision.
 
-## 1. Relating Findings to Voidbound
+---
 
-### What Voidbound is Doing Differently (The Advantages)
+## 1. Product Fiction & Setting Vision
 
-1. **No Hard Energy Caps & Different Diminishing Returns:** Unlike mobile 4X
-   games that use strict stamina systems or massive exponential timers
-   (days/weeks) to force spending, Voidbound relies on diminishing returns
-   (e.g., longer mining trips, storage caps that pause passive generation but
-   allow active surplus). This creates a healthier, less predatory loop.
-2. **Fixed Number of Resources:** Voidbound strictly caps resources at 4
-   (Construction, High-Tech, Bio, Fuel) plus Credits. Mobile 4X games often
-   suffer from "currency bloat" (dozens of specific upgrade materials) which
-   confuses players. Voidbound's simplicity is a massive advantage.
-3. **The Mothership Concept:** Instead of an abstract "city," the player is
-   building a Mothership with specific, visual room layouts (Command Citadel,
-   Hangar, etc.). This makes the "base" feel like a tangible entity that moves
-   (via Warp) through the map.
+Voidbound is a hopeful, persistent **frontier-colonization strategy game**. The
+player grows a living mothership, explores an increasingly valuable star system,
+makes meaningful research and expedition choices, and eventually participates in
+a shared capital-world society.
 
-### Mechanics That WOULD Work for Voidbound (Phase 3 Focus)
+### Core Values
 
-1. **The "Furnace" / Central Hub Concept:** The Command Module in Voidbound
-   already acts like this (gating other modules). The concept of managing a
-   central requirement (like Crew Quarters and Fuel) is strong.
-2. **Clear Early-Game Objectives (The Tutorial Hook):** The early game in these
-   mobile titles is incredibly sticky because it constantly gives the player
-   short, achievable goals. Voidbound's **P3.3 (Objectives & First-Run
-   Onboarding)** is critical. We need a clear, rewarding path for the first 30
-   minutes (Build -> Hire -> Mine -> Trade).
-3. **Research as Meaningful Choice:** In many mobile games, research is just a
-   stat bump. Voidbound's **P3.4 (Research Lab)** should feature distinct
-   branches (e.g., Economic, Military) that force players into early
-   specialization rather than a single linear path.
-4. **PvE "Side Stories", Minigames & Async PvP:** Minigames are crucial for
-   killing time after the early base setup is complete. For Voidbound, this
-   could take the form of async PvP (arena with teams), rallies, and
-   puzzle/minigame elements introduced later on to break up the waiting.
-5. **Ship Expansion (No Fog of War):** While traditional fog of war doesn't make
-   sense in space, we can adapt the _Tiles Survive!_ clearing mechanic to the
-   "ship" screen itself. This expansion will be tied strictly to the Command
-   Module's level (e.g., upgrading to Level 2 automatically unlocks the next
-   ring of usable tiles).
+1. **Hopeful Colonization, Not Grimdark Survival:** The fiction centers on
+   settlement, survey, route-making, stewardship, and discovery. We explicitly
+   reject hunger, temperature, panic, or deprivation meters.
+2. **Understandable Growth:** Exactly 4 core resources (Construction, High-Tech,
+   Bio, Fuel) plus Credits. No currency bloat or hidden gated dependencies.
+3. **Failure is Recoverable:** PvE failure can cost fuel, time, cargo, or
+   temporary vessel damage. It never destroys the only critical vessel or erases
+   protected progress.
+4. **Non-Predatory Economy:** Strict stance against pay-to-win mechanics,
+   monetized roadblocks, gacha loot-boxes, or artificial wait inflation.
 
-### Mechanics That WOULD NOT Work for Voidbound
+### System Geography & Lore
 
-1. **Predatory Wait Timers:** We want a playable, enjoyable local alpha.
-   Building timers should pace the game, not halt it for a week.
-2. **Whale-Driven PvP as the Only End Game:** Voidbound wants a strong
-   solo/co-op experience. Phase 3 must prove the game is fun _without_ other
-   players. The "Ascension" loop (P3.11) is our answer to the end-game: reaching
-   the center, defeating a threat, and resetting with a bonus, rather than just
-   grinding stats forever.
-3. **Hero Gacha:** Voidbound focuses on ships, modules, and crew pools, not
-   individual named heroes with rarity tiers.
-4. **Detailed Survivor Simulation:** While morale and satiety systems are
-   interesting, they are out of scope for Phase 3 and better suited for later
-   phases or end-game content.
+The star system consists of 5 radial bands surrounding a $200 \times 200$
+central sector:
 
-### The Ideal Player Experience Flow (Based on User Insight)
+- **Capital World with Orbital Infrastructure:** The emotional and strategic
+  heart of the star system.
+- **Precursor Relays:** Orbital relay fragments that justify route discovery,
+  signal decoding, logistics, and warp range expansion.
+- **Helios Array:** Inner-system solar hazard offering high-yield fuel and
+  high-tech opportunities.
+- **Moons, Derelicts, Outposts:** Distributed discoveries across the outer and
+  mid bands.
 
-The game experience should be structured to deliver these specific hooks at the
-right times:
+---
 
-- **Phase 1 (Early Game / The Hook):** Fast-paced, goal-driven development.
-  Construction and resource gathering happen side-by-side. The player is
-  constantly racing to figure out what to upgrade next. The game provides strict
-  linear "Chapters" (do X, then Y, then Z) for tight early guidance (Objective
-  System P3.3). Players start venturing out for small PvE missions, juggling
-  resources, construction, and leveling up troops. The Research tree is
-  introduced. The player feels themselves getting stronger and discovering new
-  interactions in a protected, PvE-focused environment.
-- **Phase 2 (Mid Game / The Social Expansion):** Introduces alliances, group
-  content (rallies for strong monsters), asynchronous arena PvP, and alliance
-  research. Players move closer together, capture early territory/resource
-  generators, and start engaging in early PvP (attacking abandoned/unallied
-  bases). Base protection wears off, but full-scale wars are avoided through
-  treaties.
-- **Phase 3 (Late Game / The Endgame War):** Stronger alliances merge, moving
-  inward toward the center map resources. Culminates in a massive PvP war for
-  the center (granting presidency/huge bonuses).
-- **Phase 4 (Seasons):** A reset loop where everyone moves on together to a new
-  map (server vs server wars), maintaining some permanent account-wide
-  reward/ascension bonus.
+## 2. The P3.1 Experience Specification Gate
 
-## 2. Features Needed for a Successful Phase 3 (Local Alpha)
+Before any Phase 3 feature code is implemented, a formal **P3.1 Experience
+Specification** must be written to define acceptance criteria across four player
+time horizons:
 
-To achieve the goal of a complete, engaging 3-hour-to-several-day local arc, we
-must focus on:
+| Time Horizon      | Player Question                                | Required Experience Spine                                                                                                                                                                                | Systems Validated             |
+| :---------------- | :--------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- |
+| **First 5 min**   | _"What am I saving, and what do I do?"_        | Stranded but operational Command Module; visible resource ticks; immediate crew assignment choice.                                                                                                       | P3.2, P3.3, HUD               |
+| **First 30 min**  | _"Can I operate this ship and make progress?"_ | Hire crew $\rightarrow$ build & staff producer $\rightarrow$ mine asteroid $\rightarrow$ NPC trade $\rightarrow$ CM level-up $\rightarrow$ first expedition $\rightarrow$ decode Research Lab blueprint. | P3.3, P3.4, P3.6, P3.8        |
+| **First 3 hours** | _"What kind of expedition leader am I?"_       | Branching research choice $\rightarrow$ vessel customization $\rightarrow$ safe vs. risky expedition route $\rightarrow$ first NPC hazard encounter $\rightarrow$ recoverable failure.                   | P3.4, P3.7, P3.8, P3.9, P3.10 |
+| **Multi-Day Arc** | _"Can I reach and change the system center?"_  | Inward sector progression $\rightarrow$ overcomes major NPC capital threat $\rightarrow$ clear campaign climax $\rightarrow$ explicit ascension reset/carry-over choice.                                 | P3.9, P3.10, P3.11, P3.19     |
 
-1. **The Core Gameplay Loop Validation:**
-   - The player must clearly understand how to get the 4 resources.
-   - The Trading Post (P1.12) and Expeditions (P3.8) must be viable alternatives
-     to just waiting for passive production.
-2. **Progression & Pacing (The Map):**
-   - **P3.9 (NPC Opposition & Radial Progression):** The map must get visibly
-     harder and more rewarding toward the center. This provides the primary
-     long-term goal.
-3. **Meaningful Resource Sinks:**
-   - Fuel must matter. Warping (P1.22) and Expeditions (P3.8) need to cost
-     enough fuel that the player has to actively seek out Carbonaceous
-     asteroids.
-4. **A Definite Conclusion:**
-   - **P3.11 (Local Campaign Completion):** There must be a win state for the
-     local alpha (e.g., reaching the center coordinates and surviving a final
-     PvE encounter).
+### Five Non-Negotiable Local Loops
 
-## 3. Separating Future Stages (Phase 4+)
+1. **Operate:** Assign crew to modules, balance power/staffing, upgrade
+   mothership.
+2. **Prepare:** Configure vessels and expedition dispatches with up-front fuel,
+   travel time, and risk previews.
+3. **Explore:** Move inward through legible radial sectors and outposts.
+4. **Resolve:** Engaged in bounded, recoverable PvE encounters (RoK Expedition
+   style: combat runs in parallel without blocking space map mining).
+5. **Return & Reframe:** Harvest returns, see visual mothership growth, choose
+   the next research unlock.
 
-What we must _deliberately ignore_ during Phase 3 to avoid scope creep:
+### Tangible Spatial Ship Expansion
 
-- **Alliances (Phase 5):** Do not build chat, territory sharing, or alliance
-  helps yet.
-- **Player vs. Player (PvP) Combat (Phase 6):** Phase 3 combat (P3.10) is
-  strictly PvE. Do not worry about offline raiding, defensive shields against
-  players, or contested resource nodes yet.
-- **Complex Player Economies (Phase 5):** The Trading Post is for NPC deals
-  only. No player-to-player trading or auction houses.
-- **Server Authority / WebSockets (Phase 4):** The game runs locally. We
-  maintain the _pattern_ of server events, but do not actually build the network
-  layer.
+Command Module growth must not be an abstract number bump in a dialog menu
+(Level 2 $\rightarrow$ Level 3). Each CM level-up **visibly opens new interior
+tile rings and physical room slots** on `ship-level.ts`, giving players a
+tangible sense of base expansion.
+
+---
+
+## 3. Mechanically Grounded Features for Phase 3 (Local Alpha)
+
+### 1. P3.3 Objectives & First-Run Onboarding (Chapter Spine)
+
+A guided chapter chain embedded into setting lore:
+
+- **Chapter 1 (Awakenings):** Stabilize CM $\rightarrow$ Hire 1 Crew
+  $\rightarrow$ Build Producer $\rightarrow$ Mine Asteroid $\rightarrow$ Claim
+  Reward.
+- **Chapter 2 (Relay Survey):** Execute first Expedition $\rightarrow$ Unlock
+  Research Lab $\rightarrow$ Trade at Trading Post.
+- **Chapter 3 (Helios Reach):** Reach Sector Band 2 $\rightarrow$ Defeat NPC
+  Vanguard $\rightarrow$ Upgrade CM Level 3.
+
+### 2. P3.4 Research Lab (Multi-Branch Tech Tree)
+
+- Three parallel branches: **Development** (mothership & crew), **Economy**
+  (production, trade, fuel logistics), and **Military** (vessels & tactics).
+- Clear gating by Command Module level. Normal-play accessible respec mechanism
+  (no cash paywalls).
+
+### 3. P3.7 Vessel Shipyard & Crew Captains (Lords Mobile Model)
+
+- Vessel progression tied to crew assignment, cargo capacity, and 3
+  specialization archetypes: _Scout/Speed_, _Mining/Extraction_, _PvE
+  Combat/Tactics_.
+- **No Gacha:** Captains and vessel blueprints are earned through direct
+  progression, research, and expeditions.
+
+### 4. P3.8 Expeditions & Fuel Economy (OGame Model)
+
+- **Formulaic Slot Ceiling:** Maximum concurrent expeditions
+  $\text{Slots} = \lfloor\sqrt{\text{Expeditions Tech Level}}\rfloor$.
+- **Authoritative Outcome Table:** Server-rolled events:
+  - _Resource Cache:_ 32%
+  - _Derelict Vessel/Blueprint:_ 22%
+  - _Empty Void:_ 19%
+  - _Research Data:_ 9%
+  - _NPC Hostile Encounter:_ 12%
+  - _Anomaly Loss:_ 1–2% (recoverable via scrap salvage)
+- **Coordinate Fatigue:** Repeated dispatches to identical coordinates produce
+  diminishing yields, driving outward map exploration.
+
+### 5. P3.9 NPC Opposition & Radial Sector Progression
+
+- 5 distinct radial bands. Inner bands feature higher density asteroids and rare
+  materials, guarded by NPC patrols (STFC distance-gated risk model).
+- **Mitigating the "Phase 1 Handoff Wall":** Because Phase 3 lacks an alliance
+  layer, P3.9 provides a deep solo NPC campaign runway with outposts, static
+  boss encounters, and recurring solo wave-escalation events (reframed from
+  _Bear Hunt/Zombie Siege_).
+
+### 6. P3.10 PvE Combat Slice & Local Async PvP Arena
+
+- **PvE Encounters:** Bounded tactical encounters. Units engaged in combat runs
+  do **not lock up or interrupt space map mining**. Clear preview of win/loss
+  odds.
+- **Local Asynchronous PvP Arena (Approved Phase 3 Scope):** Set a defense squad
+  $\rightarrow$ challenge another local profile's defense squad. Requires **no
+  WebSockets, live server, or resource looting**. The Rust backend reads a
+  target profile's stored `DefenseTeamData` snapshot and resolves the challenge
+  synchronously through P3.10's combat engine (`AttackerLoadout` vs
+  `DefenseSnapshot`).
+- **Headline Power Score (CP System):** Displayed as an explicit numeric score
+  (e.g., `"Fleet Power: 14,500"`) combining Command Module level + module
+  levels + vessel tiers + research level to scale NPC encounter difficulty and
+  reflect total progression.
+
+### 7. P3.8 Expeditions Failure & Repair Mechanics
+
+- Severe expedition anomaly failures (~1–2% roll) result in **Fuel/Cargo loss +
+  a Temporary Vessel Repair Timer** at the Shipyard (requiring a short 5–10
+  minute repair cycle before the vessel can be dispatched again).
+
+### 8. P3.11 Campaign Climax & ARPG "Prestige" Ascension
+
+- Reaching the central Capital World sector triggers a final NPC confrontation.
+- **ARPG / Roguelike Prestige Contract (NG+ Pattern):** Inspired by
+  single-player prestige loops (_Hades_, _Slay the Spire_). Completing the
+  campaign allows resetting base/modules in exchange for meta-perks: cosmetics,
+  ship history badges, initial expedition boosts, and a capped Ascension
+  Research tree.
+
+### 9. P3.19 Dual-Cohort Playtesting & P0 Churn Wall Gate
+
+- Playtest feedback must explicitly segment **First-Session Players (0–30 min)**
+  from **Multi-Hour Return Players**.
+- **P0 Gate Rule:** Hitting an abrupt dead-end wait wall immediately after
+  scripted onboarding chapters end is classified as a **P0 blocking rebalance
+  bug**.
+
+---
+
+## 4. Features Explicitly Deferred to Future Phases
+
+| Feature / System                                   | Deferred To | Rationale                                                                                                                                                      |
+| :------------------------------------------------- | :---------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **WebSockets, Login, Remote Storage**              | **Phase 4** | Must validate local loop & Rust event model first.                                                                                                             |
+| **Alliances, Embassies, Player Territory**         | **Phase 5** | Social systems require a live multi-player server.                                                                                                             |
+| **Player Social Governance (Etiquette over Code)** | **Phase 5** | Adopt STFC "Rules of Engagement" model: provide communication/tagging tools so player treaties emerge naturally rather than hardcoding brittle server rules.   |
+| **Player-to-Player Trade & Economy**               | **Phase 5** | Avoid market exploitation before online state exists.                                                                                                          |
+| **Full Live PvP Raiding & Base Shields**           | **Phase 6** | Requires online identity; P6.3 will enforce protected storage rules (only exposed surplus lootable; 72-hr new player shield broken only by active PvP attack). |
+| **Curated Live Events & GM Operations**            | **Phase 7** | Server-curated events require Phase 4 server infrastructure.                                                                                                   |
+
+---
+
+## 5. Deliberately Rejected Anti-Patterns
+
+1. **Pay-to-Win Power Widening:** Revenue will never sell power advantages.
+2. **Predatory Wait Timers:** Building/research timers pace sessions; they never
+   halt gameplay for weeks or require real-money skip currency.
+3. **Hero Gacha & Loot Boxes:** No randomized unit acquisition.
+4. **Currency Proliferation:** Strict adherence to 4 resources + Credits.
+5. **Irreversible Early Traps:** Respec path built into normal gameplay.

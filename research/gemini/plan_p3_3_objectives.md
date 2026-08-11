@@ -1,12 +1,26 @@
 # Implementation Plan: P3.3 Objectives & First-Run Onboarding
 
+> [!NOTE]
+> **Prerequisite:** This technical implementation plan is governed by the **P3.1
+> Experience Specification Gate** (see
+> [voidbound_strategy.md](file:///Users/pouya/projects/voidbound/research/gemini/voidbound_strategy.md)
+> §2). It implements the early-game chapter spine designed to guide players
+> through their first 30 minutes without forced wait dead-ends.
+
+---
+
 ## Overview
 
-Based on our research into the "Phase 1 / The Hook" of mobile 4X games, this
-plan outlines the implementation of **ROADMAP Task P3.3**. The goal is to create
-a persistent, event-modeled "Strict Linear Chapters" system that guides the
-player through their first milestones (hiring, building, mining) and grants
-authoritative rewards.
+Based on our reconciled research into the "Phase 1 / The Hook" of mobile 4X
+strategy games and Voidbound's _Hopeful Frontier Colonization_ setting, this
+plan outlines the technical implementation of **ROADMAP Task P3.3**.
+
+The goal is to build a persistent, event-modeled "Strict Linear Chapters" system
+that guides the player through initial milestones (hiring crew, building
+producers, mining asteroids, executing expeditions, and trading) while granting
+authoritative server-verified rewards.
+
+---
 
 ## 1. Data Model (Rust & TypeScript)
 
@@ -21,9 +35,13 @@ export type ObjectiveState = "locked" | "in-progress" | "completed" | "claimed";
 export interface ObjectiveData {
   objectiveId: string; // e.g., "ch1_hire_crew"
   chapterId: string; // e.g., "chapter_1"
+  title: string;
+  description: string;
   state: ObjectiveState;
   currentProgress: number; // for tasks like "mine 100 units"
   targetProgress: number;
+  rewardCredits: number;
+  rewardResource?: { type: string; amount: number };
 }
 
 export interface ObjectivesSnapshot {
@@ -33,73 +51,79 @@ export interface ObjectivesSnapshot {
 ```
 
 - `GameStateData` will be updated to include `objectives: ObjectivesSnapshot`.
-- A new `ServerPush` type (`type: "objective"`) will be added to push real-time
-  progression updates (e.g., when a build completes, the objective ticks to
+- A new `ServerPush` variant (`type: "objective"`) will push real-time
+  progression updates (e.g., when a module completes, the objective ticks to
   "completed").
+
+---
 
 ## 2. Backend Implementation (Rust)
 
 A new module `src-tauri/src/game_state/objectives.rs` will be created.
 
-### The Catalog
+### Chapter & Objective Catalog
 
-Instead of hardcoding checks everywhere, we will create an `ObjectiveCatalog` in
-the backend that defines the linear sequence. Example sequence for Chapter 1:
+Instead of scattered hardcoded checks, `ObjectiveCatalog` in Rust defines the
+sequence embedded into setting lore:
 
-1. **Hire Crew** -> unlocks -> **Build Ore Refinery**
-2. **Build Ore Refinery** -> unlocks -> **Mine Asteroid**
-3. **Mine Asteroid** -> Chapter 1 Complete! (Reward: 500 Credits)
+#### Chapter 1: Awakenings
 
-### Event Triggers
+1. **ch1_stabilize_cm:** Stabilize Command Module $\rightarrow$ unlocks
+   **ch1_hire_crew**
+2. **ch1_hire_crew:** Hire First Crew Member $\rightarrow$ unlocks
+   **ch1_build_producer**
+3. **ch1_build_producer:** Construct Ore Refinery $\rightarrow$ unlocks
+   **ch1_mine_asteroid**
+4. **ch1_mine_asteroid:** Mine 50 Units of Ore $\rightarrow$ Chapter 1 Complete!
+   (Reward: 500 Credits, 100 Bio)
 
-We will hook into existing server actions. When `request_hire_crew`,
-`request_build_module`, or `asteroid_depleted` events occur, the server will:
+#### Chapter 2: Relay Survey
 
-1. Check the active objectives.
-2. If a condition is met, update the `ObjectiveState` to `completed`.
-3. Emit a `ServerPush::Objective(ObjectiveData)`.
+1. **ch2_first_expedition:** Execute First Vessel Expedition $\rightarrow$
+   unlocks **ch2_decode_blueprint**
+2. **ch2_decode_blueprint:** Construct Research Lab $\rightarrow$ unlocks
+   **ch2_npc_trade**
+3. **ch2_npc_trade:** Complete 1 Trade Deal at Trading Post $\rightarrow$
+   Chapter 2 Complete!
 
-### New Command
-
-- `request_claim_objective(objective_id)`: Verifies the objective is
-  `completed`, changes state to `claimed`, deposits the rewards (e.g., Credits,
-  Fuel) into `ResourceCounts`, unlocks the next objective in the linear chain,
-  and returns an `ObjectiveActionResponse`.
+---
 
 ## 3. Frontend Implementation (Excalibur/UI)
 
 ### Game State Integration (`src/state/game-state.ts`)
 
-- Add `objectives` to the `GameState` class.
-- Add `applyObjectiveEvent(data)` to handle pushes.
-- Provide a `subscribeToObjectives()` hook for UI updates.
+- Add `objectives` property to the `GameState` singleton.
+- Implement `applyObjectiveEvent(data)` to reconcile pushed updates.
+- Provide a `subscribeToObjectives()` listener for UI components.
 
-### Objective HUD Widget
+### Objective HUD Widget (`src/ui/hud.ts`)
 
-- Create a new HUD group in `src/ui/hud.ts` (e.g., positioned top-left, below
-  the resource bar) that displays the currently active `in-progress` objective
-  as a persistent label (e.g., "Objective: Hire 1 Crew").
-- Tapping this widget opens the Objectives Dialog.
+- Add an persistent Objective widget to the main HUD (top-left, anchored below
+  the resource bar).
+- Displays the active `in-progress` objective label (e.g.
+  `Objective: Hire 1 Crew`).
+- Tapping the widget opens the Objectives Dialog.
 
 ### Objectives Dialog (`src/ui/objectives-dialog.ts`)
 
-- Using the `bindDialogRows` pattern from the P1.12 Trading Post / Mail panels.
-- **Header:** Displays the current Chapter Name (e.g., "Chapter 1: Awakenings").
-- **Rows:** Displays the linear checklist.
-  - `completed` objectives show a shiny "Claim" button.
-  - `in-progress` objectives show the progress bar (e.g., 0/1).
-  - `claimed` objectives show a checkmark.
-- Clicking "Claim" fires `request_claim_objective`, spawning a success toast
-  (using `toast.ts`) and triggering a UI refresh via the state store notify.
+- Built using `bindDialogRows` (mirroring the Trading Post panel pattern).
+- **Header Row:** Displays Chapter title (e.g., _Chapter 1: Awakenings_).
+- **List Rows:** Displays chapter tasks:
+  - `completed`: Interactive "Claim" button with reward badge.
+  - `in-progress`: Live progress bar (e.g. `25 / 50 Ore`).
+  - `claimed`: Checkmark indicator.
+- Clicking "Claim" invokes `request_claim_objective`, displaying a toast
+  notification (`toast.ts`) and advancing the chapter.
 
-## 4. Verification Plan
+---
 
-1. **New Save Validation:** Boot the app with a fresh local save. Verify the HUD
-   immediately prompts the player to "Hire 1 Crew".
-2. **Progression Validation:** Hire the crew. Verify the HUD automatically
-   updates to the next task without a reload (confirming `ServerPush` routing
-   works).
-3. **Reward Validation:** Click "Claim" in the dialog. Verify resources increase
-   instantly and the next Chapter unlocks.
-4. **Persistence:** Close the Tauri app mid-chapter, reopen, and verify the
-   `load_game_state` snapshot accurately restores the exact objective progress.
+## 4. Verification & Testing
+
+1. **Fresh Profile Validation:** Launch app with a clean save state. Verify HUD
+   displays Chapter 1 prompt.
+2. **Event Push Routing:** Complete an objective task (e.g. hire crew). Verify
+   HUD ticks to `completed` in real-time via `ServerPush`.
+3. **Claim & Reward:** Claim completed objective. Verify resources deposit into
+   `GameState` and next task unlocks instantly.
+4. **Snapshot Persistence:** Restart Tauri app mid-chapter. Verify
+   `load_game_state` snapshot restores exact objective state.

@@ -29,5 +29,10 @@
   - [x] Deep dive on Last Fortress: Underground (features & gameplay flow).
   - [x] Deep dive on Puzzles & Survival (features & gameplay flow).
   - [x] Deep dive on Age of Origins (features & gameplay flow).
-- [x] **Technical Planning**
+- [x] **Technical Planning & Parallel Synthesis**
   - [x] Draft implementation plan for P3.3 (Objectives & First-Run Onboarding).
+  - [x] Synthesize findings with Claude (`research/claude/`) and GPT
+        (`research/gpt/`) parallel tracks.
+  - [x] Amend `research/gemini/voidbound_strategy.md` with setting fiction,
+        experience spine, OGame expedition mechanics, and solo churn wall
+        mitigations.
