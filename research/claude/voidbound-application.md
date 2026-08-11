@@ -12,6 +12,14 @@ here authorizes writing code — it's material for the P3.1 design-review
 conversation (and for `/roadmap-task`'s design-review pause on any Phase 3 task
 that touches the server model).
 
+**2026-08-10 update:** `preliminary-phase3-plan.md` now carries a
+"Non-negotiable product values" charter and a "Decisions carried in from
+parallel tracks" section (real user decisions the `docs/gpt/` track's
+decision-workshop surfaced — capital fiction, first-expedition target, ascension
+carry-over, etc. — that this track's own `user-notes.md` hadn't independently
+captured). Read that document's two new top sections alongside this one; some
+"Open items" below are narrower than when originally written as a result.
+
 ## Part 1 — What transfers directly into Phase 3
 
 ### P3.1 (playable-alpha spec) & P3.3 (objectives/onboarding)
@@ -104,6 +112,12 @@ structures universally grant a **title/governance reward** (President, Governor)
 on top of loot — P3.11's "reaching the center and defeating a major threat"
 already implies something similar; the pattern confirms that a status/title
 reward alongside material ones is worth keeping, even in solo form.
+**2026-08-10:** the user's actual carry-over preference is now on record
+(cosmetics/badges, ship history, a better first expedition, a capped
+ascension-research tree — see `preliminary-phase3-plan.md`'s cross-track
+decisions section) — this section's "no usable peer template" framing still
+holds for the mechanics, but the carry-over question specifically is no longer
+open.
 
 ### P3.18 (progressive crew recruitment cost)
 
@@ -136,7 +150,17 @@ designing Phase 5/6/7 tasks has this research available without re-deriving it.
   Embassy)** and **P5.2 (alliance territories)**. This is the genre's single
   most-praised system (`community-sentiment.md`) — worth investing real design
   effort here when Phase 5 arrives, more than almost anything else in this
-  research.
+  research. **Carve-out (2026-08-10, see `user-notes.md`): asynchronous PvP
+  arena — set a defense team, attack another account's stored defense team —
+  does not belong in this deferred bucket.** It needs no live opponent, shared
+  world, or looting, just another local profile's stored loadout read as a
+  defense snapshot and run through an authoritative combat resolver (P3.10's
+  engine, pointed at a stored config instead of an NPC). Voidbound's local
+  multi-profile setup (P3.2) is a legitimate substrate for this today, not just
+  dev/test scaffolding. Reclassified as reachable within or adjacent to Phase 3
+  — raise explicitly at the P3.1 design-review gate. What still genuinely needs
+  Phase 4/6: live PvP raiding with real shared/contested resources and looting
+  (below).
 - **PvP raiding, rallies, and center-map war structures** (State of Supremacy,
   Capital Clash, KvK, Territory Wars — see the table in
   `early-mid-late-game.md`) → **P6.3 (PvP combat resolution)**. Directly

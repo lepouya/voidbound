@@ -115,6 +115,41 @@ Voidbound's actual space setting. See `00-task-list.md` §2 for the added
 candidates and reasoning (Star Trek Fleet Command, EVE Online, Clash of Clans,
 OGame).
 
+## 2026-08-10 (cont'd) — Async PvP arena reclassified as Phase-3-reachable
+
+Originally filed (below, and in `voidbound-application.md` Part 2) as part of
+"alliance mechanics wholesale" deferred to P5/P6 alongside rallies, garrisons,
+and territory capture — that was too conservative. The user flagged (2026-08-10,
+prompted by `docs/gemini/voidbound_strategy.md` §1.4 independently floating the
+same idea): **asynchronous PvP arena — set a defense team, attack another
+account's stored defense team — doesn't need live networking or a shared world
+at all.** It only needs to read another local profile's persisted loadout (crew
+assignment, vessel tier, research picks) as a defense snapshot and run it
+through an authoritative combat resolver. No live opponent, no shared/contested
+resources, no looting, none of what makes P6.3's raiding genuinely wait on
+Phase 4.
+
+Concretely, this means Voidbound's local multi-profile setup (P3.2) — currently
+scoped as pure dev/test scaffolding per the GPT track's decision-workshop item
+11 — could double as the actual substrate for a real async-arena feature: each
+local profile is a legitimate, readable "defender" snapshot for another local
+profile to challenge. It would also reuse whatever combat-resolution engine
+P3.10 builds for PvE, just pointed at a stored defense config instead of an NPC,
+rather than needing a second combat system.
+
+**Reclassification:** async PvP arena moves out of the "wait for Phase 5/6"
+bucket into "architecturally reachable within/adjacent to Phase 3" — not
+something to silently continue deferring to P6.3 alongside live raiding. Live
+PvP raiding (looting, protection bubbles, contested world state) still genuinely
+needs Phase 4/6 — this carve-out is specific to the stored-defense,
+no-shared-state arena shape.
+
+**Decided (2026-08-10, follow-up):** build it within Phase 3, not as a
+fast-follow or later-phase deferral. See `preliminary-phase3-plan.md`'s
+P3.2/P3.10 sections and its arena architecture sketch. Needs a ROADMAP task ID —
+not yet assigned, candidate placement adjacent to P3.10 since it shares that
+task's combat resolver.
+
 ## Open items for the user to weigh in on further
 
 - Anything specific to Dark War: Survival, Whiteout Survival, or Tiles Survive!

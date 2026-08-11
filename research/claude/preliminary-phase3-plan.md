@@ -53,6 +53,77 @@ just the ones they're mentioned under:
    open-ended forever. This is the one place Phase 3 is doing something
    genuinely novel relative to the whole genre, not adapting a known pattern.
 
+## Non-negotiable product values
+
+Added 2026-08-10, distilled from this track's own Part 3 rejections
+(`voidbound-application.md`) plus design pillars 2-4 above — formalized as a
+standing charter to check every future task against, not just a list of things
+this round happened to reject. Worth noting this was reached **independently**
+by the parallel `docs/gpt/` track (its `comprehensive-game-plan.md` §2) from a
+much narrower game set (3 games vs. this track's 12) — convergent conclusions
+from different evidence bases is a stronger signal than either track alone.
+
+1. **Hopeful colonization and discovery, not generic survival.** Voidbound's
+   fiction is settlement, survey, and stewardship — resist importing
+   hunger/temperature/panic meters just because peer games use them for
+   engagement, per design pillar 3's anti-bloat stance.
+2. **Understandable growth.** Every change is visible, its cause is legible, and
+   the next useful action is obvious — this is `AGENTS.md`'s existing UX
+   principle (state must be visible), reaffirmed as a Phase 3 content
+   requirement, not just a UI convention.
+3. **Meaningful play across session lengths.** A 5-10 minute return, an
+   hours-away plan, and a longer active session must each yield legitimate
+   progress. Active play should grant choice and expression, never an unbounded
+   raw-power advantage over idle play — a distinction P3.8's expedition design
+   and P3.19's playtest should both explicitly check for.
+4. **No permanent early traps.** Research/ascension branches may open different
+   paths, but normal play must provide a comprehensible respec — never gate
+   recovery from an under-informed early choice behind a future cash shop (ties
+   directly to pillar 4 below).
+5. **Failure is recoverable.** PvE costs time, fuel, cargo, or temporary vessel
+   damage — never the only critical vessel, never protected progress, never a
+   reset. Directly informs P3.10's "no unrecoverable vessel loss" requirement.
+6. **No P2W, no gacha, no bait-and-switch marketing; resist system bloat.**
+   Design pillars 3-4 above, restated as a standing rule rather than a
+   per-pillar footnote.
+
+## Decisions carried in from parallel tracks
+
+Added 2026-08-10. The `docs/gpt/` track ran a direct decision-workshop with the
+user (`decision-workshop.md`) that surfaced concrete answers this track's own
+`user-notes.md` didn't independently capture. These are real user decisions, not
+GPT's invention — recording them here so this track's task notes reflect the
+same ground truth rather than treating questions as open that are already
+answered. Full detail lives in `docs/gpt/decision-workshop.md`; the relevant
+subset is folded into the P3.4/P3.8/P3.11 sections below.
+
+- **Primary fantasy:** hopeful colonization/frontier and discovery, explicitly
+  not the "survival" framing the three primary reference games use. Use language
+  like frontier, settlement, survey, route, and stewardship in P3.3's objective
+  copy.
+- **Capital fiction:** a **Capital World with orbital infrastructure** — a
+  recoverable/inhabited planet at the system center, with a Precursor Relay
+  (route/signal restoration) and a Helios Array (inner-system hazard/energy)
+  distributed across the approach bands. Not yet named; P3.9's sector design
+  should treat the radial bands as approach to this complex rather than an
+  abstract difficulty ramp.
+- **First expedition target:** a relay fragment or derelict station, returning a
+  guaranteed NPC relationship plus an item/blueprint that unlocks the first
+  Research Lab — not a generic loot timer. (Decided 2026-08-10: Research Lab
+  specifically, not Vessel Shipyard or a player choice; see P3.8's section
+  below.)
+- **Ascension carry-over:** cosmetics/badges, historical ship identity, a better
+  first expedition, and a capped ascension-research tree the player chooses a
+  branch of — explicitly not a resource stockpile that would make a fresh player
+  irrelevant.
+- **PvE failure rule:** pushing past the current limit should be encouraged;
+  failure costs time/fuel/cargo or temporarily damages/delays a vessel, never
+  destroys the only critical vessel or forces a reset (matches this track's own
+  P3.10 recommendation independently).
+- **Research structure:** three initial branches — growth/development, economy,
+  and battle/military — matching this track's own P3.4 recommendation
+  (Whiteout's Growth/Economy/Battle split) independently.
+
 ## Task-by-task notes
 
 Organized by ROADMAP's own P3.1-P3.19 IDs and dependency order. Each entry: a
@@ -82,12 +153,48 @@ of the same warning (`voidbound-application.md` Part 5).
 playtesting purposes (P3.19 needs an operational definition, not just a vibe
 check).
 
+**Horizon table (added 2026-08-10):** the runway estimate above is easier to
+review as required-experience-per-horizon than as prose — format worth adopting
+for the actual P3.1 spec document itself, not just this note:
+
+| Horizon          | Required player experience                                                                                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| First 5 minutes  | A functioning but sparse Command Module, a visible need, and one completed visible change.                                                                                     |
+| First 30 minutes | Hire first crew; build/staff first producer; mine; trade; upgrade Command Module; complete the first vessel expedition and receive a relationship + unlock, not a bare number. |
+| First 3 hours    | A real research/path choice; an improved vessel; a safe-vs-risky route tradeoff; the first NPC/hazard encounter; recovery from a failure.                                      |
+| Several days     | Advance through radial bands; reach the NPC-held capital approach; overcome a major threat; choose an ascension.                                                               |
+
+(Cross-checked against `docs/gpt/voidbound-phase-3-direction.md`'s own table —
+same four horizons, independently arrived at from a narrower game set; converges
+with this track's own P3.1 recommendation above rather than introducing a new
+claim.)
+
+**Pacing target decided (2026-08-10):** the provisional long-form arc from
+`docs/gpt/decision-workshop.md` (early game 1-2 weeks, mid ~4 weeks, late ~4
+weeks — roughly 10 weeks total) stays as the **aspirational** target for what
+the finished local campaign should feel like, not something P3.19 has to run
+end-to-end on every pass. P3.19's repeated fresh-profile playtests validate the
+first-3-hours/several-days horizons above each time; the several-week middle and
+late stretches get validated less often, by fewer, longer-running profiles
+rather than every fresh-profile pass. Write this distinction into the actual
+P3.1 spec's playtest-cadence section rather than leaving it implicit.
+
 ### P3.2 — In-app local profile flow
 
 No direct research finding applies here — this is Voidbound-specific plumbing
 (replacing launch-flag identity selection) with no peer-game analog, since every
 researched game has server-side accounts from day one. Not blocked by anything
 in this research; proceed on its own merits.
+
+**Reclassification, then decision (2026-08-10, see `user-notes.md`):** the local
+multi-profile system isn't only dev/test scaffolding — it's the substrate an
+async PvP arena needs (read another profile's stored defense loadout, no live
+opponent or shared state required). **Decided: build the arena within Phase 3**,
+not as a fast-follow or a later-phase deferral — P3.2 needs to design for
+another profile's state being read by an arena challenge from day one, not bolt
+it on after the fact. This doesn't have a ROADMAP task ID yet; flag it for
+whoever next edits `ROADMAP.md` to add one (candidate placement: adjacent to
+P3.10, since it shares that task's combat resolver).
 
 ### P3.3 — Objectives, rewards, and first-run onboarding
 
@@ -111,6 +218,14 @@ tutorial" (per its ROADMAP description) should include any of the
 returning/escalating structure decided in scope for P3.9/P3.11 (see Decisions #3
 in `voidbound-application.md`), or stay purely one-shot.
 
+**Resolved 2026-08-10 (from `docs/gpt/`'s reconciliation pass):** the chapter
+structure itself is strict-linear-then-branching, not strict-linear throughout.
+Expose exactly one actionable objective at a time through the end of the first
+chapter (up to and including the first expedition returning); after that, switch
+to concurrent optional milestones so objectives explain priorities without
+permanently replacing player choice. This is the answer to the open item
+directly above, not a separate question.
+
 ### P3.4 — Research Lab + tech tree
 
 **Recommendation:** Use parallel research trees gated by Command Module level
@@ -125,7 +240,11 @@ Survival's Growth/Economy/Battle split, Dark War's four-tree system, Last War's
 sequencing advice).
 
 **Open items:** none major — this is the most directly transferable finding in
-the whole research set.
+the whole research set. The three-branch split (growth/development, economy,
+battle/military) is also independently confirmed in the "Decisions carried in
+from parallel tracks" section above — the `docs/gpt/` track's decision-workshop
+landed on the identical three names from the user directly, not just from genre
+research.
 
 ### P3.5 — Live countdown-details controller
 
@@ -174,12 +293,23 @@ wasn't decided, only that the door should stay open in the design.
 entire research set: **OGame's Expedition system.** Adopt its shape directly as
 a starting point — a fleet/vessel sent to unclaimed space for a timed window, a
 concrete weighted-outcome table (resources found / a derelict discovered /
-nothing / a rare bonus / a hostile encounter, with a small but real chance of
-total loss), a slot count that scales with a research investment, and
-diminishing returns from repeatedly targeting the same location to encourage
-spreading activity out. This maps almost exactly onto ROADMAP's own P3.8
-description ("consume fuel, expose up-front risk/reward, return choices or
-rewards through authoritative events").
+nothing / a rare bonus / a hostile encounter, with a small chance of a costly
+setback), a slot count that scales with a research investment (OGame's own
+formula, `floor(sqrt(tech level))`, is a reasonable default rather than
+inventing a new curve), and diminishing returns from repeatedly targeting the
+same location to encourage spreading activity out. This maps almost exactly onto
+ROADMAP's own P3.8 description ("consume fuel, expose up-front risk/reward,
+return choices or rewards through authoritative events").
+
+**Correction (2026-08-10):** the recommendation above originally copied OGame's
+own framing verbatim — OGame's real ~1-2% roll destroys the entire fleet with no
+return. That directly contradicts this track's own "Non-negotiable product
+values" §5 ("failure is recoverable... never the only critical vessel") added
+the same day, and `docs/gemini/`'s reconciliation pass already caught and fixed
+this on their side: the low-probability bad outcome gets reframed as a
+**recoverable** setback — cargo/fuel loss and a damaged-vessel state recoverable
+via salvage/repair, never an outright vessel deletion. Adopt that fix here too;
+the odds-table shape stays OGame's, the severity of its worst entry does not.
 
 **Backing:** `voidbound-application.md` Part 5 and `early-mid-late-game.md`
 Round 2 (both cite `games/ogame.md` §5 directly — read that section in full when
@@ -190,6 +320,103 @@ tuning (OGame's numbers are a starting reference, not a formula to copy
 verbatim); how fuel's other uses (mothership warp, P1.22) interact with
 expedition fuel cost needs its own pass, per ROADMAP's existing note that P3.8
 should "settle fuel's broader role."
+
+**First target (from "Decisions carried in from parallel tracks" above):** the
+first expedition is a relay fragment or derelict station, not a random roll —
+its outcome is _guaranteed_ to be an NPC relationship plus an item/blueprint,
+matching P3.3's "meaningful unlock every task" convention (design pillar/P3.3
+section above) rather than starting the player on OGame's weighted table cold.
+The weighted-outcome table applies from the second expedition onward, once the
+player has a frame of reference for what a "normal" result looks like. **Decided
+2026-08-10:** the guaranteed blueprint specifically unlocks the **Research Lab**
+(not the Vessel Shipyard, and not a player choice between the two) — resolves
+the "still open" question `docs/gpt/decision-workshop.md` left on this point.
+
+#### Implementation sketch (added 2026-08-10)
+
+Following the multiplayer-ready event pattern (`AGENTS.md` §3) and this
+codebase's existing self-snapshot convention (`ModuleData`, `DealsData`) — an
+in-flight expedition's whole state, including its eventual outcome, rides one
+revisioned payload rather than a separate result type.
+
+**Wire types (`game-state-types.ts`):**
+
+```typescript
+export type ExpeditionTargetKind =
+  | "relay-fragment"
+  | "derelict-station"
+  | "moon-outpost"
+  | "asteroid-anomaly"
+  | "distress-signal";
+
+// "vesselDamaged" is the low-probability "bad roll" outcome — costs time/cargo
+// to recover via salvage/repair. No kind here deletes a vessel outright; see
+// the 2026-08-10 correction above.
+export type ExpeditionOutcomeKind =
+  | "resources"
+  | "blueprint"
+  | "npcRelationship"
+  | "hazard"
+  | "nothing"
+  | "vesselDamaged";
+
+export interface ExpeditionOutcome {
+  kind: ExpeditionOutcomeKind;
+  // payload shape varies by kind: resource amounts, a blueprint/unlock id,
+  // an npc relationship id, or a hazard/damage description
+}
+
+export interface ExpeditionData {
+  expeditionId: string;
+  vesselId: string;
+  targetKind: ExpeditionTargetKind;
+  state: "traveling" | "returned";
+  dispatchedAt: number; // server timestamp, matches VesselMoveEvent convention
+  arrivesAt: number;
+  outcome: ExpeditionOutcome | null; // populated once state === "returned"
+}
+```
+
+`GameStateData` gains `expeditions: ExpeditionData[]`; `ServerPush` gains an
+`expedition` variant carrying a `Revisioned<ExpeditionData>`, following the
+existing `vessel`/`asteroid` push pattern exactly.
+
+**Backend (`src-tauri/src/game_state/expeditions.rs`, new domain file):**
+
+- An `ExpeditionCatalog` (mirrors `modules.rs`'s cost/build-time catalog shape)
+  holds each target kind's fuel cost, travel time, and weighted outcome table —
+  first-expedition target is a fixed catalog entry with a 100%-weighted
+  guaranteed outcome, not a special-cased branch in the command handler.
+- `request_dispatch_expedition(vessel_id, target_kind)` — verifies the vessel is
+  free and docked, deducts fuel per the catalog entry, derives `arrivesAt` from
+  travel time, records the expedition, returns `ExpeditionData`
+  (`state: "traveling"`) wrapped in `Revisioned<T>`. Mirrors
+  `request_dispatch_vessel`'s shape closely enough that it may be worth sharing
+  the dock/fuel-verification helper rather than duplicating it.
+- The scheduler (`scheduler.rs`) settles `arrivesAt` the same way it settles
+  vessel arrivals and mining completions: roll the catalog's weighted outcome
+  table (deterministic per `(player, expedition_id)` seed, matching
+  `seed_asteroids`'s determinism convention), apply the outcome (deposit
+  resources, install a blueprint unlock, record an NPC relationship, or flag
+  vessel damage — never destroy the vessel outright per the PvE failure rule
+  above), and emit a revisioned `expedition` push with `state: "returned"` and
+  `outcome` populated.
+
+**Frontend:** `gameState.applyExpeditionEvent()` alongside the existing
+`apply*Event` methods; an `ExpeditionSync`-shaped reconciler if expeditions get
+their own map/HUD presence, or a dialog opened from the vessel's action button
+otherwise. Outcome display reuses `bindDialogRows`/`showToast` per the UI
+library conventions in `AGENTS.md` §4 — a returned expedition with a `blueprint`
+outcome should trigger the same "meaningful, visible unlock" toast/dialog
+treatment P3.3's objective claims use, not a bare resource-count tick.
+
+**Verification plan (once actually implemented via `/roadmap-task`):** dispatch
+the first expedition, confirm fuel deducts and the vessel shows traveling state;
+let it resolve, confirm the guaranteed NPC relationship + blueprint outcome
+lands and the unlocked building becomes buildable; dispatch a second expedition,
+confirm outcomes now vary per the weighted table; kill the app mid-flight and
+reopen, confirm `load_game_state` restores the in-flight expedition's exact
+`arrivesAt` rather than resetting it.
 
 ### P3.9 — NPC opposition + radial sector progression
 
@@ -213,6 +440,14 @@ decisions log (RoK and STFC flags).
 **Open items:** the power-score decision (below, shared with P3.10) directly
 feeds this task's difficulty-scaling design.
 
+**Capital tie-in (from "Decisions carried in from parallel tracks" above):**
+sector naming/theming should treat the radial bands as the approach to the
+**Capital World with orbital infrastructure** (a Precursor Relay and a Helios
+Array distributed across the bands) rather than an abstract difficulty ramp —
+this doesn't change P3.9's mechanical recommendation above, just gives the "how
+far are you willing to go" axis a concrete fiction to attach hazard/reward
+framing to.
+
 ### P3.10 — PvE combat vertical slice
 
 **Recommendation:** Give P3.10 its own identity distinct from raw combat-power
@@ -234,6 +469,71 @@ player-visible as a raw number (genre-standard) or abstracted into a tier/label
 (more in keeping with Voidbound's current understated-UI conventions) — worth a
 design-review conversation rather than assuming the genre-standard raw-number
 presentation.
+
+**Added 2026-08-10:** design P3.10's combat resolver so it can be pointed at
+either an NPC or a stored defense-team snapshot from another local profile — see
+P3.2's note above and `user-notes.md`'s async-arena reclassification. Not a
+requirement to build the arena mode itself in P3.10, just a reason not to
+hardcode "opponent" as NPC-only in the resolver's shape.
+
+#### Arena mode architecture sketch (cross-cutting P3.2 + P3.10, added 2026-08-10)
+
+**Decided 2026-08-10: build this in Phase 3**, not deferred (see
+`user-notes.md`'s reclassification entry and P3.2's note above). Not a ROADMAP
+task ID of its own yet — flag for whoever next edits `ROADMAP.md`. Sketched here
+at the same level as P3.8's sketch above so whoever picks up the task ID has
+something concrete to start from rather than a blank page.
+
+**Wire types:**
+
+```typescript
+export interface DefenseTeamData {
+  profileId: string;
+  vesselLoadout: VesselLoadoutRef[]; // whatever P3.7 settles on for vessel config
+  crewAssignment: CrewAssignmentRef[]; // mirrors P2.8's assignment shape
+  powerScore: number; // the P3.10-decided headline aggregate stat
+}
+
+export interface ArenaResultData {
+  challengeId: string;
+  attackerProfileId: string;
+  defenderProfileId: string;
+  outcome: "attackerWin" | "defenderWin";
+  resolvedAt: number;
+  rewardSummary: ArenaReward; // ranking points, credits — never resource looting
+}
+```
+
+**Backend:**
+
+- `request_set_defense_team(loadout)` — the analog of an objective/module
+  self-snapshot command: verifies the loadout against the profile's actual
+  vessels/crew, stores it, returns the updated `DefenseTeamData`. Read, not
+  contested — a profile's own defense team is always settable regardless of what
+  other profiles are doing.
+- `request_arena_challenge(defender_profile_id)` — reads the defender's stored
+  `DefenseTeamData` (not their live resource/production state — deliberately a
+  snapshot, since the "defender" isn't present to react), reuses P3.10's combat
+  resolver with the attacker's current loadout on one side and the stored
+  snapshot on the other, and returns a revisioned `ArenaResultData`. Critically:
+  this reads across profiles but never mutates the defender's state — no
+  looting, no resource transfer, matching the design-pillar distinction between
+  this and P6.3's live PvP raiding.
+- No scheduler involvement needed — unlike expeditions/vessels, arena combat
+  resolves synchronously within the command handler, since both sides' state is
+  already known at request time.
+
+**Frontend:** a defense-team configuration dialog (crew/vessel picker, reusing
+P3.7's vessel-config UI once it exists) and an opponent-list dialog populated
+from other local profiles' `DefenseTeamData` — both fit the existing
+`bindDialogRows` pattern (`AGENTS.md` §4) rather than needing new UI primitives.
+
+**Open items:** whether local profiles need an opt-in "publish my defense team"
+step before another profile can challenge them (probably yes, so a
+freshly-created profile with no configured loadout isn't a free win); what
+"ranking" means with only a handful of local profiles rather than a real
+population (likely deferred until Phase 4 gives this a real matchmaking pool,
+even if the underlying challenge/resolve mechanism ships in Phase 3).
 
 ### P3.11 — Local campaign completion + ascension
 
@@ -262,7 +562,13 @@ _shape_ of climax even without a template for the mechanics).
 **Open items:** this is the task most worth bringing outside references into
 beyond this research set (roguelike/ARPG "prestige"/NG+ patterns were suggested
 in `early-mid-late-game.md` as a starting point, not researched in depth here) —
-flag this explicitly for whatever session actually designs P3.11.
+flag this explicitly for whatever session actually designs P3.11. Partially
+narrowed 2026-08-10: the "Decisions carried in from parallel tracks" section
+above records the user's actual carry-over preference (cosmetics/badges, ship
+history, a better first expedition, a capped ascension-research tree) — still
+needs a P3.11 design pass to turn into an exact contract (what resets, exact
+tree shape/ceiling), but this is no longer a blank slate the way the
+in-research-set peer template gap made it look.
 
 ### P3.12 — Dialog columns + Trading Post redesign
 
@@ -351,6 +657,13 @@ Online's corp→alliance→coalition structure and Council of Stellar Management
 as a reference class for P5.1/P5.2 far richer than any mobile SLG's, and **State
 of Survival's State Merge / OGame's Exodus merge process** as two
 independently-converged real-world answers for P5.5.
+
+**Noted for later, not designed now (2026-08-10):** `docs/gemini/`'s original
+research floated adapting _Tiles Survive!_'s tile-clearing mechanic to the ship
+interior itself — gating usable ship tiles to Command Module level instead of
+the fixed 40*40 grid being fully available from minute one. Considered and
+deliberately deferred rather than folded into P3.6/P3.9: worth recording as a
+candidate for a future phase/task rather than designing Phase 3 around it now.
 
 ## Next steps
 
