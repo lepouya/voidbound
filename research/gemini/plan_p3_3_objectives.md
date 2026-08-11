@@ -15,10 +15,12 @@ Based on our reconciled research into the "Phase 1 / The Hook" of mobile 4X
 strategy games and Voidbound's _Hopeful Frontier Colonization_ setting, this
 plan outlines the technical implementation of **ROADMAP Task P3.3**.
 
-The goal is to build a persistent, event-modeled "Strict Linear Chapters" system
-that guides the player through initial milestones (hiring crew, building
-producers, mining asteroids, executing expeditions, and trading) while granting
-authoritative server-verified rewards.
+The goal is to build a persistent, event-modeled objectives system. **Chapter
+1** uses a strict linear sequence (one objective exposed at a time) up through
+the first expedition to establish the core loop without overwhelming the player.
+**Chapter 2 onward** switches to concurrent branching milestones, allowing
+players to choose their own priorities across research, mining, and sector
+exploration.
 
 ---
 
@@ -66,7 +68,7 @@ A new module `src-tauri/src/game_state/objectives.rs` will be created.
 Instead of scattered hardcoded checks, `ObjectiveCatalog` in Rust defines the
 sequence embedded into setting lore:
 
-#### Chapter 1: Awakenings
+#### Chapter 1: Awakenings (Strict Linear Core Loop)
 
 1. **ch1_stabilize_cm:** Stabilize Command Module $\rightarrow$ unlocks
    **ch1_hire_crew**
@@ -74,17 +76,29 @@ sequence embedded into setting lore:
    **ch1_build_producer**
 3. **ch1_build_producer:** Construct Ore Refinery $\rightarrow$ unlocks
    **ch1_mine_asteroid**
-4. **ch1_mine_asteroid:** Mine 50 Units of Ore $\rightarrow$ Chapter 1 Complete!
-   (Reward: 500 Credits, 100 Bio)
+4. **ch1_mine_asteroid:** Mine 50 Units of Ore $\rightarrow$ unlocks
+   **ch1_trade_deal**
+5. **ch1_trade_deal:** Resolve resource mismatch at Trading Post $\rightarrow$
+   unlocks **ch1_upgrade_cm**
+6. **ch1_upgrade_cm:** Upgrade Command Module to Level 2 (visibly unlocks room
+   slots) $\rightarrow$ unlocks **ch1_first_expedition**
+7. **ch1_first_expedition:** Dispatch 1st Vessel Expedition to Precursor Relay
+   Fragment (Reward: 500 Credits, Guaranteed Research Lab Blueprint + NPC
+   Relationship) $\rightarrow$ unlocks **ch1_build_lab**
+8. **ch1_build_lab:** Construct Research Lab $\rightarrow$ unlocks
+   **ch1_first_tech**
+9. **ch1_first_tech:** Research 1st Tech Entry (Growth/Economy/Battle)
+   $\rightarrow$ unlocks **ch1_second_expedition**
+10. **ch1_second_expedition:** Dispatch 2nd Expedition (Demonstrates weighted
+    outcomes & survey progress meter) $\rightarrow$ Chapter 1 Complete!
 
-#### Chapter 2: Relay Survey
+#### Chapter 2+: Relay Survey & Helios Reach (Branching Concurrent Milestones)
 
-1. **ch2_first_expedition:** Execute First Vessel Expedition $\rightarrow$
-   unlocks **ch2_decode_blueprint**
-2. **ch2_decode_blueprint:** Construct Research Lab $\rightarrow$ unlocks
-   **ch2_npc_trade**
-3. **ch2_npc_trade:** Complete 1 Trade Deal at Trading Post $\rightarrow$
-   Chapter 2 Complete!
+- **Branch A (Economy):** Mine 200 Units of Ore / Complete 3 Trade Deals.
+- **Branch B (Research):** Research Tier 1 Techs across Development, Economy,
+  and Military.
+- **Branch C (Sector Progression):** Dispatch Vessel to Sector Band 2 / Defeat
+  NPC Patrol / Challenge Local Arena Snapshot.
 
 ---
 

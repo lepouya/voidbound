@@ -25,9 +25,9 @@ Playable Alpha)**.
 4. **OGame Expedition Engine (P3.8):** Formulaic slot scaling
    ($\lfloor\sqrt{\text{Tech Level}}\rfloor$), authoritative outcome table, and
    coordinate fatigue.
-5. **Mitigating Solo Churn Wall:** Deep solo NPC campaign runway (P3.9),
-   RoK-style parallel PvE combat (doesn't block mining), and an aggregate Power
-   Score (CP).
+5. **Mitigating Solo Churn Wall:** Deep solo NPC campaign runway (P3.9), vessel
+   dispatch exclusivity (opportunity cost decisions across mining vs. combat
+   dispatches), and an aggregate Power Score (CP).
 
 ## Reading Order
 

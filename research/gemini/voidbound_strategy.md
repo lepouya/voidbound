@@ -81,17 +81,20 @@ tangible sense of base expansion.
 
 ## 3. Mechanically Grounded Features for Phase 3 (Local Alpha)
 
-### 1. P3.3 Objectives & First-Run Onboarding (Chapter Spine)
+### 1. P3.3 Objectives & First-Run Onboarding (Strict-Linear → Branching Spine)
 
 A guided chapter chain embedded into setting lore:
 
-- **Chapter 1 (Awakenings):** Stabilize CM $\rightarrow$ Hire 1 Crew
-  $\rightarrow$ Build Producer $\rightarrow$ Mine Asteroid $\rightarrow$ Claim
-  Reward.
-- **Chapter 2 (Relay Survey):** Execute first Expedition $\rightarrow$ Unlock
-  Research Lab $\rightarrow$ Trade at Trading Post.
-- **Chapter 3 (Helios Reach):** Reach Sector Band 2 $\rightarrow$ Defeat NPC
-  Vanguard $\rightarrow$ Upgrade CM Level 3.
+- **Chapter 1 (Awakenings - Strict Linear Core Loop):** Stabilize CM
+  $\rightarrow$ Hire 1 Crew $\rightarrow$ Build Producer $\rightarrow$ Mine
+  Asteroid $\rightarrow$ Trade Deal $\rightarrow$ CM Upgrade Lvl 2 $\rightarrow$
+  1st Expedition (returns Research Lab blueprint + NPC Relationship)
+  $\rightarrow$ Build Research Lab $\rightarrow$ Complete 1st Tech Entry
+  $\rightarrow$ 2nd Expedition (demonstrates weighted outcomes & survey meter).
+  Exposes strictly 1 objective at a time to teach one full loop cycle.
+- **Chapter 2+ (Relay Survey & Helios Reach - Branching Milestones):** Switches
+  to concurrent optional milestones across Economy, Research, and Sector
+  Progression so objectives explain priorities without replacing player choice.
 
 ### 2. P3.4 Research Lab (Multi-Branch Tech Tree)
 
@@ -108,17 +111,19 @@ A guided chapter chain embedded into setting lore:
 - **No Gacha:** Captains and vessel blueprints are earned through direct
   progression, research, and expeditions.
 
-### 4. P3.8 Expeditions & Fuel Economy (OGame Model)
+### 4. P3.8 Expeditions & Fuel Economy (OGame Model + Survey Luck Protection)
 
+- **Guaranteed First Expedition:** Target 1 is a fixed Precursor Relay fragment
+  / derelict station returning an NPC relationship + a guaranteed blueprint that
+  explicitly unlocks the **Research Lab**.
 - **Formulaic Slot Ceiling:** Maximum concurrent expeditions
   $\text{Slots} = \lfloor\sqrt{\text{Expeditions Tech Level}}\rfloor$.
-- **Authoritative Outcome Table:** Server-rolled events:
-  - _Resource Cache:_ 32%
-  - _Derelict Vessel/Blueprint:_ 22%
-  - _Empty Void:_ 19%
-  - _Research Data:_ 9%
-  - _NPC Hostile Encounter:_ 12%
-  - _Anomaly Loss:_ 1–2% (recoverable via scrap salvage)
+- **Authoritative Weighted Table (Expedition 2+):** Resource Cache (32%),
+  Derelict/Blueprint (22%), Empty Void (19%), Research Data (9%), NPC Encounter
+  (12%), Anomaly Loss (1–2%, reframed as recoverable setback).
+- **Survey Track Progress (Luck Protection):** Every dispatch advances a
+  target-specific 0–100% survey meter. Even on low/bad RNG rolls, completing
+  100% survey guarantees a route, blueprint, or story milestone.
 - **Coordinate Fatigue:** Repeated dispatches to identical coordinates produce
   diminishing yields, driving outward map exploration.
 
@@ -131,27 +136,36 @@ A guided chapter chain embedded into setting lore:
   boss encounters, and recurring solo wave-escalation events (reframed from
   _Bear Hunt/Zombie Siege_).
 
-### 6. P3.10 PvE Combat Slice & Local Async PvP Arena
+### 6. P3.10 PvE Combat Slice, Local Async PvP Arena & Daily Bounded Ladders
 
-- **PvE Encounters:** Bounded tactical encounters. Units engaged in combat runs
-  do **not lock up or interrupt space map mining**. Clear preview of win/loss
-  odds.
-- **Local Asynchronous PvP Arena (Approved Phase 3 Scope):** Set a defense squad
-  $\rightarrow$ challenge another local profile's defense squad. Requires **no
-  WebSockets, live server, or resource looting**. The Rust backend reads a
-  target profile's stored `DefenseTeamData` snapshot and resolves the challenge
+- **PvE Encounters & Vessel Dispatch Exclusivity:** Bounded tactical encounters.
+  Dispatching a fitted vessel to combat or an expedition **occupies that vessel
+  exclusively** until it returns; it cannot simultaneously mine asteroids or
+  execute other dispatches (creates meaningful fleet allocation opportunity
+  costs). Clear preview of win/loss odds before dispatch.
+- **Local Asynchronous PvP Arena:** Set a defense squad $\rightarrow$ challenge
+  another local profile's defense squad. Requires **no WebSockets, live server,
+  or resource looting**. Reads stored `DefenseTeamData` snapshot and resolves
   synchronously through P3.10's combat engine (`AttackerLoadout` vs
   `DefenseSnapshot`).
+- **Arena Rewards:** Victories grant deterministic drone/troop upgrade
+  components and credit rewards—**never base resource looting, random gacha
+  pulls, or hero collections**. Losses grant no material consolation rewards.
+- **Daily Bounded Attempt Ladders:** Arena challenges and recurring solo boss
+  operations use a daily scaling cost/reward ladder (1st free/high reward, 2–5
+  scaling cost/moderate reward, 6+ glory/ranking only) to prevent automated
+  macros from widening power gaps over idle players.
 - **Headline Power Score (CP System):** Displayed as an explicit numeric score
   (e.g., `"Fleet Power: 14,500"`) combining Command Module level + module
-  levels + vessel tiers + research level to scale NPC encounter difficulty and
-  reflect total progression.
+  levels + vessel tiers + research level to scale NPC encounter difficulty.
 
-### 7. P3.8 Expeditions Failure & Repair Mechanics
+### 7. Vessel / Troop Repair Mechanics (Primary Credit & Resource Sink)
 
-- Severe expedition anomaly failures (~1–2% roll) result in **Fuel/Cargo loss +
-  a Temporary Vessel Repair Timer** at the Shipyard (requiring a short 5–10
-  minute repair cycle before the vessel can be dispatched again).
+- Expedition anomaly failures (~1–2% roll) and PvE combat damage result in
+  **Fuel/Cargo loss + a Temporary Vessel/Troop Repair Cycle** at the Shipyard.
+- **Economic Topology:** Vessel and troop repair costs serve as the primary
+  natural Credit and resource sink, continuously absorbing excess production
+  without artificial fee inflation.
 
 ### 8. P3.11 Campaign Climax & ARPG "Prestige" Ascension
 
@@ -161,6 +175,9 @@ A guided chapter chain embedded into setting lore:
   campaign allows resetting base/modules in exchange for meta-perks: cosmetics,
   ship history badges, initial expedition boosts, and a capped Ascension
   Research tree.
+- **Post-Late-Game Design Task:** The exact conversion formula for Ascension
+  Points and NG+ sector map seed randomization will be specified as Phase 3
+  progression development matures.
 
 ### 9. P3.19 Dual-Cohort Playtesting & P0 Churn Wall Gate
 
@@ -172,7 +189,19 @@ A guided chapter chain embedded into setting lore:
 
 ---
 
-## 4. Features Explicitly Deferred to Future Phases
+## 4. Synthesis & Gap Review Summary
+
+| Identified Gap                                      | Agreed Resolution / Phasing Status                                                                       |
+| :-------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| **Gap 1: Mobile Portrait UI Layout Drawer**         | Noted as a multi-vessel logistics requirement; deferred to iterative UI polish & user playtest feedback. |
+| **Gap 2: Offline System Clock Manipulation**        | Non-issue for Phase 3 local dev/test loops; Phase 4 server-authoritative time handles it.                |
+| **Gap 3: Spatial CM Ring Expansion & Audio SFX**    | Deferred to future visual and audio polishing passes.                                                    |
+| **Gap 4: Ascension Point Formula & NG+ Seed Shift** | Recognized as a critical post-late-game gap; deferred to later in Phase 3 development.                   |
+| **Gap 5: Credit & Resource Sink Topology**          | Resolved via expedition and PvE vessel/troop repair costs as the primary natural sink.                   |
+
+---
+
+## 5. Features Explicitly Deferred to Future Phases
 
 | Feature / System                                   | Deferred To | Rationale                                                                                                                                                      |
 | :------------------------------------------------- | :---------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -185,7 +214,7 @@ A guided chapter chain embedded into setting lore:
 
 ---
 
-## 5. Deliberately Rejected Anti-Patterns
+## 6. Deliberately Rejected Anti-Patterns
 
 1. **Pay-to-Win Power Widening:** Revenue will never sell power advantages.
 2. **Predatory Wait Timers:** Building/research timers pace sessions; they never
