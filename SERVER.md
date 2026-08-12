@@ -1,14 +1,13 @@
-# Voidbound — Server Architecture Sketch
+# Voidbound — Server Architecture
 
-The intended server model behind the multiplayer-ready event pattern
-(`AGENTS.md` § Conventions, `/add-game-event`). The in-process authoritative
-state, snapshot, scheduler, and Tauri push channel are built; the durable event
-log and network transport remain phase-4 work. This document keeps new event
-shapes compatible with that destination. `VesselMoveEvent` (in
-`src/state/game-state-types.ts`) / `gameState.applyVesselEvent()` is the
-reference implementation of the client half, including the snapshot half:
-`load_game_state` returns the active-vessel event list, and `VesselSync.sync()`
-reconciles scene actors from it.
+The authoritative server model behind the multiplayer-ready event pattern
+(`AGENTS.md` § Conventions, `/add-game-event`). Phases 0-3 use an in-process
+authoritative state, snapshot, scheduler, and Tauri push channel. Phase 4 adds
+the durable event log and network transport without changing domain-event
+semantics. `VesselMoveEvent` (in `src/state/game-state-types.ts`) /
+`gameState.applyVesselEvent()` is the reference implementation of the client
+half, including the snapshot half: `load_game_state` returns the active-vessel
+event list, and `VesselSync.sync()` reconciles scene actors from it.
 
 ## Model in one paragraph
 
@@ -27,12 +26,11 @@ event lands the entity at its correct in-progress position (see the lerp in
 ## Request → event lifecycle
 
 1. **Client sends an action request** — the _inputs_ to an action (e.g. "move
-   vessel to col/row"), not the finished event. Locally today, the in-process
+   vessel to col/row"), not the finished event. In Phases 0-3, the in-process
    Rust backend plays the server's role: action methods like `dispatchVessel`,
    `recallVessel`, and `buildModule` already send a request over Tauri IPC
    (`request_dispatch_vessel`, …), and `ServerState` verifies it and returns the
-   authorized event. When the socket lands, only the transport and the broadcast
-   fan-out change.
+   authorized event. P4.1 changes only the transport and broadcast fan-out.
 2. **Server verifies** — the requester owns the entity, the action is legal
    (resources available, target in range, no conflicting in-flight action), and
    rate limits hold. Rejections return an error to the requester only.
@@ -44,9 +42,9 @@ event lands the entity at its correct in-progress position (see the lerp in
    subscribed client over the WebSocket event bus. The initiating client gets no
    special-cased response; it applies the broadcast like everyone else (its
    local optimistic apply, if any, must be idempotent with the broadcast — which
-   is why `apply*Event` handles the "entity already exists" case). Locally
-   today, the `server-push` Tauri event channel prototypes the bus: a backend
-   scheduler thread settles time-based state (production ticks, build
+   is why `apply*Event` handles the "entity already exists" case). In Phases
+   0-3, the `server-push` Tauri event channel fulfills the bus contract: a
+   backend scheduler thread settles time-based state (production ticks, build
    completions, vessel arrivals) as it comes due and emits `ServerPush` messages
    that `gameState.applyServerPush()` routes into these same entry points — see
    AGENTS.md § IPC / Rust backend.
@@ -84,6 +82,15 @@ catalog fails the load as a safe unloaded state rather than guessing local
 fallback numbers. A future schema change must increment `schemaVersion` and ship
 a compatible client parser.
 
+Phase 3 uses a separately versioned **content catalog** under the same all-or-
+nothing load boundary. It carries the server-projected definitions and display
+contracts for objectives/rewards, research, vessel/components, expeditions and
+their pre-dispatch previews, sector readiness, and combat breakdowns. Mutable
+state references stable catalog IDs; neither display copy nor display-only
+catalog data is repeated in every event. If either catalog is incompatible, the
+snapshot stays unloaded—the client never supplies fallback costs, durations,
+odds, rewards, prerequisites, or power formulas.
+
 For this to work, every event must be self-contained: `apply*Event` can
 reconstruct the outcome from the event fields alone (IDs, source/destination,
 amounts, timestamps) with no hidden local state — the required-field checklist
@@ -98,18 +105,18 @@ progress, not fast-forwarded frame by frame.
   log.
 - **Ordering** is total per log: sequence numbers, assigned at append time.
   Clients apply in sequence order; a gap means "resync from snapshot". The
-  in-process prototype stamps every snapshot, command response, and scheduler
-  push batch with a global monotonic `revision` while holding the state lock
-  (`Revisioned<T>` in `game_state/state.rs`). Emits may still interleave after
-  the lock is released, so `GameState` compares that token per state slice and
-  per entity, retaining newer entity updates/removal tombstones when an older
-  full response arrives. A socket implementation should preserve the same
-  append-time ordering token and add gap detection/resync once delivery is a
-  real stream; do not replace it with emit-time ordering.
+  in-process implementation stamps every snapshot, command response, and
+  scheduler push batch with a global monotonic `revision` while holding the
+  state lock (`Revisioned<T>` in `game_state/state.rs`). Emits may still
+  interleave after the lock is released, so `GameState` compares that token per
+  state slice and per entity, retaining newer entity updates/removal tombstones
+  when an older full response arrives. A socket implementation should preserve
+  the same append-time ordering token and add gap detection/resync once delivery
+  is a real stream; do not replace it with emit-time ordering.
 - **Idempotency**: event IDs are unique; applying the same event twice must be a
   no-op or a keyed replacement (the `applyVesselEvent` merge is the pattern).
-- **Persistence** (ROADMAP phase 2) is a local prototype of the same idea: the
-  save file is a versioned full-system snapshot, not the client projection. The
+- **Persistence** (ROADMAP phase 2) applies the same model locally: the save
+  file is a versioned full-system snapshot, not the client projection. The
   format maps forward to the server-side snapshot schema, but Phase 2 saves are
   developer-only and are never imported into an online account or world.
 
@@ -124,10 +131,10 @@ Client projection     one player plus owned and in-window world entities
 ```
 
 `GameStateData` is a client projection and must never become the save format.
-Likewise, the in-process `ServerState` currently mixes durable state with
-runtime fields, so Phase 2 serializes an explicit persistent DTO rather than
-deriving `Serialize` for that type. Runtime-only outbox, dirty/coalescing state,
-AOI subscriptions, and derived indexes are rebuilt after load.
+The in-process `ServerState` mixes durable state with runtime fields, so Phase 2
+serializes an explicit persistent DTO rather than deriving `Serialize` for that
+type. Runtime-only outbox, dirty/coalescing state, AOI subscriptions, and
+derived indexes are rebuilt after load.
 
 Crew head count and per-module assignments are durable player state. An
 assignment request names one owned, settled crew-demanding module and its target
@@ -159,6 +166,14 @@ exclusive, destructive startup controls for local playtests:
 shared world, while `--reset-system` replaces the entire deterministic local
 system. Neither maps to the online protocol.
 
+Phase 3 keeps physical geography and the asteroid field system-owned while
+placing finite authored campaign progress in a per-profile overlay: discoveries,
+NPC relationships, guarded-route state, bosses, capital progress, and ascension
+cannot be consumed or reset by another local profile. Ambient system-owned NPCs
+are allowed only when non-exclusive or deterministically renewable. Ascension is
+a profile transaction and must never use a whole-system backup restore as its
+normal recovery path; `PHASE3.md` §6.13 is the complete ownership matrix.
+
 ### Cross-profile reads: the local asynchronous arena
 
 `PHASE3.md`'s P3.12 (local asynchronous defense arena) is a deliberate, narrow
@@ -181,6 +196,11 @@ state — as the pattern for any future same-device, asynchronous cross-profile
 feature; it does not generalize to letting one session mutate another's
 persistent state, which remains exactly as unsupported as the "no attempt is
 made to synchronize two Tauri backends" rule above states.
+
+The Phase-3 resolver compares one fitted attacker vessel against one fitted
+defense vessel plus its eligible crew and deterministic drone/troop components.
+Multi-vessel arena formations are not implicit in `DefenseTeamData`; they need a
+later explicit combat-design task.
 
 ## Time and offline settlement
 
@@ -235,14 +255,22 @@ Player 1's persisted feed and is not emitted as a Player 2 push, badge update,
 or toast. On a later Player 1 load, the snapshot restores the feed and unread
 badge; historical snapshot entries never replay transient toasts.
 
+P3.22's offline-return briefing is a projection over this durable action/entity
+state and typed feed, not a new source of truth. A per-profile presentation
+cursor records the latest summarized event boundary so one absence interval is
+shown once without marking Mail read or replaying transient toasts. The campaign
+journal may index durable contact/discovery/report records, but it never owns
+progress independently of their domain state.
+
 ## Storage delivery path
 
 Phase 2 uses a versioned JSON snapshot with validation, atomic writes, and
-rolling backups. The local networked Phase 4 server uses embedded SQLite so it
-starts with the Rust host and no separately installed database. Online
-production uses PostgreSQL through configuration such as `DATABASE_URL`; the
-game-domain model and persistence boundary, not a Phase 2 save import, bridge
-the two.
+rolling backups. ROADMAP P4.0 creates the standalone server and durable storage
+boundary: local network development uses embedded SQLite so it starts with the
+Rust host and no separately installed database; online production uses
+PostgreSQL through configuration such as `DATABASE_URL`. Ordered schema
+migrations, startup recovery, and the game-domain persistence boundary—not a
+Phase 2 save import—bridge the two.
 
 Use relational state for players, memberships, modules, motherships, vessels,
 asteroids, notifications, and AOI queries. Flexible typed payloads may use JSON
@@ -250,20 +278,23 @@ storage within that relational model. Each accepted action's transaction
 verifies current state, appends its per-system event sequence, updates
 materialized state, creates notifications, and records an outbox entry. DuckDB
 is appropriate later for event/balance analysis, not the authoritative gameplay
-store.
+store. P4.1 drains that durable outbox into sockets; P4.3 reads materialized
+snapshots plus the ordered log suffix. P4.5 owns health checks, structured
+observability, backup/restore drills, and migration rollback before public use.
 
 ## Interest management (AOI)
 
 A client never holds the whole world. The server keeps an **interest-area
-window** per connection — today one in-process client, the `MapWindow` in
-`ServerState::aoi` (`src-tauri/src/game_state/state.rs`), a 100\*100-tile square
-— and filters both snapshot slices and entity pushes to it (ROADMAP P1.13):
+window** per connection. In Phases 0-3, the one in-process client uses the
+`MapWindow` in `ServerState::aoi` (`src-tauri/src/game_state/state.rs`), a
+100\*100-tile square — and filters both snapshot slices and entity pushes to it
+(ROADMAP P1.13):
 
 - **Snapshots are windowed.** `load_game_state` (window re-centered on the
   player's mothership) and the `request_map_window` response return only
   in-window asteroids and foreign ships/vessels. Everything the player **owns is
   always sent** regardless of window — a mining vessel must keep existing beyond
-  the edge; alliance entities join the exemption in P4.
+  the edge; alliance entities join the exemption in P5.1.
 - **Re-centering is client-driven, with hysteresis.** The client re-requests
   once its camera drifts more than a few tiles from the window center (never per
   frame) and replaces its world tables wholesale with the response, unloading

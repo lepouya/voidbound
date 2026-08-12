@@ -1,21 +1,15 @@
 # Voidbound — Phase 3+ Gameplay Design
 
-The settled gameplay design behind `ROADMAP.md`'s Phase 3 (local playable alpha)
-and the design principles it hands forward to Phases 4-7. This document is the
-**reconciled output** of three parallel AI research tracks (`research/claude/`,
-`research/gpt/`, `research/gemini/`) plus direct user decisions made across that
-reconciliation. Where the three tracks disagreed, this document states the
-resolution and why; where nothing was decided, it says so explicitly rather than
-picking a side silently.
+The authoritative gameplay design behind `ROADMAP.md`'s Phase 3 local playable
+alpha and the design constraints it establishes for Phases 4-7. Requirements in
+this document control Phase 3 scope unless an item is explicitly labeled as an
+open decision or working direction.
 
 **Status:** this is design, not implementation authorization. Per `AGENTS.md`'s
-review gate, no ROADMAP task is implemented from this document directly — each
+review gate, no ROADMAP task is implemented from this document directly; each
 task still goes through `/roadmap-task`'s own process, including its
 design-review pause for anything touching the server model. The `research/`
-folders remain as the evidentiary trail (12+8+3-widened games, community
-sentiment, per-track decision logs) if a future session needs to see _why_ a
-call was made, but this document is now the thing to read first — it supersedes
-needing to read all three research tracks to pick up Phase 3 work.
+folders are supporting evidence, not competing specifications.
 
 ## 1. Product thesis
 
@@ -36,15 +30,14 @@ Star system: mining + routes + expeditions + NPC sectors + discoveries
        -> changes the mothership
 ```
 
-Voidbound's existing skeleton already matches this shape (Command Module gating,
-the 4-resource discipline, the event-modeled action pattern) — Phase 3 is
-filling in content within an already-sound loop, not inventing a new one.
+The Command Module gates, four-resource discipline, and event-modeled action
+pattern support this loop. Phase 3 develops that foundation into a complete
+local campaign.
 
 ## 2. Non-negotiable product values
 
-Cross-track convergent (reached independently by the Claude and GPT tracks from
-different evidence bases, then confirmed by the user) — treat these as a
-standing charter to check every future task against, not a one-time list.
+These values are the standing charter for every gameplay, economy, content, and
+monetization task.
 
 1. **Hopeful colonization and discovery, not generic survival.** The fiction is
    settlement, survey, route-making, stewardship, and discovery. Do not add
@@ -129,22 +122,19 @@ them in a guided order; Chapter 2 then makes their choices concurrent.
 
 ### Design against the post-onboarding wall
 
-The "honeymoon-then-wall" pacing collapse is the single most consistently
-documented failure mode across every peer game researched (12 games across the
-Claude track alone) — and Voidbound is **more exposed to it than any peer
-game**, since Phase 3 has no alliance layer to catch a player once solo content
-thins out. Every content-adding task (P3.3, P3.4, P3.10, arena, ascension)
-should be evaluated against "does this extend the runway before the wall, or
-just move the wall earlier." P3.21 treats an abrupt post-onboarding
-wait/prerequisite wall as a **P0 rebalance finding**, not a polish note.
+The "honeymoon-then-wall" pacing collapse is Phase 3's primary pacing risk.
+Voidbound has no alliance layer during this phase to sustain engagement after
+solo content thins out. Every content task (P3.3, P3.4, P3.10, arena, ascension)
+must extend the meaningful decision runway rather than merely move the wall.
+P3.21 treats an abrupt post-onboarding wait/prerequisite wall as a **P0
+rebalance finding**, not a polish note.
 
 ## 5. Task-by-task design
 
 Detail behind each `ROADMAP.md` Phase 3 task ID. The objective framework is
-deliberately separate from its final authored Chapter-1 integration: that breaks
-the former dependency cycle between objectives, prerequisites, research, and
-expeditions. P3.9 is the new integration task; former P3.9-P3.20 shifted to
-P3.10-P3.21 accordingly.
+separate from the authored Chapter-1 integration: P3.3 supplies the reusable
+framework and opening objectives, while P3.9 integrates the complete chapter
+after its prerequisite, research, vessel, and expedition systems exist.
 
 ### P3.1 — Playable-alpha experience specification
 
@@ -183,6 +173,15 @@ contain, at minimum:
   offline-settlement behavior, retention/history policy, and its revisioned
   snapshot/push/apply shape. This applies to objectives, vessels/loadouts,
   expedition targets/progress, arena state, research, and ascension.
+- A **profile/system ownership matrix** for every new domain (§6.13), including
+  what another local profile may observe, what one profile may permanently
+  consume or change, and how a profile-only ascension leaves the shared world
+  and every other profile untouched.
+- An authoritative **catalog-delivery contract** for every rule or preview the
+  client must render: objective copy/rewards/unlocks, research entries,
+  vessel/component stats, expedition time/fuel/odds/consequences, sector
+  readiness, and combat breakdowns. Catalogs are versioned and validated before
+  publishing the snapshot; the client carries no fallback gameplay numbers.
 - A versioned, reproducible simulation artifact in the repository (data file +
   documented runner or workbook inputs/outputs + fixed scenario seeds), rather
   than an untracked balancing sheet. It must make normal-time and accelerated
@@ -190,6 +189,13 @@ contain, at minimum:
 - The warp/travel contract: mothership relocation intentionally requires every
   vessel to be recalled and docked; say how that visible global pause coexists
   with otherwise per-vessel dispatch availability and fuel planning.
+- The **offline-return contract** P3.22 will implement: which completed actions
+  are summarized, how duplicate reporting is avoided, and how the summary points
+  to a useful next decision rather than replaying historical toasts.
+- A quantitative P3.21 exit protocol: minimum sample sizes per cohort, pass/fail
+  thresholds for dead time and recovery, normal-time versus accelerated
+  scenarios, the operational definition of content exhaustion, and the
+  repository-owned format used to compare results across builds.
 
 ### P3.2 — In-app local profile flow
 
@@ -197,7 +203,10 @@ Replaces launch-flag identity selection with a pre-load profile chooser. Beyond
 development/test scaffolding, a profile may **publish a defense snapshot for
 P3.12's local asynchronous arena** — design the profile data shape so another
 profile's state being read by an arena challenge is native from day one, not
-bolted on later. Preserve the P2.10 developer CLI controls.
+bolted on later. The profile list may expose only deliberately public summary
+data; resources, objectives, timers, research, and campaign progress remain
+private. Preserve the P2.10 developer CLI controls and the §6.13 ownership
+boundary.
 
 ### P3.3 — Objectives, rewards, and first-run onboarding
 
@@ -218,6 +227,10 @@ needs the player has already encountered, not needs invented for the tree.
 Respec is normal-play accessible (product value #4). No dedicated research
 currency — spend the existing four resources. Later, population-dependent trees
 (dueling, joint operations) wait for Phase 5/6.
+
+The server owns the research catalog and sends a versioned display projection
+containing prerequisites, costs, duration, effects, respec policy, and preview
+curves. The client never reconstructs those rules from local constants.
 
 ### P3.5 — Live countdown-details controller
 
@@ -270,6 +283,14 @@ returns for repeated targets. Adverse outcomes cost cargo, fuel, or time, or
 impose a temporary, repairable vessel-damage state — **never an outright vessel
 deletion** (product value #5).
 
+The first NPC relationship is a durable, visible contact rather than an inert
+identifier: its result explains who was reached, unlocks the Research Lab
+blueprint, and points to the next route or objective. P3.10 expands contacts
+into sector relationships. Expeditions that offer a choice pause in an
+authoritative awaiting-choice state with a visible deadline and deterministic
+default; P3.11 may supply optional combat choices without making it a P3.8
+dependency.
+
 ### P3.9 — Chapter-1 completion + branching handoff
 
 Complete the strict-linear authored sequence started in P3.3: Command Module
@@ -289,10 +310,12 @@ number. Sector theming treats the bands as the approach to the Capital World
 complex (§3). Deeper travel/range must itself change the risk/reward
 proposition.
 
-This task creates NPC contacts, hazards, guarded routes/resources, target
-locations, and the capital approach — not combat resolution. P3.11 later makes
-the combat-capable targets and recurring solo operation playable through the
-shared resolver.
+This task creates the data-driven world/content schema and one complete outer-
+sector vertical slice: NPC contacts, hazards, guarded routes/resources, target
+locations, and a capital clue — not combat resolution. P3.11 later makes the
+combat-capable targets and recurring solo operation playable through the shared
+resolver; P3.23 authors the remaining campaign-sized content budget after both
+foundations are proven.
 
 ### P3.11 — PvE combat vertical slice
 
@@ -316,82 +339,104 @@ during early game, before real opponents exist — challenges it through P3.11's
 resolver. No live opponent, no looting, no defender mutation, no shared-world
 contention; this is a local combat/loadout proof, not a substitute for online
 social play. Real sessions/networking replace its practical substrate in Phase
-4, but the underlying challenge/resolve mechanism ships now. Its opt-in defense
-snapshot, daily attempt/cost ledger, combat-component inventory, and capped
-attacker result history are durable profile state; only a narrow opponent-list
-view crosses profiles.
+4, while P3.12 delivers the underlying challenge/resolve mechanism. Its opt-in
+defense snapshot, daily attempt/cost ledger, combat-component inventory, and
+capped attacker result history are durable profile state; only a narrow
+opponent-list view crosses profiles.
 
 ### P3.13 — Local campaign completion + ascension
 
-_(Renumbered from P3.12.)_ The local campaign reaches an NPC-held capital
-approach and resolves a major threat or restoration milestone, then offers an
-explicit ascension choice — the player must understand what resets before
-accepting it.
+The local campaign reaches an NPC-held capital approach and resolves a major
+threat or restoration milestone, then offers an explicit ascension choice. The
+player must understand what resets before accepting it.
 
-Likely carry-over (decided; exact tree shape/ceiling still needs a design pass):
-cosmetics/badges, historical ship identity, a better first expedition, and a
-**capped ascension-research tree** the player chooses a branch of (exploration,
+Required carry-over (exact tree shape and ceiling remain open): cosmetics,
+badges, historical ship identity, a better first expedition, and a **capped
+ascension-research tree** the player chooses a branch of (exploration,
 construction, economy, or similar) — explicitly **not** a resource stockpile
 that would make a fresh player irrelevant. Ascension should reduce
 repeated-bootstrap tedium (some bounded mechanical head start) alongside the
 cosmetic carry-over, without multiplying late-game power or making a fresh
 player's campaign feel pointless.
 
-This is the one Phase 3 task with **no usable peer template** — every researched
-game (12 across the widened set) is deliberately open-ended forever; the genre's
-climax content is built to be repeated by a live population, not resolved once
-by a solo player. Study finite prestige/New-Game+/roguelike carry-over models
-(not further SLG research) before finalizing the reset contract. A status/title
-reward (even in solo form) is worth keeping, matching the genre-wide pattern of
-climax content granting a governance-flavored reward on top of material ones.
+The reset contract must use finite prestige, New-Game+, and roguelike carry-over
+models rather than an indefinitely repeating live-population climax. Include a
+status or title reward alongside the bounded mechanical carry-over.
+
+Ascension is a profile-owned transaction. It may reset that profile's ship,
+resources, vessels, objectives, research, and profile-specific campaign overlay
+only; it must not reset the physical shared system, consume another profile's
+campaign, or use the whole-system backup mechanism as its undo path. Before
+implementation, define the exact active-action precondition and a profile-
+scoped confirmation/recovery policy in the §9 gate.
 
 ### P3.14 — Dialog columns + Trading Post redesign
 
-_(Renumbered from P3.13.)_ Unchanged from prior scope: a real multi-column
-dialog grid, then the Trading Post as three columns of bordered deal boxes.
+A real multi-column dialog grid, then the Trading Post as three columns of
+bordered deal boxes.
 
 ### P3.15 — Minimap two-tier zoom revamp
 
-_(Renumbered from P3.14.)_ Unchanged from prior scope.
+The minimap uses the two view modes defined by `ROADMAP.md` P3.15.
 
 ### P3.16 — Context-sensitive resource bar + detail dialog
 
-_(Renumbered from P3.15.)_ Unchanged from prior scope.
+The resource HUD and details dialog follow the scene-specific behavior defined
+by `ROADMAP.md` P3.16.
 
 ### P3.17 — Per-type module art and tiered visual progression
 
-_(Renumbered from P3.16.)_ Bespoke animated rooms across the catalog plus
-Research Lab and Vessel Shipyard, with visible tier upgrades as levels rise.
-**This is where P3.6's room-band unlock becomes visible**: a Command Module
-level-up should visibly open new interior tile rings, room slots, or ship
-regions — progression is spatially tangible, not just a level number in a
-dialog. Two independently-run research tracks converged on this exact
-requirement for Phase 3 itself (not later polish) — treat it as decided, not a
-stretch goal.
+Bespoke animated rooms across the catalog plus Research Lab and Vessel Shipyard,
+with visible tier upgrades as levels rise. **This is where P3.6's room-band
+unlock becomes visible**: a Command Module level-up should visibly open new
+interior tile rings, room slots, or ship regions — progression is spatially
+tangible, not just a level number in a dialog. This is required Phase 3
+progression feedback, not optional polish.
 
 ### P3.18 — Space map art and visual readability
 
-_(Renumbered from P3.17.)_ Unchanged from prior scope: starfield, per-tier
-asteroid sprites, resource class distinguishable by shape not tint alone,
-extended to sectors/hazards/NPC affiliations.
+Starfield, per-tier asteroid sprites, resource class distinguishable by shape
+rather than tint alone, and the same visual language applied to sectors,
+hazards, and NPC affiliations.
 
 ### P3.19 — Audio
 
-_(Renumbered from P3.18.)_ Unchanged from prior scope.
+Ambient sound, music, interaction feedback, action feedback, independent volume
+controls, and a mute path as defined by `ROADMAP.md` P3.19.
 
 ### P3.20 — Progressive crew recruitment cost
 
-_(Renumbered from P3.19.)_ An escalating curve tied to population size, not a
-flat per-hire price — confirmed as the genre-standard approach; exact
-coefficients need Voidbound-specific playtesting, not further genre research.
+An escalating curve tied to population size, not a flat per-hire price. Exact
+coefficients come from Voidbound's simulation and playtesting.
+
+### P3.22 — Offline-return briefing and campaign journal
+
+On profile load after meaningful elapsed time, present one concise, dismissable
+briefing that groups completed construction, research, mining, expedition,
+repair, objective, and combat outcomes and highlights the next available
+decision. It is derived from durable entity/action completion state plus typed
+notifications, records a per-profile presentation cursor so the same interval is
+not shown twice, and never replays historical push toasts. A lightweight
+campaign journal keeps NPC contacts, discoveries, sector clues, and recent
+reports inspectable after the briefing closes; it is not a second Mail feed or a
+new source of authoritative progress. This task must land before P3.21.
+
+### P3.23 — Authored sector campaign content
+
+Fill the versioned content budget approved in P3.1 using P3.10's world schema
+and P3.11's combat resolver: remaining named approach sectors, target variants,
+NPC behaviors/relationships, hazards, routes, capital clues, optional
+milestones, and the authored approach to P3.13's major threat. Deliver it in
+reviewable data tranches with a content validator and explicit runway coverage;
+do not bury a multi-week campaign inside one code-heavy world-framework task.
+This task must land before P3.13 and P3.21.
 
 ### P3.21 — Structured local-alpha playtest + rebalance
 
-_(Renumbered from P3.20.)_ See §10 for the full acceptance-test and
-instrumentation checklist. Treat an abrupt post-onboarding wall as a P0 finding
-(§4). Sample first-session and multi-hour-return cohorts separately rather than
-averaging their feedback into one signal — this research's own finding is that
-these two impressions reliably diverge across the genre.
+See §10 for the full acceptance-test and instrumentation checklist. Treat an
+abrupt post-onboarding wall as a P0 finding (§4). Sample first-session and
+multi-hour-return cohorts separately rather than averaging distinct experience
+horizons into one signal.
 
 ## 6. Mechanic sketches
 
@@ -452,6 +497,21 @@ export interface ObjectivesData {
   objectives: ObjectiveData[]; // one row during strict-linear phase; the full
   // active set once Chapter 2+ opens concurrent milestones
 }
+
+export interface ObjectiveDefinitionData {
+  objectiveId: string;
+  title: string;
+  description: string;
+  progressLabel: string;
+  rewards: ObjectiveRewardData[];
+  unlockSummary: string;
+}
+
+export type ObjectiveRewardData =
+  | { kind: "resource"; resourceType: ResourceKind; amount: number }
+  | { kind: "blueprint"; blueprintId: string }
+  | { kind: "component"; componentId: string; amount: number }
+  | { kind: "unlock"; unlockId: string };
 ```
 
 `GameStateData` gains `objectives: ObjectivesData`; `ServerPush` gains an
@@ -461,7 +521,13 @@ completing, a mine completing, a trade accepted, a research entry completing, an
 expedition returning) and scheduler settlement — there is no client-driven
 "advance objective" command. A separate `request_claim_objective(objective_id)`
 verifies `state: "completed"`, deposits the reward, transitions to `claimed`,
-and advances `activeChapterId` when it was the chapter's last objective.
+and advances `activeChapterId` when it was the chapter's last objective. The
+definitions and typed reward previews ride the versioned Phase-3 content
+catalog; the state payload references them by ID so display copy and
+authoritative reward data are available without duplicating them into every
+push. `ObjectiveRewardData` is the catalog's closed tagged union over existing
+resources (including credits), blueprints, components, and explicit unlocks—not
+an unstructured client-interpreted object.
 
 ### 6.2 — P3.8 expedition mechanic
 
@@ -489,10 +555,42 @@ export type ExpeditionOutcomeKind =
   | "nothing"
   | "vesselDamaged";
 
-export interface ExpeditionOutcome {
-  kind: ExpeditionOutcomeKind;
-  // payload varies by kind: resource amounts, a blueprint/unlock id, an NPC
-  // relationship id, or a hazard/damage description
+export type ExpeditionOutcome =
+  | { kind: "resources"; resources: Partial<Record<ResourceKind, number>> }
+  | { kind: "blueprint"; blueprintId: string }
+  | { kind: "npcRelationship"; npcId: string; relationshipStateId: string }
+  | { kind: "hazard"; hazardId: string; consequenceId: string }
+  | { kind: "nothing" }
+  | { kind: "vesselDamaged"; damage: number; recoveryRuleId: string };
+
+export interface ExpeditionChoiceOptionData {
+  choiceId: string;
+  label: string;
+  consequencePreview: string;
+  outcomeSetId: string;
+  optionalCombatTargetId: string | null;
+}
+
+export interface ExpeditionChoiceData {
+  options: ExpeditionChoiceOptionData[];
+  expiresAt: number;
+  defaultChoiceId: string;
+}
+
+export interface ExpeditionOutcomePreviewData {
+  outcomeSetId: string;
+  probabilityBasisPoints: number;
+  expectedValueSummary: string;
+  maximumDownsideSummary: string;
+}
+
+export interface ExpeditionPreviewData {
+  travelDurationMs: number;
+  resolutionDurationMs: number;
+  returnDurationMs: number;
+  fuelCost: number;
+  outcomes: ExpeditionOutcomePreviewData[];
+  guaranteedDiscoveryProgress: number;
 }
 
 export interface ExpeditionData {
@@ -500,12 +598,18 @@ export interface ExpeditionData {
   vesselId: string;
   targetId: string; // a concrete map target, not merely its archetype
   targetKind: ExpeditionTargetKind;
-  state: "outbound" | "resolving" | "returning" | "completed";
+  state:
+    | "outbound"
+    | "resolving"
+    | "awaiting-choice"
+    | "returning"
+    | "completed";
   dispatchedAt: number;
   arrivesAt: number;
   resolvesAt: number | null;
   returnsAt: number | null;
-  outcome: ExpeditionOutcome | null; // populated when resolution completes
+  outcomes: ExpeditionOutcome[] | null; // populated when resolution completes
+  choice: ExpeditionChoiceData | null;
 }
 
 export interface ExpeditionTargetData {
@@ -515,6 +619,8 @@ export interface ExpeditionTargetData {
   row: number;
   riskTier: string;
   available: boolean;
+  preview: ExpeditionPreviewData; // server-projected time, fuel, weighted
+  // outcome categories, downside bounds, and guaranteed-progress amount
 }
 
 // Bad-luck protection and target fatigue are per concrete target, independent
@@ -527,26 +633,47 @@ export interface ExpeditionProgressData {
   discoveryThreshold: number; // milestone reward fires at progress >= threshold
   repeatReturns: number;
 }
+
+export interface NpcContactData {
+  npcId: string;
+  relationshipStateId: string;
+  introducedAt: number;
+  sourceExpeditionId: string;
+  unlockedRouteIds: string[];
+  availableInteractionIds: string[];
+}
 ```
 
 `GameStateData` gains `expeditionTargets`, active/recent `expeditions`, and
-`expeditionProgress`; `ServerPush` gains matching self-snapshot variants. The
-server retains active expeditions plus a capped recent-result history; the Mail
-feed remains the durable long-form outcome record.
+`expeditionProgress`, plus profile-owned `npcContacts`; `ServerPush` gains
+matching self-snapshot variants. The server retains active expeditions plus a
+capped recent-result history; the Mail feed remains the durable long-form
+outcome record. P3.8 uses `NpcContactData` for the functional first contact;
+P3.10 expands its interaction and relationship-state vocabulary.
+
+`ExpeditionPreviewData` is produced by the server from the versioned expedition
+catalog and contains every number shown before dispatch. `ExpeditionChoiceData`
+contains stable choice IDs, display copy, an expiry timestamp, and the
+server-declared default. The `request_resolve_expedition_choice` command takes
+an expedition ID and choice ID and verifies the still-pending choice; offline
+settlement applies the default after expiry. An optional combat choice
+references a P3.11 target and is not generated until that resolver exists.
 
 **Backend (`src-tauri/src/game_state/expeditions.rs`, new domain file):** an
 `ExpeditionCatalog` (mirrors `modules.rs`'s cost/build-time shape) holds each
 target kind's fuel cost, travel time, and weighted outcome table — the first
-expedition is a fixed catalog entry with a 100%-weighted guaranteed outcome, not
-a special-cased branch in the command handler.
-`request_dispatch_expedition(vessel_id, target_id)` verifies that the selected
-durable vessel is free and docked, the concrete target is available, and fuel is
-affordable; it then derives the outbound, resolution, and return timestamps. The
-scheduler advances each lifecycle boundary like vessel arrivals/mining
-completions: it rolls the catalog's weighted outcome table (deterministic per
-`(player, expedition_id)` seed, matching `seed_asteroids`'s convention), applies
-the outcome, advances that target's `ExpeditionProgressData`, and returns the
-same vessel to docked availability at the final boundary.
+expedition is a fixed catalog entry with a 100%-weighted guaranteed outcome
+bundle (relationship plus blueprint), not a special-cased branch in the command
+handler. `request_dispatch_expedition(vessel_id, target_id)` verifies that the
+selected durable vessel is free and docked, the concrete target is available,
+and fuel is affordable; it then derives the outbound, resolution, and return
+timestamps. The scheduler advances each lifecycle boundary like vessel
+arrivals/mining completions: it rolls the catalog's weighted outcome table
+(deterministic per `(player, expedition_id)` seed, matching `seed_asteroids`'s
+convention). A direct outcome is applied immediately; a choice outcome enters
+`awaiting-choice` until the verified choice or expiry default resolves it. Only
+then does the server advance that target's `ExpeditionProgressData` and schedule
+the same vessel's final return to docked availability.
 
 **Outcome table categories** (resources / blueprint-or-derelict-find / nothing /
 research lead / NPC hostile encounter / rare damage-setback), a research-gated
@@ -557,18 +684,20 @@ not a competitor's numbers copied verbatim.
 
 ### 6.3-6.10 — remaining task sketches
 
-Research/Shipyard/prerequisite/sector mechanics above are decided at the design
-level (§5) without needing their own wire-shape sketch yet — write these during
-their own `/roadmap-task` pass once P3.3/P3.8's patterns are proven out, reusing
-this section's conventions (self-snapshot payloads, scheduler-settled side
-effects, catalog-driven data).
+Research, Shipyard, prerequisite, and sector mechanics are defined at the design
+level in §5 without separate wire-shape sketches. Write these during their own
+`/roadmap-task` pass once P3.3/P3.8's patterns are proven out, reusing this
+section's conventions (self-snapshot payloads, scheduler-settled side effects,
+catalog-driven data).
 
 ### 6.11 — P3.11 combat and the shared vessel pool
 
-**Combat, mining, trade, and expeditions all draw from the same limited
-vessel/troop/captain pool** — confirmed directly by the user, not a decoupled
-troops-vs-workers split like some peer games use. A fitted vessel dispatched to
-combat is unavailable for every other dispatch until it returns.
+**Every vessel-dispatched activity draws from the same limited vessel, troop,
+and captain pool.** Combat, mining, expeditions, and any future physical trade
+route. P1.12's dockside Trading Post deal is an immediate module action and does
+not occupy a vessel; Phase 3 does not silently turn it into a trade-route
+system. A fitted vessel dispatched to combat is unavailable for every other
+dispatch until it returns.
 
 This is **per-unit exclusivity, not a global lockout**: only the dispatched
 vessel is occupied — construction, objectives, research, and any _other_
@@ -584,8 +713,7 @@ UX half, not just its mechanical half (product value #5 covers the cost; the
 report is what turns that cost into a lesson instead of a dead end).
 
 **Readiness display:** show **both** a named tier and a numeric Power value,
-backed by one shared breakdown — resolved directly rather than choosing between
-the two presentations. Neither may replace visibility into the specific
+backed by one shared breakdown. Neither may replace visibility into the specific
 configuration, route, or tactical requirement behind it.
 
 ### 6.12 — P3.12 local asynchronous defense arena
@@ -596,7 +724,7 @@ configuration, route, or tactical requirement behind it.
 export interface DefenseTeamData {
   profileId: string;
   publishedAt: number;
-  vesselLoadout: VesselLoadoutRef[]; // immutable copy, never a live reference
+  vesselLoadout: VesselLoadoutRef; // one-vessel P3 arena, immutable copy
   crewAssignment: CrewAssignmentRef[]; // immutable copy of eligible crew roles
   powerScore: number; // the P3.11 headline aggregate stat
 }
@@ -615,8 +743,8 @@ export interface ArenaResultData {
   defenderProfileId: string;
   outcome: "attackerWin" | "defenderWin";
   resolvedAt: number;
-  // Resolved directly by the user: a win grants deterministic drone/troop
-  // loadout components only — never credits, never base resources, never a
+  // A win grants deterministic drone/troop loadout components only — never
+  // credits, never base resources, never a
   // randomized pull, so repeated same-device challenges can't become a
   // shortcut around the ship/map economy. A loss grants nothing material;
   // its recoverability comes from the vessel/save being untouched plus the
@@ -639,6 +767,11 @@ vessel: it is a loadout proof using snapshots, while P3.11's NPC combat is the
 shared-vessel timed operation. No scheduler involvement is needed because both
 sides' state is already known at request time.
 
+The P3 arena is deliberately **one fitted vessel versus one fitted vessel**.
+"Defense team" means that vessel plus its eligible crew and deterministic
+drone/troop components; multi-vessel formations wait until a later combat design
+explicitly earns their complexity.
+
 `ArenaStateData` is durable per profile: its opt-in defense snapshot, daily
 attempt counter/cost ladder, earned combat components, and capped recent-result
 history all migrate, validate, and ride the active profile's revisioned snapshot
@@ -653,12 +786,29 @@ only, with no P3 ranking UI or material reward. This is the same shape of
 safeguard P3.11's recurring solo challenge needs; the two share one cost-ladder
 helper.
 
-**Open items:** whether local profiles need an opt-in "publish my defense team"
-step before another profile can challenge them (probably yes, so a
-freshly-created profile with no configured loadout isn't a free win); curated
-NPC/ghost defense profiles to make the mode usable before several local profiles
-with real loadouts. Ranking/matchmaking remains deferred until Phase 4 gives it
-a real population.
+Publishing is explicitly opt-in, so a newly-created or unconfigured profile is
+never exposed as a free opponent. Curated NPC/ghost defense profiles make the
+mode usable before several local profiles have real loadouts. Ranking and
+matchmaking remain deferred to P6.8, after online identity gives them a real
+population and P4.7 supplies the safety boundary.
+
+### 6.13 — profile-owned progress versus shared-system state
+
+Phase 3's local profiles share one physical system but must not consume one
+another's finite campaign. Use this ownership boundary:
+
+| Domain                                                                        | Owner                      | Cross-profile rule                                                                                          |
+| ----------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Map geometry, sector definitions, asteroid field                              | System                     | Shared physical world; mined asteroids and spawns remain globally visible.                                  |
+| Modules, resources, crew, vessels, research, objectives                       | Profile                    | Private except for deliberately public identity/arena summaries.                                            |
+| Discoveries, NPC relationships, guarded-route state, bosses, capital progress | Profile campaign overlay   | Two profiles may encounter the same authored location independently; one cannot consume another's campaign. |
+| Ambient NPC traffic or renewable public targets                               | System                     | May be shared only when non-exclusive or deterministically renewable.                                       |
+| Arena defense                                                                 | Profile-published snapshot | Opt-in, immutable cross-profile read; a challenge never mutates the defender.                               |
+| Ascension                                                                     | Profile                    | Resets only the ascending profile and its campaign overlay.                                                 |
+
+Every persistent domain still names its authoritative owner in P3.1. Any later
+feature that needs contested cross-profile writes belongs to online multiplayer
+scope and requires its own roadmap task.
 
 ## 7. Content exclusion list for Phase 3
 
@@ -689,18 +839,15 @@ time scaling is a test convenience, never evidence that a daily reset or
 multi-week campaign cadence has been validated at normal time.
 
 **Do not import a competitor's numbers as the model.** OGame's expedition odds,
-the `floor(sqrt(tech level))` slot formula, and any specific reward percentage
-quoted anywhere in `research/` are starting references, not formulas to copy
-verbatim — they need Voidbound-specific tuning against this model, confirmed by
-sustained-play simulation that no all-day loop dominates a normal return
-cadence.
+the `floor(sqrt(tech level))` slot formula, and specific reward percentages in
+`research/` are reference inputs, not formulas. Voidbound-specific tuning must
+use sustained-play simulation to show that no all-day loop dominates a normal
+return cadence.
 
 **Repair as the primary economic sink** is the leading hypothesis for where
-fuel/credits/resources drain back out of the economy (vessel/troop repair from
-expedition anomalies and PvE damage) — independently proposed and then
-cross-confirmed by two research tracks. It passes only if this model shows
-recoverable failure is neither a punitive tax nor a waiting wall; it is an
-experiment to validate, not an approved balance answer.
+fuel, credits, and resources drain back out of the economy through vessel and
+troop repair after expedition anomalies and PvE damage. Adopt it only if the
+model shows recoverable failure is neither a punitive tax nor a waiting wall.
 
 ## 9. Decision gates still open
 
@@ -715,8 +862,16 @@ through §5/§6 for open items.
 3. Initial named sector/band identity and the NPC capital threat.
 4. Core campaign completion condition and the exact definition of a recoverable
    loss for P3.12/P3.13.
-5. The objective/expedition/arena wire shapes' exact fields (§6's sketches are a
-   starting point, not a locked schema).
+5. The objective/research/vessel/expedition/combat/arena content catalogs and
+   wire shapes' exact fields (§6's sketches are a starting point, not a locked
+   schema), including schema-version failure behavior and every value the client
+   previews before commitment.
+6. The profile/system ownership matrix for NPCs, targets, campaign overlays,
+   ascension, and cross-profile visibility (§6.13).
+7. The interactive expedition-choice lifecycle, first-contact gameplay value,
+   offline-return briefing contract, and typed journal entries.
+8. P3.21's quantitative sample sizes, thresholds, content-exhaustion definition,
+   and repository-owned results format.
 
 **Before P3.13 (ascension):**
 
@@ -725,6 +880,8 @@ through §5/§6 for open items.
    respec cost.
 3. How local ascension validates — without prematurely hardcoding — later online
    seasonal/cohort rules (§11).
+4. The active-action precondition and profile-scoped confirmation/recovery path;
+   whole-system backups must not roll back unrelated profiles.
 
 ## 10. P3.21 acceptance tests and instrumentation
 
@@ -755,22 +912,28 @@ cohorts reported **separately**, not averaged:
 - Failure cause, recovery time, and whether the report taught a next action.
 - Offline-return outcome and time to the next decision.
 
+P3.1 supplies the numeric thresholds and minimum cohort sizes before feature
+implementation begins. P3.21 records raw observations and summarized pass/fail
+results in a versioned repository artifact, with separate normal-time and
+accelerated runs; accelerated completion never substitutes for the required
+normal-time return-cadence sample.
+
 ## 11. Design principles for Phase 4 and beyond
 
 Not Phase 3 scope — recorded here so later phases don't start from zero, and so
 Phase 3 decisions don't accidentally foreclose them.
 
-**Phase 4 (networking):** transport, identity, and operational correctness only.
-Do not use networking to solve an unclear loop, and do not treat it as
-permission to add alliances or raids early.
+**Phase 4 (networking):** transport, identity, durable server storage, and
+operational correctness only. P4.0 owns the relational event log/materialized
+state/outbox foundation and P4.5 owns backup, recovery, and observability. Do
+not use networking to solve an unclear loop, and do not treat it as permission
+to add alliances or raids early.
 
 **Phase 5 (alliances, worlds, economy):**
 
 - Ship communication, cooperation, and transparent governance tooling _before_
-  trying to hard-code every player etiquette norm — two research tracks
-  converged on this independently (one from first principles, one citing Star
-  Trek Fleet Command's "Rules of Engagement" model). Healthy player-created
-  norms may be more durable than brittle mandatory rules.
+  trying to hard-code every player etiquette norm. Support healthy
+  player-created norms instead of relying only on brittle mandatory rules.
 - **Ministry positions** (temporary, named roles granting a modest personal
   convenience bonus — e.g. construction/research speed): optional, never
   required for progression, transparent, and **automatically fair-rotated by
@@ -778,6 +941,9 @@ permission to add alliances or raids early.
   durable power monopoly or force a 10-minute-attendance requirement.
 - P5.5 (seasons/world merging) should use P3.13's local ascension findings
   rather than assume its reset rules transfer unchanged.
+- Broad public mail/chat/recruitment does not ship without P4.7's blocking,
+  reporting, moderation, audit, privacy, and anti-harassment path. Player safety
+  is a release requirement, not post-launch polish.
 
 **Phase 5/6 boundary — future capital-control event** (a design hypothesis, not
 designed to implementation level): an NPC-held approach wall establishes a
@@ -794,11 +960,10 @@ a single solo action rather than an NPC-defended objective).
 
 **Phase 6 (adversarial conflict):**
 
-- Apply the already-decided **72-hour new-player protection bubble** — it ends
-  early only when that player initiates an active, synchronous PvP action (not a
-  passive-timer-only shield). Explicit tradeoff accepted: experienced/ascended
-  players who know the mechanic can play around it deliberately; this is a known
-  cost of the design, not an oversight.
+- Apply a **72-hour new-player protection bubble**. It ends early only when that
+  player initiates an active, synchronous PvP action, not from passive activity.
+  Experienced or ascended players may deliberately remain protected by avoiding
+  active PvP; PvP balance and matchmaking must account for that behavior.
 - Reaffirm P2.13's protected-storage rule: only explicit exposed surplus may
   ever be lootable; core protected stock and campaign viability are never raid
   targets.
@@ -807,28 +972,15 @@ a single solo action rather than an NPC-defended objective).
 that grants gameplay power**; cosmetics and non-powerful convenience remain a
 later product decision, but any model must pass the non-predatory values in §2.
 
-## 12. Provenance
+**Phase 7.1 (curated events):** published rules, capped accessible rewards, and
+a nonattendance-safe baseline are mandatory. Live content must add narrative or
+cooperative variety without making ordinary sessions suboptimal through FOMO,
+fixed-time obligation, or cash-shop escalation.
 
-This document reconciles:
+## 12. Research references
 
-- `research/claude/` — 12-game competitive research, community-sentiment and
-  core-loop-vs-features synthesis, the user's own firsthand play notes
-  (`user-notes.md`), and a Phase 3 draft plan amended across three cross-track
-  reconciliation rounds.
-- `research/gpt/` — a decision-workshop directly with the user (27 numbered
-  captured decisions), a product-thesis-first comprehensive plan, and a narrower
-  but internally consistent P3.1 design-gate outline.
-- `research/gemini/` — 8-game deep dives and a strategy document that
-  independently converged on several of the same conclusions (the P3.3 chapter
-  boundary, the shared-vessel-pool rule, repair-as-sink), plus the most detailed
-  single-task implementation sketch of the three tracks
-  (`plan_p3_3_objectives.md`).
-
-Where the three tracks disagreed, this document resolves in favor of: a direct
-user decision, where one exists; otherwise cross-track convergence; otherwise
-the better-reasoned position with its mechanism stated explicitly. Two
-disagreements were resolved directly by the user during reconciliation
-(vessel-dispatch exclusivity; arena reward composition) and are recorded above
-as settled, not as open questions. See `research/claude/user-notes.md` for the
-fuller blow-by-blow if a future session needs to understand _why_, not just
-_what_.
+The competitive research, community sentiment, design workshops, and detailed
+mechanic studies under `research/claude/`, `research/gpt/`, and
+`research/gemini/` support this specification. They provide rationale and source
+material when a requirement needs deeper review. If a research note conflicts
+with this document, this document controls.

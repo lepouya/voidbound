@@ -1,11 +1,7 @@
-# voidbound
+# Voidbound
 
-A multiplayer online RTS game with aspects of base building, slow-paced strategy
-with focus on expansion and upgrading of the player's mothership, joining
-alliances and building a dominion together with other players.
-
-The genre is sometimes like MMORTS, but that can be open to a lot of
-interpretations sometimes.
+A mobile-first MMORTS about slow-paced expansion, mothership development,
+frontier discovery, and alliances building a shared dominion.
 
 ## Ship design
 
@@ -52,7 +48,7 @@ game:
   to unlock new module blueprints, improve vessel stats, or increase efficiency.
 - Fabrication Bay: Faster module construction, lower resource requirements.
 - Assembly Line: Faster weapon construction, lower resource requirements.
-- Data Archive: Faster researches, lower resource requirements.
+- Data Archive: Faster research, lower resource requirements.
 
 ### Combat
 
@@ -61,8 +57,8 @@ game:
 - Weapons Factory: Produce more kinetic projectile weapons.
 - Drone Factory: Produce drone weapons.
 - Plasma Factory: Produce laser / plasma weapons.
-- Repair Shop: Repair the different type of weapons that were damaged during
-  combat. Uses resources and time
+- Repair Shop: Repair weapons and vessels damaged during combat. Uses resources
+  and time.
 
 ### Defence
 
@@ -87,36 +83,35 @@ game:
   material — from rocky or iron-rich asteroids, (b) high-tech materials — for
   electronics and reactors, from rare asteroids, (c) biological materials —
   water, food, and such, from icy asteroids or terrariums, and (d) fuel material
-  — like hydrogen or methane, spent on travel and recovery actions: mothership
-  warp/relocation is the first sink, with routine vessel dispatch and
-  expeditions joining it in Phase 3. Uranium is deliberately not a fifth
-  resource; a new currency/resource needs a distinct decision the four materials
-  and credits cannot already express. Alongside the materials there is a generic
-  trade currency — working name "credits", final name settled in the display
-  layer — earned through trade rather than production or mining. It enters the
-  economy at the Trading Post (credits-get deals are selling, credits-give deals
-  are buying; paid deal refreshes are the sink); its wider role —
-  player-to-player and alliance trade — isn't fleshed out yet.
+  — like hydrogen or methane, spent on travel and recovery actions including
+  mothership warp, vessel dispatch, and expeditions. Uranium is deliberately not
+  a fifth resource; a new currency/resource needs a distinct decision the four
+  materials and credits cannot already express. Alongside the materials there is
+  a generic trade currency — working name "credits", final name settled in the
+  display layer — earned through trade rather than production or mining. It
+  enters the economy at the Trading Post (credits-get deals are selling,
+  credits-give deals are buying; paid deal refreshes are the sink). P5.6 defines
+  its wider role in player-to-player and alliance trade.
 - No hard daily energy caps. Mining is naturally bounded by travel, extraction
-  time, deposits, and vessel availability; Phase 3 adds transparent per-target
-  expedition fatigue and bounded daily challenge/arena reward ladders rather
-  than a universal daily damping meter.
+  time, deposits, and vessel availability. Per-target expedition fatigue and
+  bounded daily challenge/arena reward ladders provide activity limits without a
+  universal daily damping meter.
 - Resource nodes (asteroids, moons, planets) get higher level and more difficult
   toward the center of the map, pacing the game: alliances have to gain power
-  together to push inward. The current working direction (not yet locked; see
-  `PHASE3.md`) for the map's center is a **Capital World with orbital
-  infrastructure** — a recoverable/inhabited planet ringed by Precursor Relay
-  fragments (route/signal restoration) and a Helios Array (inner-system
-  hazard/energy) distributed across the approach bands.
+  together to push inward. The map-center fiction is an explicitly open design
+  direction in `PHASE3.md`: a **Capital World with orbital infrastructure** — a
+  recoverable or inhabited planet ringed by Precursor Relay fragments
+  (route/signal restoration) and a Helios Array (inner-system hazard/energy)
+  distributed across the approach bands.
 - Asteroid mining: asteroids come in four classes matching the resource they
   yield — rocky (construction), metallic (high-tech; the "rare" class), icy
   (biological), and carbonaceous (fuel) — and three size tiers: small (1\*1
   tiles, common, 15–60 min to mine out), medium (2\*2, uncommon, 1–4 h), and
   large (3\*3, rare, 4–12 h). Mine-out time scales with the deposit at a shared
   extraction rate. Each asteroid holds a single resource and hosts a single
-  mining vessel at a time — both rules may be revisited for large asteroids
-  (mixed deposits, multiple miners), so implementations should keep that door
-  open. A dispatched vessel mines until the deposit is exhausted and then
+  mining vessel at a time. Mixed deposits and multiple miners are outside the
+  defined scope, but asteroid and mining schemas must permit a later explicit
+  extension. A dispatched vessel mines until the deposit is exhausted and then
   returns on its own; recalling it early harvests proportionally to the time
   spent extracting. Mined-out asteroids disappear from the map.
 - New players arrive in a fresh system alongside players who started around the
@@ -129,11 +124,11 @@ game:
   cargo, or temporary vessel damage — never the only critical vessel, never
   protected progress, never a forced reset. Active play grants choice and
   expression, never an unbounded raw-power advantage over players who return in
-  short sessions. Any future monetization must grant no gameplay power.
+  short sessions. Monetization must grant no gameplay power.
 
 For the order these land in development, see [ROADMAP.md](ROADMAP.md). For the
-full Phase 3+ gameplay design behind that roadmap — mechanic sketches, the
-experience-pacing targets, and the decision gates still open — see
+full Phase 3+ gameplay design behind that roadmap — mechanic sketches,
+experience-pacing targets, and explicitly open decision gates — see
 [PHASE3.md](PHASE3.md).
 
 ## Running
@@ -164,7 +159,7 @@ Local-development startup controls:
   progress with the deterministic fresh system.
 
 The reset controls are startup-only and local; they are not gameplay actions or
-part of the future online protocol.
+part of the online protocol.
 
 ### Other platforms
 

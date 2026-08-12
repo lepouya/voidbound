@@ -34,14 +34,14 @@ task.
 Voidbound is a mobile-first MMORTS set in space. Players colonize a star system,
 build and upgrade a mothership (primary base), gather resources, and form
 alliances. See `README.md` for full game design and `ROADMAP.md` for the phased
-task list that tracks what's built vs. planned. **`PHASE3.md`** holds the full
-reconciled gameplay design behind Phase 3's task list (mechanic sketches, wire
-shapes, decision gates) — read it before picking up any P3.x task via
+task list that tracks what's built vs. planned. **`PHASE3.md`** holds the
+authoritative gameplay design behind Phase 3's task list (mechanic sketches,
+wire shapes, decision gates) — read it before picking up any P3.x task via
 `/roadmap-task`.
 
-- **Platform:** Tauri desktop, portrait 390*844. Web browser is planned but not
-  functional yet — all map data flows over Tauri IPC, so a pure web build needs
-  an HTTP fallback for `generate_map` first.
+- **Platform:** Tauri desktop, portrait 390*844. The browser build is not a
+  supported runtime because all map data flows over Tauri IPC; ROADMAP P7.3 must
+  provide an HTTP fallback for `generate_map` before web support.
 - **Frontend:** TypeScript + [Excalibur.js v0.32](https://excaliburjs.com/docs/)
   (`FitScreenAndFill`, `pixelArt: true`)
 - **Backend:** Rust + [Tauri v2](https://tauri.app/v2/develop/). Only plugin in
@@ -85,8 +85,8 @@ shapes, decision gates) — read it before picking up any P3.x task via
   `src/ship/module-catalog.ts`, `src/ship/trade-catalog.ts`,
   `src/ui/tile-ref-parse.ts`, `src/ui/hud-layout.ts`, `src/ui/dialog-layout.ts`,
   `src/ui/format.ts`) — Excalibur cannot load under Deno, so keep new testable
-  logic in that shape. There is no runtime/scene coverage — the running app is
-  still the safety net there.
+  logic in that shape. There is no runtime/scene coverage; the running app is
+  the safety net there.
 
 ## 2. Project Layout
 
@@ -171,16 +171,16 @@ entry points in [src/state/game-state.ts](src/state/game-state.ts):
 `VesselMoveEvent` (`applyVesselEvent()`) and `ModuleData` (`applyModuleEvent()`
 — covers both `request_build_module` and `request_levelup_module`). Both ride
 the `load_game_state` snapshot — the snapshot + replay model that keeps progress
-correct across scene switches and, later, late joins — and scenes reconcile
-their actors from the applied state via the `sync*` methods (see § IPC). A
-`ModuleData` event doubles as the entity's full current snapshot rather than a
-separate `<Action>Event` type, since a module's whole state (including its
-pending build's `dispatchedAt`/`completesAt`) _is_ what a server push would
-send; this is the pattern to follow for other persistent, levelable/mutable
-entities — `DealsData` (§ IPC) already follows it. **Use the `/add-game-event`
-skill** when adding any new action. The server model this pattern targets (event
-log, verification, broadcast, snapshot + replay, server-time offsets) is
-sketched in `SERVER.md`.
+correct across scene switches and late joins — and scenes reconcile their actors
+from the applied state via the `sync*` methods (see § IPC). A `ModuleData` event
+doubles as the entity's full current snapshot rather than a separate
+`<Action>Event` type, since a module's whole state (including its pending
+build's `dispatchedAt`/`completesAt`) _is_ what a server push would send; this
+is the pattern to follow for other persistent, levelable/mutable entities;
+`DealsData` (§ IPC) is the other reference. **Use the `/add-game-event` skill**
+when adding any new action. The server model this pattern targets (event log,
+verification, broadcast, snapshot + replay, server-time offsets) is sketched in
+`SERVER.md`.
 
 ### Input model (handled by `TiledScene`, don't reimplement)
 
@@ -202,24 +202,23 @@ sketched in `SERVER.md`.
 
 ### UX principles (state must be visible)
 
-Established during P1.10 review and confirmed since; apply these four checks
-when designing a feature's UI half (see `/roadmap-task` step 2) — don't wait for
-review to add them:
+Apply these four requirements when designing every feature's UI half (see
+`/roadmap-task` step 2):
 
 - **Timed actions show a live countdown**, never a static "in progress" label
   (e.g. "Recruiting (12s)"). `TileActor.setButtonLabel()` exists for per-second
   label ticks without rebuilding the actor. They also **state the wait before it
   is committed to** — `Hire Crew (1m)` next to its cost badge — so the duration
   is part of the decision rather than something the player discovers only once
-  the timer is already running (P2.6 review). Use `formatDuration` on both, so
-  one action never reports its time two different ways.
+  the timer is running. Use `formatDuration` on both, so one action never
+  reports its time two different ways.
 - **Degraded/penalized states get a visible indicator** on the affected entity
   (e.g. an understaffed producer wears an output-percent badge).
 - **Action buttons go on every entity where a player would look for them**, not
   just one canonical host (Hire Crew lives on Crew Quarters as well as the
   Command Module).
-- **Starting states are empty-and-earned**, not seeded, where that makes a good
-  early goal or future tutorial step (crew starts at 0).
+- **Starting states are empty-and-earned**, not seeded, where that creates a
+  useful early objective or tutorial step (crew starts at 0).
 
 ### Z-ordering
 
@@ -241,9 +240,9 @@ need.
   [tileset-geometry.ts](src/resources/tileset-geometry.ts); cell size varies per
   asset) — match it for new animated assets unless there's a specific reason not
   to. Higher-detail assets (asteroids, per-tier Command Module interiors) use
-  the 8*8, 64-frame `ANIM_64_FRAMES` spec instead, established by P1.23 — reach
-  for it only when 32 frames is visibly insufficient (slow, large-footprint
-  loops), not by default.
+  the 8*8, 64-frame `ANIM_64_FRAMES` spec defined by P1.23 — reach for it only
+  when 32 frames is visibly insufficient (slow, large-footprint loops), not by
+  default.
 - **Never `import` a PNG directly** — wrap with the `png("name")` helper in
   [src/resources/resources.ts](src/resources/resources.ts) instead.
 - Generated files under `src/assets/` are excluded from `deno fmt`
@@ -295,7 +294,7 @@ wiring, `main.ts` registration, and HUD setup.
 
 ### Startup / loader phase
 
-Startup-time backend work (game-state sync, a future login flow) must ride the
+Startup-time backend work (game-state sync, the P4.6 login flow) must ride the
 shared Excalibur `loader` as an `ex.Loadable` (see `GameStateResource` in
 src/state/game-state-loader.ts) — never block or gate `game.start()`; the
 loading screen exists precisely so slow work happens behind it. A loadable must
@@ -304,21 +303,20 @@ block game start. Scenes must tolerate the snapshot landing late or never — re
 `gameState` defaults at init and `subscribe()` to re-stamp visuals when a load
 lands.
 
-What a failed load _means_ changed with the wire-delivered balance catalog: the
-client carries no local fallback numbers, so there is no playable offline mode
-to continue into. A failed load leaves an explicitly unloaded state (no catalog,
-no world) and `TiledScene.onActivate` surfaces `currentLoadFailure()` as a
-non-dismissable dialog with Retry — on every scene, so a scene switch can't walk
-away from it. `gameState.suspended` drops incoming pushes while that failure is
-outstanding: without a snapshot baseline there is nothing to reconcile them
-against. Pushes arriving _before_ a successful snapshot are still applied
-deliberately — the listener subscribes first and `load()` reconciles per entity
-by revision. Dev builds also get a Reset control (`reset_local_system`, refused
-in release) that reseeds the local system when in-progress balance work has left
-an unloadable save; it goes away when Phase 4's online sessions own the state.
-Player identity never changes mid-game (re-launching is the only way to switch
-users), so this resilience only covers the initial load, not live identity
-swaps.
+The client carries no local fallback balance numbers, so a failed load cannot
+continue as a playable offline mode. A failed load leaves an explicitly unloaded
+state (no catalog, no world) and `TiledScene.onActivate` surfaces
+`currentLoadFailure()` as a non-dismissable dialog with Retry — on every scene,
+so a scene switch can't walk away from it. `gameState.suspended` drops incoming
+pushes while that failure is outstanding: without a snapshot baseline there is
+nothing to reconcile them against. Pushes arriving _before_ a successful
+snapshot are still applied deliberately — the listener subscribes first and
+`load()` reconciles per entity by revision. Dev builds also get a Reset control
+(`reset_local_system`, refused in release) that reseeds the local system when
+in-progress balance work has left an unloadable save. Online sessions do not
+expose this local reset control. Player identity never changes mid-game
+(re-launching is the only way to switch users), so this resilience only covers
+the initial load, not live identity swaps.
 
 ### UI library (`src/ui/`)
 
@@ -347,17 +345,16 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   `TiledScene.openDialog()`, which owns the modal slot and input capture.
   `dismissable: false` makes a dialog the player must answer — no close button,
   scrim taps swallowed (a scene switch and a replacing dialog still close it);
-  the load-failure dialog is the first consumer. Also
+  the load-failure dialog is the reference use. Also
   `bindDialogRows(handle, subscribe, buildRows)` — rebuild a dialog's rows on
   every state-store notify (store-agnostic; unsubscribe from `onClose`). The
   scaffold for every server-driven panel: P1.12's shop is the reference
   consumer; P1.16's entity details panels (`src/map/map-details.ts`) add a
   once-a-second `setRows` tick on top of `bindDialogRows` for live countdown
-  re-renders — the pattern for any dialog showing a pending timer. Two more
-  pieces, generic to any dialog (ROADMAP P1.21 added both; P1.21's Mail panel,
-  `src/scene/mail-dialog.ts`, is a worked example of both, not a special case):
-  `headerRow` — one `DialogRowDef` pinned below the title, above the scrollable
-  rows, that never scrolls (Mail's tab strip: button cells with
+  re-renders — the pattern for any dialog showing a pending timer. Two generic
+  dialog features use P1.21's Mail panel (`src/scene/mail-dialog.ts`) as their
+  worked example: `headerRow` — one `DialogRowDef` pinned below the title, above
+  the scrollable rows, that never scrolls (Mail's tab strip: button cells with
   `labelPosition: "center"`, `button.ts`); and
   `scroll: { rowHeight,
   visibleRows }` — `rows` becomes the full list, with
@@ -365,8 +362,8 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   scrollable by drag or mouse wheel via `DialogHandle.scrollBy(deltaY)` (wired
   through `SceneInputHandlers.onModalScroll`, `scene-input.ts`) and a
   scroll-position thumb on the content region's right edge — see
-  `dialog-layout.ts`'s `computeScrollWindow`. P7.1's Events panel and P3.4's
-  research panel are next to use `bindDialogRows`/`scroll`/`headerRow`
+  `dialog-layout.ts`'s `computeScrollWindow`. P3.4's Research panel and P7.1's
+  Events panel must reuse `bindDialogRows`/`scroll`/`headerRow`
 - `dialog-layout.ts` — pure dialog frame/row/cell math (`layoutDialogFrame`,
   `layoutCellRects`; no runtime imports; unit-tested). Not in the barrel —
   dialog.ts consumes it and re-exports its types
@@ -375,8 +372,8 @@ One barrel (`src/ui/index.ts`) re-exports everything. Modules:
   bottom-center: auto-fading, never capture pointer input, render above the
   modal layer (so dialog-launched rejections stay visible). Stack layout reuses
   hud-layout's `layoutButtonCenters`. Don't call `spawnToast` from scenes — use
-  `TiledScene.showToast()`, which owns the stack. First consumer: error toasts
-  on every rejected player-action request (the background `request_map_window` /
+  `TiledScene.showToast()`, which owns the stack. Rejected player-action
+  requests use error toasts (the background `request_map_window` /
   `mark_notifications_read` rejections stay console-only deliberately)
 
 Pure grid math shared by scenes (dock tiles) lives outside `ui/` in
@@ -443,9 +440,8 @@ on `map_type`:
 
 `TileMapData`: `cols`, `rows`, `tile_width`, `tile_height`, `tiles: Vec<String>`
 (row-major `TileRef` strings; empty string = no tile). Both `Serialize` and
-`Deserialize` are derived. To swap `"ship"` to a network fetch later, replace
-the `include_str!` call with a fetched string — the `Result` propagation is
-already in place.
+`Deserialize` are derived. P7.3 replaces `include_str!` with an HTTP-backed map
+source for web builds; the `Result` propagation already supports that boundary.
 
 **The backend is authoritative for game state** (`ServerState` in
 src-tauri/src/game_state/state.rs): all resource math — production accrual,
@@ -490,22 +486,22 @@ new commands and push variants.
   visible view at 80 tiles on the longer axis — strictly inside the window, so
   unloaded space never scrolls into sight.
 - **Push channel** (`server-push` Tauri event; ROADMAP P1.5) — the backend tells
-  the client when state changes, the in-process prototype of P4.1's WebSocket
-  bus: a scheduler thread (`run_scheduler` in game_state/scheduler.rs) sleeps
-  until the next deadline — production tick, build `completesAt`, vessel
-  `arrivalAt`, mining `completesAt`, the 00:00 UTC deal reset — settles state,
-  and emits revisioned `ServerPush` messages (`resources`, `module`,
-  `vesselRemoved`, `vessel`, `asteroid`, `asteroidRemoved`, `notification`,
-  `crew`, `deals`); a Condvar wakes it early when a command creates a nearer
-  deadline (e.g. a short vessel flight). Mutations queue pushes into a
-  `ServerState` outbox and the boundaries (scheduler wake, command return via
-  `finish_command`) drain + emit, so every settlement path broadcasts
-  identically. Client side, `startServerPushListener` (game-state-loader.ts)
-  routes each push into `gameState.applyServerPush()` — the same apply/sync
-  entry points command responses use. Notifications (build/level-up completions,
-  vessel arrivals/returns) are server state riding the snapshot, capped at 100
-  entries; the Mail HUD badge (tiled-scene.ts `addCommonHud`) shows the live
-  unread count.
+  the client when state changes. It is the in-process implementation of P4.1's
+  WebSocket bus contract: a scheduler thread (`run_scheduler` in
+  game_state/scheduler.rs) sleeps until the next deadline — production tick,
+  build `completesAt`, vessel `arrivalAt`, mining `completesAt`, the 00:00 UTC
+  deal reset — settles state, and emits revisioned `ServerPush` messages
+  (`resources`, `module`, `vesselRemoved`, `vessel`, `asteroid`,
+  `asteroidRemoved`, `notification`, `crew`, `deals`); a Condvar wakes it early
+  when a command creates a nearer deadline (e.g. a short vessel flight).
+  Mutations queue pushes into a `ServerState` outbox and the boundaries
+  (scheduler wake, command return via `finish_command`) drain + emit, so every
+  settlement path broadcasts identically. Client side, `startServerPushListener`
+  (game-state-loader.ts) routes each push into `gameState.applyServerPush()` —
+  the same apply/sync entry points command responses use. Notifications
+  (build/level-up completions, vessel arrivals/returns) are server state riding
+  the snapshot, capped at 100 entries; the Mail HUD badge (tiled-scene.ts
+  `addCommonHud`) shows the live unread count.
 - `mark_notifications_read` — marks the whole feed read and returns the updated
   list (applied via `gameState.syncNotifications`), clearing the Mail badge in
   every scene. Opening P1.21's Mail panel invokes it after rendering the live,
@@ -543,8 +539,8 @@ new commands and push variants.
   auto-recalls the miner with the full harvest as `cargo` on a pushed `vessel`
   event; `request_recall_vessel` earlier harvests proportionally to extraction
   time (mid-outbound recalls just free the slot). Asteroid changes reach the
-  client as `asteroid`/`asteroidRemoved` pushes into `gameState.asteroids`,
-  reconciled by `AsteroidSync.sync()` (src/map/map-asteroids.ts).
+  client as `asteroid`/`asteroidRemoved` pushes into `gameState.asteroids`, then
+  rendered by `AsteroidSync.sync()` (src/map/map-asteroids.ts).
 - `request_accept_deal(deal_id)` / `request_refresh_deals()` — the Trading Post
   NPC deal shop (ROADMAP P1.12). Deals are server-generated, deterministic per
   (player, UTC day, slot, generation) like `seed_asteroids`, and ride the
@@ -570,9 +566,9 @@ new commands and push variants.
 Gameplay constants (production tick, the module catalog's per-type cost/build
 time/production, the asteroid tier catalog + mine rate, room grid, map geometry,
 vessel speed) live in game_state/ (modules.rs, world.rs, state.rs). **The module
-and asteroid catalogs are no longer hand-synced mirrors** (ROADMAP P2.6): they
-ride the `load_game_state` snapshot as a versioned `balance` payload, validated
-and installed by `applyBalanceCatalog` before the snapshot is published, so
+and asteroid catalogs are server-delivered, not hand-synced mirrors**: they ride
+the `load_game_state` snapshot as a versioned `balance` payload, validated and
+installed by `applyBalanceCatalog` before the snapshot is published, so
 `src/ship/module-catalog.ts` and `src/map/asteroid-catalog.ts` hold _no_ numbers
 of their own — they compute previews from server-supplied curve parameters. The
 payload is assembled by `balance_catalog_data()` in
@@ -599,23 +595,23 @@ geometry, vessel interpolation, and warp-cost previews. Their source comments
 name the Rust counterpart and tests pin the player-visible behavior; update both
 halves together.
 
-The balance curves are independently configurable, not one shared rule (P2.6
-replaced the `scale_for_level`/`scaleForLevel` doubling stub): construction cost
-compounds 1.5x per target level from 25; build time reads a per-level table.
-Cost and build time each take their own exact per-entry rational multiplier —
-kept **separate** even though every type currently sets the two identically (the
-producers are half of both), so speed and price can be tuned apart without a
-schema change. The cost multiplier applies to construction and so reaches the
-supplemental materials derived from it, rather than discounting only the
-construction line. Production compounds 1.15x in fixed point and is catalogued
-**per minute**, converted to the tick cadence at accrual with a runtime sub-unit
-carry. Storage and crew berths are each a catalog `base` (granted once settled
-at any level) plus a `per_level` contribution — two fields rather than one plus
-an "is it flat?" branch, so no type is a special case. The Command Module is
-base-only **by design**: leveling it buys progression (unlocks and the ship-wide
-level cap), never capacity, so the Storage Bay and Crew Quarters stay worth
-building at every level. Where a preview and the server must agree exactly, the
-two implementations are pinned by matched tests naming each other.
+The balance curves are independently configurable rather than one shared rule.
+Construction cost compounds 1.5x per target level from 25; build time reads a
+per-level table. Cost and build time each take their own exact per-entry
+rational multiplier — kept **separate** even though every catalog entry sets the
+two identically (the producers are half of both), so speed and price can be
+tuned apart without a schema change. The cost multiplier applies to construction
+and so reaches the supplemental materials derived from it, rather than
+discounting only the construction line. Production compounds 1.15x in fixed
+point and is catalogued **per minute**, converted to the tick cadence at accrual
+with a runtime sub-unit carry. Storage and crew berths are each a catalog `base`
+(granted once settled at any level) plus a `per_level` contribution — two fields
+rather than one plus an "is it flat?" branch, so no type is a special case. The
+Command Module is base-only **by design**: leveling it buys progression (unlocks
+and the ship-wide level cap), never capacity, so the Storage Bay and Crew
+Quarters stay worth building at every level. Where a preview and the server must
+agree exactly, the two implementations are pinned by matched tests naming each
+other.
 
 Mothership placement is data, not a constant: it is seeded in `ServerState::new`
 and reaches the client only via the snapshot. Spawns are planned into the
