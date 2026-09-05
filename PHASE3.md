@@ -1,9 +1,10 @@
 # Voidbound — Phase 3+ Gameplay Design
 
 The authoritative gameplay design behind `ROADMAP.md`'s Phase 3 local playable
-alpha and the design constraints it establishes for Phases 4-7. Requirements in
-this document control Phase 3 scope unless an item is explicitly labeled as an
-open decision or working direction.
+alpha and the design constraints it establishes for Phases 4-7. README.md
+supplies the product principles; this document translates them into Phase 3
+scope. Requirements here control Phase 3 scope unless an item is explicitly
+labeled as an open decision or working direction.
 
 **Status:** this is design, not implementation authorization. Per `AGENTS.md`'s
 review gate, no ROADMAP task is implemented from this document directly; each
@@ -64,11 +65,15 @@ monetization task.
 
 ## 3. System geography and the capital
 
-The star system has **four resource-grade approach bands plus the central
-district**. Players start at the outer edge with grade-1 resources; value rises
-inward while usable space becomes scarcer, naturally creating route choices,
-choke points, and eventually conflict. The fifth and final district is the
-central 200\*200 future capital — it is not a fifth normal asteroid-grade band.
+The 1000*1000 map uses **five concentric square zones**, as drawn in README.md.
+Zones 1-4 are 100-tile-thick approach bands; zone 5 is the central 200*200
+capital district, with no asteroid spawns. Players start in zone 1. Asteroid
+levels are 1-3 / 4-6 / 7-9 / 10-12 across zones 1-4 respectively. **Zone,
+asteroid level, and size tier are separate dimensions**; the old four resource
+"grades" describe the implemented Phase-2 balance, superseded by P3.24. Named
+sectors are authored situations within this geography, not extra level bands.
+Solo raider levels are a separate, uncapped progression, not asteroid levels or
+zone gates. Phase 3 must permit solo inward travel; alliances are later scope.
 
 **Working fiction (not yet locked; do not hard-code names or irreversible
 content assumptions):** a **Capital World with orbital infrastructure**.
@@ -172,7 +177,8 @@ contain, at minimum:
   ownership and lifecycle, save-schema migration and validator fixture,
   offline-settlement behavior, retention/history policy, and its revisioned
   snapshot/push/apply shape. This applies to objectives, vessels/loadouts,
-  expedition targets/progress, arena state, research, and ascension.
+  expedition targets/progress, searchable POIs and their reservations/expiry,
+  raider victory tracks, arena state, research, and ascension.
 - A **profile/system ownership matrix** for every new domain (§6.13), including
   what another local profile may observe, what one profile may permanently
   consume or change, and how a profile-only ascension leaves the shared world
@@ -267,12 +273,14 @@ actions that are legal from its current state/location or be recalled.
 Keep progression purely statistical (tiers, cargo, speed, durability) as the
 default: a small number of crew-linked, legible specializations (speed/range
 scout, cargo/extraction miner, combat/tactics PvE hull) rather than a broad
-collectible-hero system. P3.7 also introduces the durable, non-random combat
-component inventory and loadout slots that P3.12's arena rewards improve; this
-is equipment data, not a fifth resource or a general Items-panel replacement.
-Leave named captains/specialists as a deliberately-open later extension, not
-P3.7 scope. The Shipyard arrives after the research foundation (P3.4) so it is a
-meaningful application of choices, not a false initial fork.
+collectible-hero system. Basic kinetic, drone, and plasma components must all be
+available for P3.11's counter cycle without waiting for Phase-6 factories. P3.7
+also introduces the durable, non-random combat component inventory and loadout
+slots that P3.12's arena rewards improve; this is equipment data, not a fifth
+resource or a general Items-panel replacement. Leave named captains/specialists
+as a deliberately-open later extension, not P3.7 scope. The Shipyard arrives
+after the research foundation (P3.4) so it is a meaningful application of
+choices, not a false initial fork.
 
 ### P3.8 — Expeditions + fuel economy
 
@@ -303,7 +311,7 @@ objective engine or expedition rule.
 
 ### P3.10 — NPC world layer + radial sector progression
 
-Turn the four resource-grade approach bands and central capital district into
+Turn the four level-bearing approach zones and central capital district into
 named, legible sectors — each adds a distinct _situation_ (a resource relation,
 route constraint, hazard, NPC behavior, or capital clue), not just a bigger
 number. Sector theming treats the bands as the approach to the Capital World
@@ -319,16 +327,16 @@ foundations are proven.
 
 ### P3.11 — PvE combat vertical slice
 
-See §6.11. Select a fitted vessel and its starter drone/troop loadout, dispatch
-it to a target; resolve authoritatively from that loadout, readiness, and target
-conditions — no real-time unit micromanagement required. A failed encounter
-returns a **combat report identifying the next adjustment** (research, crew,
-route, configuration, timing), not a bare loss. Keep the resolver
+See §6.11. Select a fitted vessel and its starter kinetic/drone/plasma loadout,
+dispatch it to a target; resolve authoritatively from that loadout, readiness,
+and target conditions — no real-time unit micromanagement required. A failed
+encounter returns a **combat report identifying the next adjustment** (research,
+crew, route, configuration, timing), not a bare loss. Keep the resolver
 **opponent-agnostic**: it must serve both NPC targets and P3.12's local-defense
-arena unmodified. This task also adds the player-initiated recurring solo
-challenge/boss or wave operation on the same daily bounded reward ladder as the
-arena — diminishing progression value, not a fixed-time event calendar or an
-infinite efficient farm.
+arena unmodified. Searchable solo raiders (§6.11) supply the recurring combat
+operation; no separate boss/wave farming subsystem is implied. Authored campaign
+bosses remain P3.23 content. Rewards must resist unlimited farming; whether the
+arena's daily ladder fits raiders is an explicit §9 decision.
 
 ### P3.12 — Local asynchronous defense arena
 
@@ -431,6 +439,16 @@ reviewable data tranches with a content validator and explicit runway coverage;
 do not bury a multi-week campaign inside one code-heavy world-framework task.
 This task must land before P3.13 and P3.21.
 
+### P3.24 — Searchable POIs + asteroid level progression
+
+Implement §6.14's search/reuse/spawn/expiry framework and replace seeded-field
+mining balance with level/flavor/size-tier deposits and upgradeable extraction.
+Own the map search UI, footprint-safe warp integration, save migration, catalog
+previews, AOI visibility, and Chapter-1 mining objective update here. Needs
+P3.1, P3.7, P3.8; lands before P3.9 and P3.11. P3.10 authors permanent world
+content and P3.11 supplies raider eligibility/resolution; neither should absorb
+this separate mining/world-lifecycle migration.
+
 ### P3.21 — Structured local-alpha playtest + rebalance
 
 See §10 for the full acceptance-test and instrumentation checklist. Treat an
@@ -458,7 +476,9 @@ is intentionally two tasks, not a weakened first-30-minute promise.
 1. Stabilize the Command Module and read the resource bar.
 2. Hire the first crew member; show crew capacity/assignment.
 3. Build and staff a first producer; make its output visible.
-4. Dispatch a vessel to a grade-1 asteroid and receive its return.
+4. Search for a level-1 asteroid, dispatch a vessel, and receive its return.
+   P3.3 initially uses existing mining; P3.24 updates this objective and P3.9
+   verifies the final Chapter-1 timing with the new ten-minute base extraction.
 5. Use a Trading Post deal to resolve a resource mismatch.
 
 P3.9 then continues the same chapter:
@@ -692,12 +712,12 @@ catalog-driven data).
 
 ### 6.11 — P3.11 combat and the shared vessel pool
 
-**Every vessel-dispatched activity draws from the same limited vessel, troop,
-and captain pool.** Combat, mining, expeditions, and any future physical trade
-route. P1.12's dockside Trading Post deal is an immediate module action and does
-not occupy a vessel; Phase 3 does not silently turn it into a trade-route
-system. A fitted vessel dispatched to combat is unavailable for every other
-dispatch until it returns.
+**Every vessel-dispatched activity draws from the same limited vessel, crew, and
+fitted-component pool. Named captains remain outside Phase 3.** Combat, mining,
+expeditions, and any future physical trade route. P1.12's dockside Trading Post
+deal is an immediate module action and does not occupy a vessel; Phase 3 does
+not silently turn it into a trade-route system. A fitted vessel dispatched to
+combat is unavailable for every other dispatch until it returns.
 
 This is **per-unit exclusivity, not a global lockout**: only the dispatched
 vessel is occupied — construction, objectives, research, and any _other_
@@ -715,6 +735,23 @@ report is what turns that cost into a lesson instead of a dead end).
 **Readiness display:** show **both** a named tier and a numeric Power value,
 backed by one shared breakdown. Neither may replace visibility into the specific
 configuration, route, or tactical requirement behind it.
+
+**Solo raiders:** one dispatched vessel fights one NPC target. Level 1 is
+unlocked from the start and beatable by the starting vessel with basic units;
+content availability must not imply a compulsory combat step before the guided
+chapter is ready. Defeating level N unlocks N+1 for that profile; there is no
+designed maximum level. The baseline difficulty grows by `1.25^(N-1)`, with the
+exact affected stats and numeric representation decided in P3.1. This is not a
+win-probability multiplier. Persist the progression and settle win/unlock/reward
+once, including offline completion; retries cannot duplicate credit.
+
+Three specialties use the same counter cycle for player and NPC loadouts:
+kinetic beats plasma, plasma beats drone, drone beats kinetic. A raider's
+specialty is stronger than its other two weapon types. P3.7 supplies basic
+components for all three before P6.2 introduces factories. Preview specialty,
+counters, and readiness breakdown; the counter multipliers, mixed-loadout
+resolution, and whether unlocks are shared across specialties remain §9 gates.
+Use plasma as the planning label; final laser/plasma display naming is open.
 
 ### 6.12 — P3.12 local asynchronous defense arena
 
@@ -743,7 +780,7 @@ export interface ArenaResultData {
   defenderProfileId: string;
   outcome: "attackerWin" | "defenderWin";
   resolvedAt: number;
-  // A win grants deterministic drone/troop loadout components only — never
+  // A win grants deterministic kinetic/drone/plasma loadout components only — never
   // credits, never base resources, never a
   // randomized pull, so repeated same-device challenges can't become a
   // shortcut around the ship/map economy. A loss grants nothing material;
@@ -769,8 +806,8 @@ sides' state is already known at request time.
 
 The P3 arena is deliberately **one fitted vessel versus one fitted vessel**.
 "Defense team" means that vessel plus its eligible crew and deterministic
-drone/troop components; multi-vessel formations wait until a later combat design
-explicitly earns their complexity.
+kinetic/drone/plasma components; multi-vessel formations wait until a later
+combat design explicitly earns their complexity.
 
 `ArenaStateData` is durable per profile: its opt-in defense snapshot, daily
 attempt counter/cost ladder, earned combat components, and capped recent-result
@@ -782,9 +819,9 @@ the profile boundary.
 **Activity-reward curve:** challenges reset their cost ladder every server day —
 the first is free, the second through fifth become progressively more expensive
 but stay worth taking, and later attempts in the same day are practice/show-off
-only, with no P3 ranking UI or material reward. This is the same shape of
-safeguard P3.11's recurring solo challenge needs; the two share one cost-ladder
-helper.
+only, with no P3 ranking UI or material reward. P3.11 also needs bounded
+progression rewards, but its raider reward policy remains open (§9); share a
+helper only if the reviewed policies actually match.
 
 Publishing is explicitly opt-in, so a newly-created or unconfigured profile is
 never exposed as a free opponent. Curated NPC/ghost defense profiles make the
@@ -807,8 +844,56 @@ another's finite campaign. Use this ownership boundary:
 | Ascension                                                                     | Profile                    | Resets only the ascending profile and its campaign overlay.                                                 |
 
 Every persistent domain still names its authoritative owner in P3.1. Any later
-feature that needs contested cross-profile writes belongs to online multiplayer
-scope and requires its own roadmap task.
+feature that adds competitive contested cross-profile writes belongs to online
+multiplayer scope. P3.24 preserves existing exclusive mining reservations in the
+shared local world; it does not add combat over another profile's targets.
+
+### 6.14 — P3.24 searchable POIs and asteroid progression
+
+README.md's search-first map replaces a densely pre-seeded list of mining and
+repeatable combat options. P3.24 owns the generic search lifecycle and mining
+conversion; P3.11 plugs solo raiders into it. Authored landmarks, the guaranteed
+relay expedition, and profile campaign targets are not silently made temporary.
+
+- Search from the player's mothership for a POI kind and level (asteroid flavor
+  and raider specialty filters remain a UI decision). Reuse an eligible nearby
+  target, otherwise spawn a valid one. The proposed radius is about 50 tiles;
+  exact distance metric, boundary behavior, and no-valid-placement response are
+  open. Asteroid levels must obey the destination zone even near a boundary.
+- Search is a server-verified state-mutating action: validate unlocks, choose
+  reuse/placement under the state lock, and return revisioned entity data. A
+  result is not a reservation; dispatch revalidates and atomically claims use.
+  Searching does not grant resources, victory, or progression.
+- An unused spawned POI expires after one hour. P3.1 must define when the clock
+  starts, whether reuse resets it, and what happens after an abandoned action.
+  Reserved, outbound, and actively used targets must not expire underneath an
+  action. Scheduler and offline settlement use the same lifecycle; removals
+  carry revision tombstones. Depleted asteroids disappear as today.
+- Spawn and warp validate whole footprints against map bounds, occupied ships,
+  POIs, and the capital exclusion. A mothership cannot warp onto a spawned POI.
+  Bound duplicate searches/spawn density without a universal daily energy cap;
+  define contention, expiry races, and migration of the old seeded field.
+- Search radius is independent of camera AOI. A roughly 50-tile radius around a
+  mothership is not guaranteed to fit the current camera-centered 100*100
+  window. Define how results remain inspectable/selectable and enter the normal
+  revisioned AOI projection without widening all world broadcasts.
+
+Asteroid deposit is `600 * 2^(level-1) * sizeMultiplier`, with levels 1-12, size
+multipliers 1/4/9, footprints 1*1 / 2*2 / 3*3, and occurrence weights 9:3:1.
+Flavor selects exactly one of the four resources. Starting extraction is 1
+resource/second per asteroid; research and vessel upgrades increase it. Level-12
+Tier III holds 11,059,200 resources (18,432 times level-1 Tier I), requiring 128
+days at the base rate. These are proposed balance inputs to §8; do not silently
+retain the older grade multiplier or 15-60-minute small-node range. Define
+cargo-limited returns, remaining deposits, upgraded extraction, recall, and fuel
+together with P3.7/P3.8; a huge deposit cannot imply infinite vessel cargo or
+strand the only vessel for days.
+
+Physical asteroid targets remain system-owned. Raider victory/unlock records are
+profile-owned; P3.1 decides whether reusable raider bodies are shared renewable
+targets or profile overlays. Neither search nor expiry may erase another
+profile's campaign. Expedition discovery/fatigue tracks keep stable identity and
+are not reset by spawning another temporary target.
 
 ## 7. Content exclusion list for Phase 3
 
@@ -832,6 +917,12 @@ days, and the aspirational longer campaign:
   protection.
 - Recurring solo-challenge and arena reward curves.
 - Crew-cost and vessel-capacity curves.
+- README mining inputs (600 base deposit, level doubling, size weights 9:3:1, 1
+  resource/second), travel plus ten-minute first extraction within Chapter 1,
+  cargo/recall cycles, upgrade rates, and high-level deposit lifetimes.
+- Raider 1.25x and future elite 1.5x difficulty growth: define the scaled stats,
+  counter effects, reward scaling, numerical limits, and attainable progression.
+  Future elite projections do not authorize alliance mechanics in Phase 3.
 
 The artifact records its inputs, outputs, formula version, and fixed scenario
 seeds. It must separately model normal-time and accelerated local-playtest runs;
@@ -873,6 +964,15 @@ through §5/§6 for open items.
 8. P3.21's quantitative sample sizes, thresholds, content-exhaustion definition,
    and repository-owned results format.
 
+9. Search radius/metric/filters, cross-zone eligibility, result/AOI delivery,
+   reuse ordering, spawn limits, expiry clock semantics, reservation release,
+   and existing-field save migration (§6.14).
+10. Mining upgrade and cargo rules that make the proposed exponential deposits
+    playable, including first-30-minute scheduling (§8).
+11. Raider difficulty stats/counter coefficients, per-specialty vs. shared
+    unlocks, repeat/first-win rewards and activity limits, target ownership, and
+    safe numeric handling of uncapped levels. No arena daily cap is assumed.
+
 **Before P3.13 (ascension):**
 
 1. What resets, preserves, and unlocks exactly.
@@ -896,7 +996,14 @@ through §5/§6 for open items.
   has a new decision within one minute.
 - Any early/mid-campaign failure can be recovered with known actions and bounded
   cost; no reset is required.
-- A combat loss report identifies the next actionable adjustment.
+- A combat loss report identifies the next actionable adjustment; level-1
+  raiders are beatable with the starting vessel/basic units, and N+1 cannot be
+  fought before the required victory credit. Repeat settlement grants no extras.
+- Search reuses eligible targets before spawning, respects zone/footprint rules,
+  and works across AOI boundaries. Unused POIs expire across offline returns;
+  in-flight/active targets survive, and warp cannot overlap a POI.
+- Mining previews match level/flavor/size deposits and upgraded extraction;
+  cargo-limited returns and recalls preserve remaining deposits correctly.
 - Sustained-play testing confirms diminishing returns prevent all-day
   expedition/challenge/arena farming from becoming the dominant route to
   progression.
@@ -944,6 +1051,16 @@ to add alliances or raids early.
 - Broad public mail/chat/recruitment does not ship without P4.7's blocking,
   reporting, moderation, audit, privacy, and anti-harassment path. Player safety
   is a release requirement, not post-launch polish.
+
+**P5.10 — alliance elite raids:** cooperative NPC combat requires alliance
+membership and multiple participants. Elite difficulty grows by `1.5^(N-1)`;
+initiating level N requires a prior elite N-1 victory (level 1 is the entry).
+Members may join an alliance member's higher-level raid without that unlock.
+Before implementation, decide whether assisted victories advance the joiner's
+initiation ceiling, independently of solo-raider progression. Specify rally
+travel/commit/abort, participant and target reservations, offline resolution,
+contribution/reward credit, recoverable losses, and shared-target expiry. This
+is cooperative PvE, not P6.3 player raiding or the capital-control event.
 
 **Phase 5/6 boundary — future capital-control event** (a design hypothesis, not
 designed to implementation level): an NPC-held approach wall establishes a

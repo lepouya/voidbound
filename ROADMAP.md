@@ -204,7 +204,8 @@ the full design** — mechanic sketches, wire shapes, the non-negotiable product
 values, the capital-fiction working direction, and the decision gates still open
 before numeric tuning. P3.9 composes the Chapter-1 experience from the
 objective, prerequisite, research, vessel, and expedition systems. P3.21 is the
-final Phase 3 gate and therefore follows P3.22 and P3.23 despite its lower ID.
+final Phase 3 gate and therefore follows P3.22-P3.24 despite its lower ID. P3.24
+lands before P3.9/P3.11; IDs remain stable rather than being renumbered.
 
 - [ ] **P3.1 — Playable-alpha experience specification.** Write the product
       target before adding more systems (`PHASE3.md` §1, §4, §8-§10): the
@@ -221,8 +222,11 @@ final Phase 3 gate and therefore follows P3.22 and P3.23 despite its lower ID.
       fixed scenarios and explicit normal/accelerated time assumptions. Confirm
       the intentional rule that mothership warp requires recalling every vessel,
       despite otherwise per-vessel dispatch availability. This is a design-
-      review gate for P3.3-P3.13, P3.20, P3.22, and P3.23, not a promise to
-      implement every possible campaign feature.
+      review gate for P3.3-P3.13, P3.20, and P3.22-P3.24, not a promise to
+      implement every possible campaign feature. Incorporate README's five-zone
+      geography, search lifecycle, asteroid level/size formulas, and raider
+      counter/progression rules; resolve `PHASE3.md` §9's remaining search,
+      mining, and raider gates and model the proposed numeric curves.
 - [ ] **P3.2 — In-app local profile flow.** Replace launch-flag-only identity
       selection with a pre-load profile chooser that can create, select, and
       inspect local players in the shared persisted system. A profile may also
@@ -268,9 +272,9 @@ final Phase 3 gate and therefore follows P3.22 and P3.23 despite its lower ID.
       door, not P3.7 scope). Research and Shipyard upgrades unlock higher tiers
       (`vessel-2`, `vessel-3`) or specialized hulls within the existing faction
       and animation-state system; starter combat loadouts and a durable,
-      non-random component inventory support P3.11 before P6.2 adds the full
-      weapon economy. Vessel crews tie dispatch, mining, and combat capacity to
-      the player's crew pool. Needs P1.6, P3.4.
+      non-random kinetic/drone/plasma component inventory support P3.11 before
+      P6.2 adds the full weapon economy. Vessel crews tie dispatch, mining, and
+      combat capacity to the player's crew pool. Needs P1.6, P3.4.
 - [ ] **P3.8 — Expeditions + fuel economy.** Design and implement repeatable
       exploration, scouting, and salvage missions per `PHASE3.md` §5 P3.8 and
       §6.2's wire shape: a fixed relay-fragment first target with a guaranteed
@@ -285,6 +289,18 @@ final Phase 3 gate and therefore follows P3.22 and P3.23 despite its lower ID.
       authoritative awaiting-choice outcomes with expiry/default behavior and a
       durable first NPC contact that explains the Research Lab unlock and next
       route. Needs P3.1, P3.4, P3.7, P1.22.
+- [ ] **P3.24 — Searchable POIs + asteroid level progression.** Implement
+      `PHASE3.md` §6.14: mothership-centered search, reuse before spawning,
+      unused-POI expiry, reservation-safe offline settlement, footprint-safe
+      spawn/warp, and AOI-visible results. Replace seeded-field mining with
+      flavor + levels 1-12 + size tiers I-III: 600 base deposit, level doubling,
+      1/4/9 size multipliers, 9:3:1 occurrence weights, and 1 resource/second
+      starting extraction with research/vessel upgrades. Migrate existing saves,
+      deliver authoritative previews, define cargo/recall behavior, and update
+      the first mining objective. Radius (~50 tiles), expiry clock details, and
+      tuning require P3.1 approval. Supplies P3.11's raider search substrate;
+      permanent campaign landmarks retain their own lifecycle. Needs P3.1, P3.7,
+      P3.8. Lands before P3.9 and P3.11.
 - [ ] **P3.9 — Chapter-1 completion + branching handoff.** Complete the
       strict-linear chapter begun in P3.3: Command Module upgrade opens usable
       room slots; fixed relay-fragment expedition; Research Lab construction;
@@ -292,9 +308,9 @@ final Phase 3 gate and therefore follows P3.22 and P3.23 despite its lower ID.
       target-specific survey progress. Only then open Chapter 2's concurrent
       optional economy, research, and sector milestones. This composes existing
       systems; it does not create a second objective engine. Needs P3.3, P3.4,
-      P3.6, P3.8.
+      P3.6, P3.8, P3.24.
 - [ ] **P3.10 — NPC world schema + outer-sector vertical slice.** Turn P2.6's
-      radial bands and reserved central district into a data-driven solo-
+      four approach zones and reserved central district into a data-driven solo-
       progression model, then ship one complete outer-sector slice with an NPC
       contact, hazard, guarded route/resource, expedition target, moon/planet
       landmark, and capital clue (`PHASE3.md` §5 P3.10, §6.13). Campaign
@@ -305,17 +321,20 @@ final Phase 3 gate and therefore follows P3.22 and P3.23 despite its lower ID.
       P3.4, P3.7, P3.8, P2.6.
 - [ ] **P3.11 — PvE combat vertical slice.** Establish reusable combat rules
       (`PHASE3.md` §5 P3.11, §6.11): select a fitted vessel and starter
-      drone/troop loadout, dispatch it, and resolve authoritatively — no
-      real-time micromanagement. Legible previews (a named readiness tier plus a
-      numeric Power value, never replacing the underlying config/route detail),
-      damage and recovery, loss/failure without an unrecoverable save, and a
-      combat report that names the next adjustment on a loss. Basic dock-side
-      recovery belongs here; the specialized Repair Shop remains P6.4. Keep the
-      resolver opponent-agnostic so P3.12 can reuse it unmodified. Add the
-      player-initiated recurring solo challenge/boss/wave operation with the
-      arena's bounded daily ladder. Keep player raiding, contested player
-      asteroids, anti-cheat, and online concurrency in P6.3. Needs P3.7, P3.8,
-      P3.10.
+      kinetic/drone/plasma loadout, dispatch it, and resolve authoritatively —
+      no real-time micromanagement. Legible previews (a named readiness tier
+      plus a numeric Power value, never replacing the underlying config/route
+      detail), damage and recovery, loss/failure without an unrecoverable save,
+      and a combat report that names the next adjustment on a loss. Basic
+      dock-side recovery belongs here; the specialized Repair Shop remains P6.4.
+      Keep the resolver opponent-agnostic so P3.12 can reuse it unmodified. Add
+      the searchable solo-raider progression: starter-beatable level 1, victory
+      at N unlocks N+1, uncapped levels with 1.25x baseline difficulty growth,
+      and kinetic > plasma > drone > kinetic counters. Persist profile victory
+      credit exactly once; tune repeat/first-win rewards through P3.1 rather
+      than assuming the arena daily ladder. Authored bosses remain P3.23. Keep
+      player raiding, contested player asteroids, anti-cheat, and online
+      concurrency in P6.3. Needs P3.7, P3.8, P3.10, P3.24.
 - [ ] **P3.12 — Local asynchronous defense arena.** Add a same-device
       asynchronous PvP proof (`PHASE3.md` §5 P3.12, §6.12): a profile publishes
       an immutable defense snapshot (vessel loadout + crew assignment); another
@@ -326,9 +345,9 @@ final Phase 3 gate and therefore follows P3.22 and P3.23 despite its lower ID.
       copies an operational attacker's loadout and never dispatches, damages, or
       occupies either vessel. Reads across profiles but never mutates the
       defender — no looting, no live opponent, no shared-world contention. Wins
-      grant deterministic drone/troop components on a daily bounded reward
-      ladder (first free, progressively costlier, later attempts practice-only);
-      losses grant nothing material. Needs P3.2, P3.7, P3.11.
+      grant deterministic kinetic/drone/plasma components on a daily bounded
+      reward ladder (first free, progressively costlier, later attempts
+      practice-only); losses grant nothing material. Needs P3.2, P3.7, P3.11.
 - [ ] **P3.13 — Local campaign completion + ascension.** Give the sector a
       recognizable end condition — reaching the center and defeating a major
       threat — then offer a deliberately designed ascension loop (`PHASE3.md` §5
@@ -403,7 +422,8 @@ final Phase 3 gate and therefore follows P3.22 and P3.23 despite its lower ID.
       simultaneous multiplayer. Record raw sessions and pass/fail summaries in
       P3.1's versioned format; accelerated completion does not replace normal-
       time return-cadence samples. Needs the playable path through P3.2-P3.20,
-      plus P3.22 and P3.23.
+      plus P3.22-P3.24. Validate search expiry/AOI/warp behavior, mining cargo
+      and upgrade pacing, raider unlocks, and starter-loadout victories.
 
 ## Phase 4 — Networked server-authoritative events
 
@@ -479,7 +499,8 @@ exist.
       by a single solo action rather than an NPC-defended objective). Add shared
       projects, contribution attribution, cooperative NPC operations,
       reinforcement, and rally preparation here so alliance play has a positive
-      shared-purpose loop before adversarial PvP. Needs P5.1, P3.10, P3.11.
+      shared-purpose loop before adversarial PvP. P5.10 owns playable elite
+      raids and their progression/reward contract. Needs P5.1, P3.10, P3.11.
 - [ ] **P5.3 — Operations Center: fog of war / radar.** Tie map visibility and
       vessel speed to module level, shrinking P1.13's AOI projection to the
       player's radar while preserving owned/alliance exemptions. Needs P4.1,
@@ -507,6 +528,15 @@ exist.
       real-money purchase that grants gameplay power; cosmetics and non-powerful
       convenience remain open within that boundary. This decision must precede
       any real-money extension of P5.8; paid fleet capacity is out of bounds.
+- [ ] **P5.10 — Alliance elite PvE raids.** Build cooperative NPC encounters on
+      P5.2's rally foundation (`PHASE3.md` §11). Initiating elite level N
+      requires victory at elite N-1; level 1 is initially available. Alliance
+      members may join above their own initiation ceiling. Difficulty grows 1.5x
+      per level, separately from solo raiders. Decide assisted-win unlock
+      credit, scaled stats, participant limits, assembly/travel/abort rules,
+      reservations and expiry, offline resolution, rewards, and recoverable
+      losses before implementation. Needs P5.1, P5.2, P3.11, P3.24; no player
+      raiding or capital-control event is implied.
 
 ## Phase 6 — Weapons, PvP combat, and defence
 

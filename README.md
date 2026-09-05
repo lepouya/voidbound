@@ -72,13 +72,15 @@ game:
   mothership is constructed in space as they progress through the game, and is
   their "base" in traditional RTS terminology.
 - Hopeful colonization and discovery, not survival. The fiction is settlement,
-  survey, route-making, stewardship, and discovery — not hunger, temperature,
+  survey, route-making, stewardship, and discovery; not hunger, temperature,
   panic, or deprivation. Conflict is a consequence of expansion and scarce
   inner-system geography, not the opening fantasy.
 - Modules are the RTS "buildings": each serves a specific function and is
-  upgraded by its own criteria (see Ship design above).
+  upgraded by its own criteria.
 - Resources come from two places: production inside the base (bays, modules,
-  technologies) and mining external nodes spread across the map.
+  technologies) and mining external nodes spread across the map. Although there
+  is a third aspect of gaining other players' resources via combat or attacking
+  their ships.
 - Exactly 4 resources, to avoid information exhaustion: (a) construction
   material — from rocky or iron-rich asteroids, (b) high-tech materials — for
   electronics and reactors, from rare asteroids, (c) biological materials —
@@ -103,17 +105,12 @@ game:
   recoverable or inhabited planet ringed by Precursor Relay fragments
   (route/signal restoration) and a Helios Array (inner-system hazard/energy)
   distributed across the approach bands.
-- Asteroid mining: asteroids come in four classes matching the resource they
-  yield — rocky (construction), metallic (high-tech; the "rare" class), icy
-  (biological), and carbonaceous (fuel) — and three size tiers: small (1\*1
-  tiles, common, 15–60 min to mine out), medium (2\*2, uncommon, 1–4 h), and
-  large (3\*3, rare, 4–12 h). Mine-out time scales with the deposit at a shared
-  extraction rate. Each asteroid holds a single resource and hosts a single
-  mining vessel at a time. Mixed deposits and multiple miners are outside the
-  defined scope, but asteroid and mining schemas must permit a later explicit
-  extension. A dispatched vessel mines until the deposit is exhausted and then
-  returns on its own; recalling it early harvests proportionally to the time
-  spent extracting. Mined-out asteroids disappear from the map.
+- Asteroid mining follows the level, flavor, and size-tier rules in **Combat and
+  Exploration principles** below. One resource and one mining vessel per
+  asteroid; recall harvests extraction to date, and depleted nodes disappear.
+  Phase 3 replaces the existing seeded-field balance with searchable POIs
+  (`ROADMAP.md` P3.24). Mixed deposits and multiple miners remain later
+  extensions.
 - New players arrive in a fresh system alongside players who started around the
   same time, so nobody faces an impossible catch-up. Seasons keep those worlds
   alive as activity declines: after a time or milestone, remaining players move
@@ -126,10 +123,150 @@ game:
   expression, never an unbounded raw-power advantage over players who return in
   short sessions. Monetization must grant no gameplay power.
 
-For the order these land in development, see [ROADMAP.md](ROADMAP.md). For the
-full Phase 3+ gameplay design behind that roadmap — mechanic sketches,
-experience-pacing targets, and explicitly open decision gates — see
-[PHASE3.md](PHASE3.md).
+## Combat and Exploration principles
+
+Each star system map is a 1000*1000 tile map, broken into five square bands (we
+will call them "zones" here), culminating in a central area for the main capital
+objective (not a fifth material type):
+
+```
+(each box represents 100*100 tiles)
+┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+│ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 2 │ 2 │ 2 │ 2 │ 2 │ 2 │ 2 │ 2 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 2 │ 3 │ 3 │ 3 │ 3 │ 3 │ 3 │ 2 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 2 │ 3 │ 4 │ 4 │ 4 │ 4 │ 3 │ 2 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 2 │ 3 │ 4 │ 5 │ 5 │ 4 │ 3 │ 2 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 2 │ 3 │ 4 │ 5 │ 5 │ 4 │ 3 │ 2 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 2 │ 3 │ 4 │ 4 │ 4 │ 4 │ 3 │ 2 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 2 │ 3 │ 3 │ 3 │ 3 │ 3 │ 3 │ 2 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 2 │ 2 │ 2 │ 2 │ 2 │ 2 │ 2 │ 2 │ 1 │
+├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │ 1 │
+└───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘
+```
+
+New players start in zone 1, where the real estate is plenty, but the resources
+here are at the lowest grade. We can start warping in to the inner sections as
+we get stronger and get more materials. Phase 3 proves solo inward progression;
+alliance cooperation arrives in Phase 5.
+
+Finding points of interest for mining and combat: To avoid littering the map
+with non-player points of interest, we don't pre-populate the map with all of
+the mining and combat options, but instead provide a "search" option for players
+on the map to search for a specific level of a POI around their base (~50 tiles
+radius?) and either point them to one that already exists in that vicinity, or
+spawn a new one for them to use. If a spawned POI goes unused for 1 hour, it
+will automatically de-spawn. Players cannot warp on top of a spawned POI.
+
+There are three primary ways of obtaining resources by doing missions on the
+map:
+
+### 1. Mining
+
+Asteroids are minable resources, the base starting asteroid of level 1 at Tier I
+(small) asteroid has 600 of a resource and takes 10 minutes to mine, going at
+rate of 1 resource per second per asteroid. There are researches and upgrades
+that can speed up the mining process and they will be very necessary for higher
+level asteroids.
+
+Asteroids have 3 separate parameters to tune:
+
+#### Flavor
+
+This decides the contents of the asteroid:
+
+- "Rocky" (gives construction resource)
+- "Metallic" (high-tech resource)
+- "Icy" (biological resource)
+- "Carbonaceous" (for fuel resource)
+
+#### Level
+
+Asteroids come in level 1-12, the closer we get to the center, the higher level
+asteroids would spawn. Each level contains twice as much material as the level
+before it. The level distribution is:
+
+- Zone 1: Levels 1,2,3
+- Zone 2: Levels 4,5,6
+- Zone 3: Levels 7,8,9
+- Zone 4: Levels 10,11,12
+- Zone 5: No asteroid spawns
+
+As mentioned earlier, each level contains twice as much material as the level
+before it, so a level 1 asteroid would have 600 base resource, a level 2
+asteroid has 1200, until a level 12 contains 1,228,800 materials.
+
+#### Tier
+
+Asteroids come in 3 tiers for sizes:
+
+- Tier I - Small asteroid: Common. Appears 9/13 times (~69.23%). Spans a 1*1
+  area on the map. Has the base number of resources in it.
+- Tier II - Medium asteroid: Uncommon. Appears 3/13 times (~23.08%). Spans a 2*2
+  area on the map. Has 4x the amount of resources in it.
+- Tier III - Large asteroid: Rare. Appears 1/13 times (~7.69%). Spans a 3*3 area
+  on the map. Has 9x the amount of resources in it.
+
+A `Level 12 Tier III` asteroid would have 18,432x the materials of a
+`Level 1 Tier I` asteroid in it (and take that much longer to mine without
+upgrades!) and would probably be hotly contested.
+
+### 2. PvE combat
+
+Similar to asteroids, players can engage on 1-1 solo battles via their vessels
+with the raiders. Raiders have 2 separate parameters to tune:
+
+#### Level
+
+This is different than the leveling we saw on asteroid. The level of raiders is
+unbounded and can go as high as the player is able to fight, but in order to
+fight a raider at level N, you must have defeated the ones at level N-1 first.
+This puts a natural cap to how far you can push, and can even be bragging rights
+for comparison with others about your power level.
+
+Level 1 raiders are automatically unlocked at the beginning and should be easily
+beatable by the starting non-upgraded vessel and the basic units onboard. After
+that, each level raider gets 1.25x harder than the one before it.
+
+#### Flavor
+
+Similar to how we have 3 different types of combat units, raiders come in 3
+flavors, where their specialty weapon type is stronger than the other two:
+
+- Kinetic projectile weapons: Strong against laser, weak against drone.
+- Drone weapons: Strong against kinetic, weak against laser.
+- Plasma weapons (laser terminology remains provisional): Strong against drone,
+  weak against kinetic.
+
+### 3. PvE raid / elite enemies / group combat
+
+This mechanic only works after we have unlocked alliances and joined one. The
+elite enemies are much more difficult and require multiple players to join
+forces together to attack. The elite enemies follow the same leveling rule as
+PvE combat: You can only initiate a raid on one if you have already beaten the
+one at a lower level. However, a player is able to join a raid that another
+alliance-member has initiated that is beyond their own max level. This is the
+main mechanic where higher-level alliance members can help lift the lower level
+players and spirit of team work. The elite raid enemies get more difficult at a
+sharper rate than the normal enemies, each level being 1.5x harder than the
+level before.
+
+These are design targets, not a description of the current implementation.
+`PHASE3.md` §6.14 records the POI lifecycle and mining integration, §6.11 the
+solo-raider contract, and §9 the remaining decisions. The approximate search
+radius remains open; the numeric growth curves are inputs to P3.1's simulation,
+not evidence that campaign pacing is balanced. Expeditions remain the separate
+discovery/relationship loop alongside these resource missions; alliance elite
+raids arrive with P5.10, not the local Phase 3 campaign.
 
 ## Running
 
@@ -148,17 +285,16 @@ deno task dev:app
 Local-development startup controls:
 
 - `--player <name>` selects (or creates) a local profile.
-- `--time-scale <factor>` runs local scheduler timers at a positive speed
-  multiplier (for example, `60`); it affects new durations and live production
-  cadence without rewriting existing deadlines.
-- `--list-players` prints saved local profiles and their Command Module levels,
-  then exits.
-- `--reset-player <name>` destructively recreates and selects one profile while
-  preserving the shared local world and other profiles.
-- `--reset-system` destructively replaces every local profile and all world
-  progress with the deterministic fresh system.
+- `--time-scale <factor>` runs local scheduler timers at a speed multiplier
+  (e.g. `60`); it affects new durations and live production rate without
+  rewriting existing deadlines.
+- `--list-players` prints saved local profiles and their Command Module levels.
+- `--reset-player <name>` recreates and selects the profile while preserving the
+  shared local world and other profiles.
+- `--reset-system` replaces every local profile and all world progress with a
+  fresh system.
 
-The reset controls are startup-only and local; they are not gameplay actions or
+The reset controls are startup only and local; they are not gameplay actions or
 part of the online protocol.
 
 ### Other platforms
@@ -170,3 +306,11 @@ deno task tauri android dev
 deno task tauri ios init
 deno task tauri ios dev
 ```
+
+## Implementation details
+
+- [ROADMAP.md](ROADMAP.md) for the order and task/phase planning in development.
+- [SERVER.md](SERVER.md) for the server architecture and multiplayer pattern.
+- [PHASE3.md](PHASE3.md) for the full Phase 3+ gameplay design behind that
+  roadmap — mechanic sketches, experience-pacing targets, and explicitly open
+  decision gates
