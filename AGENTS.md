@@ -276,7 +276,9 @@ Useful protected members: `grid`, `tilemap` (null in geometry-only scenes),
 `handleTilePressed`, `pendingActor`, `suppressNextPointerUp`, `deselectActor()`,
 `panCameraTo(x, y)`, `registerHudTarget(target)` — enrolls a custom screen-space
 widget (e.g. the minimap) into HUD tap dispatch and resize relayout —
-`addHudGroup(def)`, `addCommonHud(switchButton)` — spawns the standard Shop +
+`addHudGroup(def)`, `addCommonHud(switchButton, context)` — context is `"ship"`
+(default: construction/high-tech/biological + crew) or `"map"` (fuel); tapping a
+readout opens the live Resources & Crew overview. Spawns the standard Shop +
 scene-switch/Mail/Items HUD around the given scene-switch button; prefer it over
 redefining those groups per scene — `openDialog(def)` / `closeDialog()` — the
 modal layer (ROADMAP P1.14): one dialog at a time, all pointer input captured
@@ -293,6 +295,19 @@ that never capture input, cleared on scene switch; pass a string for info or an
 wiring, `main.ts` registration, and HUD setup.
 
 ### Startup / loader phase
+
+P3.2's normal launch holds the save lock in `LocalProfiles` without a gameplay
+server. `GameStateResource` calls `ensureLocalProfile()` before requesting the
+snapshot: a native DOM chooser supports text input while the shared loader loads
+assets. Waiting for a human choice is intentional; initial IPC failures enter
+the existing load-failure/Retry path. The public list contains only identity and
+saved Command Module level. `request_begin_local_profile` verifies
+select/create, persists the profile, installs `GameServer`, and starts its
+scheduler exactly once. CLI player/reset/recovery controls bypass the chooser,
+while `--time-scale` alone keeps it. The response and webview-reload bootstrap
+use the same revisioned identity via `LocalProfileState.applyLocalProfileEvent`;
+mid-session switching is refused. P3.12 owns opt-in defense publishing
+separately; do not expose private profile state through the chooser.
 
 Startup-time backend work (game-state sync, the P4.6 login flow) must ride the
 shared Excalibur `loader` as an `ex.Loadable` (see `GameStateResource` in

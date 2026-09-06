@@ -73,13 +73,16 @@ export class MapLevel extends TiledScene {
     // space-dark backdrop — asteroids and motherships are the landmarks
     // (a real starfield is later art work).
     this.backgroundColor = ex.Color.fromHex("#060913");
-    this.addCommonHud(squareButton({
-      icon: "shipview",
-      width: 64,
-      height: 64,
-      label: "Ship",
-      onPressed: () => engine.goToScene("ship"),
-    }));
+    this.addCommonHud(
+      squareButton({
+        icon: "shipview",
+        width: 64,
+        height: 64,
+        label: "Ship",
+        onPressed: () => engine.goToScene("ship"),
+      }),
+      "map",
+    );
     // The backend state may load (or a future login complete) after this
     // scene is built — reconcile mothership, asteroid, and vessel actors
     // against the refreshed tables on every notify. Motherships first:

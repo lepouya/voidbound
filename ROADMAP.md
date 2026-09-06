@@ -227,14 +227,11 @@ lands before P3.9/P3.11; IDs remain stable rather than being renumbered.
       geography, search lifecycle, asteroid level/size formulas, and raider
       counter/progression rules; resolve `PHASE3.md` §9's remaining search,
       mining, and raider gates and model the proposed numeric curves.
-- [ ] **P3.2 — In-app local profile flow.** Replace launch-flag-only identity
-      selection with a pre-load profile chooser that can create, select, and
-      inspect local players in the shared persisted system. A profile may also
-      publish a defense snapshot for P3.12's local asynchronous arena
-      (`PHASE3.md` §5 P3.2) — design for that from day one. Identity remains
-      fixed after the game loads and only one local process/session owns the
-      world at a time: this is asynchronous same-device play, not simultaneous
-      LAN multiplayer. Preserve the P2.10 developer CLI controls.
+- [x] **P3.2 — In-app local profile flow.** Pre-load chooser lists profile names
+      and saved Command Module levels, then creates or selects one fixed local
+      session identity while holding the shared-system lock. CLI
+      player/reset/recovery controls remain direct-start options. Still open:
+      opt-in defense publication → P3.12.
 - [ ] **P3.3 — Objectives, rewards, and first-run onboarding.** Add persistent,
       event-modeled objectives that make the next useful action visible and
       grant authoritative rewards (`PHASE3.md` §6.1 defines the shared wire
@@ -371,10 +368,9 @@ lands before P3.9/P3.11; IDs remain stable rather than being renumbered.
       100\*100 AOI window; zoomed fully out, show the 1000\*1000 system with
       player/NPC markers, regions, objectives, and interest-area outlines but
       omit individual asteroids. Needs P1.9, P1.13, P3.3, P3.10.
-- [ ] **P3.16 — Context-sensitive resource bar + detail dialog.** On the ship,
-      show the three construction materials plus crew; on the map, show fuel.
-      Tapping either group opens the complete resource/cap/production breakdown.
-      Needs P1.2, P1.10, P1.11.
+- [x] **P3.16 — Context-sensitive resource bar + detail dialog.** Ship shows
+      construction, high-tech, biological, and crew; map shows fuel. Any readout
+      opens a live resource, storage, production, and crew overview.
 - [ ] **P3.17 — Per-type module art and tiered visual progression.** Replace the
       shared `module-base` placeholders with bespoke 64-frame animated vector
       rooms across the current catalog and Phase 3's Research Lab and Vessel

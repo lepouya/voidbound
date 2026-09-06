@@ -22,11 +22,7 @@ import {
 import { TileGridGeometry } from "./grid-math.ts";
 import { SceneCamera } from "./scene-camera.ts";
 import { SceneInputController } from "./scene-input.ts";
-import {
-  gameState,
-  RESOURCE_KINDS,
-  ResourceKind,
-} from "../state/game-state.ts";
+import { gameState, ResourceKind } from "../state/game-state.ts";
 import { storageThreshold } from "../state/storage-threshold.ts";
 import { formatNotification, MailDialog } from "./mail-dialog.ts";
 import { currentLoadFailure } from "../state/game-state-loader.ts";
@@ -41,19 +37,9 @@ import {
 } from "../ship/module-catalog.ts";
 import { TileActor } from "./tile-actor.ts";
 
-/**
- * Tileset (ui-icon-* PNG) for each resource's icon — the bar readouts here
- * plus the deal-shop rows (ship-level.ts). Icon art is generated from
- * art/ui/icons/*.svg by art/gen_ui.sh; the "credits" icon keeps its working
- * name even after the currency's display name settles (see game-state.ts).
- */
-export const RESOURCE_ICON_TILESET: Record<ResourceKind, string> = {
-  construction: "ui-icon-construction",
-  highTech: "ui-icon-hightech",
-  biological: "ui-icon-biological",
-  fuel: "ui-icon-fuel",
-  credits: "ui-icon-credits",
-};
+import { ResourceDetailsDialog } from "./resource-details.ts";
+import { RESOURCE_ICON_TILESET } from "./resource-summary.ts";
+export { RESOURCE_ICON_TILESET } from "./resource-summary.ts";
 
 /**
  * What buildMap() resolves to: the scene's grid geometry, optionally backed
@@ -598,12 +584,20 @@ export abstract class TiledScene extends ex.Scene {
    */
   protected addCommonHud(
     switchButton: HudButtonDef,
+    context: "ship" | "map" = "ship",
   ): {
     resourceBar: HudGroupHandle;
     topRight: HudGroupHandle;
     bottomRight: HudGroupHandle;
   } {
-    // Resource bar (ROADMAP P1.2): one icon per ResourceKind with its count
+    // P3.16: scene-specific readouts open the complete shared overview.
+    const details = new ResourceDetailsDialog({
+      openDialog: (def) => this.openDialog(def),
+    });
+    const kinds: readonly ResourceKind[] = context === "ship"
+      ? ["construction", "highTech", "biological"]
+      : ["fuel"];
+    // Each visible icon shows its count
     // below, kept live via the gameState subscription. Scenes live for the
     // whole app run, so the subscription is deliberately never torn down
     // (see GameState.subscribe). The zero labelOffset cancels the default
@@ -637,7 +631,7 @@ export abstract class TiledScene extends ex.Scene {
         labelOffset: ex.vec(0, 0),
       };
     };
-    // Crew rides the bar as a sixth readout (ROADMAP P1.10): head count over
+    // Crew rides the ship bar: head count over
     // total berths, the berths display-derived from the module snapshot like
     // the storage caps — the backend does the actual hire verification.
     const crewLabel = (): LabelDef => ({
@@ -646,35 +640,37 @@ export abstract class TiledScene extends ex.Scene {
       }`,
       labelOffset: ex.vec(0, 0),
     });
-    const CREW_INDEX = RESOURCE_KINDS.length;
+    const CREW_INDEX = kinds.length;
     const initialCaps = resourceCaps();
     const resourceBar = this.addHudGroup({
       anchor: "top-left",
       direction: "right",
-      gap: 16,
+      gap: 40,
       buttons: [
-        ...RESOURCE_KINDS.map((kind) => ({
+        ...kinds.map((kind) => ({
           tile: `${RESOURCE_ICON_TILESET[kind]}:0`,
           width: 22,
           height: 22,
           label: resourceLabel(kind, initialCaps[kind]),
-          onPressed: () => console.log(`resource ${kind}`),
+          onPressed: () => details.open(),
         })),
-        {
-          tile: "ui-icon-crew:0",
-          width: 22,
-          height: 22,
-          label: crewLabel(),
-          onPressed: () => console.log("crew"),
-        },
+        ...(context === "ship"
+          ? [{
+            tile: "ui-icon-crew:0",
+            width: 22,
+            height: 22,
+            label: crewLabel(),
+            onPressed: () => details.open(),
+          }]
+          : []),
       ],
     });
     gameState.subscribe(() => {
       const caps = resourceCaps();
-      RESOURCE_KINDS.forEach((kind, i) =>
+      kinds.forEach((kind, i) =>
         resourceBar.setLabel(i, resourceLabel(kind, caps[kind]))
       );
-      resourceBar.setLabel(CREW_INDEX, crewLabel());
+      if (context === "ship") resourceBar.setLabel(CREW_INDEX, crewLabel());
     });
 
     // Top-right is just Shop for now — the Events slot (P7.1's curated-content

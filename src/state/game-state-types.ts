@@ -13,6 +13,18 @@ export interface PlayerIdentity {
   readonly name: string;
 }
 
+/** Public pre-game local profile projection; mirrors local_profiles.rs.
+ * No resources, timers, or campaign state are exposed to the chooser. */
+export interface LocalProfileSummary {
+  name: string;
+  commandLevel: number;
+}
+
+export interface LocalProfilesData {
+  profiles: LocalProfileSummary[];
+  selected: Revisioned<PlayerIdentity> | null;
+}
+
 /**
  * Authoritative wire envelope shared by snapshots, command responses, and
  * pushes. The Rust server advances one global revision at each state-lock

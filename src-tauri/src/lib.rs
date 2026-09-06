@@ -38,26 +38,31 @@ pub fn run() {
                 return Ok(());
             }
             game_state::configure_time_scale(startup.time_scale)?;
-            let server = GameServer::open(
-                save_path,
-                startup.player,
-                startup.restore_backup,
-                startup.reset,
-                game_state::now_ms(),
-            )?;
-            app.manage(server);
+            if let Some(player) = startup.player {
+                let server = GameServer::open(
+                    save_path,
+                    player,
+                    startup.restore_backup,
+                    startup.reset,
+                    game_state::now_ms(),
+                )?;
+                app.manage(game_state::LocalProfiles::selected(&server)?);
+                app.manage(server);
+                let handle = app.handle().clone();
+                std::thread::spawn(move || game_state::run_scheduler(handle));
+            } else {
+                app.manage(game_state::LocalProfiles::open(save_path)?);
+            }
             let scale = game_state::time_scale();
             if scale != 1.0 {
                 println!("--time-scale {scale} — scheduler timers running {scale}x speed");
             }
-            // The push scheduler (game_state::run_scheduler) settles due
-            // state and emits server-push events for the app's lifetime.
-            let handle = app.handle().clone();
-            std::thread::spawn(move || game_state::run_scheduler(handle));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             map::generate_map,
+            game_state::get_local_profiles,
+            game_state::request_begin_local_profile,
             game_state::load_game_state,
             game_state::reset_local_system,
             game_state::request_map_window,
@@ -85,7 +90,7 @@ pub fn run() {
 }
 
 struct StartupConfig {
-    player: String,
+    player: Option<String>,
     time_scale: f64,
     restore_backup: Option<usize>,
     reset: Option<StartupReset>,
@@ -151,9 +156,7 @@ fn startup_config(matches: Matches) -> Result<StartupConfig, String> {
     } else {
         None
     };
-    let player = reset_player
-        .or(explicit_player)
-        .unwrap_or_else(|| "Player 1".to_string());
+    let player = reset_player.or(explicit_player);
     let mut time_scale = 1.0;
     let mut restore_backup = None;
     if let Some(raw) = matches
@@ -179,9 +182,13 @@ fn startup_config(matches: Matches) -> Result<StartupConfig, String> {
                 .ok_or_else(|| "--restore-backup must be an integer in 1..=5".to_string())?,
         );
     }
-    if player.is_empty() {
+    if player.as_ref().is_some_and(|name| name.is_empty()) {
         return Err("--player must not be empty".to_string());
     }
+    // Preserve the historical default identity for destructive/recovery CLI
+    // controls. Normal launches (including --time-scale alone) show the chooser.
+    let player = player
+        .or_else(|| (reset.is_some() || restore_backup.is_some()).then(|| "Player 1".to_string()));
     Ok(StartupConfig {
         player,
         time_scale,
@@ -197,4 +204,53 @@ fn boolean_flag(matches: &Matches, name: &str) -> bool {
         .get(name)
         .and_then(|argument| argument.value.as_bool())
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+    use tauri_plugin_cli::ArgData;
+
+    fn matches(args: &[(&str, Value)]) -> Matches {
+        let mut matches = Matches::default();
+        for (name, value) in args {
+            let mut data = ArgData::default();
+            data.value = value.clone();
+            data.occurrences = 1;
+            matches.args.insert((*name).to_string(), data);
+        }
+        matches
+    }
+
+    #[test]
+    fn normal_startup_and_time_scale_show_the_profile_chooser() {
+        let normal = startup_config(matches(&[])).unwrap();
+        assert_eq!(normal.player, None);
+        assert_eq!(normal.time_scale, 1.0);
+
+        let scaled =
+            startup_config(matches(&[("time-scale", Value::String("4".to_string()))])).unwrap();
+        assert_eq!(scaled.player, None);
+        assert_eq!(scaled.time_scale, 4.0);
+    }
+
+    #[test]
+    fn explicit_and_recovery_cli_controls_keep_direct_player_startup() {
+        let explicit =
+            startup_config(matches(&[("player", Value::String("Ada".to_string()))])).unwrap();
+        assert_eq!(explicit.player.as_deref(), Some("Ada"));
+
+        let restore = startup_config(matches(&[(
+            "restore-backup",
+            Value::String("2".to_string()),
+        )]))
+        .unwrap();
+        assert_eq!(restore.player.as_deref(), Some("Player 1"));
+        assert_eq!(restore.restore_backup, Some(2));
+
+        let reset = startup_config(matches(&[("reset-system", Value::Bool(true))])).unwrap();
+        assert_eq!(reset.player.as_deref(), Some("Player 1"));
+        assert_eq!(reset.reset, Some(StartupReset::System));
+    }
 }

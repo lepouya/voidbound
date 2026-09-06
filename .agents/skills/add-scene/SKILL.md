@@ -43,7 +43,7 @@ export class <Name>Level extends TiledScene {
       height: 64,
       label: "<Label>",
       onPressed: () => engine.goToScene("<other-scene>"),
-    });
+    }, "<ship-or-map>"); // ship: materials + crew; map: fuel
 
     // Scene-specific groups go through addHudGroup — HudButtonDef entries,
     // see src/ui/hud.ts.
@@ -89,9 +89,11 @@ export class <Name>Level extends TiledScene {
 
 - `super.onInitialize(engine)` must be called **before** any `addCommonHud` /
   `addHudGroup` call — both depend on `engineRef` which `super` sets.
-- Use `addCommonHud(switchButton)` for the standard HUD instead of redefining
-  the Shop and scene-switch/Mail/Items groups; only the scene-switch button def
-  is scene-specific. Reserve `addHudGroup` for groups unique to the scene.
+- Use `addCommonHud(switchButton, context)` for the standard HUD instead of
+  redefining the Shop and scene-switch/Mail/Items groups. Choose `"ship"` for
+  construction/high-tech/biological plus crew, or `"map"` for fuel; only the
+  scene-switch button def is otherwise scene-specific. Reserve `addHudGroup` for
+  groups unique to the scene.
 - Every `TileActor` you create in `setupActors` should receive
   `onPressed: onTilePressed` and
   `edgeFallthrough: this.supportsEmptyTileActor()` so taps route correctly

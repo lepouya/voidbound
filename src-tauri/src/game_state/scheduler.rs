@@ -72,6 +72,19 @@ impl GameServer {
                 },
             }
         };
+        Self::from_loaded(save_store, loaded, player_name, startup_reset, now_ms)
+    }
+
+    /// The chooser already owns the save lock and has read recovery once.
+    /// Reuse that exact envelope: reading again after quarantine could mistake
+    /// a recovered system for a fresh one.
+    pub(super) fn from_loaded(
+        save_store: Arc<SaveStore>,
+        loaded: Option<SaveEnvelopeV1>,
+        player_name: String,
+        startup_reset: Option<StartupReset>,
+        now_ms: u64,
+    ) -> Result<Self, String> {
         let saved_at = loaded.as_ref().map(|envelope| envelope.saved_at);
         let is_fresh_system = loaded.is_none();
         let session_player = player_name.clone();
@@ -133,6 +146,8 @@ impl GameServer {
             }
             None => {}
         }
+        // Startup recovery/profile creation is an authoritative boundary too.
+        state.advance_revision();
         let server = Self {
             state: Mutex::new(state),
             save_store,
@@ -142,6 +157,13 @@ impl GameServer {
         };
         server.persist()?;
         Ok(server)
+    }
+
+    pub(super) fn selected_profile(
+        &self,
+    ) -> Result<Revisioned<super::state::PlayerIdentity>, String> {
+        let state = self.state.lock().map_err(|error| error.to_string())?;
+        Ok(Revisioned::new(state.revision, state.player.clone()))
     }
 
     pub(crate) fn list_players(save_path: PathBuf) -> Result<Vec<LocalPlayerSummary>, String> {

@@ -20,3 +20,111 @@
     background-color: #2f2f2f;
   }
 }
+
+.profile-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 40000;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #060913;
+  color: #eff6ff;
+}
+
+.profile-picker-panel {
+  width: 100%;
+  max-width: 390px;
+  margin: auto;
+}
+
+.profile-picker h1 {
+  color: #00d2ff;
+  font-size: 28px;
+  line-height: 1.25;
+  margin: 0 0 12px;
+}
+
+.profile-picker p {
+  color: #9ab0c8;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.profile-picker-list {
+  display: grid;
+  gap: 10px;
+  max-height: 36vh;
+  overflow-y: auto;
+  margin: 24px 0;
+  padding: 3px;
+}
+
+.profile-picker button,
+.profile-picker input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #1685a4;
+  border-radius: 8px;
+  padding: 12px;
+  background: #101c30;
+  color: #eff6ff;
+  font: inherit;
+}
+
+.profile-picker button {
+  cursor: pointer;
+}
+
+.profile-picker button:hover {
+  background: #16334a;
+}
+
+.profile-picker button:focus-visible,
+.profile-picker input:focus-visible {
+  outline: 2px solid #00d2ff;
+  outline-offset: 2px;
+}
+
+.profile-picker button:disabled,
+.profile-picker input:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.profile-picker-list button {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.profile-picker-list strong,
+.profile-picker-list span {
+  display: block;
+}
+
+.profile-picker-list span {
+  color: #9ab0c8;
+  font-size: 12px;
+}
+
+.profile-picker form {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-picker label {
+  font-size: 14px;
+}
+
+.profile-picker form button {
+  border-color: #00d2ff;
+}
+
+.profile-picker .profile-picker-status {
+  min-height: 3em;
+  overflow-wrap: anywhere;
+  color: #e8b23a;
+}

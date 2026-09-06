@@ -148,13 +148,24 @@ crew-demanding modules start unassigned. The Trading Post's catalog demand is
 exactly one head at every level, and its deal actions verify that operator is
 assigned.
 
-Phase 2 has one local persistent system containing multiple developer players.
-`--player <name>` selects a session identity at startup; names are trimmed,
-matched case-insensitively, and created on first use. A session identity never
-changes mid-run. The local process holds exclusive ownership of the save — no
-attempt is made to synchronize two Tauri backends. Creating a player is an
-atomic system mutation that adds their profile and a deterministic, in-bounds
-mothership spawn clear of existing ships and asteroids.
+The local persistent system contains multiple profiles. P3.2's normal startup
+holds the exclusive save lock without creating a default player or starting
+`GameServer`. `get_local_profiles` exposes only names and saved Command Module
+levels. `request_begin_local_profile(name, create)` validates selection or
+creation, recovers the chosen session from the already-loaded envelope, persists
+it, and installs the gameplay server/scheduler once. Repeated requests for the
+same selected identity return its original revisioned selection event; requests
+for a different identity fail. The gameplay snapshot retains its usual player
+field. No new durable fields or save migration are needed: the bootstrap
+selection is session-only and profiles retain the existing validated save shape.
+Defense publication remains P3.12's separate opt-in cross-profile boundary.
+
+Explicit `--player <name>` bypasses the chooser; names are trimmed, matched
+case-insensitively, and created on first use. A session identity never changes
+mid-run. The local process holds exclusive ownership of the save — no attempt is
+made to synchronize two Tauri backends. Creating a player is an atomic system
+mutation that adds their profile and a deterministic, in-bounds mothership spawn
+clear of existing ships and asteroids.
 
 `--time-scale <factor>` and `--restore-backup <1..5>` are development-only
 startup controls. Time scale never reaches an online server or rewrites existing

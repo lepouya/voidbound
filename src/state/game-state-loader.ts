@@ -11,6 +11,7 @@ import {
   ServerPush,
 } from "./game-state.ts";
 import { loadAfterListenerReady } from "./game-state-loader-order.ts";
+import { ensureLocalProfile } from "./local-profile-picker.ts";
 import { applyBalanceCatalog } from "./balance-catalog.ts";
 
 /**
@@ -103,6 +104,7 @@ export async function attemptGameStateLoad(
 ): Promise<LoadFailure | null> {
   let snapshot: Revisioned<GameStateData>;
   try {
+    await ensureLocalProfile();
     snapshot = beforeFirstRequest
       ? await loadAfterListenerReady(
         beforeFirstRequest,

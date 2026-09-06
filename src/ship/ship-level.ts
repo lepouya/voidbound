@@ -38,13 +38,16 @@ export class ShipLevel extends TiledScene {
   override onInitialize(engine: ex.Engine): void {
     super.onInitialize(engine);
     this.backgroundColor = ex.Color.Black;
-    this.addCommonHud(squareButton({
-      icon: "mapview",
-      width: 64,
-      height: 64,
-      label: "Map",
-      onPressed: () => engine.goToScene("map"),
-    }));
+    this.addCommonHud(
+      squareButton({
+        icon: "mapview",
+        width: 64,
+        height: 64,
+        label: "Map",
+        onPressed: () => engine.goToScene("map"),
+      }),
+      "ship",
+    );
     // The backend state may load (or a future login complete) after this
     // scene is built — reconcile module actors (Command Module included)
     // against the refreshed table on every notify. No unsubscribe: scenes

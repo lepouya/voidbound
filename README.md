@@ -282,7 +282,14 @@ Run in dev mode:
 deno task dev:app
 ```
 
-Local-development startup controls:
+Normal launches show a local profile chooser. Select a saved profile or create
+one with a name (up to 40 characters). Names match case-insensitively. The list
+shows names and saved Command Module levels; offline progress settles after
+selection. Identity stays fixed until relaunch, including across webview
+reloads.
+
+Local-development startup controls (explicit player/reset/recovery options
+bypass the chooser; `--time-scale` alone keeps it):
 
 - `--player <name>` selects (or creates) a local profile.
 - `--time-scale <factor>` runs local scheduler timers at a speed multiplier
